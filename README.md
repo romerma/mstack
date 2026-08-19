@@ -115,6 +115,7 @@ append-only and never edited; if an entry turned out to be wrong, a later one sa
 | `mstack decide` | One row per decision, append-only |
 | `mstack worktree new\|list\|prune` | Including the prune that nobody ever gets round to |
 | `mstack merge-gate <pr>` | Exit 0 go, 1 wait, 2 stop |
+| `mstack fanout plan\|check` | Allocates a report path per parallel worker, then names the ones that did not return |
 | `mstack statusline` | One line of session state, for your `statusLine` setting |
 | `mstack lint-plugin` | Validates the prose: front matter, links, size caps, single source of truth |
 
