@@ -13,6 +13,11 @@
 #         no-op on versions where it is already the default, so passing it
 #         unconditionally widens support instead of narrowing it.
 #
+# --disable-warning is not cosmetic. On 22.6 the type stripper prints
+# "ExperimentalWarning" to stderr on every single invocation, which for the
+# PostToolUse hook means noise on every edit. Verified on 22.6.0: the flag is
+# accepted there and the warning stops.
+#
 # NODE_COMPILE_CACHE is what makes running source directly cheap. Measured on an
 # M-series Mac, the post-edit hook costs 48ms uncached and 23.8ms cached, against
 # 21.5ms for a pre-bundled file. Two milliseconds is not worth a build artifact
@@ -45,7 +50,7 @@ if command -v node >/dev/null 2>&1; then
   # such as a plain Bash tool call rather than a hook process.
   NODE_COMPILE_CACHE="${CLAUDE_PLUGIN_DATA:-$HOME/.cache/mstack}/node-compile-cache"
   export NODE_COMPILE_CACHE
-  exec node --experimental-strip-types "$cli" "$@"
+  exec node --disable-warning=ExperimentalWarning --experimental-strip-types "$cli" "$@"
 fi
 
 echo "mstack: needs bun, or node 22.6 or newer, and found neither on PATH." >&2

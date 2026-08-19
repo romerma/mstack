@@ -37,3 +37,20 @@ jobs:
       - name: The example repository's own suite
         working-directory: examples/notes-cli
         run: python3 -m unittest discover -s tests -t . -q
+
+  # The launcher claims node 22.6 and newer. A claim nothing runs is a claim,
+  # and this plugin is about the difference. --experimental-strip-types is a
+  # silent no-op where stripping is already the default, so passing it always
+  # widens support down to here rather than narrowing it.
+  oldest-node:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.6"
+      # No bun on this runner, so the launcher takes the node branch it exists
+      # for. Verified locally on 22.6.0: 112/112, and stderr stays clean because
+      # of --disable-warning.
+      - run: ./bin/mstack help
+      - run: node --disable-warning=ExperimentalWarning --experimental-strip-types --test 'tests/*.test.ts'
