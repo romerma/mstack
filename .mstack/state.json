@@ -19,10 +19,11 @@
         "It never blocks a turn: any failure prints nothing and exits 0",
         "README documents how a user wires it up, including that a plugin cannot register one on its own if that turns out to be true"
       ],
-      "status": "reviewing",
+      "status": "done",
       "description": "The store already holds everything a statusline needs. Every turn currently shows the model and the cwd, and nothing about the work.",
       "source": "gap list, 2026-08-19",
-      "verification": "node --test 'tests/statusline.test.ts'"
+      "verification": "node --test 'tests/statusline.test.ts'",
+      "closed_by": "Review panel: 4 reviewers, all CHANGES_REQUESTED, every finding reproduced and fixed with a mutation-verified test"
     },
     {
       "id": 2,
