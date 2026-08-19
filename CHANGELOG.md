@@ -4,7 +4,7 @@
 
 First release.
 
-- `/mstack` router over ten playbooks, plus eleven phase skills the router chains.
+- `/mstack` router over seven playbooks, plus eleven phase skills the router chains.
 - Opt-in spec path, triggered by `sdd`, `decision_required`, or a cross-cutting change.
 - Five agents. `orchestrator`, `spec-reviewer` and `reviewer` ship without `Write` or `Edit`,
   so no pass can approve its own work.
@@ -25,7 +25,7 @@ First release.
 - The status line parses its arguments leniently, because a typo in a user's settings.json must
   not turn the bar into an error message. Everywhere else a typo stays loud, and `state list`,
   `state active` and `ledger summary` now reject stray arguments instead of ignoring them.
-- 156 tests, run under both `bun test` and `node --test`, plus a CI job pinned to node 22.6.
+- 167 tests, run under both `bun test` and `node --test`, plus a CI job pinned to node 22.6.
 
 ### Found by the review panel, before the first release
 
@@ -54,5 +54,48 @@ pass over the whole plugin. Everything below was reproduced before being fixed.
 - The linter checked `mstack:` cross-references in skills and agents only, leaving the playbooks
   where those names are actually written — the same scope bug already fixed for links.
 - Colour was unverified everywhere: repainting a passing verdict red left every test green.
+
+### Found by the second panel
+
+Two more reviewers on the fork gate and on the plugin as a whole. Twenty-six findings, every one
+reproduced here before being fixed. The pattern they named: the enforcement points were real, the
+floors on what satisfies them were not — an `sdd` item could reach `done` with `PASSED` and exit 0
+having proven nothing.
+
+- **`closed_by` relocated.** The gate never read the ledger's `verifier` column while
+  `agents/implementer.md` tells the implementer to record `--verifier implementer`, so the pass
+  that wrote the code closed the item — inside the check built to stop exactly that.
+- `Number.parseInt` stops at the first non-digit, so `mstack state set 2fa-login` moved whichever
+  item happened to be id 2, and `mstack decide --resolves 2fa` attached reasoning to another
+  item's fork. Both exited 0.
+- `mstack state add` never checked the slug it was handed, so one command wrote a `state.json`
+  its own parser rejects, with no CLI route back. The shape check guarded the read path while the
+  writer walked past it.
+- `mstack setup --force` emptied the work queue and reported success, leaving ledger rows pointing
+  at items that no longer existed.
+- Half of "keyed by `(target, sha)`" was unvalidated: forty zeros recorded fine and read back
+  indistinguishable from a real commit. `evidence` needed one character.
+- A product fork was answered by the letters `x` and `y`, because `--why` and `--evidence` were
+  optional and no column said which fork a row was about. Twelve concurrent `decide` calls
+  produced eight distinct timestamps, so the key was not a key.
+- `mstack worktree prune` used `git status --porcelain`, which excludes gitignored files by
+  definition, so a worktree holding a `.env` reported clean and was deleted. It also offered the
+  worktree you are standing in.
+- In the merge gate, a `StatusContext` of `ERROR` or `EXPECTED` passed through as green. Anything
+  unrecognised now stops the merge.
+- Prose corrected where it was false: the README claimed the `Stop` hook "never burns the
+  eight-block budget" when the hooks reference says `additionalContext` keeps the same loop
+  protections; a guard comment claimed `-d --force` was covered when the pattern did not cover it;
+  the fan-out error said the excess "queues silently" when spawning past the cap fails outright.
+
+### Deliberately not shipped
+
+- A plugin `settings.json` with `subagentStatusLine`. A plugin may ship one, but neither
+  `${CLAUDE_PLUGIN_ROOT}` nor the plugin's `bin/` is documented as reaching that file, so the
+  command could not name its own script. The renderer ships as `mstack statusline --subagent` and
+  the README documents wiring it from settings a user controls.
+
+### Runtime
+
 - No build step and no committed artifact: `src/` is what ships and what runs, kept cheap
   with `NODE_COMPILE_CACHE`.
