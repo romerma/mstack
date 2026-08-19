@@ -1,0 +1,180 @@
+# Implementation report - readme-and-wiki (item 9)
+
+## What changed
+
+The README was rewritten as an on-ramp: the lineage and the credit to Lauren Tan (poteto) on
+the first screen, a numbered quickstart, and a first-item tour whose five command blocks and
+two refusals are pasted from a real run in a scratch repository. A wiki now exists as eleven
+reviewable files under `docs/wiki/`: Home, Getting-Started (clone to first closed item, every
+block followed by its live output), The-Story (the lineage and credit page, every claim traced
+to `docs/research/pstack-port.md`), How-A-Work-Item-Flows (the `TRANSITIONS` table quoted from
+`src/lifecycle.ts`, the fork gate with real refusals, the example repo walked item by item),
+Gates-and-Hooks (the five hooks, the guard list, a green gate walked line by line, the merge
+gate's rules), The-CLI (every subcommand with real output), State-Files, Status-Line, and
+Publishing-the-Wiki (the GitHub route, checked against four docs.github.com pages, with the
+two `sd` link-rewrite commands actually run against a copy). The CHANGELOG gained an
+Unreleased section for the round. One kept README example was corrected against the code: the
+status line renders `verdict stale` with no count (`src/statusline.ts:156-160`, pinned by the
+test "the stale marker carries no count, because the count was of history"); the correction
+has its own decision row and CHANGELOG line. No verified claim was weakened; the numbers,
+the runtime table and the enforcement claims moved verbatim.
+
+## Files
+
+- `README.md` (rewritten, 327 lines)
+- `docs/wiki/Home.md` (new)
+- `docs/wiki/Getting-Started.md` (new)
+- `docs/wiki/The-Story.md` (new)
+- `docs/wiki/How-A-Work-Item-Flows.md` (new)
+- `docs/wiki/Gates-and-Hooks.md` (new)
+- `docs/wiki/The-CLI.md` (new)
+- `docs/wiki/State-Files.md` (new)
+- `docs/wiki/Status-Line.md` (new)
+- `docs/wiki/Publishing-the-Wiki.md` (new)
+- `docs/wiki/_Sidebar.md` (new)
+- `docs/wiki/_Footer.md` (new)
+- `CHANGELOG.md` (Unreleased section added)
+- `.mstack/progress/current.md`, `.mstack/decisions.tsv` (two rows), this report, and the
+  ledger row (bookkeeping)
+
+Commits: `a35ba42` readme · `3ce1096` wiki · `06c589e` changelog · bookkeeping follows.
+
+## Commands
+
+Demo evidence was generated in a scratch repository
+(`/private/tmp/claude-501/.../scratchpad/demo-repo`), driven with the real `bin/mstack`:
+setup, gate green and red, the `current.md` tracking failure, the illegal-transition refusal,
+the self-close refusal and its reviewer resolution, the stale `ledger check`, the fork refusal
+and its `decide --resolves` answer, a refused one-character decision, `fanout plan/check` with
+a named dropout, `worktree new/list/prune` (demo repo only), `statusline` main and
+`--subagent`, and `merge-gate`'s no-remote stop. Every output pasted in the README and wiki is
+from those runs; ANSI colour stripped and long scratch paths elided as `...`, nothing else
+trimmed.
+
+The verify battery, from the repository root:
+
+```console
+$ node /private/tmp/.../scratchpad/check-links.mjs README.md docs/wiki/*.md
+53 relative links checked, 0 broken
+
+$ npm test
+...
+ℹ tests 169
+ℹ suites 0
+ℹ pass 169
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+
+$ npm run typecheck
+> mstack@0.1.0 typecheck
+> bunx --bun tsc --noEmit
+(exit 0)
+
+$ ./bin/mstack lint-plugin .
+...
+-- shipped commands
+[ok]    32 file(s), no command that would hang on stdin
+-- cross-references
+[ok]    17 skills and agents, every cross-reference in 37 file(s) resolves
+-- single source of truth
+[ok]    the lifecycle enum appears only in src/lifecycle.ts
+
+PASSED - 0 failures, 0 warnings
+
+$ ./bin/mstack gate
+...
+[ok]    one active item: readme-and-wiki (in_progress)
+[ok]    progress/current.md tracks the active item
+[ok]    7 closed item(s) carry a ledger verdict
+-- workspace
+[ok]    on branch docs/readme-and-wiki
+PASSED - 0 failures, 1 warning
+```
+
+The publish route was itself executed against a copy of the wiki files:
+
+```console
+$ sd '\]\(([A-Za-z-][A-Za-z_-]*)\.md\)' ']($1)' *.md
+$ sd -F '](../research/pstack-port.md)' '](https://github.com/<owner>/<repo>/blob/main/docs/research/pstack-port.md)' The-Story.md Gates-and-Hooks.md
+$ rg -n '\]\([^)h][^)]*\.md\)' . --glob '*.md'
+./Publishing-the-Wiki.md:72:sd -F '](../research/pstack-port.md)' ...   # the quoted example itself, intact
+```
+
+## Acceptance map
+
+**1. "A first-time reader goes from clone to a first closed item by following the README in
+order; every command block is copy-pasteable and its output shown from a real run"**
+README in order: the Quickstart with both install routes, setup, and start
+(`README.md:33-61`), then "Your first item, in five commands" with real output including both
+refusals (`README.md:62-100`), linking at that exact point to the full path. The complete clone-to-closed-item sequence with
+every block's live output is `docs/wiki/Getting-Started.md`, linked from the README's
+quickstart (`README.md:59-60`) and documentation map (`README.md:306`). Every block in both
+files is copy-pasteable (prompt lines carry `$`, output follows), and every output is from the
+demo-repo run described above.
+
+**2. "Credit to Lauren Tan (poteto) and the pstack lineage is visible in the README opening,
+and the full harness-meets-pstack story has its own wiki page"**
+`README.md:5-16` ("Where this comes from") names pstack, Lauren Tan with the `poteto` handle
+linked, the naming convention, and the harness, and links The-Story and the research doc; the
+expanded Credit section is `README.md:315-324`. The story page is `docs/wiki/The-Story.md`:
+pstack and its author, the not-spec-driven correction quoted, the escape-hatch quote, the
+unnamed harness, the five convergences, the disagreement and its opt-in resolution, the fix
+table, and the credit block. `docs/wiki/_Footer.md` carries the one-line credit on every
+published page.
+
+**3. "docs/wiki/ holds Home, Getting-Started, The-Story, How-A-Work-Item-Flows,
+Gates-and-Hooks, The-CLI, State-Files, Status-Line, Publishing-the-Wiki, _Sidebar and
+_Footer; every technical claim traces to the research doc, the code, or an official doc"**
+All eleven files exist with exactly those names (commit `3ce1096`, 11 files, 1329 lines).
+Tracing: lineage claims cite `docs/research/pstack-port.md` (linked from The-Story and
+Gates-and-Hooks); code claims carry `file:line` (`src/lifecycle.ts:63-73`,
+`src/hooks.ts:205-243`, `src/roles.ts:64` and `:101-106`, `src/state.ts:6-33`,
+`src/statusline.ts:146-163`, `src/gate.ts:36`, `bin/mstack:43-53`); official docs are linked
+where used (code.claude.com statusline and plugins-reference pages, four docs.github.com wiki
+pages, named and dated in Publishing-the-Wiki); command behaviour is pasted live output. The
+one claim that could not be verified against an official page (dash rendered as space in wiki
+titles) is explicitly marked unverified rather than asserted
+(`docs/wiki/Publishing-the-Wiki.md:96-99`).
+
+**4. "Every relative link in README.md and docs/wiki resolves; Publishing-the-Wiki documents
+the exact route from these files to a live GitHub wiki"**
+Link check: `53 relative links checked, 0 broken` (output above; script at
+`scratchpad/check-links.mjs`, resolves each target on disk). `mstack lint-plugin .` separately
+verifies the 20 reference files and all cross-references. Publishing-the-Wiki gives the route
+end to end: enable (Settings → Features → Wikis, per GitHub's docs), first page in the web UI
+(quoting the docs on why), `git clone https://github.com/<owner>/<repo>.wiki.git`, the copy,
+both exact `sd` commands (run for real against a copy, result quoted above), commit and push,
+the `_Sidebar`/`_Footer` special-file rule quoted from GitHub's docs, and the title rules.
+
+**5. "No claim a fact-check round verified is weakened or contradicted, and the CHANGELOG
+records the docs round under Unreleased"**
+Kept sections moved verbatim or tightened without touching claims or numbers: the one idea,
+the hooks table, the roles framing ("a speed bump with an audit trail"), the runtime table
+(21.7/48.0/23.8/21.5 ms, the 22.6 floor, the lockfile rationale), the shape-check example, the
+statusline non-shipping decision and its documentation links, the fork refusal example. The
+single changed example, `verdict stale (1)` → `verdict stale`, moves the README toward the
+reviewed code, not away from it: the renderer deliberately prints no count
+(`src/statusline.ts:156-160`) and the suite pins it ("the stale marker carries no count,
+because the count was of history", 169/169 green). The change is recorded in `decisions.tsv`
+(2026-08-19T20:34Z row) and in the CHANGELOG. `## Unreleased` sits above `## 0.1.0`
+(`CHANGELOG.md:3`) and records the README rewrite, the wiki with its publish route, and the
+explicit credit to poteto.
+
+## Ledger
+
+Recorded after the last content commit:
+
+```
+mstack ledger record readme-and-wiki 06c589e50e312a3fb2f184ff149e888da53113c0 test-verified \
+  --evidence .mstack/progress/impl_readme-and-wiki.md --verifier implementer
+```
+
+Verdict honesty, per the ladder: the pasted command outputs, the link check, the sd publish
+transformation and the full battery are rung 4 to 5 for the commands shown (they ran, against
+the real binary and the real files, and fail loudly). Prose claims sourced from files (the
+lineage story, the hook behaviour descriptions, the panel-finding histories) are rung 2:
+`file:line` or a quoted document, not re-executed here. The dash-to-space title rendering
+stopped at rung 1 and the page says so. `test-verified` is the rung-4 verdict; nothing here
+claims `live-verified` because no reader has walked the on-ramp yet, and this row cannot close
+the item: a pass that did not write these pages decides that.
