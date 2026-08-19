@@ -383,7 +383,14 @@ function collect(dir: string, filename: string): string[] {
   return found;
 }
 
-const SKIP_DIRS = new Set([".git", "node_modules", "dist", "docs", "examples"]);
+/**
+ * `.mstack` is data, not plugin source. Session logs and review reports quote
+ * the things they are about — a reviewer's report quoted the status enum and
+ * the single-source rule flagged it. A report is a dated record of what was
+ * true, and editing one to satisfy a linter is what the append-only rule exists
+ * to prevent.
+ */
+const SKIP_DIRS = new Set([".git", ".mstack", "node_modules", "dist", "docs", "examples"]);
 
 function collectAll(dir: string): string[] {
   if (!existsSync(dir)) return [];
