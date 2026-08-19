@@ -108,9 +108,36 @@ function cmdFanout(argv: readonly string[]): number {
   return fanout.check(store, plan).failed ? 1 : 0;
 }
 
+/**
+ * The only subcommand that parses leniently, and for the same reason the rest
+ * of this file's status line code is written the way it is: it runs on every
+ * assistant message, and it must never be the thing that breaks a session.
+ *
+ * Strict parsing meant a typo in a user's settings.json — `--subagents` for
+ * `--subagent` — exited 2 and wrote to stderr, which is a dead bar with an
+ * error message on it. Everywhere else a typo should be loud, because
+ * everywhere else a human is reading the output.
+ */
+/**
+ * A subcommand that takes nothing must say so when handed something.
+ *
+ * `state list --nope` and `ledger summary --x` used to succeed silently: the
+ * extra argv was destructured into `rest` and never looked at. A flag that is
+ * accepted and ignored is indistinguishable from a flag that worked, which is
+ * how someone ends up believing a filter is applied.
+ */
+function takesNothing(command: string, rest: readonly string[]): void {
+  if (rest.length > 0) {
+    throw new UserError(`${command} takes no arguments, got '${rest.join(" ")}'`, "run 'mstack help'");
+  }
+}
+
 function cmdStatusline(argv: readonly string[]): number {
-  const { values } = parseArgs({ args: [...argv], options: { subagent: { type: "boolean" } }, strict: true });
-  return values.subagent === true ? subagentStatusline() : statusline();
+  // Prefix match, not equality: `--subagents` should render subagent rows, not
+  // silently fall through to the main bar and emit a line of text where the
+  // caller is parsing JSON.
+  const subagent = argv.some((arg) => arg.startsWith("--subagent"));
+  return subagent ? subagentStatusline() : statusline();
 }
 
 function cmdSetup(argv: readonly string[]): number {
@@ -136,6 +163,7 @@ function cmdState(argv: readonly string[]): number {
   const [sub, ...rest] = argv;
 
   if (sub === "list" || sub === undefined) {
+    takesNothing("state list", rest);
     const state = parseState(store.state);
     if (state.items.length === 0) console.log("no items");
     for (const item of state.items) {
@@ -145,6 +173,7 @@ function cmdState(argv: readonly string[]): number {
   }
 
   if (sub === "active") {
+    takesNothing("state active", rest);
     const item = parseState(store.state).items.find((i) => isActive(i.status));
     if (item === undefined) {
       // Note goes to stderr so stdout stays machine-consumable. Every agent file
@@ -286,6 +315,7 @@ function cmdLedger(argv: readonly string[]): number {
   }
 
   if (sub === "summary" || sub === undefined) {
+    takesNothing("ledger summary", rest);
     const rows = ledger.entries(store);
     if (rows.length === 0) console.log("ledger is empty");
     for (const e of rows) {
