@@ -10,6 +10,7 @@ import { lintPlugin } from "./lint.ts";
 import { requireStore, UserError } from "./paths.ts";
 import { findItem, parseState, saveState, type Item } from "./state.ts";
 import { setup } from "./setup.ts";
+import { statusline, subagentStatusline } from "./statusline.ts";
 import * as worktree from "./worktree.ts";
 
 const USAGE = `mstack - durable state and gates for the mstack Claude Code plugin
@@ -28,6 +29,7 @@ const USAGE = `mstack - durable state and gates for the mstack Claude Code plugi
   worktree prune [--yes]
   merge-gate <pr> [--target <slug>] [--min <verdict>]
   hook <session-start|post-edit|subagent-stop|stop|pre-tool-use>
+  statusline [--subagent]             render status rows from the JSON on stdin
   lint-plugin [dir]
 
 Exit codes: 0 pass, 1 gate failure or wait, 2 usage error or stop.
@@ -59,11 +61,18 @@ async function main(argv: readonly string[]): Promise<number> {
       return cmdMergeGate(rest);
     case "hook":
       return await cmdHook(rest);
+    case "statusline":
+      return cmdStatusline(rest);
     case "lint-plugin":
       return cmdLint(rest);
     default:
       throw new UserError(`unknown command '${command}'`, "run 'mstack help'");
   }
+}
+
+function cmdStatusline(argv: readonly string[]): number {
+  const { values } = parseArgs({ args: [...argv], options: { subagent: { type: "boolean" } }, strict: true });
+  return values.subagent === true ? subagentStatusline() : statusline();
 }
 
 function cmdSetup(argv: readonly string[]): number {
@@ -116,6 +125,7 @@ function cmdState(argv: readonly string[]): number {
       options: {
         slug: { type: "string" },
         title: { type: "string" },
+        description: { type: "string" },
         acceptance: { type: "string", multiple: true },
         sdd: { type: "boolean" },
         source: { type: "string" },
@@ -135,6 +145,7 @@ function cmdState(argv: readonly string[]): number {
       acceptance: values.acceptance ?? [],
       status: "pending",
     };
+    if (values.description !== undefined) item.description = values.description;
     if (values.sdd === true) item.sdd = true;
     if (values.source !== undefined) item.source = values.source;
     if (values.verification !== undefined) item.verification = values.verification;

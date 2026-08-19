@@ -151,3 +151,42 @@ test("PostToolUse defends the append-only log", () => {
     sb.dispose();
   }
 });
+
+test("SubagentStop accepts a per-lens report, because the review panel runs in parallel", () => {
+  const sb = sandbox();
+  try {
+    sb.writeState(state([item({ status: "reviewing" })]));
+    const body = "# Review\n\nVerdict: APPROVED. See src/storage.ts:12.\n";
+
+    // A single shared filename would have parallel reviewers overwrite each
+    // other, so the contract is the prefix. A hook that demanded the exact name
+    // would accuse the reviewer doing the right thing.
+    writeFileSync(join(sb.store.progress, "review_storage-layer_correctness.md"), body, "utf8");
+    assert.equal(subagentStop({ cwd: sb.store.root, agent_type: "mstack:reviewer" }), null);
+
+    // ...and one empty lens is still a missing report, even beside a full one.
+    writeFileSync(join(sb.store.progress, "review_storage-layer_security.md"), "", "utf8");
+    assert.match(
+      contextOf(subagentStop({ cwd: sb.store.root, agent_type: "mstack:reviewer" })) ?? "",
+      /review_storage-layer_security\.md exists but is essentially empty/,
+    );
+  } finally {
+    sb.dispose();
+  }
+});
+
+test("a neighbouring slug's report does not satisfy this item's contract", () => {
+  const sb = sandbox();
+  try {
+    sb.writeState(state([item({ slug: "cli", status: "reviewing" })]));
+    writeFileSync(join(sb.store.progress, "review_cli-search_correctness.md"), "x".repeat(80), "utf8");
+
+    assert.match(
+      contextOf(subagentStop({ cwd: sb.store.root, agent_type: "mstack:reviewer" })) ?? "",
+      /without writing/,
+      "prefix matching must respect the separator, or 'cli' would claim 'cli-search' work as its own",
+    );
+  } finally {
+    sb.dispose();
+  }
+});

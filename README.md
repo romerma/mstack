@@ -115,6 +115,7 @@ append-only and never edited; if an entry turned out to be wrong, a later one sa
 | `mstack decide` | One row per decision, append-only |
 | `mstack worktree new\|list\|prune` | Including the prune that nobody ever gets round to |
 | `mstack merge-gate <pr>` | Exit 0 go, 1 wait, 2 stop |
+| `mstack statusline` | One line of session state, for your `statusLine` setting |
 | `mstack lint-plugin` | Validates the prose: front matter, links, size caps, single source of truth |
 
 ### What the gate actually catches
@@ -132,6 +133,65 @@ $ echo '{"items": {}}' > .mstack/state.json && mstack gate
 check reports green while enforcing nothing. A check that passes when its own queries break is
 the exact defect the gate exists to catch, and it is a real one: it shipped, in production, in
 the harness this was drawn from.
+
+## The status line
+
+The status line exists for one signal nothing else can deliver in time: **a verdict going
+stale**. A ledger row is keyed by `(target, sha)`, and a new head SHA voids it. The gate catches
+that, but only when something runs the gate, and by then the work has usually moved on. pstack's
+own orchestration playbook records what that costs — *"twenty-one verdicts went stale this way in
+one run with no signal at all"*. A row re-read every turn is where that signal belongs.
+
+```
+Opus · fix/cli-search · #2 cli-search · in_progress · verdict stale (1) · ctx 31%
+```
+
+Claude Code takes `statusLine` from **your** settings, not from a plugin — the plugin manifest has
+no such field ([statusline docs](https://code.claude.com/docs/en/statusline)). So wire it up
+yourself, in `~/.claude/settings.json` or the project's `.claude/settings.json`:
+
+```json
+{
+  "statusLine": {
+    "type": "command",
+    "command": "mstack statusline",
+    "refreshInterval": 10
+  }
+}
+```
+
+`refreshInterval` matters here: the event-driven triggers go quiet exactly when a coordinator is
+waiting on background subagents, which is when the state is changing most.
+
+If the bar comes up empty, `mstack` is not resolving. The plugin's `bin/` is documented as being
+on `PATH` for the Bash tool; whether the status line process inherits it is not. Point the command
+at an absolute path instead — `which mstack` inside a Claude Code Bash call prints it.
+
+The line degrades rather than lies. No `.mstack/` says `no .mstack`; an unparseable `state.json`
+says so instead of rendering a confident blank; two active items are reported as a violation
+rather than silently showing the first. Any failure at all prints nothing and exits 0, because a
+status line that can break a session is a status line you will delete.
+
+### Subagent rows
+
+`mstack statusline --subagent` renders the agent panel rows, and shows while the work is still
+running what `SubagentStop` can only report once it is too late: which worker has not written its
+report yet.
+
+```
+implementer · #2 cli-search · impl report written · 12k
+reviewer    · #2 cli-search · no review report yet · 3.2k
+```
+
+Rows are emitted only for roles mstack has a report contract with; everything else keeps Claude
+Code's default rendering. Wire it the same way, as `subagentStatusLine`.
+
+A plugin *may* ship a default `subagentStatusLine` in its own `settings.json`, and mstack does
+not. Neither `${CLAUDE_PLUGIN_ROOT}` nor the plugin's `bin/` is documented as reaching that
+file — the [substitution table](https://code.claude.com/docs/en/plugins-reference) lists skills,
+agents, hooks, monitors, MCP and LSP, and `settings.json` is not among them. Shipping a command
+that cannot name its own script would be a claim we have no evidence for, which is the one thing
+this plugin exists to stop. It is tracked as an open item instead.
 
 ## Runtime
 

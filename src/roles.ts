@@ -1,0 +1,56 @@
+import { readdirSync } from "node:fs";
+import { join } from "node:path";
+
+/**
+ * Which file on disk proves a given role actually did its work.
+ *
+ * One mapping, imported by everything that needs it. The `SubagentStop` hook
+ * uses it to catch a worker that returned without writing anything, and the
+ * subagent status line uses it to show the same fact while there is still time
+ * to do something about it.
+ *
+ * A role absent from this table has no report contract and is left alone.
+ */
+export const REPORT_KINDS: Readonly<Record<string, string>> = {
+  "spec-author": "spec",
+  "spec-reviewer": "spec_review",
+  implementer: "impl",
+  reviewer: "review",
+};
+
+/**
+ * A plugin agent arrives as `mstack:implementer`; a project-level one as bare
+ * `implementer`. Both name the same contract.
+ */
+export function roleOf(agentType: string | undefined): string {
+  return (agentType ?? "").split(":").pop() ?? "";
+}
+
+export function reportKind(agentType: string | undefined): string | undefined {
+  return REPORT_KINDS[roleOf(agentType)];
+}
+
+/**
+ * Every file that could satisfy a role's report contract for one item.
+ *
+ * A lone reviewer writes `review_<slug>.md`. A review panel writes one file per
+ * lens — `review_<slug>_correctness.md` and so on — because the `review` skill
+ * launches those reviewers in parallel and a single shared filename would have
+ * them overwrite each other. N-1 reviews would vanish, silently, which is the
+ * precise failure the report contract exists to prevent.
+ *
+ * So the contract is the prefix, not the exact name.
+ */
+export function reportFiles(progressDir: string, kind: string, slug: string): string[] {
+  const prefix = `${kind}_${slug}`;
+  let names: string[];
+  try {
+    names = readdirSync(progressDir);
+  } catch {
+    return [];
+  }
+  return names
+    .filter((name) => name === `${prefix}.md` || (name.startsWith(`${prefix}_`) && name.endsWith(".md")))
+    .sort()
+    .map((name) => join(progressDir, name));
+}

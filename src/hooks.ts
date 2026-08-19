@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { runGate } from "./gate.ts";
 import { isActive } from "./lifecycle.ts";
 import { findStore, type Store } from "./paths.ts";
+import { reportFiles, reportKind, roleOf } from "./roles.ts";
 import { parseState, type Item } from "./state.ts";
 
 /**
@@ -121,13 +122,6 @@ export function postEdit(input: HookInput): string | null {
   return null;
 }
 
-const REPORT_KINDS: Readonly<Record<string, string>> = {
-  "spec-author": "spec",
-  "spec-reviewer": "spec_review",
-  implementer: "impl",
-  reviewer: "review",
-};
-
 /**
  * SubagentStop: confirm the subagent left something on disk.
  *
@@ -138,8 +132,8 @@ const REPORT_KINDS: Readonly<Record<string, string>> = {
  * reply is not evidence. The file is.
  */
 export function subagentStop(input: HookInput): string | null {
-  const role = (input.agent_type ?? "").split(":").pop() ?? "";
-  const kind = REPORT_KINDS[role];
+  const role = roleOf(input.agent_type);
+  const kind = reportKind(input.agent_type);
   if (kind === undefined) return null;
 
   const store = findStore(input.cwd ?? process.cwd());
@@ -147,15 +141,22 @@ export function subagentStop(input: HookInput): string | null {
   const item = activeItem(store);
   if (item === undefined) return null;
 
-  const expected = join(store.progress, `${kind}_${item.slug}.md`);
-  if (!existsSync(expected)) {
+  const found = reportFiles(store.progress, kind, item.slug);
+  if (found.length === 0) {
+    const expected = join(store.progress, `${kind}_${item.slug}.md`);
     return context(
       "SubagentStop",
-      `The ${role} subagent finished without writing ${expected}. Its reply is not evidence. Re-run it with instructions to write the report before returning, and do not act on the summary alone.`,
+      `The ${role} subagent finished without writing ${expected} (or a ${kind}_${item.slug}_<lens>.md alongside it). Its reply is not evidence. Re-run it with instructions to write the report before returning, and do not act on the summary alone.`,
     );
   }
-  if (statSync(expected).size < 40) {
-    return context("SubagentStop", `${expected} exists but is essentially empty. Treat that as no report.`);
+  // Judged per file, not in aggregate: one substantial report does not excuse a
+  // sibling lens that returned an empty stub.
+  const empty = found.filter((file) => statSync(file).size < 40);
+  if (empty.length > 0) {
+    return context(
+      "SubagentStop",
+      `${empty.join(", ")} exists but is essentially empty. Treat that as no report.`,
+    );
   }
   return null;
 }
