@@ -127,6 +127,22 @@
       "description": "Both manifests say 0.1.0 and nothing is tagged.",
       "source": "gap review after the panel, 2026-08-19",
       "closed_by": "Tagged v0.1.0"
+    },
+    {
+      "id": 9,
+      "slug": "readme-and-wiki",
+      "title": "README and wiki that teach mstack to a stranger",
+      "acceptance": [
+        "A first-time reader goes from clone to a first closed item by following the README in order; every command block is copy-pasteable and its output shown from a real run",
+        "Credit to Lauren Tan (poteto) and the pstack lineage is visible in the README opening, and the full harness-meets-pstack story has its own wiki page",
+        "docs/wiki/ holds Home, Getting-Started, The-Story, How-A-Work-Item-Flows, Gates-and-Hooks, The-CLI, State-Files, Status-Line, Publishing-the-Wiki, _Sidebar and _Footer; every technical claim traces to the research doc, the code, or an official doc",
+        "Every relative link in README.md and docs/wiki resolves; Publishing-the-Wiki documents the exact route from these files to a live GitHub wiki",
+        "No claim a fact-check round verified is weakened or contradicted, and the CHANGELOG records the docs round under Unreleased"
+      ],
+      "status": "in_progress",
+      "description": "The README explains mstack to someone who already knows the story. Publication needs the reverse: a step-by-step on-ramp, the pstack and harness lineage with credit to poteto, and a wiki that exists as reviewable files before the GitHub repository does.",
+      "source": "user request, 2026-08-19",
+      "verification": "npm test && npm run typecheck && bin/mstack lint-plugin . && node scratch link check over README.md and docs/wiki"
     }
   ]
 }
