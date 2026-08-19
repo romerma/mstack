@@ -1,0 +1,357 @@
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { basename, dirname, extname, join, relative, resolve } from "node:path";
+
+import { parse } from "./frontmatter.ts";
+import { STATUSES } from "./lifecycle.ts";
+import { Report } from "./report.ts";
+
+/**
+ * Validate the prose.
+ *
+ * pstack ships 125 Markdown files and four test files, all four covering its
+ * two TypeScript CLIs. Ninety-eight percent of its behaviour has no validation
+ * at all, its own authoring guide asks for a checker, and its own reflect skill
+ * says to skip that step if the environment does not ship one. This is that
+ * checker.
+ */
+
+/** Front-matter keys Claude Code accepts on a skill. */
+const SKILL_KEYS = new Set([
+  "name",
+  "description",
+  "when_to_use",
+  "argument-hint",
+  "arguments",
+  "disable-model-invocation",
+  "user-invocable",
+  "allowed-tools",
+  "disallowed-tools",
+  "model",
+  "effort",
+  "context",
+  "agent",
+  "background",
+  "hooks",
+  "paths",
+  "shell",
+  "metadata",
+  "license",
+  "compatibility",
+]);
+
+/** Front-matter keys a *plugin-shipped* agent may carry. */
+const AGENT_KEYS = new Set([
+  "name",
+  "description",
+  "model",
+  "effort",
+  "maxTurns",
+  "tools",
+  "disallowedTools",
+  "skills",
+  "memory",
+  "background",
+  "isolation",
+  "color",
+]);
+
+/** Silently dropped from plugin agents, so carrying them is a lie about behaviour. */
+const AGENT_FORBIDDEN = new Set(["hooks", "mcpServers", "permissionMode"]);
+
+const HOOK_EVENTS = new Set([
+  "SessionStart",
+  "Setup",
+  "UserPromptSubmit",
+  "UserPromptExpansion",
+  "PreToolUse",
+  "PermissionRequest",
+  "PermissionDenied",
+  "PostToolUse",
+  "PostToolUseFailure",
+  "PostToolBatch",
+  "Notification",
+  "MessageDisplay",
+  "SubagentStart",
+  "SubagentStop",
+  "TaskCreated",
+  "TaskCompleted",
+  "Stop",
+  "StopFailure",
+  "PreCompact",
+  "PostCompact",
+  "SessionEnd",
+  "FileChanged",
+  "ConfigChange",
+  "CwdChanged",
+  "DirectoryAdded",
+  "WorktreeCreate",
+  "WorktreeRemove",
+  "InstructionsLoaded",
+  "TeammateIdle",
+  "Elicitation",
+  "ElicitationResult",
+]);
+
+/** The listing truncates description + when_to_use past this many characters. */
+const DESCRIPTION_CAP = 1_536;
+/** Guidance, not an enforced limit, but a router over this is a router nobody reads. */
+const SKILL_LINE_CAP = 500;
+
+export function lintPlugin(root: string): Report {
+  const report = new Report();
+  const dir = resolve(root);
+
+  report.section("manifest");
+  lintManifest(dir, report);
+
+  report.section("skills");
+  const skills = collect(join(dir, "skills"), "SKILL.md");
+  if (skills.length === 0) report.warn("no skills found");
+  for (const file of skills) lintSkill(dir, file, report);
+
+  report.section("agents");
+  const agents = existsSync(join(dir, "agents"))
+    ? readdirSync(join(dir, "agents")).filter((f) => extname(f) === ".md").map((f) => join(dir, "agents", f))
+    : [];
+  if (agents.length === 0) report.warn("no agents found");
+  for (const file of agents) lintAgent(dir, file, report);
+
+  report.section("hooks");
+  lintHooks(dir, report);
+
+  report.section("cross-references");
+  lintReferences(dir, skills, agents, report);
+
+  report.section("single source of truth");
+  lintLifecycleDuplication(dir, report);
+
+  report.summary();
+  return report;
+}
+
+function lintManifest(dir: string, report: Report): void {
+  const manifest = join(dir, ".claude-plugin", "plugin.json");
+  if (!existsSync(manifest)) {
+    report.fail("missing .claude-plugin/plugin.json");
+    return;
+  }
+  let data: Record<string, unknown>;
+  try {
+    data = JSON.parse(readFileSync(manifest, "utf8")) as Record<string, unknown>;
+  } catch (error) {
+    report.fail(`plugin.json is not valid JSON: ${(error as Error).message}`);
+    return;
+  }
+  if (typeof data["name"] !== "string" || !/^[a-z0-9]+(-[a-z0-9]+)*$/.test(data["name"])) {
+    report.fail("plugin.json .name must be kebab-case");
+  } else {
+    report.ok(`plugin name: ${data["name"]}`);
+  }
+  for (const dirName of ["skills", "agents", "hooks", "commands"]) {
+    if (existsSync(join(dir, ".claude-plugin", dirName))) {
+      report.fail(
+        `${dirName}/ is inside .claude-plugin/`,
+        "only plugin.json belongs there; every component directory sits at the plugin root",
+      );
+    }
+  }
+  if (existsSync(join(dir, "CLAUDE.md"))) {
+    report.warn("a plugin-root CLAUDE.md is not loaded as context; ship instructions as a skill instead");
+  }
+}
+
+function lintSkill(root: string, file: string, report: Report): void {
+  const label = relative(root, file);
+  const source = readFileSync(file, "utf8");
+  const { data, error } = parse(source);
+
+  if (error !== null) {
+    report.fail(`${label}: ${error}`, "malformed front matter loads the body with no description to match on");
+    return;
+  }
+  for (const key of Object.keys(data)) {
+    if (!SKILL_KEYS.has(key)) report.fail(`${label}: unknown front-matter key '${key}'`);
+  }
+  const description = String(data["description"] ?? "");
+  if (description === "") {
+    report.fail(`${label}: no description`, "without one Claude has nothing to match the skill against");
+  }
+  const combined = description.length + String(data["when_to_use"] ?? "").length;
+  if (combined > DESCRIPTION_CAP) {
+    report.fail(
+      `${label}: description + when_to_use is ${combined} characters, over the ${DESCRIPTION_CAP} cap`,
+      "the listing truncates past that, so put the key use case first",
+    );
+  }
+  const lines = source.split("\n").length;
+  if (lines > SKILL_LINE_CAP) {
+    report.fail(`${label}: ${lines} lines, over the ${SKILL_LINE_CAP}-line guidance`, "move detail into references/");
+  }
+  lintLinks(root, file, source, report);
+  if (!report.failed) report.ok(`${label} (${lines} lines, ${combined} description chars)`);
+}
+
+function lintAgent(root: string, file: string, report: Report): void {
+  const label = relative(root, file);
+  const source = readFileSync(file, "utf8");
+  const { data, error } = parse(source);
+
+  if (error !== null) {
+    report.fail(`${label}: ${error}`);
+    return;
+  }
+  const name = String(data["name"] ?? "");
+  if (name === "") report.fail(`${label}: no name`);
+  else if (name.includes(":")) {
+    report.fail(`${label}: name contains ':'`, "that character is reserved for plugin scoping and refuses to load");
+  }
+  if (String(data["description"] ?? "") === "") report.fail(`${label}: no description`);
+
+  for (const key of Object.keys(data)) {
+    if (AGENT_FORBIDDEN.has(key)) {
+      report.fail(
+        `${label}: '${key}' is silently dropped from plugin-shipped agents`,
+        "put it in hooks/hooks.json or a skill instead, and do not imply behaviour that never runs",
+      );
+    } else if (!AGENT_KEYS.has(key)) {
+      report.fail(`${label}: unknown front-matter key '${key}'`);
+    }
+  }
+  lintLinks(root, file, source, report);
+  if (!report.failed) report.ok(label);
+}
+
+function lintHooks(root: string, report: Report): void {
+  const file = join(root, "hooks", "hooks.json");
+  if (!existsSync(file)) {
+    report.warn("no hooks/hooks.json; every rule in this plugin is then advisory");
+    return;
+  }
+  let data: { hooks?: Record<string, unknown> };
+  try {
+    data = JSON.parse(readFileSync(file, "utf8")) as { hooks?: Record<string, unknown> };
+  } catch (error) {
+    report.fail(`hooks.json is not valid JSON: ${(error as Error).message}`);
+    return;
+  }
+  const events = Object.keys(data.hooks ?? {});
+  if (events.length === 0) report.warn("hooks.json declares no events");
+  for (const event of events) {
+    if (HOOK_EVENTS.has(event)) {
+      report.ok(`hook event ${event}`);
+      continue;
+    }
+    const near = [...HOOK_EVENTS].find((e) => e.toLowerCase() === event.toLowerCase());
+    report.fail(
+      `hooks.json: '${event}' is not a hook event`,
+      near !== undefined ? `event names are case-sensitive; did you mean '${near}'?` : "check the hooks reference",
+    );
+  }
+}
+
+/**
+ * Every `mstack:<name>` reference resolves to a skill or an agent that exists.
+ *
+ * This is the drift class that catches prose workflows. pstack's mode skill
+ * forbids the built-in babysit skill by name while two of its own files
+ * instruct you to run it, and nothing in that repository could notice. A
+ * reference to a role that was renamed reads exactly like a working one.
+ */
+function lintReferences(
+  root: string,
+  skillFiles: readonly string[],
+  agentFiles: readonly string[],
+  report: Report,
+): void {
+  const known = new Set<string>();
+  for (const file of skillFiles) known.add(nameOf(file) ?? basename(dirname(file)));
+  for (const file of agentFiles) known.add(nameOf(file) ?? basename(file, ".md"));
+
+  const dangling = new Map<string, string[]>();
+  for (const file of [...skillFiles, ...agentFiles]) {
+    const source = readFileSync(file, "utf8");
+    for (const match of source.matchAll(/\bmstack:([a-z][a-z0-9-]*)/g)) {
+      const name = match[1] ?? "";
+      if (known.has(name)) continue;
+      const where = dangling.get(name) ?? [];
+      where.push(relative(root, file));
+      dangling.set(name, where);
+    }
+  }
+  if (dangling.size === 0) {
+    report.ok(`${known.size} skills and agents, every cross-reference resolves`);
+    return;
+  }
+  for (const [name, files] of dangling) {
+    report.fail(
+      `mstack:${name} is referenced in ${[...new Set(files)].join(", ")} but no such skill or agent exists`,
+      "rename the reference, or ship the thing it names",
+    );
+  }
+}
+
+function nameOf(file: string): string | null {
+  const value = parse(readFileSync(file, "utf8")).data["name"];
+  return typeof value === "string" && value !== "" ? value : null;
+}
+
+/**
+ * The lifecycle enum lives in exactly one file. enxvo carries its copy in six,
+ * which is six chances for them to drift apart with nothing to notice.
+ */
+function lintLifecycleDuplication(root: string, report: Report): void {
+  const needles = STATUSES.filter((s) => s !== "done" && s !== "pending" && s !== "blocked");
+  const offenders: string[] = [];
+  for (const file of collectAll(root)) {
+    if (file.endsWith(join("src", "lifecycle.ts"))) continue;
+    const source = readFileSync(file, "utf8");
+    // A file that derives from lifecycle.ts is not a second copy, however many
+    // status names it happens to mention. The defect being hunted is a hardcoded
+    // duplicate that can drift, not a reference that cannot.
+    if (/from "[^"]*lifecycle\.ts"/.test(source)) continue;
+    if (needles.every((s) => source.includes(s))) offenders.push(relative(root, file));
+  }
+  if (offenders.length > 0) {
+    report.fail(
+      `the full lifecycle enum is repeated in: ${offenders.join(", ")}`,
+      "reference src/lifecycle.ts, or name only the statuses that file actually cares about",
+    );
+  } else {
+    report.ok("the lifecycle enum appears only in src/lifecycle.ts");
+  }
+}
+
+function lintLinks(root: string, file: string, source: string, report: Report): void {
+  const label = relative(root, file);
+  for (const match of source.matchAll(/\[[^\]]*\]\(([^)]+)\)/g)) {
+    const href = match[1] ?? "";
+    if (/^(https?:|mailto:|#)/.test(href)) continue;
+    const target = resolve(dirname(file), href.split("#")[0] ?? "");
+    if (!existsSync(target)) report.fail(`${label}: broken link to ${href}`);
+  }
+}
+
+function collect(dir: string, filename: string): string[] {
+  if (!existsSync(dir)) return [];
+  const found: string[] = [];
+  for (const entry of readdirSync(dir)) {
+    const path = join(dir, entry);
+    if (statSync(path).isDirectory()) found.push(...collect(path, filename));
+    else if (entry === filename) found.push(path);
+  }
+  return found;
+}
+
+const SKIP_DIRS = new Set([".git", "node_modules", "dist", "docs", "examples"]);
+
+function collectAll(dir: string): string[] {
+  if (!existsSync(dir)) return [];
+  const found: string[] = [];
+  for (const entry of readdirSync(dir)) {
+    if (SKIP_DIRS.has(entry)) continue;
+    const path = join(dir, entry);
+    if (statSync(path).isDirectory()) found.push(...collectAll(path));
+    else if ([".md", ".ts", ".js", ".json"].includes(extname(entry))) found.push(path);
+  }
+  return found;
+}

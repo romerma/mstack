@@ -1,0 +1,52 @@
+#!/bin/sh
+# mstack CLI launcher.
+#
+# There is no build step and no committed artifact. The TypeScript in src/ is
+# what runs, which keeps the thing you review and the thing that executes the
+# same file.
+#
+# Claude Code ships as a native binary and hands plugins no runtime, so this
+# resolves against whatever is already on the machine:
+#
+#   bun   runs .ts natively.
+#   node  strips types from 22.6 onward. --experimental-strip-types is a silent
+#         no-op on versions where it is already the default, so passing it
+#         unconditionally widens support instead of narrowing it.
+#
+# NODE_COMPILE_CACHE is what makes running source directly cheap. Measured on an
+# M-series Mac, the post-edit hook costs 48ms uncached and 23.8ms cached, against
+# 21.5ms for a pre-bundled file. Two milliseconds is not worth a build artifact
+# in version control. The cache invalidates itself when the source changes.
+set -e
+
+self="$0"
+while [ -L "$self" ]; do
+  link=$(readlink "$self")
+  case "$link" in
+    /*) self="$link" ;;
+    *) self="$(dirname "$self")/$link" ;;
+  esac
+done
+root=$(cd "$(dirname "$self")/.." && pwd)
+cli="$root/src/cli.ts"
+
+if [ ! -f "$cli" ]; then
+  echo "mstack: $cli is missing. This plugin install is incomplete." >&2
+  exit 127
+fi
+
+if command -v bun >/dev/null 2>&1; then
+  exec bun "$cli" "$@"
+fi
+
+if command -v node >/dev/null 2>&1; then
+  # CLAUDE_PLUGIN_DATA survives plugin updates, which is exactly what a compile
+  # cache wants. Fall back to the usual user cache location when it is unset,
+  # such as a plain Bash tool call rather than a hook process.
+  NODE_COMPILE_CACHE="${CLAUDE_PLUGIN_DATA:-$HOME/.cache/mstack}/node-compile-cache"
+  export NODE_COMPILE_CACHE
+  exec node --experimental-strip-types "$cli" "$@"
+fi
+
+echo "mstack: needs bun, or node 22.6 or newer, and found neither on PATH." >&2
+exit 127
