@@ -1,4 +1,4 @@
-import { readdirSync } from "node:fs";
+import { readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 /**
@@ -53,4 +53,34 @@ export function reportFiles(progressDir: string, kind: string, slug: string): st
     .filter((name) => name === `${prefix}.md` || (name.startsWith(`${prefix}_`) && name.endsWith(".md")))
     .sort()
     .map((name) => join(progressDir, name));
+}
+
+/**
+ * A file this small is a stub, not a report.
+ *
+ * One number, in one place. It used to be the literal `40` written twice, in
+ * two files, with the comparisons pointing in opposite directions.
+ */
+export const MIN_REPORT_BYTES = 40;
+
+/**
+ * The reports that actually say something.
+ *
+ * The `statSync` is inside the loop's own try on purpose. The paths come from a
+ * `readdirSync` that ran earlier, and a fan-out of parallel writers is exactly
+ * a window where a file can vanish between the two calls. An unguarded stat
+ * there threw all the way out of the caller: one bad directory entry blanked
+ * every subagent row, and separately made the SubagentStop hook report nothing
+ * at all — the hook whose entire job is noticing a missing report.
+ *
+ * An entry we cannot stat counts as no report, which is the safe direction.
+ */
+export function substantialReports(progressDir: string, kind: string, slug: string): string[] {
+  return reportFiles(progressDir, kind, slug).filter((file) => {
+    try {
+      return statSync(file).size >= MIN_REPORT_BYTES;
+    } catch {
+      return false;
+    }
+  });
 }

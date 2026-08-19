@@ -1,11 +1,12 @@
 import { execFileSync } from "node:child_process";
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 
-import { check as ledgerCheck } from "./ledger.ts";
+import { entries as ledgerEntries } from "./ledger.ts";
 import { isActive, requiresSpecArtifacts } from "./lifecycle.ts";
 import { UserError, type Store } from "./paths.ts";
 import { Report } from "./report.ts";
+import { MIN_REPORT_BYTES } from "./roles.ts";
 import { EMPTY_ITEM_LINE, EMPTY_NEXT_STEP } from "./setup.ts";
 import { parseState, type Item, type State } from "./state.ts";
 
@@ -126,7 +127,14 @@ function checkInvariants(store: Store, state: State, report: Report): void {
   }
 
   const active = state.items.filter((i) => isActive(i.status));
-  if (state.rules.one_active_item && active.length > 1) {
+  if (!state.rules.one_active_item && active.length > 1) {
+    // Turning the rule off is allowed. Reporting "no active item" while three
+    // are open is not: the else branch was reached whenever the rule was off,
+    // and it printed the wrong fact rather than a permitted one.
+    report.warn(
+      `${active.length} items active with one_active_item off: ${active.map((i) => `${i.slug} (${i.status})`).join(", ")}`,
+    );
+  } else if (state.rules.one_active_item && active.length > 1) {
     report.fail(
       `${active.length} items are active in this worktree: ${active.map((i) => `${i.slug} (${i.status})`).join(", ")}`,
       "finish or park all but one; use a separate worktree for parallel work",
@@ -171,11 +179,23 @@ function checkSpecArtifacts(store: Store, state: State, report: Report): void {
       );
       continue;
     }
-    const present = new Set(readdirSync(dir));
+    // Present but empty is the shape this check was blind to: four `touch`ed
+    // files satisfied "the spec is complete". It is the same existence-is-not-
+    // content mistake the state file check exists to prevent, and the same
+    // floor a subagent report has to clear.
+    const present = new Set(
+      readdirSync(dir).filter((name) => {
+        try {
+          return statSync(join(dir, name)).size >= MIN_REPORT_BYTES;
+        } catch {
+          return false;
+        }
+      }),
+    );
     const missing = SPEC_ARTIFACTS.filter((a) => !present.has(a));
     if (missing.length > 0) {
       report.fail(
-        `spec for ${item.slug} is missing ${missing.join(", ")}`,
+        `spec for ${item.slug} is missing or empty: ${missing.join(", ")}`,
         "no code against an incomplete spec",
       );
     } else {
@@ -190,17 +210,40 @@ function checkClosedItems(store: Store, state: State, report: Report): void {
     report.ok("no closed items to audit");
     return;
   }
-  const unproven = closed.filter((item) => {
-    if (item.closed_by !== undefined && item.closed_by.trim() !== "") return false;
-    return ledgerCheck(store, item.slug, headSha(store) ?? "", "test-verified").best === undefined;
-  });
-  if (unproven.length > 0) {
+  // `closed_by` used to clear this on its own, so any non-empty string closed an
+  // item with an empty ledger — `--closed-by "I checked it myself"` passed. That
+  // is the requirement-with-an-escape-hatch shape this project criticises pstack
+  // for, shipped in the check that exists to prevent it.
+  //
+  // The escape hatch belongs in the ledger, where it already exists and is
+  // typed: `verifier-blocked` says a check could not be run, keyed to a SHA and
+  // carrying its evidence. `closed_by` is a note, not a verdict.
+  // Any verdict for the slug, not one at the current head. The stale rule is
+  // about verification that is still load-bearing; a closed item was verified at
+  // the SHA it closed on, and holding it to today's HEAD would turn every item
+  // ever closed red as the branch moves on.
+  const missing: string[] = [];
+  const failed: string[] = [];
+  for (const item of closed) {
+    const rows = ledgerEntries(store).filter((entry) => entry.target === item.slug);
+    if (rows.length === 0) missing.push(item.slug);
+    else if (rows.every((entry) => entry.verdict === "verifier-failed")) failed.push(item.slug);
+  }
+
+  if (missing.length > 0) {
     report.fail(
-      `items marked done with neither closed_by nor a ledger verdict: ${unproven.map((i) => i.slug).join(", ")}`,
-      "record the verdict with 'mstack ledger record', or say what closed it",
+      `items marked done with no ledger verdict at all: ${missing.join(", ")}`,
+      "record it with 'mstack ledger record'; if no check could be run, that verdict is 'verifier-blocked'",
     );
-  } else {
-    report.ok(`${closed.length} closed item(s) carry proof`);
+  }
+  if (failed.length > 0) {
+    report.fail(
+      `items marked done whose only verdict is verifier-failed: ${failed.join(", ")}`,
+      "a failed verifier is a reason to reopen the item, not to close it",
+    );
+  }
+  if (missing.length === 0 && failed.length === 0) {
+    report.ok(`${closed.length} closed item(s) carry a ledger verdict`);
   }
 }
 
@@ -264,9 +307,24 @@ export function defaultBranch(store: Store): string {
   return "main";
 }
 
+/**
+ * Every caller treats a git failure as "no answer", so a hang has to become one
+ * too. Without a timeout a slow or prompting git blocked the status line
+ * indefinitely, on the one path that runs on every assistant message. Five
+ * seconds is far past any local plumbing command and still finite.
+ */
+const GIT_TIMEOUT_MS = 5_000;
+
 export function git(store: Store, args: readonly string[]): string | null {
   try {
-    return execFileSync("git", args, { cwd: store.root, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+    return execFileSync("git", args, {
+      cwd: store.root,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+      timeout: GIT_TIMEOUT_MS,
+      // A git that stops to ask for credentials never returns on its own.
+      env: { ...process.env, GIT_TERMINAL_PROMPT: "0", GIT_OPTIONAL_LOCKS: "0" },
+    }).trim();
   } catch {
     return null;
   }

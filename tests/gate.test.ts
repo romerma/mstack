@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { runGate } from "../src/gate.ts";
+import { runGate, SPEC_ARTIFACTS } from "../src/gate.ts";
+import { record } from "../src/ledger.ts";
 import { EMPTY_NEXT_STEP } from "../src/setup.ts";
 import { expectFail, expectPass, item, sandbox, state, trackCurrent } from "./helpers.ts";
 
@@ -119,10 +120,15 @@ test("an sdd item past specifying needs its spec artifacts on disk", () => {
 
     const dir = join(sb.store.specs, "storage-layer");
     mkdirSync(dir, { recursive: true });
-    for (const file of ["proposal.md", "design.md"]) writeFileSync(join(dir, file), "x", "utf8");
-    expectFail(gate(sb), /missing tasks\.md, spec\.md/, "partial spec");
+    for (const file of ["proposal.md", "design.md"]) writeFileSync(join(dir, file), "x".repeat(80), "utf8");
+    expectFail(gate(sb), /missing or empty: tasks\.md, spec\.md/, "partial spec");
 
     for (const file of ["tasks.md", "spec.md"]) writeFileSync(join(dir, file), "x", "utf8");
+    // Four touched files used to satisfy "the spec is complete" — the same
+    // existence-is-not-content mistake the state file check exists to prevent.
+    expectFail(gate(sb), /missing or empty/, "empty spec files");
+
+    for (const file of SPEC_ARTIFACTS) writeFileSync(join(dir, file), "x".repeat(80), "utf8");
     expectPass(gate(sb), "complete spec");
   } finally {
     sb.dispose();
@@ -140,14 +146,109 @@ test("a non-sdd item never needs a spec", () => {
   }
 });
 
-test("done without proof is rejected", () => {
+test("done without proof is rejected, and prose is not proof", () => {
   const sb = sandbox();
   try {
     sb.writeState(state([item({ status: "done" })]));
-    expectFail(gate(sb), /neither closed_by nor a ledger verdict/, "unproven close");
+    expectFail(gate(sb), /no ledger verdict at all/, "unproven close");
 
-    sb.writeState(state([item({ status: "done", closed_by: "PR #12 squash-merged as abc1234" })]));
+    // This test used to assert the opposite: that any non-empty closed_by
+    // cleared the requirement. It locked in the escape hatch — `--closed-by
+    // "I checked it myself"` passed a gate with an empty ledger, which is the
+    // requirement-plus-escape-hatch shape this project criticises pstack for.
+    sb.writeState(state([item({ status: "done", closed_by: "I checked it myself" })]));
+    expectFail(gate(sb), /no ledger verdict at all/, "closed_by is a note, not a verdict");
+
+    record(sb.store, {
+      target: "storage-layer",
+      sha: sb.sha,
+      verdict: "test-verified",
+      evidence: "suite green",
+      verifier: "test",
+    });
     expectPass(gate(sb), "proven close");
+  } finally {
+    sb.dispose();
+  }
+});
+
+test("a verdict recorded at an older SHA still closes an item", () => {
+  const sb = sandbox();
+  try {
+    sb.writeState(state([item({ status: "done" })]));
+    // The stale rule is about verification that is still load-bearing. An item
+    // was verified at the SHA it closed on; holding closed items to today's
+    // HEAD would turn every item ever closed red as the branch moves on.
+    record(sb.store, {
+      target: "storage-layer",
+      sha: "a".repeat(40),
+      verdict: "test-verified",
+      evidence: "suite green then",
+      verifier: "test",
+    });
+    expectPass(gate(sb), "historic verdict");
+  } finally {
+    sb.dispose();
+  }
+});
+
+test("an item closed on a failed verifier is rejected", () => {
+  const sb = sandbox();
+  try {
+    sb.writeState(state([item({ status: "done" })]));
+    record(sb.store, {
+      target: "storage-layer",
+      sha: sb.sha,
+      verdict: "verifier-failed",
+      evidence: "3 tests failed",
+      verifier: "test",
+    });
+    expectFail(gate(sb), /only verdict is verifier-failed/, "closed on a failure");
+
+    // verifier-blocked is the honest way to close something no check could
+    // reach. It is typed, keyed to a SHA, and carries its reason.
+    record(sb.store, {
+      target: "storage-layer",
+      sha: sb.sha,
+      verdict: "verifier-blocked",
+      evidence: "no harness in this repo",
+      verifier: "test",
+    });
+    expectPass(gate(sb), "blocked is a verdict");
+  } finally {
+    sb.dispose();
+  }
+});
+
+test("more than one active item with the rule off is reported, not called idle", () => {
+  const sb = sandbox();
+  try {
+    sb.writeState(
+      state([item({ status: "in_progress" }), item({ id: 2, slug: "two", status: "reviewing" })], {
+        rules: { one_active_item: false, require_verdict_to_close: true, require_spec_for_sdd_items: true },
+      }),
+    );
+    trackCurrent(sb);
+    const report = gate(sb);
+    assert.equal(report.failed, false, "turning the rule off is allowed");
+    assert.ok(
+      report.warnings.some((w) => /2 items active with one_active_item off/.test(w)),
+      `expected the count to be stated, got ${JSON.stringify(report.warnings)}`,
+    );
+    // `ok()` lines are not retained on the report, so the wrong-fact half is
+    // pinned by capturing what the gate actually printed.
+    const printed: string[] = [];
+    const quiet = console.log;
+    console.log = (line: unknown) => void printed.push(String(line));
+    try {
+      runGate(sb.store);
+    } finally {
+      console.log = quiet;
+    }
+    assert.ok(
+      !printed.some((line) => /no active item/.test(line)),
+      `reporting 'no active item' while two are open states the wrong fact: ${JSON.stringify(printed)}`,
+    );
   } finally {
     sb.dispose();
   }

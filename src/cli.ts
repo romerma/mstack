@@ -372,8 +372,17 @@ function cmdMergeGate(argv: readonly string[]): number {
   if (!ledger.isVerdict(min)) throw new UserError(`'${min}' is not a verdict`);
 
   const data = fetchPr(store, pr);
+  // Silently dropping the ledger check when no target could be found turned the
+  // merge gate into a check-status mirror: green CI, no verdict consulted, GO.
+  // The one thing this gate adds over `gh pr checks` is the verdict.
   const target = values.target ?? parseState(store.state).items.find((i) => isActive(i.status))?.slug;
-  const verdict = evaluate(data, target === undefined ? {} : { ledger: { store, target, min } });
+  if (target === undefined) {
+    throw new UserError(
+      "no active item, so there is nothing to check the ledger against",
+      "pass --target <slug>; without it this would only be repeating what gh already told you",
+    );
+  }
+  const verdict = evaluate(data, { ledger: { store, target, min } });
 
   console.log(`${verdict.decision} - PR #${data.number} at ${verdict.headSha.slice(0, 8)}`);
   for (const reason of verdict.reasons) console.log(`  ${reason}`);

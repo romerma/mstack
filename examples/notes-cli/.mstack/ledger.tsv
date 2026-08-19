@@ -1,1 +1,2 @@
 target	sha	verdict	evidence	verifier	ts
+storage-layer	0000000000000000000000000000000000000000	test-verified	python3 -m unittest tests.test_storage -q: 4 tests, OK	seed	2026-08-19T00:00:00.000Z
