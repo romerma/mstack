@@ -1,0 +1,60 @@
+{
+  "version": 1,
+  "project": "notes-cli",
+  "description": "A deliberately small notes CLI. The point of this repository is not what it does, it is that an agent can work in it verifiably.",
+  "verify": "python3 -m unittest discover -s tests -t . -q",
+  "rules": {
+    "one_active_item": true,
+    "require_verdict_to_close": true,
+    "require_spec_for_sdd_items": true
+  },
+  "items": [
+    {
+      "id": 1,
+      "slug": "storage-layer",
+      "title": "Atomic JSON storage",
+      "description": "Read and write notes to a JSON file. A partial write loses every note, not just the one being added.",
+      "acceptance": [
+        "src/storage.py exposes load(path) and save(path, notes)",
+        "save() is atomic: temp file on the same filesystem, then rename",
+        "load() returns [] when the file does not exist",
+        "tests/test_storage.py covers all three, including that no temp file is left behind"
+      ],
+      "status": "done",
+      "verification": "python3 -m unittest tests.test_storage -q",
+      "source": "direct request",
+      "closed_by": "Seeded as already-complete so the example starts with a closed item to read."
+    },
+    {
+      "id": 2,
+      "slug": "cli-search",
+      "title": "Search notes by substring",
+      "description": "`notes search <term>` prints the notes whose title or body contains the term, case-insensitively.",
+      "acceptance": [
+        "`notes search bread` prints notes whose title contains 'bread'",
+        "The match is case-insensitive and also looks at the body",
+        "A search with no matches prints 'no matches' and exits 0",
+        "tests/test_cli.py covers a hit, a case-insensitive hit, a body-only hit, and a miss"
+      ],
+      "status": "pending",
+      "verification": "python3 -m unittest tests.test_cli -q",
+      "source": "direct request"
+    },
+    {
+      "id": 3,
+      "slug": "export-json",
+      "title": "Export notes for another tool to consume",
+      "description": "Something downstream needs the notes. The shape of that contract is the actual decision here, not the code that writes it.",
+      "acceptance": [
+        "`notes export` writes every note to stdout in a documented, stable shape",
+        "The shape is versioned so a consumer can detect a breaking change",
+        "tests cover the shape itself, not just that the command exits 0"
+      ],
+      "status": "pending",
+      "sdd": true,
+      "decision_required": "Is this a stable public contract other tools may depend on, or a convenience dump we are free to change? The two answers produce different work: one needs a version field and a compatibility rule, the other does not.",
+      "verification": "python3 -m unittest discover -s tests -t . -q",
+      "source": "direct request"
+    }
+  ]
+}
