@@ -1,0 +1,74 @@
+{
+  "description": "mstack enforcement. Skill content enters the conversation once and is never re-read, so anything that must hold for a whole session lives here rather than in prose.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/bin/mstack",
+            "args": ["hook", "session-start"],
+            "timeout": 10,
+            "statusMessage": "Reading mstack state",
+            "description": "Put the active item and the last checkpoint back in front of the model. Runs again on --resume, which is the case that matters: a session that resumes without its checkpoint restarts work that was already done."
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/bin/mstack",
+            "args": ["hook", "post-edit"],
+            "timeout": 5,
+            "description": "The cheapest useful check and nothing more. Cheap is the design constraint: a hook that runs the test suite on every edit is a hook someone switches off. Exits 0 unconditionally; it nudges, it never blocks."
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/bin/mstack",
+            "args": ["hook", "subagent-stop"],
+            "timeout": 10,
+            "description": "Confirm the subagent left its report on disk. A review subagent once went idle without writing one; the parent never sees a subagent's reply body, so that analysis would have vanished silently. A reply is not evidence, the file is."
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/bin/mstack",
+            "args": ["hook", "stop"],
+            "timeout": 20,
+            "statusMessage": "Running the mstack gate",
+            "description": "Run the fast gate before the turn ends. Returns additionalContext rather than decision:block, which keeps the same loop protection without raising a hook error or burning the eight-consecutive-block budget."
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/bin/mstack",
+            "args": ["hook", "pre-tool-use"],
+            "timeout": 5,
+            "description": "Deny the handful of commands that are hard or impossible to walk back. Hooks are evaluated before the permission mode is consulted, so this holds even under bypassPermissions."
+          }
+        ]
+      }
+    ]
+  }
+}
