@@ -84,3 +84,39 @@ export function substantialReports(progressDir: string, kind: string, slug: stri
     }
   });
 }
+
+/**
+ * Roles whose verdict does not close an item, because they wrote the thing.
+ *
+ * `skills/ship/SKILL.md` defines safe as "a verdict from a pass that did not
+ * write the code", and `agents/implementer.md` tells the implementer to record
+ * `--verifier implementer`. Nothing checked the column, so the pass that wrote
+ * the code closed the item: `closed_by` again, in a different costume.
+ *
+ * The column is free text — a verifier can be a person, a CI job, a session —
+ * so this is a floor and not a proof. Someone typing `--verifier impl` gets
+ * past it. That is worth having anyway: it stops the default path, which is the
+ * one everybody takes.
+ */
+export const IMPLEMENTING_ROLES: ReadonlySet<string> = new Set(["implementer", "spec-author"]);
+
+export function canCloseAnItem(verifier: string): boolean {
+  const role = roleOf(verifier).trim().toLowerCase();
+  return role !== "" && !IMPLEMENTING_ROLES.has(role);
+}
+
+/**
+ * Prefixes a fan-out may allocate under.
+ *
+ * Wider than `REPORT_KINDS`, which maps the agent roles this plugin ships.
+ * `understand` fans readers out to `explore_<topic>.md` and `design` fans out
+ * its candidates, and `mstack fanout plan --kind explore` used to exit 2 — so
+ * the tooling did not cover two of the three paths its own module comment cites
+ * as the reason it exists.
+ *
+ * Those workers are generic subagents with no role of their own, so
+ * `SubagentStop` cannot guard them. `mstack fanout check` is what covers them.
+ */
+export const FANOUT_KINDS: readonly string[] = [
+  ...new Set([...Object.values(REPORT_KINDS), "explore", "design"]),
+].sort();

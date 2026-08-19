@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
 
-import { CONCURRENCY_CAP, check, plan } from "../src/fanout.ts";
+import { CONCURRENCY_CAP, check, concurrencyCap, plan } from "../src/fanout.ts";
 import { UserError } from "../src/paths.ts";
 import { sandbox, state, item, expectFail, expectPass } from "./helpers.ts";
 
@@ -152,9 +152,48 @@ test("an unknown kind is refused with the list of real ones", () => {
   try {
     assert.throws(
       () => plan(box.store, { kind: "audit", workers: ["correctness"] }),
-      (error: unknown) => error instanceof UserError && /'audit' is not a report kind/.test((error as Error).message),
+      (error: unknown) => error instanceof UserError && /'audit' is not a fan-out kind/.test((error as Error).message),
     );
   } finally {
+    box.dispose();
+  }
+});
+
+test("the kinds the prose fans out on are all allocatable", () => {
+  const box = active();
+  try {
+    // `understand` fans readers out to `explore_<topic>.md` and `design` fans
+    // out its candidates, and `--kind explore` used to exit 2 — so the tooling
+    // did not cover two of the three paths its own module comment cites.
+    for (const kind of ["explore", "design", "review", "impl", "spec", "spec_review"]) {
+      const p = plan(box.store, { kind, workers: ["one", "two"] });
+      assert.equal(p.workers.length, 2, `${kind} could not be planned`);
+      assert.match(basename(p.workers[0]!.report), new RegExp(`^${kind}_storage-layer_one\\.md$`));
+    }
+  } finally {
+    box.dispose();
+  }
+});
+
+test("the cap follows the session's configured limit, not a hardcoded twenty", () => {
+  const box = active();
+  const previous = process.env["CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS"];
+  try {
+    process.env["CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS"] = "3";
+    assert.equal(concurrencyCap(), 3);
+    assert.throws(
+      () => plan(box.store, { kind: "review", workers: ["a", "b", "c", "d"] }),
+      (error: unknown) => error instanceof UserError && /exceeds the 3 concurrent subagents/.test((error as Error).message),
+    );
+    assert.equal(plan(box.store, { kind: "review", workers: ["a", "b", "c"] }).workers.length, 3);
+
+    for (const bad of ["", "0", "-4", "many"]) {
+      process.env["CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS"] = bad;
+      assert.equal(concurrencyCap(), CONCURRENCY_CAP, `${JSON.stringify(bad)} should fall back to the default`);
+    }
+  } finally {
+    if (previous === undefined) delete process.env["CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS"];
+    else process.env["CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS"] = previous;
     box.dispose();
   }
 });

@@ -21,7 +21,11 @@ export const EXIT: Readonly<Record<Decision, number>> = { GO: 0, WAIT: 1, STOP: 
 /** mergeStateStatus values that stop a merge outright. */
 const BLOCKING_MERGE_STATE = new Set(["BLOCKED", "DIRTY", "UNSTABLE", "UNKNOWN"]);
 
-/** Check conclusions that are failures. A skipped job that never started is not one. */
+/**
+ * Check conclusions that are failures. A skipped job that never started is not
+ * one. `ERROR` is a StatusContext state, and it was in neither this set nor the
+ * pending one, so a commit status that errored counted as passing.
+ */
 const FAILING_CONCLUSIONS = new Set([
   "FAILURE",
   "TIMED_OUT",
@@ -29,9 +33,21 @@ const FAILING_CONCLUSIONS = new Set([
   "STARTUP_FAILURE",
   "ACTION_REQUIRED",
   "STALE",
+  "ERROR",
 ]);
 
-const PENDING_STATUSES = new Set(["QUEUED", "IN_PROGRESS", "PENDING", "WAITING", "REQUESTED"]);
+/** `EXPECTED` is a StatusContext that has been promised and has not reported. */
+const PENDING_STATUSES = new Set([
+  "QUEUED",
+  "IN_PROGRESS",
+  "PENDING",
+  "WAITING",
+  "REQUESTED",
+  "EXPECTED",
+]);
+
+/** The only conclusions that count as a check having passed. */
+const PASSING_CONCLUSIONS = new Set(["SUCCESS", "NEUTRAL", "SKIPPED"]);
 
 interface CheckRun {
   name?: string;
@@ -123,6 +139,26 @@ export function evaluate(
     notes.push(`${skipped.length} skipped check(s) ignored; a job that never started is not a failure`);
   }
   if (runs.length === 0) notes.push("no checks reported on this PR");
+
+  // Anything this file does not recognise stops the merge instead of passing
+  // through the gaps between the three sets above. GitHub adds states, and a
+  // merge gate that says GO on a state it cannot classify is the exact shape
+  // this whole plugin exists to stop.
+  const unknown = runs.filter((r) => {
+    const value = normalizeConclusion(r);
+    return (
+      !PASSING_CONCLUSIONS.has(value) &&
+      !FAILING_CONCLUSIONS.has(value) &&
+      !isPending(r)
+    );
+  });
+  if (unknown.length > 0) {
+    stops.push(
+      `${unknown.length} check(s) in a state this gate does not recognise: ${unknown
+        .map((r) => `${r.name ?? "?"}=${normalizeConclusion(r) || "(empty)"}`)
+        .join(", ")}`,
+    );
+  }
 
   if (options.ledger !== undefined) {
     const { store, target, min } = options.ledger;

@@ -24,8 +24,9 @@ The reviewer did not write the code. If that is not true, stop: fetch someone wh
    - security and failure paths
    - the tests themselves: would any of them fail if the change were reverted?
    Skip a lens that has nothing to review, and note that you skipped it.
-4. When they return, `mstack fanout check` with the same workers. It names the ones that did not
-   write a report. A reply is not evidence; act on the file or re-run the worker.
+4. When they return, `mstack fanout check --kind review --worker ...` with the same workers as
+   the plan, minus any lens you skipped. It names the ones that did not write a report. A reply
+   is not evidence; act on the file or re-run the worker.
 5. `mstack:reviewer` runs the verification itself. The implementer's pasted output is not a
    substitute; the whole value of a second pass is that it does not inherit the first pass's
    assumptions.

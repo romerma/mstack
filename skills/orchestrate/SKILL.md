@@ -45,8 +45,10 @@ Integration starts with the first verified unit. Walk up from the lowest unmerge
 stop at the first without a passing verdict: a verified change sitting above an unverified one
 is not landable, because merging it pulls the gap in underneath it.
 
-Concurrent subagents cap at twenty per session. `mstack fanout plan` refuses to exceed it rather
-than letting the excess queue, because queue delay is indistinguishable from a worker that died.
+Concurrent subagents cap at twenty per session, and `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS` moves
+that number. Past the cap, spawning **fails** — it does not queue — so `mstack fanout plan`
+refuses first, against the session's configured limit. It bounds one fan-out, not a session: two
+plans of fifteen both pass, and keeping the session total under the cap is yours to do.
 Fan out to what the work needs, not to what the limit allows, and say what you dropped if you
 bound the fan-out: silent truncation reads as full coverage.
 

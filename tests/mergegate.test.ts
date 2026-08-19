@@ -12,7 +12,7 @@ function pr(overrides: Partial<PullRequest> = {}): PullRequest {
     isDraft: false,
     mergeStateStatus: "CLEAN",
     reviewDecision: "APPROVED",
-    headRefOid: "a".repeat(40),
+    headRefOid: "0".repeat(40),
     statusCheckRollup: [{ name: "Backend", status: "COMPLETED", conclusion: "SUCCESS" }],
     ...overrides,
   };
@@ -99,7 +99,7 @@ test("green is not safe: with no verdict at this head SHA the gate stops", () =>
 test("a verdict recorded against an older SHA does not carry over", () => {
   const sb = sandbox();
   try {
-    record(sb.store, { target: "storage-layer", sha: "b".repeat(40), verdict: "live-verified", evidence: "drove it", verifier: "reviewer" });
+    record(sb.store, { target: "storage-layer", sha: sb.sha, verdict: "live-verified", evidence: "drove it", verifier: "reviewer" });
     const verdict = evaluate(pr(), { ledger: { store: sb.store, target: "storage-layer" } });
     assert.equal(verdict.decision, "STOP", "a restack rewrites SHAs and silently invalidates verdicts");
     assert.ok(verdict.reasons.some((r) => r.includes("voids")));
@@ -111,8 +111,9 @@ test("a verdict recorded against an older SHA does not carry over", () => {
 test("a verdict at this head SHA clears the gate", () => {
   const sb = sandbox();
   try {
-    record(sb.store, { target: "storage-layer", sha: "a".repeat(40), verdict: "test-verified", evidence: "node --test", verifier: "reviewer" });
-    assert.equal(evaluate(pr(), { ledger: { store: sb.store, target: "storage-layer" } }).decision, "GO");
+    record(sb.store, { target: "storage-layer", sha: sb.sha, verdict: "test-verified", evidence: "node --test", verifier: "reviewer" });
+    const verdict = evaluate(pr({ headRefOid: sb.sha }), { ledger: { store: sb.store, target: "storage-layer" } });
+    assert.equal(verdict.decision, "GO", verdict.reasons.join("; "));
   } finally {
     sb.dispose();
   }

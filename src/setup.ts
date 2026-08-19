@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { basename } from "node:path";
 
 import { storeAt, type Store } from "./paths.ts";
@@ -87,6 +87,20 @@ export function setup(root: string, options: { force?: boolean } = {}): Report {
   mkdirSync(store.progress, { recursive: true });
   mkdirSync(store.specs, { recursive: true });
 
+  // `--force` used to empty the work queue and report success. `history.md` was
+  // protected by a literal `false` below, which means the question was asked
+  // and `state.json` was left out of the answer — while the ledger survived,
+  // leaving verdicts pointing at items that no longer existed.
+  const populated = existingItems(store.state);
+  if (populated > 0 && options.force === true) {
+    report.fail(
+      `state.json holds ${populated} item(s); --force would delete them and leave the ledger pointing at nothing`,
+      "move or close the items first, or delete .mstack/ deliberately if that is what you mean",
+    );
+    report.summary();
+    return report;
+  }
+
   write(store.state, seedState(basename(root)), options.force === true, report, "state.json");
   write(store.current, CURRENT_TEMPLATE, options.force === true, report, "progress/current.md");
   write(store.history, HISTORY_TEMPLATE, false, report, "progress/history.md");
@@ -112,4 +126,15 @@ function write(path: string, body: string, force: boolean, report: Report, label
 /** Reset current.md to the empty template. Used at session close. */
 export function resetCurrent(store: Store): void {
   writeFileSync(store.current, CURRENT_TEMPLATE, "utf8");
+}
+
+/** How many items the existing state file holds. Unreadable counts as none. */
+function existingItems(file: string): number {
+  try {
+    const value: unknown = JSON.parse(readFileSync(file, "utf8"));
+    const items = (value as { items?: unknown }).items;
+    return Array.isArray(items) ? items.length : 0;
+  } catch {
+    return 0;
+  }
 }

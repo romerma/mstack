@@ -105,7 +105,7 @@ work is planned. It never changes what counts as evidence.
 | `SessionStart` | Puts the active item and the last checkpoint back in context. Runs again on `--resume`, which is the case that matters |
 | `PostToolUse` | The cheapest useful check. Exits 0 unconditionally: it nudges, it never blocks |
 | `SubagentStop` | Confirms the subagent left its report on disk. **A reply is not evidence, the file is** |
-| `Stop` | Runs the fast gate. Returns feedback rather than a block, so it never burns the eight-block budget |
+| `Stop` | Runs the fast gate. Returns feedback rather than a block: the same loop protections apply, including the eight-continuation cap, but the transcript labels it feedback and no hook error is raised |
 | `PreToolUse` | Denies force-push, hard reset, `branch -D`, `pr merge --admin`. Hooks are evaluated before the permission mode, so this holds even under `bypassPermissions` |
 
 ### Roles that cannot quietly approve themselves

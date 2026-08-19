@@ -46,7 +46,32 @@ export interface State {
   items: Item[];
 }
 
-const SLUG = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+export const SLUG = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+
+/**
+ * Refuse to write what this file would refuse to read.
+ *
+ * `state add` never checked the slug it was given, so one command wrote a
+ * `state.json` its own parser rejects: `state list` exited 2, the gate exited
+ * 1, the status line said "unreadable", and `state set` could not repair it
+ * because it parses before it writes. Recovery meant hand-editing JSON. The
+ * shape check guarded the read path while the writer walked straight past it.
+ */
+export function assertWritable(item: Item, state: State): void {
+  if (!SLUG.test(item.slug)) {
+    throw new UserError(
+      `'${item.slug}' is not a usable slug`,
+      "lowercase words joined by hyphens; it names the branch, the spec directory and the progress files",
+    );
+  }
+  if (item.title.trim() === "") throw new UserError("an item needs a title");
+  if (state.items.some((other) => other !== item && other.slug === item.slug)) {
+    throw new UserError(`an item with slug '${item.slug}' already exists`);
+  }
+  if (state.items.some((other) => other !== item && other.id === item.id)) {
+    throw new UserError(`an item with id ${item.id} already exists`);
+  }
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -164,9 +189,20 @@ export function saveState(file: string, state: State): void {
   writeFileSync(file, `${JSON.stringify(state, null, 2)}\n`, "utf8");
 }
 
+/**
+ * Resolve an item by slug or by id, and never by accident.
+ *
+ * `Number.parseInt` stops at the first non-digit, so `parseInt("2fa-login")` is
+ * 2: `mstack state set 2fa-login` moved whichever item happened to be id 2, and
+ * `mstack decide --resolves 2fa` attached the reasoning to a different item's
+ * fork. Both exited 0. A reference has to be all digits before it is a number.
+ */
 export function findItem(state: State, ref: string): Item | undefined {
-  const byId = Number.parseInt(ref, 10);
-  return state.items.find((i) => i.slug === ref || (!Number.isNaN(byId) && i.id === byId));
+  const bySlug = state.items.find((item) => item.slug === ref);
+  if (bySlug !== undefined) return bySlug;
+  if (!/^\d+$/.test(ref)) return undefined;
+  const id = Number(ref);
+  return state.items.find((item) => item.id === id);
 }
 
 /**

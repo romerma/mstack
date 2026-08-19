@@ -63,16 +63,29 @@ export function list(store: Store): WorktreeInfo[] {
   return infos;
 }
 
+/**
+ * Anything here that would not survive `git worktree remove`.
+ *
+ * `--ignored` is the load-bearing flag. `git status --porcelain` excludes
+ * everything in `.gitignore` by definition, so a worktree holding a `.env` and
+ * a `build/` reported clean and `prune --yes` deleted it. Those files are
+ * exactly the ones with no copy anywhere else.
+ *
+ * A worktree we cannot inspect counts as dirty. Guessing wrong in that
+ * direction leaves a directory behind; guessing wrong in the other deletes
+ * someone's credentials.
+ */
 function isDirty(path: string): boolean {
   try {
-    const out = execFileSync("git", ["status", "--porcelain"], {
+    const out = execFileSync("git", ["status", "--porcelain", "--ignored=matching"], {
       cwd: path,
       encoding: "utf8",
       stdio: ["ignore", "pipe", "ignore"],
+      timeout: 5_000,
     });
     return out.trim() !== "";
   } catch {
-    return false;
+    return true;
   }
 }
 
@@ -113,11 +126,20 @@ export interface PruneCandidate {
   readonly reason: string;
 }
 
-/** Worktrees whose branch is merged and which hold no uncommitted work. */
+/** Worktrees whose branch is merged and which hold no uncommitted or ignored work. */
 export function prunable(store: Store): PruneCandidate[] {
+  // Never the one the caller is standing in. `git worktree remove` refuses it,
+  // but only after the candidate has been listed and, with --yes, agreed to —
+  // so it was offered as safe to delete.
+  const here = resolve(process.cwd());
   return list(store)
-    .filter((w) => !w.isMain && w.merged && !w.dirty)
+    .filter((w) => !w.isMain && w.merged && !w.dirty && !isInside(here, w.path))
     .map((info) => ({ info, reason: `${info.branch} is merged into the default branch` }));
+}
+
+function isInside(candidate: string, directory: string): boolean {
+  const root = resolve(directory);
+  return candidate === root || candidate.startsWith(`${root}/`);
 }
 
 export function remove(store: Store, path: string): void {

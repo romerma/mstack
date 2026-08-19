@@ -2,7 +2,7 @@ import { statSync } from "node:fs";
 import { basename, join } from "node:path";
 
 import { activeItem } from "./state.ts";
-import { REPORT_KINDS, reportFiles } from "./roles.ts";
+import { FANOUT_KINDS, reportFiles } from "./roles.ts";
 import { Report } from "./report.ts";
 import { UserError, type Store } from "./paths.ts";
 
@@ -23,10 +23,24 @@ import { UserError, type Store } from "./paths.ts";
  */
 
 /**
- * Claude Code runs at most twenty concurrent subagents per session. Fanning out
- * past that does not fail loudly; the excess queues, and a coordinator that
- * counts replies rather than workers reads the queue delay as a dropout.
+ * How many subagents may run at once.
+ *
+ * Twenty by default, and `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS` raises or lowers
+ * it, so hardcoding the number refused at 21 on a machine configured for more.
+ *
+ * The comment here used to say the excess "queues silently". It does not: the
+ * docs say spawning fails with `Concurrent subagent limit reached` and tells
+ * Claude not to retry. Stating the opposite of the documented behaviour in the
+ * error a person reads while hitting it is its own small defect.
+ *
+ * This bounds one `plan` call, not a session. Two calls of fifteen both pass.
  */
+export function concurrencyCap(): number {
+  const configured = Number.parseInt(process.env["CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS"] ?? "", 10);
+  return Number.isInteger(configured) && configured > 0 ? configured : 20;
+}
+
+/** The default, kept as a name for the tests and the prose that cite it. */
 export const CONCURRENCY_CAP = 20;
 
 /** A worker name has to survive being part of a filename, and stay readable. */
@@ -43,21 +57,19 @@ export function plan(
   options: { kind: string; workers: readonly string[]; round?: number },
 ): FanoutPlan {
   const kind = options.kind;
-  if (!Object.values(REPORT_KINDS).includes(kind)) {
-    throw new UserError(
-      `'${kind}' is not a report kind`,
-      `one of: ${[...new Set(Object.values(REPORT_KINDS))].sort().join(", ")}`,
-    );
+  if (!FANOUT_KINDS.includes(kind)) {
+    throw new UserError(`'${kind}' is not a fan-out kind`, `one of: ${FANOUT_KINDS.join(", ")}`);
   }
 
   const item = activeItem(store);
   if (item === undefined) throw new UserError("no active item to fan out on");
 
   if (options.workers.length === 0) throw new UserError("fan-out needs at least one --worker");
-  if (options.workers.length > CONCURRENCY_CAP) {
+  const cap = concurrencyCap();
+  if (options.workers.length > cap) {
     throw new UserError(
-      `${options.workers.length} workers exceeds the ${CONCURRENCY_CAP} concurrent subagents Claude Code will run`,
-      "fan out to what the work needs; the excess queues silently and reads as a dropout",
+      `${options.workers.length} workers exceeds the ${cap} concurrent subagents this session will run`,
+      "spawning past the cap fails outright rather than queueing; fan out to what the work needs, or raise CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS",
     );
   }
 

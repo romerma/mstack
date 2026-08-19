@@ -222,9 +222,12 @@ export const GUARDS: readonly Guard[] = [
     why: "git reset --hard discards uncommitted work with no undo; commit or stash first",
   },
   {
-    // Long and short spellings, and the `-d --force` pair that means the same
-    // thing as `-D`.
-    pattern: new RegExp(`${GIT}branch\\b[^\\n]*\\s(?:-[a-zA-Z]*D[a-zA-Z]*|--delete\\s+--force|--force\\s+--delete)(?![-\\w])`),
+    // Long and short spellings, in either order, and the `-d --force` pair that
+    // means the same thing as `-D`. The comment used to claim that last case
+    // and the pattern did not cover it.
+    pattern: new RegExp(
+      `${GIT}branch\\b(?=[^\\n]*\\s(?:-[a-zA-Z]*D[a-zA-Z]*(?![-\\w])|--force(?![-\\w])))(?=[^\\n]*\\s(?:-[a-zA-Z]*[Dd][a-zA-Z]*(?![-\\w])|--delete(?![-\\w])|-[a-zA-Z]*D))`,
+    ),
     why: "deleting an unmerged branch loses the work on it; use -d, which refuses when that would happen",
   },
   {

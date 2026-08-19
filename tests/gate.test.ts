@@ -177,12 +177,14 @@ test("a verdict recorded at an older SHA still closes an item", () => {
   const sb = sandbox();
   try {
     sb.writeState(state([item({ status: "done" })]));
+    const older = sb.sha;
+    sb.commit();
     // The stale rule is about verification that is still load-bearing. An item
     // was verified at the SHA it closed on; holding closed items to today's
     // HEAD would turn every item ever closed red as the branch moves on.
     record(sb.store, {
       target: "storage-layer",
-      sha: "a".repeat(40),
+      sha: older,
       verdict: "test-verified",
       evidence: "suite green then",
       verifier: "test",
@@ -384,7 +386,7 @@ test("a fork answered by a real decisions row clears the item", () => {
       phase: "design",
       decision: "versioned envelope",
       why: "a consumer has to be able to detect a breaking change",
-      evidence: "acceptance bullet 2",
+      evidence: "acceptance bullet 2 of the item, quoted in state.json",
       result: "version field required",
       resolves: "storage-layer",
     });
@@ -425,10 +427,73 @@ test("an item with no fork is untouched by any of this", () => {
       target: "storage-layer",
       sha: sb.sha,
       verdict: "test-verified",
-      evidence: "green",
+      evidence: "the suite ran green",
       verifier: "t",
     });
     expectPass(runGate(sb.store, { quiet: true }), "no fork");
+  } finally {
+    sb.dispose();
+  }
+});
+
+test("the pass that wrote the code does not get to close the item", () => {
+  const sb = sandbox();
+  try {
+    sb.writeState(state([item({ status: "done" })]));
+    // `agents/implementer.md` tells the implementer to record `--verifier
+    // implementer`, and nothing read the column. `closed_by` again, in a
+    // different costume, inside the check built to prevent it.
+    record(sb.store, {
+      target: "storage-layer",
+      sha: sb.sha,
+      verdict: "test-verified",
+      evidence: "the suite ran green",
+      verifier: "implementer",
+    });
+    expectFail(runGate(sb.store, { quiet: true }), /from the pass that wrote the code/, "self-closed");
+
+    record(sb.store, {
+      target: "storage-layer",
+      sha: sb.sha,
+      verdict: "test-verified",
+      evidence: "ran the suite myself rather than reading the report",
+      verifier: "reviewer",
+    });
+    expectPass(runGate(sb.store, { quiet: true }), "closed by a second pass");
+  } finally {
+    sb.dispose();
+  }
+});
+
+test("a plugin-qualified role is the same role", () => {
+  const sb = sandbox();
+  try {
+    sb.writeState(state([item({ status: "done" })]));
+    record(sb.store, {
+      target: "storage-layer",
+      sha: sb.sha,
+      verdict: "test-verified",
+      evidence: "the suite ran green",
+      verifier: "mstack:implementer",
+    });
+    expectFail(runGate(sb.store, { quiet: true }), /from the pass that wrote the code/, "qualified role");
+  } finally {
+    sb.dispose();
+  }
+});
+
+test("an unnamed verifier does not close an item either", () => {
+  const sb = sandbox();
+  try {
+    sb.writeState(state([item({ status: "done" })]));
+    record(sb.store, {
+      target: "storage-layer",
+      sha: sb.sha,
+      verdict: "test-verified",
+      evidence: "the suite ran green",
+      verifier: "",
+    });
+    expectFail(runGate(sb.store, { quiet: true }), /from the pass that wrote the code/, "unnamed verifier");
   } finally {
     sb.dispose();
   }
