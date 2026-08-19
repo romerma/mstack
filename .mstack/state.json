@@ -63,9 +63,10 @@
         "A worker that returns without a report is reported by name, not as a count",
         "Tests cover the collision the review panel already hit in the first end-to-end run"
       ],
-      "status": "pending",
+      "status": "done",
       "description": "design and review both say launch in parallel and both name the twenty-subagent cap. Nothing enforces the cap, allocates run ids, or notices a worker that dropped out.",
-      "source": "gap list, 2026-08-19; the review panel filename collision found on 2026-08-19"
+      "source": "gap list, 2026-08-19; the review panel filename collision found on 2026-08-19",
+      "closed_by": "Closed on the adversarial review's findings being fixed"
     },
     {
       "id": 5,
@@ -77,10 +78,11 @@
         "An unanswered fork is named in the failure, quoting the question",
         "Tests cover the refusal, the answer, and the fact that an item without the field is unaffected"
       ],
-      "status": "reviewing",
+      "status": "done",
       "description": "An item can carry an unresolved product fork and reach done with nobody answering it. The gate's only mention of the field is inside a comment.",
       "source": "gap review after the panel, 2026-08-19",
-      "verification": "node --test 'tests/gate.test.ts' 'tests/decisions.test.ts'"
+      "verification": "node --test 'tests/gate.test.ts' 'tests/decisions.test.ts'",
+      "closed_by": "Closed on the panel's findings being fixed, not on an approval"
     },
     {
       "id": 6,
@@ -91,10 +93,11 @@
         "The behaviour is the same for the subagent path",
         "Other subcommands keep their strict parsing, because there a typo should be loud"
       ],
-      "status": "in_progress",
+      "status": "done",
       "description": "mstack statusline --subagents exits 2 and writes to stderr. Same broken promise as the EPIPE, through a different door.",
       "source": "gap review after the panel, 2026-08-19",
-      "verification": "node --test 'tests/launcher.test.ts'"
+      "verification": "node --test 'tests/launcher.test.ts'",
+      "closed_by": "Closed on the panel's findings being fixed"
     },
     {
       "id": 7,
@@ -105,9 +108,10 @@
         "The four spec artifacts exist and are not stubs",
         "Whatever the run breaks is fixed or recorded, the way the first three runs were"
       ],
-      "status": "pending",
+      "status": "done",
       "description": "export-json sits at specifying with an empty specs directory. The direct path ran twice; the SDD half is verified only as far as entering it.",
-      "source": "gap review after the panel, 2026-08-19"
+      "source": "gap review after the panel, 2026-08-19",
+      "closed_by": "Verified by an independent headless run, not by the session that asked for it"
     },
     {
       "id": 8,
