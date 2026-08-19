@@ -1,0 +1,69 @@
+{
+  "version": 1,
+  "project": "mstack",
+  "description": "mstack's own work queue. The plugin runs on the harness it ships, which is the only way an unused workflow gets found out.",
+  "verify": "npm test && npm run typecheck && bin/mstack lint-plugin .",
+  "rules": {
+    "one_active_item": true,
+    "require_verdict_to_close": true,
+    "require_spec_for_sdd_items": true
+  },
+  "items": [
+    {
+      "id": 1,
+      "slug": "statusline",
+      "title": "Ship a statusline that renders the active item",
+      "acceptance": [
+        "`mstack statusline` reads the stdin payload and prints one line",
+        "It shows the active item, its status, and the branch, and degrades to something useful when .mstack/ is absent",
+        "It never blocks a turn: any failure prints nothing and exits 0",
+        "README documents how a user wires it up, including that a plugin cannot register one on its own if that turns out to be true"
+      ],
+      "status": "in_progress",
+      "description": "The store already holds everything a statusline needs. Every turn currently shows the model and the cwd, and nothing about the work.",
+      "source": "gap list, 2026-08-19",
+      "verification": "node --test 'tests/statusline.test.ts'"
+    },
+    {
+      "id": 2,
+      "slug": "subagent-statusline-shipping",
+      "title": "Decide whether mstack can ship a subagentStatusLine at all",
+      "acceptance": [
+        "Establish, with evidence rather than inference, whether the plugin's bin/ is on PATH for the subagent status line process",
+        "Establish whether ${CLAUDE_PLUGIN_ROOT} is expanded in a plugin settings.json",
+        "Either ship settings.json with a command proven to resolve, or record why it cannot be shipped and close the item"
+      ],
+      "status": "pending",
+      "description": "A plugin may ship subagentStatusLine in its own settings.json, but nothing documents how that command would name mstack's own script.",
+      "decision_required": "The substitution table in the plugins reference lists skills, agents, hooks, monitors, MCP and LSP, and settings.json is not among them. bin/ is documented as reaching the Bash tool only. Both mechanisms may still work and simply be undocumented, but relying on undocumented behaviour in the one plugin whose subject is evidence is its own decision.",
+      "source": "statusline work, 2026-08-19"
+    },
+    {
+      "id": 3,
+      "slug": "why-source-playbooks",
+      "title": "Port the source playbooks the why half of understand lost",
+      "acceptance": [
+        "understand carries per-source guidance for the sources a team actually has, as references rather than skills",
+        "Each one says what that source is good for and what it systematically lies about",
+        "The 1% skill listing budget is unaffected, so they stay out of skills/"
+      ],
+      "status": "pending",
+      "description": "pstack ships eight playbooks for reading a source: Slack, Linear, Notion, Sentry, Datadog and the rest. Merging how and why into one skill dropped them.",
+      "source": "gap list, 2026-08-19"
+    },
+    {
+      "id": 4,
+      "slug": "fan-out-tooling",
+      "title": "Give fan-out the tooling its prose already assumes",
+      "acceptance": [
+        "A run id is allocated per fan-out so parallel workers cannot collide on a filename",
+        "The concurrency cap is enforced by code rather than mentioned in prose",
+        "A worker that returns without a report is reported by name, not as a count",
+        "Tests cover the collision the review panel already hit in the first end-to-end run"
+      ],
+      "status": "pending",
+      "description": "design and review both say launch in parallel and both name the twenty-subagent cap. Nothing enforces the cap, allocates run ids, or notices a worker that dropped out.",
+      "source": "gap list, 2026-08-19; the review panel filename collision found on 2026-08-19"
+    }
+  ]
+}
