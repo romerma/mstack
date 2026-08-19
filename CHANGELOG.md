@@ -38,7 +38,7 @@ drifted from their sources.
   pages, and neither matched the shipped example's ids. The scratch queue now mirrors
   `examples/notes-cli`: same slug, same id, same fork text.
 - The twenty-one-stale-verdicts quote was attributed to pstack's orchestration playbook; it is
-  in `shipping.md`. Fixed in three pages and in the one `src/` comment that carried it.
+  in `shipping.md`. Fixed in three pages and in both `src/` comments that carried it.
 - The shape-check block showed a bare `state.json` where the command prints an absolute path;
   "a parent never sees a subagent's reply body in full" contradicted the sub-agents docs
   (what a parent never sees is the working context); the harness's fast gate finishes in

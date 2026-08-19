@@ -13,7 +13,7 @@ import { reportKind, roleOf, substantialReports } from "./roles.ts";
  *
  * A ledger row is keyed by `(target, sha)` and a new head SHA voids it. The
  * gate catches that, but only when something runs the gate — by then the work
- * has usually moved on. pstack's own orchestration playbook records the cost:
+ * has usually moved on. pstack's own shipping playbook records the cost:
  * "twenty-one verdicts went stale this way in one run with no signal at all".
  * A row that is re-read every turn is where that signal belongs.
  *
