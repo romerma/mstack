@@ -13,6 +13,12 @@ Two questions, and they have different sources.
 the repo is wired to. Code cannot tell you what was rejected, and that is usually the part that
 matters.
 
+For *why*, [references/sources.md](references/sources.md) has one playbook per kind of source —
+what it holds, how to search it, and what it systematically lies about. Read the playbook for the
+source before you search it; each one exists because that source misleads in a specific,
+repeatable way. Start with `code-archaeology.md`, which every repo has and which often ends the
+investigation on its own.
+
 ## Scale the effort
 
 | Scope | Approach |
@@ -24,6 +30,10 @@ matters.
 When you fan out, each reader writes to `.mstack/progress/explore_<topic>.md` and returns the
 path. Narrow questions, disjoint scopes. Three readers given the same broad question return the
 same shallow answer three times.
+
+For *why*, one investigator per source, each reading one playbook and nothing else. A source you
+could not reach is a gap, not an absence: *"Slack was not searchable"* is a finding, and letting
+an empty result become "there was no discussion" is how a confident, wrong account gets built.
 
 ## The account
 
