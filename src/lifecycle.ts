@@ -38,6 +38,22 @@ export const SPEC_REQUIRED_FROM = [
   "verifying",
 ] as const satisfies readonly Status[];
 
+/**
+ * Statuses at or past which an item's `decision_required` fork must be answered.
+ *
+ * `specifying` is deliberately below the line: investigating the fork is work,
+ * and it is the phase where the answer gets found. Everything past it is
+ * building, and the whole meaning of `decision_required` is that the two
+ * answers produce different work. `done` is included for the obvious reason.
+ */
+export const DECISION_REQUIRED_FROM = [
+  "spec_ready",
+  "in_progress",
+  "reviewing",
+  "verifying",
+  "done",
+] as const satisfies readonly Status[];
+
 export const TERMINAL_STATUSES = ["done", "cancelled"] as const satisfies readonly Status[];
 
 /**
@@ -66,6 +82,10 @@ export function isActive(status: Status): boolean {
 
 export function requiresSpecArtifacts(status: Status): boolean {
   return (SPEC_REQUIRED_FROM as readonly Status[]).includes(status);
+}
+
+export function requiresDecision(status: Status): boolean {
+  return (DECISION_REQUIRED_FROM as readonly Status[]).includes(status);
 }
 
 export function canTransition(from: Status, to: Status): boolean {

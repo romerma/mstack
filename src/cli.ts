@@ -6,7 +6,7 @@ import { EXIT, evaluate, fetchPr } from "./mergegate.ts";
 import { defaultBranch, headSha, itemLabel, runGate } from "./gate.ts";
 import * as hooks from "./hooks.ts";
 import * as ledger from "./ledger.ts";
-import { canTransition, isActive, isStatus, STATUSES } from "./lifecycle.ts";
+import { canTransition, isActive, isStatus, requiresDecision, STATUSES } from "./lifecycle.ts";
 import { lintPlugin } from "./lint.ts";
 import { requireStore, UserError } from "./paths.ts";
 import { findItem, parseState, saveState, type Item } from "./state.ts";
@@ -24,7 +24,7 @@ const USAGE = `mstack - durable state and gates for the mstack Claude Code plugi
   ledger record <target> <sha> <verdict> --evidence E [--verifier V]
   ledger check <target> [sha] [--min V]
   ledger summary
-  decide --phase P --decision D --why W --evidence E --result R
+  decide --phase P --decision D --why W --evidence E --result R [--resolves <ref>]
   worktree new <slug> [--prefix fix] [--base origin/main]
   worktree list
   worktree prune [--yes]
@@ -210,6 +210,19 @@ function cmdState(argv: readonly string[]): number {
       if (!isStatus(values.status)) {
         throw new UserError(`'${values.status}' is not a status`, `one of: ${STATUSES.join(", ")}`);
       }
+      // Refused here as well as in the gate. The gate is the authority; this is
+      // the cheapest place to say so, before anything is built on the answer.
+      if (
+        requiresDecision(values.status) &&
+        (item.decision_required ?? "") !== "" &&
+        (item.decision_resolved ?? "") === "" &&
+        values.force !== true
+      ) {
+        throw new UserError(
+          `${item.slug} has an unanswered decision: "${item.decision_required}"`,
+          "answer it with 'mstack decide --resolves " + item.slug + " ...' first",
+        );
+      }
       if (!canTransition(item.status, values.status) && values.force !== true) {
         throw new UserError(
           `${item.status} -> ${values.status} is not a legal transition`,
@@ -293,17 +306,44 @@ function cmdDecide(argv: readonly string[]): number {
       why: { type: "string" },
       evidence: { type: "string" },
       result: { type: "string" },
+      resolves: { type: "string" },
     },
     strict: true,
   });
   if (values.decision === undefined) throw new UserError("decide needs --decision");
-  decisions.add(requireStore(), {
+  const store = requireStore();
+
+  // The row and the pointer are written together so neither can exist alone: a
+  // pointer with no row is a claim with no evidence, and a row nothing points at
+  // does not unblock the item it answers.
+  let item: Item | undefined;
+  let state: ReturnType<typeof parseState> | undefined;
+  if (values.resolves !== undefined) {
+    state = parseState(store.state);
+    item = findItem(state, values.resolves);
+    if (item === undefined) throw new UserError(`no item matches '${values.resolves}'`);
+    if ((item.decision_required ?? "") === "") {
+      throw new UserError(
+        `${item.slug} carries no decision_required, so there is no fork to resolve`,
+        "record the decision without --resolves; every decision is worth a row, only a fork blocks an item",
+      );
+    }
+  }
+
+  const written = decisions.add(store, {
     phase: values.phase ?? "",
     decision: values.decision,
     why: values.why ?? "",
     evidence: values.evidence ?? "",
     result: values.result ?? "open",
   });
+
+  if (item !== undefined && state !== undefined) {
+    item.decision_resolved = written.ts;
+    saveState(store.state, state);
+    console.log(`recorded, and ${item.slug} no longer has an open fork`);
+    return 0;
+  }
   console.log("recorded");
   return 0;
 }

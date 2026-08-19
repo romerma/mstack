@@ -16,6 +16,15 @@ export interface Item {
   sdd?: boolean;
   /** Prose naming an unresolved product fork. Its presence triggers the human gate. */
   decision_required?: string;
+  /**
+   * The `ts` of the `decisions.tsv` row that answered the fork.
+   *
+   * A pointer rather than a copy of the answer: the row carries the reasoning,
+   * the evidence and the result, and duplicating any of that here would give it
+   * somewhere to drift to. Written only by `mstack decide --resolves`, which
+   * writes the row and the pointer in one step so neither can exist alone.
+   */
+  decision_resolved?: string;
   /** Where the work came from: an issue reference, or "direct request". */
   source?: string;
   /** The exact command that proves this item works. */
@@ -136,6 +145,7 @@ function parseItem(value: unknown, index: number, file: string): Item {
   if (typeof value["description"] === "string") item.description = value["description"];
   if (value["sdd"] === true) item.sdd = true;
   if (typeof value["decision_required"] === "string") item.decision_required = value["decision_required"];
+  if (typeof value["decision_resolved"] === "string") item.decision_resolved = value["decision_resolved"];
   if (typeof value["source"] === "string") item.source = value["source"];
   if (typeof value["verification"] === "string") item.verification = value["verification"];
   if (typeof value["closed_by"] === "string") item.closed_by = value["closed_by"];

@@ -20,7 +20,9 @@ First release.
 - Source playbooks for the *why* half of `understand`, each organised around what that source
   systematically lies about, and each stating the rung of the evidence ladder it can reach.
 - The gate checks that `progress/current.md` says something, not merely that it exists.
-- 137 tests, run under both `bun test` and `node --test`, plus a CI job pinned to node 22.6.
+- `decision_required` is enforced rather than announced: an unanswered product fork blocks every
+  phase past `specifying`, and `mstack decide --resolves` is the only way to answer one.
+- 148 tests, run under both `bun test` and `node --test`, plus a CI job pinned to node 22.6.
 
 ### Found by the review panel, before the first release
 

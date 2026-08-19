@@ -51,6 +51,21 @@ before reasoning about the task. A step you decline stays in the list with `skip
 Skipping silently is not allowed, because the failure mode is reading a playbook and then
 writing a bespoke plan that quietly drops its named steps.
 
+### A product fork is a gate, not a note
+
+An item can carry `decision_required`: prose naming a question whose two answers produce
+different work. Past `specifying` the gate refuses to let it move until the fork is answered, and
+the only way to answer it is `mstack decide --resolves <slug>`, which writes the reasoning to
+`decisions.tsv` and stamps the item with a pointer to that row. A boolean would have let someone
+mark a fork answered without saying what the answer was.
+
+```bash
+$ mstack state set export-json --status spec_ready
+mstack: export-json has an unanswered decision: "Is this a stable public contract other tools
+        may depend on, or a convenience dump we are free to change?"
+        answer it with 'mstack decide --resolves export-json ...' first
+```
+
 ### Two paths, one bar for proof
 
 Most work goes straight to implementation. The spec path turns on when the item is marked
