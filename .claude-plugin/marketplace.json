@@ -1,0 +1,16 @@
+{
+  "name": "mstack",
+  "owner": {
+    "name": "Maycol Romero"
+  },
+  "description": "The mstack plugin: rigorous agent workflows with gates that actually gate.",
+  "plugins": [
+    {
+      "name": "mstack",
+      "source": "./",
+      "description": "A router over playbooks, an opt-in spec path, durable state on disk, and enforcement in hooks instead of prose.",
+      "category": "engineering",
+      "keywords": ["workflow", "verification", "spec-driven-development", "orchestration"]
+    }
+  ]
+}
