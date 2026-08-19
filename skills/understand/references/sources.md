@@ -37,7 +37,11 @@ Every playbook ends with the highest rung of the
 [evidence ladder](../../router/references/evidence-ladder.md) that source can reach. Read that
 line before you believe your own write-up.
 
-None of these sources reach rung 4. **They are all rung 1 or 2**: someone said so, or you pointed
-at where they said it. That is genuinely useful for *why* — intent is not a runtime property and
-cannot be executed. It is not evidence about *behaviour*. If the account you are building makes a
-claim about what the code does today, that claim needs the code, and it needs to be run.
+**No source here can get a claim about *why* past rung 2.** Someone said so, or you pointed at
+where they said it. That ceiling is a property of intent rather than of the tools: a reason is
+not a runtime property and cannot be executed, however good the source is.
+
+Some of them do observe the running system — a Sentry event is production failing, a warehouse
+query is production being used — and that is worth more about *behaviour* than pointing at a
+line. It is still not a claim about why. If the account you are building says what the code does
+today, that part needs the code, and it needs to be run.

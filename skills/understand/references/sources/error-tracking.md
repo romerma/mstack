@@ -22,7 +22,11 @@ the evidence; the title is a fingerprint.
   v2.14.0" does not implicate your target; cross-reference the actual commit.
 - **The error may have stopped because upstream changed.** Correlation suggests the fix. It does
   not establish authorship of it.
-- **`resolved` is a button a human pressed.** It is a marker, not a code change.
+- **`resolved` has three different causes and they are not equally useful.** A human clicked it,
+  an auto-resolve timer fired after N hours of quiet, or a commit referencing the issue shipped
+  in a release. Only the third means anything, and it is the good case: the commit is attached
+  to the issue, and it is your answer. A resolved issue also auto-regresses if it recurs in a
+  later release, so a resolution that stuck is itself weak evidence.
 - **Sampling makes rare errors of common ones.** A low event count may mean aggressive sampling.
   If the rate is not visible, say the count is unbounded below.
 - **AI-generated issue summaries read as authoritative and are sometimes wrong.** Fall back to

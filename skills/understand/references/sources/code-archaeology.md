@@ -13,9 +13,17 @@ case that motivated a change. Co-changed files, which reveal coupling nothing do
 
 ```bash
 git log --follow --oneline -- <file>      # survives renames; plain git log does not
-git log -S '<exact string from the code>' -- <file>   # commits that added or removed it
+# -S counts occurrences: it fires when the string appeared or vanished, and
+# stays silent on an edit in place. Changing a timeout from 30 to 5 inside an
+# existing call is exactly the archaeology case, and exactly what -S drops.
+git log -S '<exact string from the code>' -- <file>
+# -G fires when any line containing the pattern changed, edits included.
 git log -G '<regex>' -- <file>
-git blame -L <start>,<end> -- <file>
+# -w ignores whitespace-only changes and --ignore-rev skips a known reformat,
+# both of which restore the author who actually decided the line. A repo with a
+# .git-blame-ignore-revs file has already listed its reformats for you.
+git blame -w -L <start>,<end> -- <file>
+git blame --ignore-revs-file .git-blame-ignore-revs -L <start>,<end> -- <file>
 git log <old>..<new> -p -- <file>
 ```
 
@@ -23,23 +31,30 @@ Then pull the PR behind each substantive commit. The review thread is where the 
 not the description:
 
 ```bash
-gh pr view <n> --json title,body,author,mergedAt,closingIssuesReferences,comments,reviews
+gh pr view <n> --json title,body,author,mergedAt,closingIssuesReferences,comments,reviews,commits
 ```
 
 And look for the out-of-band notes:
 
 ```bash
-rg -l -i 'architecture.decision|adr' --glob '*.md'
+# The trailing path is not optional. Without it ripgrep takes its stdin form and
+# blocks forever when stdin is not a terminal, which is how every subagent runs
+# a command. Verified: no path and an open pipe on stdin hangs; `.` exits 0.
+rg -l -i 'architecture.decision|adr' --glob '*.md' .
 rg -n -C2 '(TODO|FIXME|HACK|XXX)' <file>
 ```
 
 ## What it systematically lies about
 
 - **`git blame` names the last person to touch a line, not the person who decided it.** A
-  reformat, a lint autofix, or a bulk rename rewrites authorship for the whole file. Check
-  whether the blamed commit actually changed behaviour before attributing intent to it.
-- **A squashed merge collapses the entire discussion into one message.** The reasoning lived in
-  the branch commits, which no longer exist. The PR thread is the only surviving copy.
+  reformat, a lint autofix, or a bulk rename rewrites authorship for the whole file. `-w`,
+  `--ignore-rev` and `--ignore-revs-file` undo most of that outright; reach for them before
+  reading the blamed commit by hand.
+- **A squashed merge collapses the discussion into one message on the trunk, and only there.**
+  The branch commits are still on the PR — `gh pr view <n> --json commits`, or
+  `git fetch origin refs/pull/<n>/head` for the diffs — and they survive the head branch being
+  deleted. The step-by-step reasoning this page is looking for is usually in them, so the trunk
+  looking bare is the beginning of the search rather than the end of it.
 - **Commit messages describe the intended change, not the achieved one.** "Fix the race" means
   someone believed they fixed a race.
 - **A revert says the change was backed out. It does not say why.** That reason is almost never

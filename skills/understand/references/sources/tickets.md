@@ -16,8 +16,11 @@ between states, or that was reopened, has a story in it.
 
 - **The description is written before the work and rarely updated after.** It records what
   someone thought they were asking for. The comments record what actually got built.
-- **"Done" is a workflow state a human clicked.** It is not evidence anything shipped, and
-  certainly not that it worked.
+- **"Done" may be a human click or a PR-merge automation.** Linear's GitHub integration moves a
+  linked issue to Done when the PR merges, out of the box, and Jira does the same through
+  automation. Either way it is not evidence anything worked — but if the automation set it, the
+  ticket is carrying the PR reference, which is the thing this investigation is looking for.
+  Check which one it was, and follow the link.
 - **Duplicates and splits scatter the reasoning.** The real discussion is often on a ticket that
   was closed as a duplicate of the one you are reading.
 - **Priority and estimate fields are political.** They record a negotiation, not an assessment.

@@ -151,3 +151,32 @@ test("a broken link in a playbook is caught too", () => {
     c.dispose();
   }
 });
+
+test("a shipped command with no path is caught, because it hangs the agent that runs it", () => {
+  const c = copy();
+  try {
+    // `rg PATTERN --glob '*.md'` with no path takes ripgrep's stdin form and
+    // blocks forever when stdin is not a terminal, which is how every subagent
+    // runs a command. One shipped in the playbook whose job is to *start* an
+    // investigation, and only a reviewer running it found out.
+    const target = join(c.root, "skills", "router", "playbooks", "investigate.md");
+    writeFileSync(target, `${readFileSync(target, "utf8")}\n\`\`\`bash\nrg -l -i 'adr' --glob '*.md'\n\`\`\`\n`);
+    expectFail(c.root, /has no path, so it reads stdin and hangs/, "stdin form");
+  } finally {
+    c.dispose();
+  }
+});
+
+test("the same command with a path is left alone", () => {
+  const c = copy();
+  try {
+    const target = join(c.root, "skills", "router", "playbooks", "investigate.md");
+    writeFileSync(
+      target,
+      `${readFileSync(target, "utf8")}\n\`\`\`bash\nrg -l -i 'adr' --glob '*.md' .\nrg -n 'TODO' <file>\nrg -c 'x' src/\n\`\`\`\n`,
+    );
+    assert.equal(lint(c.root).failed, false, JSON.stringify(lint(c.root).failures));
+  } finally {
+    c.dispose();
+  }
+});
