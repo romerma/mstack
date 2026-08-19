@@ -2,10 +2,18 @@
 
 Rigorous, verifiable agent workflows for Claude Code.
 
-mstack is a port of the ideas in Cursor's [`pstack`](https://github.com/cursor/plugins/tree/main/pstack),
-rebuilt on Claude Code's primitives and joined to the enforcement machinery of a
-spec-driven harness that had been running in production. The research behind it, with sources,
-is in [docs/research/pstack-port.md](docs/research/pstack-port.md).
+## Where this comes from
+
+mstack is a port of the ideas in [`pstack`](https://github.com/cursor/plugins/tree/main/pstack)
+by [Lauren Tan](https://github.com/poteto), the only plugin in Cursor's `cursor/plugins`
+monorepo not authored by Cursor itself; the name follows her convention, `poteto` → `pstack`.
+pstack contributed the router, the playbooks, the evidence ladder, the TSV decision log and the
+typed verification ledger; it ships 44 skills, 23 playbooks and zero hooks, so nearly every rule
+it has lives in prose. mstack joins that with the enforcement machinery of a spec-driven harness
+that had been running in production: a lifecycle gate, hooks, roles whose tool lists are the
+permission, and state that survives a dead context window. The full story is in [docs/wiki/The-Story.md](docs/wiki/The-Story.md), and the
+research behind the port, with sources, is in
+[docs/research/pstack-port.md](docs/research/pstack-port.md).
 
 ## The one idea
 
@@ -22,30 +30,74 @@ a design pass is required and then supplies the escape hatch two lines later.
 mstack splits the two. Judgment lives in skills. Anything that must hold whether or not the
 model remembers it lives in a hook or in a gate that is code.
 
-## Install
+## Quickstart
 
-Point Claude Code at a clone. There is nothing to install and no build step — the TypeScript in
-`src/` is what runs:
+There is nothing to install and no build step; the TypeScript in `src/` is what runs.
+
+1. Point Claude Code at a clone:
+
+   ```bash
+   git clone <this repository> mstack
+   claude --plugin-dir "$PWD/mstack"
+   ```
+
+   Once the repository is pushed somewhere, the marketplace route works too; the angle
+   brackets are a placeholder, not a value:
+
+   ```bash
+   /plugin marketplace add <owner>/<repo>
+   /plugin install mstack@mstack
+   ```
+
+2. In the repository you want to work on, create the durable store, then start work:
+
+   ```
+   /mstack:setup
+   /mstack <what you want done>
+   ```
+
+The step-by-step version, with the output of every command, is
+[docs/wiki/Getting-Started.md](docs/wiki/Getting-Started.md).
+
+## Your first item, in five commands
+
+The output below is from a real run. Both refusals are the product behaving as designed.
 
 ```bash
-git clone <this repository> mstack
-claude --plugin-dir "$PWD/mstack"
+$ mstack state add --slug greet-flag --title "greet --shout uppercases the greeting" \
+    --acceptance '`python3 greet.py --shout world` prints HELLO, WORLD' \
+    --acceptance "test_greet.py covers the flag and the default"
+added 1 greet-flag (pending)
+
+$ mstack state set greet-flag --status in_progress
+1 greet-flag (in_progress)
 ```
 
-Once the repository is pushed somewhere, the marketplace route works too. Substitute the real
-owner and repository; the angle brackets below are a placeholder, not a value:
+Do the work, then try to close it directly:
 
 ```bash
-/plugin marketplace add <owner>/<repo>
-/plugin install mstack@mstack
+$ mstack state set greet-flag --status done
+mstack: in_progress -> done is not a legal transition
+        pass --force if you mean to skip a phase, and say why in decisions.tsv
 ```
 
-Then, in a repository:
+The lifecycle goes through `reviewing` and `verifying`, and the close needs a ledger verdict.
+The implementer's own row is not enough:
 
+```bash
+$ mstack ledger record greet-flag "$(git rev-parse HEAD)" test-verified \
+    --evidence "python3 -m unittest test_greet -v: 2 tests, OK" --verifier implementer
+recorded test-verified for greet-flag at 2f059b9c
+
+$ mstack gate    # after moving the item to done
+[fail]  items closed on a verdict from the pass that wrote the code: greet-flag (only implementer)
+        fix: a closing verdict has to come from somewhere other than the implementer; run the
+        verification again from a pass that did not write it
 ```
-/mstack:setup
-/mstack <what you want done>
-```
+
+A reviewer that did not write the code re-runs the verification, records its own row, and the
+gate goes green. The whole walkthrough, including the product-fork refusal, is
+[docs/wiki/How-A-Work-Item-Flows.md](docs/wiki/How-A-Work-Item-Flows.md).
 
 ## What you get
 
@@ -61,13 +113,8 @@ writing a bespoke plan that quietly drops its named steps.
 An item can carry `decision_required`: prose naming a question whose two answers produce
 different work. Past `specifying` the gate refuses to let it move until the fork is answered, and answering it
 means `mstack decide --resolves <slug>`: the reasoning goes to `decisions.tsv` in a row that
-**names the item it answers**, and the item gets a pointer back to that row.
-
-Both halves of that link are load-bearing. With the pointer alone, a row about tabs versus spaces
-closed a fork about a public API contract, because no column said what a row was about. And the
-answer has to say something: a blank decision, or one whose result is still `open`, is refused by
-the CLI and rejected by the gate, because a row that is a timestamp and the word "open" is a
-boolean with extra steps.
+**names the item it answers**, and the item gets a pointer back to that row. A blank decision,
+or one whose result is still `open`, is refused by the CLI and rejected by the gate.
 
 ```bash
 $ mstack state set export-json --status spec_ready
@@ -124,7 +171,7 @@ the honest strength of the claim, and it is worth having; it is not a sandbox.
 .mstack/
 ├── state.json      work items and the lifecycle the gate enforces
 ├── ledger.tsv      target · sha · verdict · evidence · verifier · ts
-├── decisions.tsv   ts · phase · decision · why · evidence · result
+├── decisions.tsv   ts · phase · decision · why · evidence · result · resolves
 ├── progress/       current.md (live) · history.md (append-only) · <kind>_<slug>.md
 └── specs/<slug>/   proposal · design · tasks · spec
 ```
@@ -161,9 +208,9 @@ $ echo '{"items": {}}' > .mstack/state.json && mstack gate
 
 `JSON.parse` accepts that file. So does `jq empty`. Every query downstream then reads
 `undefined`, every comparison sees an empty string and never fires, and a gate without this
-check reports green while enforcing nothing. A check that passes when its own queries break is
-the exact defect the gate exists to catch, and it is a real one: it shipped, in production, in
-the harness this was drawn from.
+check reports green while enforcing nothing. That defect is a real one: it shipped, in
+production, in the harness this was drawn from. Every check is walked in
+[docs/wiki/Gates-and-Hooks.md](docs/wiki/Gates-and-Hooks.md).
 
 ## The status line
 
@@ -174,11 +221,10 @@ own orchestration playbook records what that costs — *"twenty-one verdicts wen
 one run with no signal at all"*. A row re-read every turn is where that signal belongs.
 
 ```
-Opus · fix/cli-search · #2 cli-search · in_progress · verdict stale (1) · ctx 31%
+Opus · fix/cli-search · #2 cli-search · in_progress · verdict stale · ctx 31%
 ```
 
-Claude Code takes `statusLine` from **your** settings, not from a plugin — the plugin manifest has
-no such field ([statusline docs](https://code.claude.com/docs/en/statusline)). So wire it up
+Claude Code takes `statusLine` from **your** settings, not from a plugin, so wire it up
 yourself, in `~/.claude/settings.json` or the project's `.claude/settings.json`:
 
 ```json
@@ -191,38 +237,9 @@ yourself, in `~/.claude/settings.json` or the project's `.claude/settings.json`:
 }
 ```
 
-`refreshInterval` matters here: the event-driven triggers go quiet exactly when a coordinator is
-waiting on background subagents, which is when the state is changing most.
-
-If the bar comes up empty, `mstack` is not resolving. The plugin's `bin/` is documented as being
-on `PATH` for the Bash tool; whether the status line process inherits it is not. Point the command
-at an absolute path instead — `which mstack` inside a Claude Code Bash call prints it.
-
-The line degrades rather than lies. No `.mstack/` says `no .mstack`; an unparseable `state.json`
-says so instead of rendering a confident blank; two active items are reported as a violation
-rather than silently showing the first. Any failure at all prints nothing and exits 0, because a
-status line that can break a session is a status line you will delete.
-
-### Subagent rows
-
-`mstack statusline --subagent` renders the agent panel rows, and shows while the work is still
-running what `SubagentStop` can only report once it is too late: which worker has not written its
-report yet.
-
-```
-implementer · #2 cli-search · impl report written · 12k
-reviewer    · #2 cli-search · no review report yet · 3.2k
-```
-
-Rows are emitted only for roles mstack has a report contract with; everything else keeps Claude
-Code's default rendering. Wire it the same way, as `subagentStatusLine`.
-
-A plugin *may* ship a default `subagentStatusLine` in its own `settings.json`, and mstack does
-not. Neither `${CLAUDE_PLUGIN_ROOT}` nor the plugin's `bin/` is documented as reaching that
-file — the [substitution table](https://code.claude.com/docs/en/plugins-reference) lists skills,
-agents, hooks, monitors, MCP and LSP, and `settings.json` is not among them. Shipping a command
-that cannot name its own script would be a claim we have no evidence for, which is the one thing
-this plugin exists to stop. It is tracked as an open item instead.
+The subagent panel rows, the degradation rules, the absolute-path note and the reason mstack
+does not ship a `subagentStatusLine` of its own are in
+[docs/wiki/Status-Line.md](docs/wiki/Status-Line.md).
 
 ## Runtime
 
@@ -251,13 +268,12 @@ already manages.
 
 The CLI uses only `node:` builtins with zero dependencies, so both runtimes execute it
 identically, and CI runs the tests under both plus the node branch of the launcher, so the
-fallback cannot rot.
-
-The 22.6 floor is a measured claim, not an inherited one: the full suite runs green on 22.6.0 and
-CI keeps a job pinned there. `--experimental-strip-types` is a silent no-op on versions where
-stripping is already the default, so passing it always widens support rather than narrowing it,
-and `--disable-warning=ExperimentalWarning` goes with it because on 22.6 the stripper writes to
-stderr on every invocation — which, on the post-edit hook, means on every edit.
+fallback cannot rot. The 22.6 floor is a measured claim, not an inherited one: the full suite
+runs green on 22.6.0 and CI keeps a job pinned there. `--experimental-strip-types` is a silent
+no-op on versions where stripping is already the default, so passing it always widens support
+rather than narrowing it, and `--disable-warning=ExperimentalWarning` goes with it because on
+22.6 the stripper writes to stderr on every invocation — which, on the post-edit hook, means on
+every edit.
 
 No lockfile is committed, deliberately: Claude Code auto-installs plugin dependencies when it
 finds a `package.json` **and** a lockfile together, and there is nothing here for a user to
@@ -278,13 +294,34 @@ claude plugin validate . --strict
 takes the direct path, and one carrying a real product fork so you can watch the same command
 take the longer route. Its README includes the ways to break the gate on purpose.
 
+## Documentation
+
+The wiki lives in this repository, under [docs/wiki/](docs/wiki/), so it can be reviewed like
+code and read before the GitHub wiki exists. These files are the wiki's source; the mechanical
+publish route is [docs/wiki/Publishing-the-Wiki.md](docs/wiki/Publishing-the-Wiki.md).
+
+| Page | |
+|---|---|
+| [Home](docs/wiki/Home.md) | What mstack is, and the map of every page |
+| [Getting-Started](docs/wiki/Getting-Started.md) | Clone to first closed item, every command with its real output |
+| [The-Story](docs/wiki/The-Story.md) | pstack, the harness, where they agree, and what the join fixed |
+| [How-A-Work-Item-Flows](docs/wiki/How-A-Work-Item-Flows.md) | The lifecycle, the two paths, and the walkthrough of the example repo |
+| [Gates-and-Hooks](docs/wiki/Gates-and-Hooks.md) | The five hooks, every gate check, and the merge gate's rules |
+| [The-CLI](docs/wiki/The-CLI.md) | Every subcommand with real output, exit codes, the verdict enum |
+| [State-Files](docs/wiki/State-Files.md) | The anatomy of `.mstack/`, column by column |
+| [Status-Line](docs/wiki/Status-Line.md) | Wiring, the stale-verdict signal, degradation rules |
+| [Publishing-the-Wiki](docs/wiki/Publishing-the-Wiki.md) | How these files become the GitHub wiki |
+
 ## Credit
 
-The router, playbooks, evidence ladder, decision log and verification ledger come from
-[pstack](https://github.com/cursor/plugins/tree/main/pstack) by Lauren Tan (MIT). The gate,
-checkpoints, verification ladder, requirement traceability and lean human gate come from a
-spec-driven harness of my own. What is new here is joining them and making the gates
-executable.
+mstack is built on [pstack](https://github.com/cursor/plugins/tree/main/pstack) by
+[Lauren Tan](https://github.com/poteto) (MIT, "Copyright (c) 2026 Lauren Tan"). The name keeps
+her convention: `poteto` → `pstack`, so this Claude Code port is `mstack`. From pstack: the
+router, the playbooks, the evidence ladder, the TSV decision log and the typed verification
+ledger. From a spec-driven harness of my own that had been running in production: the lifecycle
+gate, hooks that enforce, tool-list-as-permission roles, the progress-file discipline,
+`decision_required` as a data field, and the fast/slow gate split. What is new here is joining
+them and making the gates executable on Claude Code's primitives.
 
 ## License
 
