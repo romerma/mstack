@@ -13,6 +13,13 @@ import { HEADER as DECISIONS_HEADER } from "./decisions.ts";
  * Two files, opposite disciplines, and both survive a dead context window.
  */
 
+/**
+ * The two lines that mean "nobody has touched this yet". Exported so the gate
+ * matches the template it actually writes instead of a copy that can drift.
+ */
+export const EMPTY_ITEM_LINE = "- **Item:** _none_";
+export const EMPTY_NEXT_STEP = "_If this session dies right now, the first thing the next one should do._";
+
 export const CURRENT_TEMPLATE = `# Current session
 
 > Live state. Keep it updated **while** you work, not at the end. This file is

@@ -1,11 +1,12 @@
 import { execFileSync } from "node:child_process";
-import { existsSync, readdirSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { check as ledgerCheck } from "./ledger.ts";
 import { isActive, requiresSpecArtifacts } from "./lifecycle.ts";
 import { UserError, type Store } from "./paths.ts";
 import { Report } from "./report.ts";
+import { EMPTY_ITEM_LINE, EMPTY_NEXT_STEP } from "./setup.ts";
 import { parseState, type Item, type State } from "./state.ts";
 
 /**
@@ -75,6 +76,41 @@ function checkStoreFiles(store: Store, report: Report): void {
   }
 }
 
+/**
+ * `current.md` is the file that survives a dead context window, and existing is
+ * not the same as saying anything.
+ *
+ * The third end-to-end run ended correctly — it hit a `decision_required` fork
+ * and stopped to ask rather than guessing — and left "Next step" as the
+ * untouched template. The session holding the question and the session that
+ * would have to answer it were not the same session, and nothing on disk
+ * carried it across. That is the one job this file has.
+ *
+ * Matched against the template `mstack setup` writes, so the check cannot drift
+ * from it.
+ */
+function checkCurrent(store: Store, item: Item, report: Report): void {
+  let source: string;
+  try {
+    source = readFileSync(store.current, "utf8");
+  } catch {
+    return; // Absent is already reported by checkStoreFiles.
+  }
+
+  const stale: string[] = [];
+  if (source.includes(EMPTY_ITEM_LINE)) stale.push("the Item line still says _none_");
+  if (source.includes(EMPTY_NEXT_STEP)) stale.push("Next step is still the empty template");
+
+  if (stale.length > 0) {
+    report.fail(
+      `${itemLabel(item)} is active but progress/current.md is not: ${stale.join("; ")}`,
+      "if this session dies now, nothing tells the next one where to start",
+    );
+  } else {
+    report.ok("progress/current.md tracks the active item");
+  }
+}
+
 function checkInvariants(store: Store, state: State, report: Report): void {
   reportDuplicates(state.items.map((i) => i.id), "id", report);
   reportDuplicates(state.items.map((i) => i.slug), "slug", report);
@@ -97,6 +133,7 @@ function checkInvariants(store: Store, state: State, report: Report): void {
     );
   } else if (active.length === 1) {
     report.ok(`one active item: ${active[0]?.slug} (${active[0]?.status})`);
+    checkCurrent(store, active[0]!, report);
   } else {
     report.ok("no active item");
   }
