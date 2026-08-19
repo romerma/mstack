@@ -1,5 +1,26 @@
 # Changelog
 
+## Unreleased
+
+The docs round, before publication.
+
+- README rewritten around the story and the on-ramp: where mstack comes from on the first
+  screen, a quickstart, and a first item walked in five commands whose output — refusals
+  included — is pasted from a real run.
+- A wiki, as files a reviewer can read before the GitHub repository exists: nine pages plus
+  `_Sidebar` and `_Footer` under `docs/wiki/`, every command block backed by a live run and
+  every claim traced to the research doc, the code, or an official page. The publish route is
+  itself a page, its link-rewrite commands tested against a copy, and the one GitHub behaviour
+  the official docs do not state (dashes rendered as spaces in titles) is marked unverified
+  rather than asserted.
+- Credit to Lauren Tan (poteto) made explicit, in the README opening and in a wiki page of its
+  own: pstack's authorship, its MIT license, the `poteto` → `pstack` naming convention this
+  plugin keeps, and pstack's actual position — quoted, not paraphrased — that it does not
+  believe in planning.
+- The README's status line example dropped its "(1)": the renderer deliberately prints
+  `verdict stale` without a count, because the number of rows at other SHAs grows with the age
+  of the item and says nothing about how stale anything is.
+
 ## 0.1.0
 
 First release.
