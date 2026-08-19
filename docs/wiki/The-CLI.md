@@ -2,8 +2,11 @@
 
 `bin/mstack` is on `PATH` for every Bash call while the plugin is enabled. It is a small `sh`
 launcher over `src/cli.ts`; there is no build step, and the CLI uses only `node:` builtins.
-Every output block below is from a real run in a scratch repository, except where a command is
-shown refusing for a documented reason.
+Every output block below is from one real run in a scratch repository, except where a command
+is shown refusing for a documented reason. The scratch queue mirrors `examples/notes-cli`:
+`greet-flag` is the [Getting-Started](Getting-Started.md) walkthrough item, and ids 2 and 3
+are the example's `cli-search` and `export-json`, so the fork item here is the same item, same
+id, same question you will meet in the shipped example.
 
 ```
 Exit codes: 0 pass, 1 gate failure or wait, 2 usage error or stop.
@@ -93,14 +96,14 @@ mstack: in_progress -> done is not a legal transition
 ```console
 $ mstack ledger record greet-flag "$(git rev-parse HEAD)" test-verified \
     --evidence "python3 -m unittest test_greet -v: 2 tests, OK" --verifier implementer
-recorded test-verified for greet-flag at 2f059b9c
+recorded test-verified for greet-flag at 4b63888b
 
 $ mstack ledger check greet-flag
-PASS test-verified at 2f059b9c by implementer
+PASS test-verified at 4b63888b by implementer
 
 $ mstack ledger summary
-2026-08-19T20:19:53.173Z  greet-flag  2f059b9c  test-verified  python3 -m unittest test_greet -v: 2 tests, OK
-2026-08-19T20:20:30.651Z  greet-flag  2f059b9c  test-verified  reviewer re-ran python3 -m unittest test_greet: 2 tests, OK; diff read against both acceptance bullets
+2026-08-19T21:08:48.016Z  greet-flag  4b63888b  test-verified  python3 -m unittest test_greet -v: 2 tests, OK
+2026-08-19T21:08:56.136Z  greet-flag  4b63888b  test-verified  reviewer re-ran python3 -m unittest test_greet: 2 tests, OK; diff read against both acceptance bullets
 ```
 
 The SHA must name a commit that exists in this repository, and the evidence must be at least a
@@ -110,7 +113,7 @@ The row is keyed by `(target, sha)`, so a new commit voids it:
 
 ```console
 $ mstack ledger check greet-flag        # after one more commit
-FAIL no verdict at 021024f8; 2 row(s) exist at other SHAs and a new head SHA voids them
+FAIL no verdict at 542ac0cf; 2 row(s) exist at other SHAs and a new head SHA voids them
 ```
 
 ## decide
@@ -129,38 +132,38 @@ One row per decision, append-only, TSV so GitHub renders it as a table. With `--
 A decision that says nothing is refused:
 
 ```console
-$ mstack decide --phase spec --decision "x" --why "y" --evidence "z" --result done --resolves export-csv
+$ mstack decide --phase spec --decision "x" --why "y" --evidence "z" --result done --resolves export-json
 mstack: resolving a fork needs --decision to say something; got 1 characters, and a token is not an answer
         answer it properly or leave the fork open; a row nobody can read is the boolean this mechanism exists to avoid
 
-$ mstack decide --phase spec --decision "The CSV is a one-off dump; the finance tool imports it manually once a quarter" \
-    --why "The consumer is a human pasting into a spreadsheet, not a pipeline" \
-    --evidence "Asked the requester; their reply is quoted in the item source thread" \
-    --result "no version field; the shape may change with notice" \
-    --resolves export-csv
-recorded, and export-csv no longer has an open fork
+$ mstack decide --phase spec --decision "The export is a stable public contract; the envelope carries a version field and a compatibility rule" \
+    --why "The consumer is another tool running unattended, so a silent shape change breaks it; versioning turns that break into a detectable one" \
+    --evidence "Asked the requester; the consuming tool parses the output in CI, quoted in the item source thread" \
+    --result "versioned envelope; breaking changes bump the version" \
+    --resolves export-json
+recorded, and export-json no longer has an open fork
 ```
 
 ## worktree new / list / prune
 
 ```console
-$ mstack worktree new export-csv --base main
-Preparing worktree (new branch 'feat/export-csv')
-/private/tmp/.../demo-repo-wt-export-csv
-branch feat/export-csv from main at 0a1eec12
+$ mstack worktree new export-json --base main
+Preparing worktree (new branch 'feat/export-json')
+/private/tmp/.../demo-repo-wt-export-json
+branch feat/export-json from main at cf928696
 record that base SHA in .mstack/progress/current.md before you start
 
 $ mstack worktree list
-021024f8  feat/greet-flag                    main,dirty     /private/tmp/.../demo-repo
-0a1eec12  feat/export-csv                    merged         /private/tmp/.../demo-repo-wt-export-csv
+542ac0cf  feat/greet-flag                    main,dirty     /private/tmp/.../demo-repo
+cf928696  feat/export-json                   merged         /private/tmp/.../demo-repo-wt-export-json
 
 $ mstack worktree prune
-would remove /private/tmp/.../demo-repo-wt-export-csv - feat/export-csv is merged into the default branch
+would remove /private/tmp/.../demo-repo-wt-export-json - feat/export-json is merged into the default branch
 
 nothing was removed. Re-run with --yes once you have read the list.
 
 $ mstack worktree prune --yes
-removing /private/tmp/.../demo-repo-wt-export-csv - feat/export-csv is merged into the default branch
+removing /private/tmp/.../demo-repo-wt-export-json - feat/export-json is merged into the default branch
 removed 1 worktree(s)
 ```
 
@@ -189,17 +192,17 @@ prints `GO`, `WAIT` or `STOP` with every reason, and exits 0, 1 or 2 respectivel
 
 ```console
 $ mstack fanout plan --kind review --worker correctness --worker security --worker tests
-review fan-out on export-csv, 3 worker(s):
-  correctness	/private/tmp/.../demo-repo/.mstack/progress/review_export-csv_correctness.md
-  security	/private/tmp/.../demo-repo/.mstack/progress/review_export-csv_security.md
-  tests	/private/tmp/.../demo-repo/.mstack/progress/review_export-csv_tests.md
+review fan-out on export-json, 3 worker(s):
+  correctness	/private/tmp/.../demo-repo/.mstack/progress/review_export-json_correctness.md
+  security	/private/tmp/.../demo-repo/.mstack/progress/review_export-json_security.md
+  tests	/private/tmp/.../demo-repo/.mstack/progress/review_export-json_tests.md
 
 Give each worker its own path. Two workers with one filename lose a report silently.
 
 $ mstack fanout check --kind review --worker correctness --worker security --worker tests
--- review fan-out on export-csv
-[ok]    correctness -> review_export-csv_correctness.md (124 bytes)
-[ok]    tests -> review_export-csv_tests.md (117 bytes)
+-- review fan-out on export-json
+[ok]    correctness -> review_export-json_correctness.md (127 bytes)
+[ok]    tests -> review_export-json_tests.md (121 bytes)
 [fail]  security returned without writing its report
         fix: its reply is not evidence; re-run it and have it write the file before returning
 ```
@@ -215,7 +218,7 @@ did not report" tells you what to re-run. Kinds cover the roles with report cont
 ```console
 $ printf '{"model":{"display_name":"Opus"},"workspace":{"current_dir":"%s"},"context_window":{"used_percentage":31}}' "$PWD" \
     | mstack statusline
-Opus · feat/greet-flag · #2 export-csv · spec_ready · unverified · ctx 31%
+Opus · feat/greet-flag · #3 export-json · spec_ready · unverified · ctx 31%
 ```
 
 Reads Claude Code's status-line JSON on stdin, prints one line (with ANSI colour, stripped

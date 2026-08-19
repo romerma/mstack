@@ -4,9 +4,9 @@ mstack is a Claude Code plugin for rigorous, verifiable agent workflows: work it
 durable store on disk, every claim carries a typed verdict keyed to a commit SHA, and the rules
 that must hold are enforced by hooks and gates that are code rather than prose. It is a port of
 [pstack](https://github.com/cursor/plugins/tree/main/pstack) by
-[Lauren Tan](https://github.com/poteto) (`poteto`, which is where the `-stack` naming comes
-from), joined to the enforcement machinery of a spec-driven harness that had been running in
-production. The judgment came from pstack; the enforcement came from the harness; what is new
+[Lauren Tan](https://github.com/poteto) (the name follows her convention, `poteto` →
+`pstack`, and mstack keeps it), joined to the enforcement machinery of a spec-driven harness
+that had been running in production. The judgment came from pstack; the enforcement came from the harness; what is new
 is the join.
 
 ## Where to start

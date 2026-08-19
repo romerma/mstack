@@ -48,8 +48,8 @@ $ mstack setup
 PASSED - 0 failures, 0 warnings
 ```
 
-Commit `.mstack/`. It is the durable state and it belongs in version control. Then prove the
-store is healthy:
+Prove the store is healthy. Straight after `setup`, with `.mstack/` not yet committed, the
+gate passes with two warnings:
 
 ```console
 $ mstack gate
@@ -75,7 +75,21 @@ $ mstack gate
 PASSED - 0 failures, 2 warnings
 ```
 
-Warnings do not stop a session; failures do.
+Warnings do not stop a session; failures do, and these two warnings are the gate telling the
+truth about the state you are in: the store is uncommitted and you are on the default branch.
+Commit the store; it is durable state and belongs in version control:
+
+```console
+$ git add -A
+$ git commit -m "chore: add the mstack store"
+[main cf92869] chore: add the mstack store
+ 5 files changed, 51 insertions(+)
+ create mode 100644 .mstack/decisions.tsv
+ create mode 100644 .mstack/ledger.tsv
+ create mode 100644 .mstack/progress/current.md
+ create mode 100644 .mstack/progress/history.md
+ create mode 100644 .mstack/state.json
+```
 
 ## Wire the status line
 
@@ -153,12 +167,17 @@ Ran 2 tests in 0.000s
 OK
 ```
 
-Commit, then record the verdict against the head SHA:
+Commit the work, then record the verdict against the head SHA:
 
 ```console
+$ git add -A
+$ git commit -m "feat: greet --shout uppercases the greeting"
+[feat/greet-flag 4b63888] feat: greet --shout uppercases the greeting
+ 4 files changed, 34 insertions(+), 11 deletions(-)
+
 $ mstack ledger record greet-flag "$(git rev-parse HEAD)" test-verified \
     --evidence "python3 -m unittest test_greet -v: 2 tests, OK" --verifier implementer
-recorded test-verified for greet-flag at 2f059b9c
+recorded test-verified for greet-flag at 4b63888b
 ```
 
 `test-verified` is rung 4 on the evidence ladder: a test that calls the real code and fails
@@ -204,7 +223,7 @@ the verification itself and records its own row:
 $ mstack ledger record greet-flag "$(git rev-parse HEAD)" test-verified \
     --evidence "reviewer re-ran python3 -m unittest test_greet: 2 tests, OK; diff read against both acceptance bullets" \
     --verifier reviewer
-recorded test-verified for greet-flag at 2f059b9c
+recorded test-verified for greet-flag at 4b63888b
 
 $ mstack gate
 ...
@@ -219,10 +238,24 @@ either way: the item closed on a second pass's evidence, not the author's.
 
 ### What a new commit does to that verdict
 
+The close touched `.mstack/`, so commit the bookkeeping, then make any further commit and ask
+the ledger again:
+
 ```console
-$ git commit -q -m "docs: add a readme"     # any new commit moves HEAD
+$ git add -A
+$ git commit -m "chore: close greet-flag"
+[feat/greet-flag ccb9e2e] chore: close greet-flag
+ 2 files changed, 5 insertions(+), 2 deletions(-)
+
+$ printf '# demo\n' > README.md
+$ git add -A
+$ git commit -m "docs: add a readme"
+[feat/greet-flag 542ac0c] docs: add a readme
+ 1 file changed, 1 insertion(+)
+ create mode 100644 README.md
+
 $ mstack ledger check greet-flag
-FAIL no verdict at 021024f8; 2 row(s) exist at other SHAs and a new head SHA voids them
+FAIL no verdict at 542ac0cf; 2 row(s) exist at other SHAs and a new head SHA voids them
 ```
 
 A verdict is keyed by `(target, sha)`. This staleness is the one signal the status line exists

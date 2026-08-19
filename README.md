@@ -2,6 +2,11 @@
 
 Rigorous, verifiable agent workflows for Claude Code.
 
+In practice that means three things: work items live in a durable store on disk, every claim
+about the work carries a typed verdict keyed to a commit SHA, and the rules that must hold
+are enforced by hooks and gates that are code rather than prose. The rest of this README is
+those three things, shown running.
+
 ## Where this comes from
 
 mstack is a port of the ideas in [`pstack`](https://github.com/cursor/plugins/tree/main/pstack)
@@ -87,7 +92,7 @@ The implementer's own row is not enough:
 ```bash
 $ mstack ledger record greet-flag "$(git rev-parse HEAD)" test-verified \
     --evidence "python3 -m unittest test_greet -v: 2 tests, OK" --verifier implementer
-recorded test-verified for greet-flag at 2f059b9c
+recorded test-verified for greet-flag at 4b63888b
 
 $ mstack gate    # after moving the item to done
 [fail]  items closed on a verdict from the pass that wrote the code: greet-flag (only implementer)
@@ -119,7 +124,8 @@ or one whose result is still `open`, is refused by the CLI and rejected by the g
 ```bash
 $ mstack state set export-json --status spec_ready
 mstack: export-json has an unanswered decision: "Is this a stable public contract other tools
-        may depend on, or a convenience dump we are free to change?"
+        may depend on, or a convenience dump we are free to change? The two answers produce
+        different work: one needs a version field and a compatibility rule, the other does not."
         answer it with 'mstack decide --resolves export-json ...' first
 ```
 
@@ -153,7 +159,7 @@ work is planned. It never changes what counts as evidence.
 | `PostToolUse` | The cheapest useful check. Exits 0 unconditionally: it nudges, it never blocks |
 | `SubagentStop` | Confirms the subagent left its report on disk. **A reply is not evidence, the file is** |
 | `Stop` | Runs the fast gate. Returns feedback rather than a block: the same loop protections apply, including the eight-continuation cap, but the transcript labels it feedback and no hook error is raised |
-| `PreToolUse` | Denies force-push, hard reset, `branch -D`, `pr merge --admin`. Hooks are evaluated before the permission mode, so this holds even under `bypassPermissions` |
+| `PreToolUse` | Denies force-push, hard reset, `branch -D`, `pr merge --admin`. PreToolUse hooks run before the permission prompt, and it follows from that ordering that the deny holds even under `bypassPermissions` |
 
 ### Roles that cannot quietly approve themselves
 
@@ -202,7 +208,7 @@ The load-bearing check is a shape check, not a parse check:
 
 ```bash
 $ echo '{"items": {}}' > .mstack/state.json && mstack gate
-[fail]  state.json parses but has the wrong shape: .items must be an array, got an object
+[fail]  .../.mstack/state.json parses but has the wrong shape: .items must be an array, got an object
         fix: this is the shape that silently disables every check below it
 ```
 
@@ -217,7 +223,7 @@ production, in the harness this was drawn from. Every check is walked in
 The status line exists for one signal nothing else can deliver in time: **a verdict going
 stale**. A ledger row is keyed by `(target, sha)`, and a new head SHA voids it. The gate catches
 that, but only when something runs the gate, and by then the work has usually moved on. pstack's
-own orchestration playbook records what that costs — *"twenty-one verdicts went stale this way in
+own shipping playbook records what that costs — *"twenty-one verdicts went stale this way in
 one run with no signal at all"*. A row re-read every turn is where that signal belongs.
 
 ```
@@ -286,6 +292,7 @@ bun install                       # types only, for the typechecker
 bun run test                      # bun test AND node --test
 bun run typecheck
 ./bin/mstack lint-plugin .
+node scripts/check-doc-links.mjs README.md docs/wiki/*.md
 claude --plugin-dir .             # then /reload-plugins after editing hooks or agents
 claude plugin validate . --strict
 ```

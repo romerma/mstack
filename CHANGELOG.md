@@ -10,9 +10,10 @@ The docs round, before publication.
 - A wiki, as files a reviewer can read before the GitHub repository exists: nine pages plus
   `_Sidebar` and `_Footer` under `docs/wiki/`, every command block backed by a live run and
   every claim traced to the research doc, the code, or an official page. The publish route is
-  itself a page, its link-rewrite commands tested against a copy, and the one GitHub behaviour
-  the official docs do not state (dashes rendered as spaces in titles) is marked unverified
-  rather than asserted.
+  itself a page, its link-rewrite commands tested against a copy, and the GitHub behaviours
+  the official docs do not state — extension-free page addressing, the wiki repository not
+  existing before its first page, dashes rendered as spaces in titles — are marked as
+  observed and unverified rather than asserted.
 - Credit to Lauren Tan (poteto) made explicit, in the README opening and in a wiki page of its
   own: pstack's authorship, its MIT license, the `poteto` → `pstack` naming convention this
   plugin keeps, and pstack's actual position — quoted, not paraphrased — that it does not
@@ -20,6 +21,35 @@ The docs round, before publication.
 - The README's status line example dropped its "(1)": the renderer deliberately prints
   `verdict stale` without a count, because the number of rows at other SHAs grows with the age
   of the item and says nothing about how stale anything is.
+
+### Found by the docs review panel
+
+Two reviewers on the docs round, a cold reader who rebuilt the walkthrough by hand and a
+fact-checker who re-derived every claim. Twenty-five findings, all fixed, the pattern familiar
+from the code rounds: the enforcement was real, the transcripts mostly held, and the edges had
+drifted from their sources.
+
+- Three pasted transcripts did not reproduce when followed literally: the walkthrough said
+  commit-then-gate while its output was gate-then-commit, two "Commit" instructions never
+  showed the command whose staging the staleness demo depended on, and `gate --full` was
+  captured with `-q` while every configuration shown uses `-v`. The demo was rebuilt from
+  scratch and every block re-captured from the one run.
+- The illustrative fork item was two different items with two different questions across three
+  pages, and neither matched the shipped example's ids. The scratch queue now mirrors
+  `examples/notes-cli`: same slug, same id, same fork text.
+- The twenty-one-stale-verdicts quote was attributed to pstack's orchestration playbook; it is
+  in `shipping.md`. Fixed in three pages and in the one `src/` comment that carried it.
+- The shape-check block showed a bare `state.json` where the command prints an absolute path;
+  "a parent never sees a subagent's reply body in full" contradicted the sub-agents docs
+  (what a parent never sees is the working context); the harness's fast gate finishes in
+  seconds, not milliseconds — milliseconds is mstack's number; and the wiki publish command
+  rewrote this documentation's own prose until its file list learned to exclude the page that
+  quotes it.
+- The `bypassPermissions` consequence of the PreToolUse deny is no longer on the hooks page it
+  was quoted from; it is now presented as following from the two sentences the permissions
+  docs do state.
+- Item 9's recorded verification was prose, not a command. The link checker now ships at
+  `scripts/check-doc-links.mjs` and the field runs it.
 
 ## 0.1.0
 

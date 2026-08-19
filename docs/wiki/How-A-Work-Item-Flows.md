@@ -75,11 +75,11 @@ investigating it is the work. From `spec_ready` onward the CLI and the gate both
 the item until the fork is answered (`src/lifecycle.ts:49-55`, `src/cli.ts:255-265`):
 
 ```console
-$ mstack state set export-csv --status spec_ready
-mstack: export-csv has an unanswered decision: "Is the CSV a stable contract the finance tool
-        depends on, or a one-off dump? A stable contract needs a header-version rule; a dump
-        does not."
-        answer it with 'mstack decide --resolves export-csv ...' first
+$ mstack state set export-json --status spec_ready
+mstack: export-json has an unanswered decision: "Is this a stable public contract other tools
+        may depend on, or a convenience dump we are free to change? The two answers produce
+        different work: one needs a version field and a compatibility rule, the other does not."
+        answer it with 'mstack decide --resolves export-json ...' first
 ```
 
 Answering it means `mstack decide --resolves <slug>`: one command writes a `decisions.tsv` row
@@ -88,7 +88,7 @@ neither can exist alone. The answer has to say something; a one-character decisi
 of `open` is refused:
 
 ```console
-$ mstack decide --phase spec --decision "x" --why "y" --evidence "z" --result done --resolves export-csv
+$ mstack decide --phase spec --decision "x" --why "y" --evidence "z" --result done --resolves export-json
 mstack: resolving a fork needs --decision to say something; got 1 characters, and a token is not an answer
         answer it properly or leave the fork open; a row nobody can read is the boolean this mechanism exists to avoid
 ```

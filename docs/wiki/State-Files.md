@@ -1,8 +1,8 @@
 # State files
 
 Everything durable lives in `.mstack/`, in the repository, under version control. Chat is not
-state: a context window dies mid-task, a parent never sees a subagent's reply body in full, and
-a resumed session starts from what is on disk. The store is small enough to read in one
+state: a context window dies mid-task, a subagent's working context vanishes with it and its
+parent only ever sees the final reply, and a resumed session starts from what is on disk. The store is small enough to read in one
 sitting, and that is deliberate.
 
 ```
@@ -53,7 +53,7 @@ ledger check <target>` evaluates against the current head by default:
 
 ```console
 $ mstack ledger check greet-flag
-FAIL no verdict at 021024f8; 2 row(s) exist at other SHAs and a new head SHA voids them
+FAIL no verdict at 542ac0cf; 2 row(s) exist at other SHAs and a new head SHA voids them
 ```
 
 The write path validates what used to be trusted: the SHA must name a commit that exists in

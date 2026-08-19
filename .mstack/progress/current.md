@@ -7,7 +7,7 @@
 > empty template below.
 
 - **Item:** 9 readme-and-wiki — README and wiki that teach mstack to a stranger
-- **Status:** in_progress (feature playbook, direct path)
+- **Status:** reviewing (feature playbook, direct path)
 - **Branch:** docs/readme-and-wiki
 - **Base:** main
 - **Worktree:** none
@@ -63,6 +63,20 @@ Feature playbook, steps verbatim, with dispositions:
 - CHANGELOG Unreleased section added.
 - Verify battery: link check 53/0 broken, npm test 169 pass, typecheck clean, lint-plugin
   PASSED, gate PASSED.
+- Review round: both lenses CHANGES_REQUESTED (reader 6 findings, facts 19). Fix round
+  started per the orchestrator's triage. Plan: rebuild the scratch demo store so ids mirror
+  examples/notes-cli (greet-flag 1, cli-search 2 filler, export-json 3 sdd + exact fork),
+  replay the whole walkthrough from scratch and re-capture every pasted block; then the F1-F19
+  page fixes, scripts/check-doc-links.mjs, item 9 verification field amendment, and the one
+  attribution word in src/ledger.ts:12 (orchestrate -> shipping, a panel finding).
+- Fix round applied in full. Demo replayed from scratch in one coherent run (new shas
+  4b63888b/ccb9e2e/542ac0c, fork item export-json id 3 with the exact fixture text); all six
+  reader findings and all nineteen facts findings addressed; scripts/check-doc-links.mjs
+  shipped and item 9's verification field now executes as recorded (exit 0, run whole);
+  corrected publish route re-run on a fresh copy, diff shows link targets only and
+  Publishing-the-Wiki.md untouched. Battery: 169 tests, typecheck, lint-plugin PASSED,
+  54 links 0 broken, gate PASSED. Two decision rows added. No ledger row this round and item
+  status untouched, per the orchestrator.
 
 ## Verification
 
@@ -71,8 +85,29 @@ Feature playbook, steps verbatim, with dispositions:
   gate, all green. Prose lineage claims are rung 2 against docs/research/pstack-port.md and
   the cited sources. The dash-to-space wiki title rendering stopped at rung 1 and says so.
 
+- Parent diff review done: README and all eleven wiki pages read in full; every cited
+  file:line range opened and confirmed (lifecycle 10-20/25-31/49-55/63-73, hooks GUARDS
+  205-243, roles 14-19/64/101-106, statusline 146-163, ledger 17-23, gate SPEC_ARTIFACTS,
+  the orchestrate twelve-unit quote in both files).
+- Verify battery re-run by the parent, not inherited: 169 tests, typecheck, lint-plugin,
+  gate, 53 links — all green.
+- Item moved to reviewing. Panel launched with fanout-allocated paths: facts lens on opus,
+  cold-reader lens on sonnet, both forbidden to edit.
+- Reader lens returned CHANGES_REQUESTED with six findings, each reproduced twice: the
+  export-csv/export-json split identity across three pages (self-contradicting within
+  How-A-Work-Item-Flows.md), a missing `git add -A` that Getting-Started's staleness payoff
+  depends on, a gate --full transcript captured with -q while the docs configure -v, a
+  commit-first instruction whose pasted gate output is the uncommitted state, a jargon-dense
+  README opening, and item 9's own verification string not being executable as recorded.
+  Everything else held, including both sd publish commands and all link resolution re-checked
+  by hand.
+
 ## Next step
 
-If this session dies now: deliverables are written and verified, commits in progress in the
-order readme -> wiki -> changelog -> bookkeeping, then the implementer ledger row at the
-changelog commit's SHA. After that: review by a pass that did not write this, per the plan.
+If this session dies now: both panel reports are in and the fix round is applied and verified,
+awaiting the single commit 'fix: what the docs review panel found' (docs +
+scripts/check-doc-links.mjs + the src/ledger.ts comment word + bookkeeping). After that:
+re-review of the fixes by a pass that did not write them, record the closing verdict from that
+pass, then verifying -> done, history.md append, current.md reset, fast-forward
+docs/readme-and-wiki into main. Ship note: merge-gate skip: no remote exists before
+publication, a PR is impossible; local fast-forward instead.

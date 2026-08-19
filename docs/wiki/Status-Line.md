@@ -3,7 +3,7 @@
 The status line exists for one signal nothing else can deliver in time: **a verdict going
 stale**. A ledger row is keyed by `(target, sha)`, and a new head SHA voids it. The gate
 catches that, but only when something runs the gate, and by then the work has usually moved
-on. pstack's own orchestration playbook records what that costs — *"twenty-one verdicts went
+on. pstack's own shipping playbook records what that costs — *"twenty-one verdicts went
 stale this way in one run with no signal at all"*. A row re-read every turn is where that
 signal belongs.
 
@@ -23,16 +23,18 @@ active item has no verdict yet:
 ```console
 $ printf '{"model":{"display_name":"Opus"},"workspace":{"current_dir":"%s"},"context_window":{"used_percentage":31}}' "$PWD" \
     | mstack statusline
-Opus · feat/greet-flag · #2 export-csv · spec_ready · unverified · ctx 31%
+Opus · feat/greet-flag · #3 export-json · spec_ready · unverified · ctx 31%
 ```
 
 Colour is ANSI, stripped in this document.
 
 ## Wiring
 
-Claude Code takes `statusLine` from **your** settings, not from a plugin — the plugin manifest
-has no such field ([statusline docs](https://code.claude.com/docs/en/statusline)). So wire it
-up yourself, in `~/.claude/settings.json` or the project's `.claude/settings.json`:
+Claude Code takes `statusLine` from **your** settings, not from a plugin — the settings a
+plugin can ship support only the `agent` and `subagentStatusLine` keys
+([plugins-reference](https://code.claude.com/docs/en/plugins-reference)). So wire it up
+yourself, in `~/.claude/settings.json` or the project's `.claude/settings.json`, per the
+[statusline docs](https://code.claude.com/docs/en/statusline):
 
 ```json
 {
@@ -64,9 +66,10 @@ exits 0, because a status line that can break a session is a status line you wil
 That last promise is why `statusline` is the one subcommand that parses its arguments
 leniently: `mstack statusline --subagents` (a typo) still exits 0 with nothing on stderr,
 where every other subcommand keeps strict parsing because there a typo should be loud. Both
-halves of that split were review findings: the bar could exit 1 with a stack trace on an EPIPE
-the docs describe as normal operation, and could exit 2 on a typo'd flag. Its tests now drive
-the real binary.
+halves of that split were review findings. The bar could exit 1 with a stack trace on an
+EPIPE: the docs describe Claude Code cancelling the in-flight script when a new update
+triggers as normal operation, and the EPIPE is what that cancellation produces when it lands
+mid-write. And it could exit 2 on a typo'd flag. Its tests now drive the real binary.
 
 ## Subagent rows
 
@@ -75,8 +78,8 @@ running what `SubagentStop` can only report once it is too late: which worker ha
 its report yet.
 
 ```
-implementer · #2 export-csv · no impl report yet · 12k
-reviewer    · #2 export-csv · 2 review reports · 3.2k
+implementer · #3 export-json · no impl report yet · 12k
+reviewer · #3 export-json · 2 review reports · 3.2k
 ```
 
 That render is real: the reviewer panel had two lens reports on disk, the implementer none,
