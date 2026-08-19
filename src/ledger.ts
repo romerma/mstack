@@ -9,7 +9,7 @@ import { append, readRecords } from "./tsv.ts";
  * This is the piece of pstack that actually gates, because it is code with a
  * typed enum rather than prose asking nicely. Two rules travel with it:
  * CI green is an *input* to a verdict, never a verdict; and a new head SHA
- * voids the row. pstack's own orchestrate playbook records twenty-one verdicts
+ * voids the row. pstack's own shipping playbook records twenty-one verdicts
  * going stale in a single run with no signal at all, which is what happens when
  * the second rule is left to memory.
  */

@@ -15,7 +15,7 @@ timed-out hook renders no decision at all, so a gate must never depend on being 
 | Event | When Claude Code fires it | What mstack's handler does |
 |---|---|---|
 | `SessionStart` | A session starts, including on `--resume` | Prints the active item, its open `decision_required` if any, and the last checkpoint from `progress/current.md` back into context. Resume is the case that matters: a session that resumes without its checkpoint restarts work that was already done |
-| `PostToolUse` | After a matched tool call; mstack matches `Edit\|Write` | The cheapest useful check and nothing more. Re-validates `state.json` after an edit to it, and reminds that `history.md` is append-only after an edit to that. Exits 0 unconditionally: it nudges, it never blocks, because a hook that runs the test suite on every edit is a hook someone switches off |
+| `PostToolUse` | After a matched tool call succeeds (a failed call fires `PostToolUseFailure` instead); mstack matches `Edit\|Write` | The cheapest useful check and nothing more. Re-validates `state.json` after an edit to it, and reminds that `history.md` is append-only after an edit to that. Exits 0 unconditionally: it nudges, it never blocks, because a hook that runs the test suite on every edit is a hook someone switches off |
 | `SubagentStop` | A subagent finishes | Checks that the subagent left its report file on disk, and that the file says something: under 40 bytes is a stub, judged per file so one substantial lens does not excuse an empty sibling. Exists because a review subagent once returned a confident summary having written nothing. A reply is not evidence, the file is |
 | `Stop` | The main agent is about to end its turn | Runs the fast gate. On failures it returns feedback (`additionalContext`) rather than a block: the same loop protections apply, including the eight-continuation cap, but the transcript labels it feedback and no hook error is raised |
 | `PreToolUse` | Before a matched tool call; mstack matches `Bash` | Denies the handful of commands that are hard or impossible to walk back. This is the only hook that blocks |
@@ -33,8 +33,13 @@ The guard list, from `src/hooks.ts:205-243`:
 | `gh pr merge --admin` | merges past a check `gh` would otherwise refuse; fix the check instead |
 | `rm -r` on `.mstack` | deletes the durable state this workflow runs on |
 
-Hooks are evaluated before the permission mode, so these denials hold even under
-`bypassPermissions`. The guards are regexes over the command string, not a shell parser, and
+Two sentences in Claude Code's permissions documentation carry this table's weight: "PreToolUse
+hooks run before the permission prompt, for every tool except EndConversation", and "A hook
+that exits with code 2 stops the tool call before permission rules are evaluated, so the block
+applies even when an allow rule would otherwise let the call proceed". The docs do not spell
+out the `bypassPermissions` case, but it follows from that ordering: a deny rendered before
+the permission system is consulted is a deny no permission mode gets to overrule. The guards
+themselves are regexes over the command string, not a shell parser, and
 they eat git's global options on purpose: `git -C dir push --force` and `git push origin
 +main` both used to slip through as spellings the patterns did not cover. The cost is accepted
 and documented in the source: `echo "do not git push --force"` is denied too, and erring in
@@ -79,9 +84,11 @@ Walking the lines that carry the weight:
 
   ```console
   $ echo '{"items": {}}' > .mstack/state.json && mstack gate
-  [fail]  state.json parses but has the wrong shape: .items must be an array, got an object
+  [fail]  .../.mstack/state.json parses but has the wrong shape: .items must be an array, got an object
           fix: this is the shape that silently disables every check below it
   ```
+
+  The path is printed absolute; it is elided here.
 
   `JSON.parse` accepts that file. So does `jq empty`. Every query downstream then reads
   `undefined`, every comparison sees an empty string and never fires, and a gate without this
@@ -119,15 +126,41 @@ run on every `Stop`.
 
 ```console
 $ mstack gate --full
-...
+-- store
+[ok]    state.json exists
+[ok]    progress/current.md exists
+[ok]    progress/history.md exists
+[ok]    state.json parses and has the right shape (1 items)
+
+-- state
+[ok]    ids are unique
+[ok]    slugs are unique
+[ok]    every item has at least one acceptance criterion
+[ok]    no active item
+[ok]    no item carries a decision fork
+[ok]    no sdd item is past specifying
+[ok]    1 closed item(s) carry a ledger verdict
+
+-- workspace
+[ok]    on branch feat/greet-flag
+[ok]    working tree is clean
+
 -- verification
+test_greet (test_greet.TestGreet) ... ok
+test_shout (test_greet.TestGreet) ... ok
+
+----------------------------------------------------------------------
 Ran 2 tests in 0.000s
 
 OK
-[ok]    python3 -m unittest test_greet -q
+[ok]    python3 -m unittest test_greet -v
 
-PASSED - 0 failures, 1 warning
+PASSED - 0 failures, 0 warnings
 ```
+
+That run is from the walkthrough repository after its item closed: the fast sections re-run,
+then the `verify` command from `state.json` executes with its output passed straight through,
+and its success becomes the `[ok]` line.
 
 ## The merge gate
 

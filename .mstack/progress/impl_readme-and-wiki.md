@@ -178,3 +178,122 @@ lineage story, the hook behaviour descriptions, the panel-finding histories) are
 stopped at rung 1 and the page says so. `test-verified` is the rung-4 verdict; nothing here
 claims `live-verified` because no reader has walked the on-ramp yet, and this row cannot close
 the item: a pass that did not write these pages decides that.
+
+## Fixes after review
+
+Both panel reports returned CHANGES_REQUESTED (reader: 6 findings; facts: 19). Every finding
+was applied. The scratch demo was rebuilt from zero and the whole walkthrough replayed as one
+coherent run, so every pasted block traces to a single store whose ids mirror
+`examples/notes-cli`: `greet-flag` id 1, `cli-search` id 2 (a filler that says it is one),
+`export-json` id 3 with `sdd: true` and the fixture's exact `decision_required` text. New run
+constants: work commit `4b63888b`, close commit `ccb9e2e`, staleness commit `542ac0cf`, ledger
+timestamps `21:08:48.016Z`/`21:08:56.136Z`.
+
+### Reader findings
+
+- **R1 (split identity of the fork item).** The demo store now mirrors the example, and every
+  affected block was re-captured, not renamed: the fork refusal
+  (`How-A-Work-Item-Flows.md:78-84`, full fixture question), the 1-char decide refusal and a
+  real answer that answers the JSON fork (`The-CLI.md`, decide section), worktree
+  new/list/prune on `feat/export-json`, fanout on `review_export-json_*` (127/121 bytes), the
+  main statusline (`#3 export-json · spec_ready`) and both subagent rows (`#3 export-json`).
+  `rg export-csv` over README, CHANGELOG and docs/wiki returns nothing.
+- **R2+R6 (unshown commits).** Getting-Started now shows `git add -A` + `git commit` with real
+  output at both points: the store commit (`[main cf92869] ... 5 files changed`) and the work
+  commit (`[feat/greet-flag 4b63888]`), plus the close-bookkeeping and readme commits the
+  staleness demo depends on (`[feat/greet-flag ccb9e2e]`, `[feat/greet-flag 542ac0c]`),
+  followed by the re-captured `FAIL no verdict at 542ac0cf` payoff.
+- **R3 (gate --full captured with -q).** The demo's `verify` is now
+  `python3 -m unittest test_greet -v`, matching every configuration the docs show, and
+  `Gates-and-Hooks.md` pastes the full literal transcript, dashed rule included, ending
+  `[ok] python3 -m unittest test_greet -v`. Also closes facts finding 18.
+- **R4 (instruction/transcript order).** Getting-Started now runs the gate straight after
+  `setup` — the pasted two-warning output is the state the reader is actually in — and the
+  commit follows with its own real output.
+- **R5 (jargon-dense opening).** README opens with two plain-language sentences reusing
+  Home.md's formulation (durable store on disk, typed verdicts keyed to a commit SHA, rules as
+  code) before "Where this comes from"; credit stays on the first screen.
+- **R-verify (verification not executable).** The checker ships at
+  `scripts/check-doc-links.mjs` (node builtins only); item 9's `verification` field is now
+  `npm test && npm run typecheck && bin/mstack lint-plugin . && node scripts/check-doc-links.mjs README.md docs/wiki/*.md`,
+  executed as recorded below (exit 0); README's Development block carries the same line.
+  Decision row recorded.
+
+### Facts findings
+
+- **F1.** sd command 1 is scoped to ten named files, excluding `Publishing-the-Wiki.md`, whose
+  only `](Page.md)`-shaped text is the prose the old sweep rewrote; the page explains the
+  exclusion and what to do if it ever gains intra-wiki links. Route re-run on a fresh copy:
+  8 files changed, every changed line a link rewrite, `Publishing-the-Wiki.md` untouched, zero
+  residual intra-wiki `.md` links; the ":77" claim now states exactly that.
+- **F2.** "orchestration playbook" → "shipping playbook" in `The-Story.md`, `Status-Line.md`,
+  `README.md`, and the one comment word in `src/ledger.ts:12`. The twelve-unit counter-datum
+  stays attributed to orchestrate.md, where it lives. Decision row records that a docs finding
+  deliberately reached one src/ comment line; no behaviour changed.
+- **F3.** Publishing step 2 quotes the cloning precondition in full ("...with the provided
+  URL") and marks repository-non-existence as observed, unverified.
+- **F4.** "addressed without the extension" marked observed-unverified; ":13" reworded to
+  plural; CHANGELOG bullet lists all three unverified behaviours.
+- **F5.** Shape-check blocks in README and Gates-and-Hooks show `.../.mstack/state.json` with
+  the elision stated; the command prints an absolute path.
+- **F6.** `State-Files.md:4-6` and `The-Story.md` reworded to the working-context formulation
+  (a parent sees the final reply; it never sees the working context); the incident and "a
+  reply is not evidence, the file is" kept; `agents/*.md` and the research doc untouched.
+- **F7.** README's fork refusal now pastes the full fixture question, re-captured live.
+- **F8.** The harness's fast gate "finishes in seconds", with mstack's milliseconds attributed
+  to mstack.
+- **F9.** The plugin-settings claim now cites plugins-reference ("only the `agent` and
+  `subagentStatusLine` keys"); the statusline docs link moved to the wiring sentence it
+  supports.
+- **F10.** EPIPE reworded: the docs call the in-flight cancellation normal; the EPIPE is what
+  it produces mid-write.
+- **F11.** PostToolUse row: fires after a call succeeds; failures fire `PostToolUseFailure`.
+- **F12.** Gates-and-Hooks quotes the two documented permissions sentences and derives the
+  `bypassPermissions` consequence from the ordering, labelled as following from it; README's
+  hook row rests on the documented ordering the same way.
+- **F13.** The-Story attributes the shape-check defect to the two issue numbers the harness's
+  gate comment pins it to.
+- **F14.** "forbid" → "advise against", with the OS-compatibility reason.
+- **F15.** `_Sidebar`/`_Footer`: "special files, rendered as the footer and sidebar rather
+  than as ordinary pages".
+- **F16.** The-Story uses the research's sourced formulation: the orch ledger is "the only
+  real gate in the plugin, because it is code".
+- **F17.** Home.md matches the README's convention wording (`poteto` → `pstack`).
+- **F18.** Closed by R3's full literal transcript.
+- **F19.** Subagent sample rows unpadded, matching the renderer.
+- **CHANGELOG.** The contradicted Unreleased bullets now describe the corrected state, and a
+  "Found by the docs review panel" subsection records the round in the file's voice.
+
+### Verification of the fix round
+
+```console
+$ npm test
+ℹ tests 169
+ℹ pass 169
+ℹ fail 0
+
+$ npm run typecheck
+(exit 0)
+
+$ ./bin/mstack lint-plugin .
+PASSED - 0 failures, 0 warnings
+
+$ node scripts/check-doc-links.mjs README.md docs/wiki/*.md
+54 relative links checked, 0 broken
+
+$ ./bin/mstack gate
+[ok]    one active item: readme-and-wiki (reviewing)
+[ok]    progress/current.md tracks the active item
+PASSED - 0 failures, 1 warning
+
+$ sh -c "<item 9 verification field, read from state.json>"
+PASSED - 0 failures, 0 warnings
+54 relative links checked, 0 broken
+(exit 0)
+```
+
+Corrected publish route, fresh copy, diffed: 8 files changed 37/37, `git diff -U0` filtered
+for changed lines without a link form returns none, `Publishing-the-Wiki.md` untouched.
+
+No ledger row was recorded for the fix round and the item status was not touched; the closing
+verdict belongs to a pass that did not write this.
