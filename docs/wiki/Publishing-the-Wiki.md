@@ -1,0 +1,106 @@
+# Publishing the wiki
+
+The files in `docs/wiki/` are the wiki. They live in the repository so they can be reviewed
+like code, exist before the GitHub repository does, and carry links that resolve in-repo. A
+GitHub wiki is itself a git repository, but one that does not exist until the first page is
+saved, so publishing is a short mechanical copy, not an export.
+
+GitHub-side mechanics below were checked against GitHub's official documentation on
+2026-08-19: [Adding or editing wiki pages](https://docs.github.com/en/communities/documenting-your-project-with-wikis/adding-or-editing-wiki-pages),
+[About wikis](https://docs.github.com/en/communities/documenting-your-project-with-wikis/about-wikis),
+[Creating a footer or sidebar](https://docs.github.com/en/communities/documenting-your-project-with-wikis/creating-a-footer-or-sidebar-for-your-wiki),
+and [Disabling wikis](https://docs.github.com/en/communities/documenting-your-project-with-wikis/disabling-wikis).
+One claim the docs do not state is marked as unverified where it appears.
+
+## 1. Make sure wikis are enabled
+
+Wikis come with every repository ("Every repository on GitHub comes equipped with a section
+for hosting documentation, called a wiki"). If the **Wiki** tab is missing, enable it: the
+repository's **Settings**, then the **Features** section, then the **Wikis** checkbox. A
+public repository's wiki is public.
+
+## 2. Create the first page in the web UI
+
+The wiki's git repository does not exist until a first page is created on github.com. The docs
+put it directly: "Once you've created an initial page on GitHub, you can clone the repository
+to your computer."
+
+On the repository: **Wiki**, then **New Page** in the upper-right corner. Content does not
+matter — the copy in step 4 will overwrite it — so save a one-line `Home`.
+
+## 3. Clone the wiki repository
+
+The wiki clones from the repository URL with `.wiki` appended, exactly as the docs give it:
+
+```bash
+git clone https://github.com/<owner>/<repo>.wiki.git
+cd <repo>.wiki
+```
+
+As everywhere in these docs, `<owner>/<repo>` is a placeholder for the real owner and
+repository name, unknown until publication.
+
+## 4. Copy the pages in
+
+From the wiki clone, with the main repository checked out next to it:
+
+```bash
+cp ../<repo>/docs/wiki/*.md .
+```
+
+That includes `_Sidebar.md` and `_Footer.md`. They are special files, not pages: per the docs,
+"If you create a file named `_Footer.<extension>` or `_Sidebar.<extension>`, we'll use them to
+populate the footer and sidebar of your wiki, respectively."
+
+## 5. Rewrite the links
+
+In the repository, pages link to each other as `](Page.md)` so the links resolve for a reader
+browsing `docs/wiki/` as files. On the wiki, pages are addressed without the extension, so
+strip `.md` from the intra-wiki links. With [`sd`](https://github.com/chmln/sd), run in the
+wiki clone:
+
+```bash
+sd '\]\(([A-Za-z-][A-Za-z_-]*)\.md\)' ']($1)' *.md
+```
+
+The character class is the point: it matches bare page names like `Getting-Started.md` and
+cannot match a path containing `/` or `.`, so the one repo-relative link these pages carry
+(`../research/pstack-port.md`, in `The-Story.md` and `Gates-and-Hooks.md`) is left alone.
+That link points outside the wiki, so rewrite it to the repository's URL:
+
+```bash
+sd -F '](../research/pstack-port.md)' '](https://github.com/<owner>/<repo>/blob/main/docs/research/pstack-port.md)' The-Story.md Gates-and-Hooks.md
+```
+
+Named files rather than `*.md` on purpose: this page quotes that command in a code block, and
+a fixed-string replace over every file would rewrite its own example. Both commands were run
+against a copy of these files and the result inspected; the diff touches only link targets.
+
+## 6. Commit and push
+
+```bash
+git add -A
+git commit -m "docs: publish the wiki from docs/wiki"
+git push
+```
+
+Per the docs, "only changes pushed to the default branch will be made live and available to
+your readers." The wiki repository's default branch is whatever the clone shows; push to that.
+
+## Page names and titles
+
+"The filename determines the title of your wiki page", per the docs, which is why these files
+are named `How-A-Work-Item-Flows.md` rather than `flows.md`. The docs also forbid these
+characters in titles: `\ / : * ? " < > |`.
+
+One detail the checked pages do **not** state: that a dash in a filename is displayed as a
+space in the rendered title (`How-A-Work-Item-Flows` shown as "How A Work Item Flows"). That
+is observed GitHub behaviour, widely relied on, but unverified against official documentation;
+the filenames here are chosen so the pages read fine under either rendering.
+
+## Republishing
+
+The wiki is a plain git repository, so republishing after the pages change in `docs/wiki/` is
+the same copy, rewrite, commit, push. Nothing in the wiki clone is hand-edited; `docs/wiki/`
+in the main repository stays the single source, and a wiki-side edit someone makes through the
+web UI should be ported back into `docs/wiki/` or it will be overwritten by the next publish.
