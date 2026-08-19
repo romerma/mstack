@@ -33,7 +33,10 @@ whole point of a separate pass is that it does not inherit the first pass's assu
 
 ## Your verdict
 
-Write `.mstack/progress/review_<slug>.md`:
+Write your report to `.mstack/progress/review_<slug>_<lens>.md` when you were given a lens, and
+`.mstack/progress/review_<slug>.md` when you are reviewing alone. The suffix is not decoration:
+a review panel runs in parallel, and one shared filename means every reviewer but the last
+overwrites the others. Losing a review silently is the failure this report exists to prevent.
 
 ```markdown
 # Review - <slug>
@@ -57,8 +60,7 @@ Write `.mstack/progress/review_<slug>.md`:
 Omit any section with nothing in it. Cite files and lines; a finding without a location is a
 feeling.
 
-Return one line: `APPROVED -> .mstack/progress/review_<slug>.md`, or the
-`CHANGES_REQUESTED` equivalent.
+Return one line: `APPROVED -> <the path you wrote>`, or the `CHANGES_REQUESTED` equivalent.
 
 Never approve on a red gate. Never approve an uncovered requirement or an unexplained
 unticked task, and say which one with its file and line.
