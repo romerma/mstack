@@ -123,9 +123,10 @@
         "An annotated tag exists at the commit that is 0.1.0",
         "README install instructions work against a clean clone"
       ],
-      "status": "in_progress",
+      "status": "done",
       "description": "Both manifests say 0.1.0 and nothing is tagged.",
-      "source": "gap review after the panel, 2026-08-19"
+      "source": "gap review after the panel, 2026-08-19",
+      "closed_by": "Tagged v0.1.0"
     }
   ]
 }
