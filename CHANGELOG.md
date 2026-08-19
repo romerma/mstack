@@ -19,6 +19,7 @@ First release.
   workers that did not report named rather than counted.
 - Source playbooks for the *why* half of `understand`, each organised around what that source
   systematically lies about, and each stating the rung of the evidence ladder it can reach.
-- 112 tests, run under both `bun test` and `node --test`.
+- The gate checks that `progress/current.md` says something, not merely that it exists.
+- 116 tests, run under both `bun test` and `node --test`, plus a CI job pinned to node 22.6.
 - No build step and no committed artifact: `src/` is what ships and what runs, kept cheap
   with `NODE_COMPILE_CACHE`.
