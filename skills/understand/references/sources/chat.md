@@ -1,8 +1,9 @@
 # Team chat — Slack, Discord, Teams
 
 Frequently where the real decision was made, especially for changes too small to warrant a
-document. Also the most ephemeral source you have: retention policies delete it, channels get
-archived, and search quality decays with age.
+document. How much of it survives depends entirely on a setting: a paid Slack workspace keeps
+messages for the life of the workspace by default, and a workspace with a retention policy may
+keep ninety days. Find out which before you interpret silence.
 
 ## How to search it
 
@@ -23,10 +24,14 @@ report the gap. Do not proceed as though the channel were empty.
   is not a decision. Look for a considered exchange with a tradeoff in it.
 - **A single message out of its thread means something different.** This is the most common way
   to get chat evidence exactly backwards. Never quote a message you have not read in context.
-- **The retention cliff is invisible.** If nothing turns up before some date, that date is
-  probably the retention limit, not the start of the discussion. Say which it is.
-- **DMs are where a lot of it happened, and they are not searchable.** A known, permanent gap.
-  State it rather than letting silence imply consensus.
+- **A retention cliff is invisible, and so is its absence.** If nothing turns up before some
+  date, that date may be the retention limit or may be the start of the discussion. Check the
+  workspace's retention setting rather than assuming deletion; on the default paid setting
+  nothing was deleted at all, and attributing silence to retention would be inventing a gap.
+- **Which DMs you can reach depends on the token.** Slack search covers DMs the searcher is in —
+  `with:@person` — so an MCP holding a user token inherits that reach. A bot token cannot search
+  DMs at all, and nobody can search other people's. Say which case you are in rather than
+  declaring DMs unsearchable and letting silence imply consensus.
 - **Reactions are not agreement.** A thumbs-up is not sign-off, and it is often the only thing
   that looks like one.
 

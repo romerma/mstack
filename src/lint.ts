@@ -122,6 +122,9 @@ export function lintPlugin(root: string): Report {
   report.section("references");
   lintReferenceFiles(dir, report);
 
+  report.section("shipped commands");
+  lintCommands(dir, report);
+
   report.section("cross-references");
   lintReferences(dir, skills, agents, report);
 
@@ -360,6 +363,44 @@ function lintReferenceFiles(root: string, report: Report): void {
     if (report.failures.length > before) broken = true;
   }
   if (!broken) report.ok(`${files.length} reference file(s), every relative link resolves`);
+}
+
+/**
+ * Commands in the prose that would hang the agent that runs them.
+ *
+ * `rg PATTERN --glob '*.md'` with no path takes ripgrep's stdin form and blocks
+ * forever when stdin is not a terminal, which is how every subagent runs a
+ * command. One shipped in a playbook whose job is to *start* an investigation,
+ * and only a reviewer running it found out.
+ *
+ * This checks the one shape that has bitten. It is not a shell parser and does
+ * not pretend to be: the point is that this particular defect cannot come back
+ * quietly.
+ */
+const STDIN_FORM = /^\s*(?:rg|grep)\s+(?:-[^\s]+\s+|--[a-z-]+(?:=\S+)?\s+|'[^']*'\s+|"[^"]*"\s+)*$/;
+
+function lintCommands(root: string, report: Report): void {
+  const files = collectAll(join(root, "skills")).filter((file) => extname(file) === ".md");
+  let found = false;
+  for (const file of files) {
+    const lines = readFileSync(file, "utf8").split("\n");
+    lines.forEach((line, index) => {
+      const trimmed = line.trim();
+      if (!/^(?:rg|grep)\s/.test(trimmed)) return;
+      // A path argument is anything left once the flags and quoted pattern are
+      // consumed. `<file>` and `<target_file>` placeholders count.
+      const withoutPattern = trimmed.replace(/'[^']*'|"[^"]*"/g, (m) => `${" ".repeat(m.length)}`);
+      const tail = withoutPattern.split(/\s+/).slice(1).filter((part) => part !== "" && !part.startsWith("-"));
+      if (tail.length === 0 && STDIN_FORM.test(`${trimmed.replace(/'[^']*'|"[^"]*"/g, "'x' ")} `)) {
+        found = true;
+        report.fail(
+          `${relative(root, file)}:${index + 1}: '${trimmed}' has no path, so it reads stdin and hangs`,
+          "append a path; a subagent runs this with stdin open and never gets it back",
+        );
+      }
+    });
+  }
+  if (!found) report.ok(`${files.length} file(s), no command that would hang on stdin`);
 }
 
 function lintLinks(root: string, file: string, source: string, report: Report): void {
