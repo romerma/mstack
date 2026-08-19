@@ -5,6 +5,7 @@ import { join } from "node:path";
 
 import { runGate, SPEC_ARTIFACTS } from "../src/gate.ts";
 import { record } from "../src/ledger.ts";
+import { add as addDecision } from "../src/decisions.ts";
 import { EMPTY_NEXT_STEP } from "../src/setup.ts";
 import { expectFail, expectPass, item, sandbox, state, trackCurrent } from "./helpers.ts";
 
@@ -329,6 +330,104 @@ test("with no active item, current.md is not judged", () => {
   try {
     sb.writeState(state([item({ status: "pending" })]));
     expectPass(runGate(sb.store, { quiet: true }), "no active item");
+  } finally {
+    sb.dispose();
+  }
+});
+
+test("an unanswered product fork blocks the phases that build on the answer", () => {
+  const sb = sandbox();
+  try {
+    const fork = "Stable public contract, or a dump we can reshape? The two answers produce different work.";
+
+    // specifying is below the line on purpose: investigating the fork is work,
+    // and it is the phase where the answer gets found.
+    sb.writeState(state([item({ status: "specifying", sdd: true, decision_required: fork })]));
+    trackCurrent(sb);
+    const early = runGate(sb.store, { quiet: true });
+    assert.ok(
+      !early.failures.some((f) => /decision unanswered/.test(f)),
+      `specifying must be allowed to carry an open fork: ${JSON.stringify(early.failures)}`,
+    );
+
+    for (const status of ["in_progress", "reviewing", "verifying", "done"] as const) {
+      sb.writeState(state([item({ status, decision_required: fork })]));
+      trackCurrent(sb);
+      expectFail(runGate(sb.store, { quiet: true }), /decision unanswered/, `open fork at ${status}`);
+    }
+  } finally {
+    sb.dispose();
+  }
+});
+
+test("the failure quotes the question, so the reader does not go looking for it", () => {
+  const sb = sandbox();
+  try {
+    sb.writeState(
+      state([item({ status: "in_progress", decision_required: "Versioned envelope, or a bare array?" })]),
+    );
+    trackCurrent(sb);
+    expectFail(
+      runGate(sb.store, { quiet: true }),
+      /"Versioned envelope, or a bare array\?"/,
+      "quoted question",
+    );
+  } finally {
+    sb.dispose();
+  }
+});
+
+test("a fork answered by a real decisions row clears the item", () => {
+  const sb = sandbox();
+  try {
+    const written = addDecision(sb.store, {
+      phase: "design",
+      decision: "versioned envelope",
+      why: "a consumer has to be able to detect a breaking change",
+      evidence: "acceptance bullet 2",
+      result: "version field required",
+    });
+    sb.writeState(
+      state([
+        item({ status: "in_progress", decision_required: "envelope or array?", decision_resolved: written.ts }),
+      ]),
+    );
+    trackCurrent(sb);
+    expectPass(runGate(sb.store, { quiet: true }), "answered fork");
+  } finally {
+    sb.dispose();
+  }
+});
+
+test("a pointer to a decision that does not exist is worse than no pointer", () => {
+  const sb = sandbox();
+  try {
+    // A boolean would have let someone mark a fork answered without saying what
+    // the answer was. The pointer has to lead somewhere.
+    sb.writeState(
+      state([
+        item({ status: "in_progress", decision_required: "envelope or array?", decision_resolved: "2026-01-01T00:00:00.000Z" }),
+      ]),
+    );
+    trackCurrent(sb);
+    expectFail(runGate(sb.store, { quiet: true }), /which is not in decisions\.tsv/, "dangling pointer");
+  } finally {
+    sb.dispose();
+  }
+});
+
+test("an item with no fork is untouched by any of this", () => {
+  const sb = sandbox();
+  try {
+    sb.writeState(state([item({ status: "done" })]));
+    record(sb.store, {
+      target: "storage-layer",
+      sha: sb.sha,
+      verdict: "test-verified",
+      evidence: "green",
+      verifier: "t",
+    });
+    expectPass(runGate(sb.store, { quiet: true }), "no fork");
   } finally {
     sb.dispose();
   }

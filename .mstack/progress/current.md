@@ -6,45 +6,44 @@
 > On close: append the summary to `history.md` and reset this file to the
 > empty template below.
 
-- **Item:** 1 statusline — Ship a statusline that renders the active item
-- **Status:** reviewing. Built and live-verified; not reviewed by anyone who did not write it.
-- **Branch:** main (the session that built this broke its own branch rule; see decisions.tsv)
+- **Item:** 5 decision-required-gate — Make decision_required a gate, not an announcement
+- **Status:** in_progress (bug-fix playbook, direct path)
+- **Branch:** main
 - **Base:** main
 - **Worktree:** none
 
 ## Plan
 
-- Close the six gaps named after the dist removal: commits, a real end-to-end run, the status
-  line, dogfooding, the source playbooks, fan-out tooling.
-- Prove the cycle with real agents in a throwaway copy of `examples/notes-cli`, both paths.
-- Record what the runs break rather than papering over it.
+- The field is read in four files and enforced in none. `SessionStart` announces it, the router
+  stops to ask, and the gate's only mention is inside a comment.
+- Answering it has to be recorded against the item, not as a free-floating `decisions.tsv` row.
+  The row is the evidence; the item needs to know the row exists.
+- Refuse to advance past `in_progress` while the fork is open, and quote the question in the
+  failure so the reader does not have to go looking for it.
 
 ## Log
 
-- Repository committed in seven units. Nothing was tracked before this session.
-- End-to-end run 1 on `cli-search`: design used a judge agent on a different model, the
-  implementer injected a regression and confirmed the new tests fail without the fix.
-- That run exposed a three-way inconsistency: `review` fans out, `agents/reviewer.md` sent every
-  lens to one filename, and `SubagentStop` demanded exactly that name. Report contract is now a
-  prefix; each file judged on its own.
-- Run 2 closed `cli-search` to `done`. The review panel caught the stale-verdict rule firing and
-  blocked closure until a verdict existed at the real head SHA — twice.
-- Run 3 on `export-json` took the spec path on `sdd: true`, hit `decision_required`, and stopped
-  to ask instead of guessing. It left `current.md` untouched, which is why the gate now checks it.
-- Status line, source playbooks and fan-out tooling built. The linter now validates links in
-  reference files, which it never did.
-- Node 22.6 floor verified rather than asserted: 112/112 there, and the launcher now suppresses
-  the ExperimentalWarning it was writing to stderr on every hook invocation.
+- Panel closed: 4 reviewers, all CHANGES_REQUESTED, every finding reproduced and fixed (item 1).
+- Gap review found four more, of which this is the same class as the `require_verdict_to_close`
+  defect: a rule the README sells that no code sustains.
+- `DECISION_REQUIRED_FROM` added to lifecycle.ts beside `SPEC_REQUIRED_FROM`, with `specifying`
+  deliberately below the line: investigating the fork is work, and it is where the answer is found.
+- `decision_resolved` on the item is a pointer to a `decisions.tsv` row, not a copy of the answer
+  and not a boolean. A boolean would let someone mark a fork answered without saying what the
+  answer was.
+- `mstack decide --resolves <ref>` writes the row and the pointer in one step, so neither can
+  exist alone. Refuses an item with no fork, and writes nothing when it refuses.
+- Enforced in the gate (authority) and refused in `state set` (immediate feedback). `--force`
+  still moves it and the gate then says so, which is the point of having both.
+- Exercised live against the example's `export-json`: refused, answered, moved.
 
 ## Verification
 
-- 116 tests green under `bun test` and `node --test`, plus 112 on node 22.6.0.
-- `mstack lint-plugin .` clean; `claude plugin validate` clean on both manifests, skills, agents.
-- Rung 5 for the status line: rendered against a live store mid-cycle, showing one worker's
-  report present and another's missing.
+- 148 tests green under bun and node. Six mutations injected, six caught: removing the gate check,
+  accepting a dangling pointer, drawing the line at `specifying`, dropping the `state set` refusal,
+  accepting `--resolves` on an item with no fork, and writing a pointer that names no row.
+- Rung 4.
 
 ## Next step
 
-Item 1 is at `verifying` with the panel's findings fixed. Close it, then item 2: whether a
-plugin-shipped `subagentStatusLine` can name its own script at all — the substitution table does
-not list `settings.json`, so that is a decision, not a lookup.
+Item 6, statusline argument hardening: `mstack statusline --subagents` exits 2 with stderr.

@@ -65,6 +65,61 @@
       "status": "pending",
       "description": "design and review both say launch in parallel and both name the twenty-subagent cap. Nothing enforces the cap, allocates run ids, or notices a worker that dropped out.",
       "source": "gap list, 2026-08-19; the review panel filename collision found on 2026-08-19"
+    },
+    {
+      "id": 5,
+      "slug": "decision-required-gate",
+      "title": "Make decision_required a gate, not an announcement",
+      "acceptance": [
+        "The gate refuses to let an item with decision_required reach a status past in_progress until the fork is answered",
+        "There is a recorded way to answer it that links the answer to the item, not a free-floating decisions.tsv row",
+        "An unanswered fork is named in the failure, quoting the question",
+        "Tests cover the refusal, the answer, and the fact that an item without the field is unaffected"
+      ],
+      "status": "in_progress",
+      "description": "An item can carry an unresolved product fork and reach done with nobody answering it. The gate's only mention of the field is inside a comment.",
+      "source": "gap review after the panel, 2026-08-19",
+      "verification": "node --test 'tests/gate.test.ts' 'tests/decisions.test.ts'"
+    },
+    {
+      "id": 6,
+      "slug": "statusline-argument-hardening",
+      "title": "A typo'd flag must not kill the status bar",
+      "acceptance": [
+        "Any unparseable argument to statusline still exits 0 with nothing on stderr",
+        "The behaviour is the same for the subagent path",
+        "Other subcommands keep their strict parsing, because there a typo should be loud"
+      ],
+      "status": "pending",
+      "description": "mstack statusline --subagents exits 2 and writes to stderr. Same broken promise as the EPIPE, through a different door.",
+      "source": "gap review after the panel, 2026-08-19",
+      "verification": "node --test 'tests/launcher.test.ts'"
+    },
+    {
+      "id": 7,
+      "slug": "spec-path-end-to-end",
+      "title": "Drive the spec path to done, not just into it",
+      "acceptance": [
+        "The example's sdd item reaches done through spec, spec-review, implement, verify and review",
+        "The four spec artifacts exist and are not stubs",
+        "Whatever the run breaks is fixed or recorded, the way the first three runs were"
+      ],
+      "status": "pending",
+      "description": "export-json sits at specifying with an empty specs directory. The direct path ran twice; the SDD half is verified only as far as entering it.",
+      "source": "gap review after the panel, 2026-08-19"
+    },
+    {
+      "id": 8,
+      "slug": "release-0-1-0",
+      "title": "Cut 0.1.0",
+      "acceptance": [
+        "The changelog entry matches what shipped, with the real test count",
+        "An annotated tag exists at the commit that is 0.1.0",
+        "README install instructions work against a clean clone"
+      ],
+      "status": "pending",
+      "description": "Both manifests say 0.1.0 and nothing is tagged.",
+      "source": "gap review after the panel, 2026-08-19"
     }
   ]
 }

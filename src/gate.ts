@@ -2,8 +2,9 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 
+import { all as decisionsFor } from "./decisions.ts";
 import { entries as ledgerEntries } from "./ledger.ts";
-import { isActive, requiresSpecArtifacts } from "./lifecycle.ts";
+import { isActive, requiresDecision, requiresSpecArtifacts } from "./lifecycle.ts";
 import { UserError, type Store } from "./paths.ts";
 import { Report } from "./report.ts";
 import { MIN_REPORT_BYTES } from "./roles.ts";
@@ -146,6 +147,7 @@ function checkInvariants(store: Store, state: State, report: Report): void {
     report.ok("no active item");
   }
 
+  checkOpenDecisions(store, state, report);
   if (state.rules.require_spec_for_sdd_items) checkSpecArtifacts(store, state, report);
   if (state.rules.require_verdict_to_close) checkClosedItems(store, state, report);
 }
@@ -161,6 +163,52 @@ function reportDuplicates(values: readonly (string | number)[], label: string, r
     report.fail(`duplicate ${label}: ${[...dupes].join(", ")}`, `make every ${label} unique`);
   } else {
     report.ok(`${label}s are unique`);
+  }
+}
+
+/**
+ * An unanswered product fork must not reach the phases that build on an answer.
+ *
+ * `decision_required` was read in four files and enforced in none: SessionStart
+ * announced it, the router stopped to ask, and this file mentioned it only
+ * inside a comment. An item could carry an unresolved fork all the way to
+ * `done` and the gate would call that proven — the same shape as `closed_by`
+ * clearing `require_verdict_to_close`, which is to say a rule the README sells
+ * that no code sustained.
+ *
+ * The answer has to be a `decisions.tsv` row, because a boolean would let
+ * someone mark a fork answered without saying what the answer was.
+ */
+function checkOpenDecisions(store: Store, state: State, report: Report): void {
+  const carrying = state.items.filter((item) => (item.decision_required ?? "") !== "");
+  if (carrying.length === 0) return;
+
+  const rows = new Set(decisionsFor(store).map((decision) => decision.ts));
+  const open: Item[] = [];
+  const dangling: Item[] = [];
+  for (const item of carrying) {
+    const answer = item.decision_resolved;
+    if (answer === undefined || answer === "") {
+      if (requiresDecision(item.status)) open.push(item);
+    } else if (!rows.has(answer)) {
+      dangling.push(item);
+    }
+  }
+
+  for (const item of open) {
+    report.fail(
+      `${itemLabel(item)} is past specifying with its decision unanswered: "${item.decision_required}"`,
+      "answer it with 'mstack decide --resolves <slug> ...'; the two answers produce different work, which is why the field exists",
+    );
+  }
+  for (const item of dangling) {
+    report.fail(
+      `${itemLabel(item)} points at decision ${item.decision_resolved}, which is not in decisions.tsv`,
+      "the row is the evidence; a pointer to a row that does not exist is worse than no pointer",
+    );
+  }
+  if (open.length === 0 && dangling.length === 0) {
+    report.ok(`${carrying.length} item(s) with a decision fork, each answered or still in specifying`);
   }
 }
 
