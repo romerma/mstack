@@ -45,6 +45,10 @@ Integration starts with the first verified unit. Walk up from the lowest unmerge
 stop at the first without a passing verdict: a verified change sitting above an unverified one
 is not landable, because merging it pulls the gap in underneath it.
 
-Concurrent subagents cap at twenty per session. Fan out to what the work needs, not to what the
-limit allows, and `log` what you dropped if you bound the fan-out: silent truncation reads as
-full coverage.
+Concurrent subagents cap at twenty per session. `mstack fanout plan` refuses to exceed it rather
+than letting the excess queue, because queue delay is indistinguishable from a worker that died.
+Fan out to what the work needs, not to what the limit allows, and say what you dropped if you
+bound the fan-out: silent truncation reads as full coverage.
+
+`mstack fanout check` afterwards names the workers that did not report. Named, not counted — "two
+of three returned" sends you looking, "security did not report" tells you what to re-run.
