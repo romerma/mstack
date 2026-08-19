@@ -119,6 +119,9 @@ export function lintPlugin(root: string): Report {
   report.section("hooks");
   lintHooks(dir, report);
 
+  report.section("references");
+  lintReferenceFiles(dir, report);
+
   report.section("cross-references");
   lintReferences(dir, skills, agents, report);
 
@@ -319,6 +322,32 @@ function lintLifecycleDuplication(root: string, report: Report): void {
   } else {
     report.ok("the lifecycle enum appears only in src/lifecycle.ts");
   }
+}
+
+/**
+ * Every markdown file under `skills/` that is not a SKILL.md.
+ *
+ * Links were checked in skills and agents and nowhere else, which left the
+ * playbooks and references — more than half the prose — unvalidated. That is
+ * the exact defect this plugin was written in response to: 125 prose files with
+ * no validation at all, and a mode skill forbidding a command two of its own
+ * files tell you to run.
+ */
+function lintReferenceFiles(root: string, report: Report): void {
+  const files = collectAll(join(root, "skills")).filter(
+    (file) => extname(file) === ".md" && basename(file) !== "SKILL.md",
+  );
+  if (files.length === 0) {
+    report.warn("no reference files under skills/");
+    return;
+  }
+  let broken = false;
+  for (const file of files) {
+    const before = report.failures.length;
+    lintLinks(root, file, readFileSync(file, "utf8"), report);
+    if (report.failures.length > before) broken = true;
+  }
+  if (!broken) report.ok(`${files.length} reference file(s), every relative link resolves`);
 }
 
 function lintLinks(root: string, file: string, source: string, report: Report): void {
