@@ -1,7 +1,7 @@
 import { readFileSync, writeFileSync } from "node:fs";
 
-import { isStatus, type Status } from "./lifecycle.ts";
-import { UserError } from "./paths.ts";
+import { isActive, isStatus, type Status } from "./lifecycle.ts";
+import { UserError, type Store } from "./paths.ts";
 
 export interface Item {
   id: number;
@@ -157,4 +157,19 @@ export function saveState(file: string, state: State): void {
 export function findItem(state: State, ref: string): Item | undefined {
   const byId = Number.parseInt(ref, 10);
   return state.items.find((i) => i.slug === ref || (!Number.isNaN(byId) && i.id === byId));
+}
+
+/**
+ * The one item being worked on here, if any.
+ *
+ * Tolerates a broken store on purpose: every caller is a hook, a status line or
+ * a gate that must not become the thing that breaks the session. Whatever is
+ * wrong with the file, the gate reports it in full and this returns nothing.
+ */
+export function activeItem(store: Store): Item | undefined {
+  try {
+    return parseState(store.state).items.find((item) => isActive(item.status));
+  } catch {
+    return undefined;
+  }
 }

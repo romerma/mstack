@@ -5,7 +5,7 @@ import { runGate } from "./gate.ts";
 import { isActive } from "./lifecycle.ts";
 import { findStore, type Store } from "./paths.ts";
 import { reportFiles, reportKind, roleOf } from "./roles.ts";
-import { parseState, type Item } from "./state.ts";
+import { activeItem, parseState, type Item } from "./state.ts";
 
 /**
  * Hook handlers.
@@ -54,14 +54,6 @@ function context(event: HookEvent, text: string): string {
 
 function clamp(text: string): string {
   return text.length <= OUTPUT_CAP ? text : `${text.slice(0, OUTPUT_CAP)}\n... (truncated)`;
-}
-
-function activeItem(store: Store): Item | undefined {
-  try {
-    return parseState(store.state).items.find((i) => isActive(i.status));
-  } catch {
-    return undefined;
-  }
 }
 
 /**

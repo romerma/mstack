@@ -1,6 +1,7 @@
 import { parseArgs } from "node:util";
 
 import * as decisions from "./decisions.ts";
+import * as fanout from "./fanout.ts";
 import { EXIT, evaluate, fetchPr } from "./mergegate.ts";
 import { defaultBranch, headSha, itemLabel, runGate } from "./gate.ts";
 import * as hooks from "./hooks.ts";
@@ -29,6 +30,8 @@ const USAGE = `mstack - durable state and gates for the mstack Claude Code plugi
   worktree prune [--yes]
   merge-gate <pr> [--target <slug>] [--min <verdict>]
   hook <session-start|post-edit|subagent-stop|stop|pre-tool-use>
+  fanout plan --kind K --worker W...  allocate one report path per parallel worker
+  fanout check --kind K --worker W... name the workers that did not report back
   statusline [--subagent]             render status rows from the JSON on stdin
   lint-plugin [dir]
 
@@ -61,6 +64,8 @@ async function main(argv: readonly string[]): Promise<number> {
       return cmdMergeGate(rest);
     case "hook":
       return await cmdHook(rest);
+    case "fanout":
+      return cmdFanout(rest);
     case "statusline":
       return cmdStatusline(rest);
     case "lint-plugin":
@@ -68,6 +73,39 @@ async function main(argv: readonly string[]): Promise<number> {
     default:
       throw new UserError(`unknown command '${command}'`, "run 'mstack help'");
   }
+}
+
+function cmdFanout(argv: readonly string[]): number {
+  const [sub, ...rest] = argv;
+  if (sub !== "plan" && sub !== "check") {
+    throw new UserError(`fanout takes 'plan' or 'check', not '${sub ?? ""}'`);
+  }
+  const { values } = parseArgs({
+    args: [...rest],
+    options: {
+      kind: { type: "string" },
+      worker: { type: "string", multiple: true },
+      round: { type: "string" },
+    },
+    strict: true,
+  });
+  if (values.kind === undefined) throw new UserError("fanout needs --kind");
+
+  const store = requireStore();
+  const plan = fanout.plan(store, {
+    kind: values.kind,
+    workers: values.worker ?? [],
+    round: values.round === undefined ? undefined : Number(values.round),
+  });
+
+  if (sub === "plan") {
+    console.log(`${plan.kind} fan-out on ${plan.slug}, ${plan.workers.length} worker(s):`);
+    for (const worker of plan.workers) console.log(`  ${worker.name}\t${worker.report}`);
+    console.log("");
+    console.log("Give each worker its own path. Two workers with one filename lose a report silently.");
+    return 0;
+  }
+  return fanout.check(store, plan).failed ? 1 : 0;
 }
 
 function cmdStatusline(argv: readonly string[]): number {
