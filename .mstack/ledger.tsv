@@ -1,2 +1,4 @@
 target	sha	verdict	evidence	verifier	ts
 statusline	74eda179ee71e6682fc7c5e223eeb133c89d9d66	live-verified	21 tests in tests/statusline.test.ts green under bun and node; rendered live against the mid-cycle e2e store and correctly showed 'implementer · #2 cli-search · impl report written' beside 'reviewer · no review report yet'	session	2026-08-19T17:15:29.012Z
+why-source-playbooks	5fd188586d82f287932b76063ffcb409abc3dace	type-check-only	8 playbooks under skills/understand/references/sources/; lint-plugin resolves every relative link in all 20 reference files	session	2026-08-19T17:27:39.786Z
+fan-out-tooling	5fd188586d82f287932b76063ffcb409abc3dace	test-verified	11 tests in tests/fanout.test.ts covering the duplicate-name collision the first e2e run hit, the cap, round separation, named dropouts and stray reports	session	2026-08-19T17:27:39.809Z
