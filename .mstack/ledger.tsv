@@ -1,1 +1,2 @@
 target	sha	verdict	evidence	verifier	ts
+statusline	74eda179ee71e6682fc7c5e223eeb133c89d9d66	live-verified	21 tests in tests/statusline.test.ts green under bun and node; rendered live against the mid-cycle e2e store and correctly showed 'implementer · #2 cli-search · impl report written' beside 'reviewer · no review report yet'	session	2026-08-19T17:15:29.012Z
