@@ -126,3 +126,28 @@ test("a component directory misplaced inside .claude-plugin is caught", () => {
     c.dispose();
   }
 });
+
+test("a broken link in a reference file is caught, not just in a SKILL.md", () => {
+  const c = copy();
+  try {
+    // Links were validated in skills and agents and nowhere else, which left
+    // the playbooks and references unchecked. That is more than half the prose,
+    // and it is the exact defect this plugin was written in response to.
+    const target = join(c.root, "skills", "router", "references", "evidence-ladder.md");
+    writeFileSync(target, `${readFileSync(target, "utf8")}\n\nSee [nothing](./no-such-file.md).\n`);
+    expectFail(c.root, /evidence-ladder\.md: broken link to \.\/no-such-file\.md/, "reference link");
+  } finally {
+    c.dispose();
+  }
+});
+
+test("a broken link in a playbook is caught too", () => {
+  const c = copy();
+  try {
+    const target = join(c.root, "skills", "router", "playbooks", "feature.md");
+    writeFileSync(target, `${readFileSync(target, "utf8")}\n\n[gone](../references/gone.md)\n`);
+    expectFail(c.root, /feature\.md: broken link to \.\.\/references\/gone\.md/, "playbook link");
+  } finally {
+    c.dispose();
+  }
+});
