@@ -1,0 +1,16 @@
+node_modules/
+*.log
+.DS_Store
+
+# Never commit a lockfile at the plugin root. Claude Code auto-installs plugin
+# dependencies when it finds a package.json AND a lockfile together, so a
+# committed lockfile would make every user run `bun install` for a typechecker
+# they do not need. The shipped CLI has zero runtime dependencies.
+bun.lock
+bun.lockb
+package-lock.json
+npm-shrinkwrap.json
+
+# There is no build step. This is here only so a manual `bun build` never gets
+# committed: src/ is what ships and what runs.
+dist/
