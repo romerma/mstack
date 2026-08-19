@@ -68,3 +68,43 @@ test("a cwd that does not exist is a quiet line, not a crash", () => {
   assert.equal(result.status, 0, result.stderr);
   assert.equal(result.stderr, "");
 });
+
+test("a typo'd flag leaves the bar working instead of killing it", () => {
+  // Strict parsing meant `--subagents` for `--subagent` exited 2 and wrote to
+  // stderr: a dead bar with an error message on it, on the path that runs on
+  // every assistant message.
+  const payload = JSON.stringify({ workspace: { current_dir: process.cwd() } });
+  for (const arg of ["--subagents", "-x", "--", "garbage", "--subagent=yes"]) {
+    const result = run(["statusline", arg], payload);
+    assert.equal(result.status, 0, `${arg} exited ${result.status}: ${result.stderr}`);
+    assert.equal(result.stderr, "", `${arg} wrote ${result.stderr}`);
+  }
+});
+
+test("a near-miss on --subagent still renders subagent rows, not a line of prose", () => {
+  // Falling through to the main bar would emit text where the caller is
+  // parsing one JSON object per line.
+  const payload = JSON.stringify({
+    cwd: process.cwd(),
+    tasks: [{ id: "a", type: "mstack:implementer" }],
+  });
+  for (const arg of ["--subagent", "--subagents", "--subagent=true"]) {
+    const out = run(["statusline", arg], payload).stdout.trim();
+    if (out === "") continue; // no active item here; the shape is what matters
+    for (const line of out.split("\n")) {
+      assert.doesNotThrow(() => JSON.parse(line), `${arg} emitted a non-JSON line: ${line}`);
+    }
+  }
+  const bar = run(["statusline"], payload).stdout.trim();
+  assert.ok(bar !== "" && !bar.startsWith("{"), "the main bar is a line of text, not JSON");
+});
+
+test("every other subcommand keeps its strict parsing, because a typo there should be loud", () => {
+  for (const args of [["gate", "--fulll"], ["state", "list", "--nope"], ["ledger", "summary", "--x"]]) {
+    const result = run(args, "");
+    assert.notEqual(result.status, 0, `${args.join(" ")} accepted a bad flag`);
+    // Both halves, as everywhere else in this suite: non-zero *and* a message.
+    // A refusal that prints nothing is indistinguishable from a crash.
+    assert.match(result.stderr, /^mstack: \S/, `${args.join(" ")} failed silently: ${JSON.stringify(result.stderr)}`);
+  }
+});

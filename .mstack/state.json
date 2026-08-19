@@ -76,7 +76,7 @@
         "An unanswered fork is named in the failure, quoting the question",
         "Tests cover the refusal, the answer, and the fact that an item without the field is unaffected"
       ],
-      "status": "in_progress",
+      "status": "reviewing",
       "description": "An item can carry an unresolved product fork and reach done with nobody answering it. The gate's only mention of the field is inside a comment.",
       "source": "gap review after the panel, 2026-08-19",
       "verification": "node --test 'tests/gate.test.ts' 'tests/decisions.test.ts'"
@@ -90,7 +90,7 @@
         "The behaviour is the same for the subagent path",
         "Other subcommands keep their strict parsing, because there a typo should be loud"
       ],
-      "status": "pending",
+      "status": "in_progress",
       "description": "mstack statusline --subagents exits 2 and writes to stderr. Same broken promise as the EPIPE, through a different door.",
       "source": "gap review after the panel, 2026-08-19",
       "verification": "node --test 'tests/launcher.test.ts'"
