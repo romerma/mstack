@@ -5,6 +5,12 @@ import { join } from "node:path";
 import { all as decisionsFor } from "./decisions.ts";
 import { entries as ledgerEntries } from "./ledger.ts";
 import { isActive, requiresDecision, requiresSpecArtifacts } from "./lifecycle.ts";
+
+/** A cancelled item's fork does not need answering; nobody is building on it. */
+const TERMINAL_IGNORED = new Set<string>(["cancelled"]);
+
+/** An answer has to be words. A row of spaces is a boolean with extra steps. */
+const SUBSTANTIAL = /[a-z0-9]/i;
 import { UserError, type Store } from "./paths.ts";
 import { Report } from "./report.ts";
 import { MIN_REPORT_BYTES } from "./roles.ts";
@@ -180,18 +186,49 @@ function reportDuplicates(values: readonly (string | number)[], label: string, r
  * someone mark a fork answered without saying what the answer was.
  */
 function checkOpenDecisions(store: Store, state: State, report: Report): void {
-  const carrying = state.items.filter((item) => (item.decision_required ?? "") !== "");
-  if (carrying.length === 0) return;
+  const carrying = state.items.filter(
+    (item) => (item.decision_required ?? "") !== "" && !TERMINAL_IGNORED.has(item.status),
+  );
+  if (carrying.length === 0) {
+    // Says so out loud. Staying silent here while both sibling checks always
+    // speak reads as "this ran and found nothing" when it may not have run.
+    report.ok("no item carries a decision fork");
+    return;
+  }
 
-  const rows = new Set(decisionsFor(store).map((decision) => decision.ts));
+  let rows: ReturnType<typeof decisionsFor>;
+  try {
+    rows = decisionsFor(store);
+  } catch (error) {
+    // The gate reports; it does not become the failure. An unreadable
+    // decisions.tsv used to throw out of the middle of the run, so every check
+    // below this one silently never happened.
+    report.fail(
+      `decisions.tsv could not be read: ${(error as Error).message}`,
+      "restore or recreate it; without it no fork can be shown to have been answered",
+    );
+    return;
+  }
+
   const open: Item[] = [];
-  const dangling: Item[] = [];
+  const bad: string[] = [];
   for (const item of carrying) {
-    const answer = item.decision_resolved;
-    if (answer === undefined || answer === "") {
+    const answer = item.decision_resolved ?? "";
+    if (answer === "") {
       if (requiresDecision(item.status)) open.push(item);
-    } else if (!rows.has(answer)) {
-      dangling.push(item);
+      continue;
+    }
+    // Matched on the pair, not on the timestamp. A row has to say which fork it
+    // answers, or any row answers any fork.
+    const match = rows.filter((row) => row.ts === answer && row.resolves === item.slug);
+    if (match.length === 0) {
+      bad.push(`${itemLabel(item)} points at decision ${answer}, and no row with that timestamp resolves ${item.slug}`);
+    } else if (match.length > 1) {
+      bad.push(`${itemLabel(item)} points at decision ${answer}, which matches ${match.length} rows`);
+    } else if (!SUBSTANTIAL.test(match[0]!.decision)) {
+      bad.push(`${itemLabel(item)} is answered by a decision that says nothing: "${match[0]!.decision}"`);
+    } else if (match[0]!.result.trim() === "" || match[0]!.result.trim() === "open") {
+      bad.push(`${itemLabel(item)} is answered by a decision whose result is still "${match[0]!.result}"`);
     }
   }
 
@@ -201,14 +238,11 @@ function checkOpenDecisions(store: Store, state: State, report: Report): void {
       "answer it with 'mstack decide --resolves <slug> ...'; the two answers produce different work, which is why the field exists",
     );
   }
-  for (const item of dangling) {
-    report.fail(
-      `${itemLabel(item)} points at decision ${item.decision_resolved}, which is not in decisions.tsv`,
-      "the row is the evidence; a pointer to a row that does not exist is worse than no pointer",
-    );
+  for (const message of bad) {
+    report.fail(message, "the row is the evidence; a pointer to one that does not say anything is not an answer");
   }
-  if (open.length === 0 && dangling.length === 0) {
-    report.ok(`${carrying.length} item(s) with a decision fork, each answered or still in specifying`);
+  if (open.length === 0 && bad.length === 0) {
+    report.ok(`${carrying.length} open item(s) with a decision fork, each answered or still in specifying`);
   }
 }
 
