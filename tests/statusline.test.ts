@@ -17,9 +17,11 @@ function plain(box: ReturnType<typeof sandbox>, extra: Record<string, unknown> =
 test("a stale verdict is called out, because that is the only signal this file exists for", () => {
   const box = sandbox();
   box.writeState(state([item({ status: "in_progress" })]));
+  const old = box.sha;
+  box.commit();
   record(box.store, {
     target: "storage-layer",
-    sha: "a".repeat(40),
+    sha: old,
     verdict: "test-verified",
     evidence: "suite green",
     verifier: "test",
@@ -278,16 +280,18 @@ test("a verdict that exists at HEAD is reported as itself, however bad it is", (
   // staleness before the verdict-at-HEAD branch made this render "verdict
   // stale" — telling the reader nobody had verified this, when the truth was
   // the verifier ran here and failed.
+  const old = box.sha;
+  const head = box.commit();
   record(box.store, {
     target: "storage-layer",
-    sha: "a".repeat(40),
+    sha: old,
     verdict: "test-verified",
     evidence: "green then",
     verifier: "test",
   });
   record(box.store, {
     target: "storage-layer",
-    sha: box.sha,
+    sha: head,
     verdict: "verifier-failed",
     evidence: "3 tests failed here",
     verifier: "test",
@@ -302,15 +306,17 @@ test("a verdict that exists at HEAD is reported as itself, however bad it is", (
 test("the stale marker carries no count, because the count was of history", () => {
   const box = sandbox();
   box.writeState(state([item({ status: "in_progress" })]));
-  for (const sha of ["a", "b", "c", "d", "e"]) {
+  for (let i = 0; i < 5; i += 1) {
+    const at = box.sha === undefined ? box.commit() : box.commit();
     record(box.store, {
       target: "storage-layer",
-      sha: sha.repeat(40),
+      sha: at,
       verdict: "test-verified",
-      evidence: "green",
+      evidence: "green at that commit",
       verifier: "test",
     });
   }
+  box.commit(); // move HEAD past every row above
   // `stale.length` is every row at any other SHA, so it grew with the age of
   // the item. Five verified commits read as "stale (5)" and meant nothing.
   assert.match(plain(box), /verdict stale(?! \()/);
@@ -451,7 +457,7 @@ test("the colours are the message, so each one is pinned", () => {
     target: "storage-layer",
     sha: pass.sha,
     verdict: "test-verified",
-    evidence: "green",
+    evidence: "the suite ran green",
     verifier: "t",
   });
   assert.ok(coloured(pass, { model: { display_name: "Opus" } }).includes(`${CYAN}Opus`), "model is cyan");
@@ -465,7 +471,7 @@ test("the colours are the message, so each one is pinned", () => {
     target: "storage-layer",
     sha: failed.sha,
     verdict: "verifier-failed",
-    evidence: "3 failed",
+    evidence: "3 tests failed here",
     verifier: "t",
   });
   assert.ok(coloured(failed).includes(`${RED}verifier-failed`), "a failed verifier is red");
@@ -477,7 +483,7 @@ test("the colours are the message, so each one is pinned", () => {
     target: "storage-layer",
     sha: weak.sha,
     verdict: "type-check-only",
-    evidence: "tsc",
+    evidence: "tsc --noEmit clean",
     verifier: "t",
   });
   assert.ok(coloured(weak).includes(`${YELLOW}type-check-only`), "a verdict below the bar is yellow, not green");
@@ -485,9 +491,11 @@ test("the colours are the message, so each one is pinned", () => {
 
   const stale = sandbox();
   stale.writeState(state([item({ status: "in_progress" })]));
+  const staleAt = stale.sha;
+  stale.commit();
   record(stale.store, {
     target: "storage-layer",
-    sha: "a".repeat(40),
+    sha: staleAt,
     verdict: "test-verified",
     evidence: "green then",
     verifier: "t",

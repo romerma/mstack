@@ -28,7 +28,10 @@ SHA. CI green is an input to that verdict. An approving bot review is not one.
    to fix the check, not to find a flag that skips it.
 6. After the merge, watch the default branch on the merge SHA. If it goes red, fix forward from
    there. Never force-push it.
-7. `mstack state set <ref> --status done --closed-by "PR #N merged as <sha>"`, append to
-   `history.md`, reset `current.md`.
+7. Close it on the verdict, not on the merge. `mstack ledger record <slug> <merge sha> <verdict>
+   --evidence <path> --verifier <who ran it>` if the merge SHA has not been verified yet, then
+   `mstack state set <ref> --status done --closed-by "PR #N merged as <sha>"`. `closed_by` is a
+   note for the next reader; the gate does not accept it in place of a verdict, and it will not
+   accept the implementer's own row either. Append to `history.md`, reset `current.md`.
 
 **Reply:** the PR, the gate's decision with its reasons, and the merge SHA.

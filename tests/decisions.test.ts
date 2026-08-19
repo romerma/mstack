@@ -41,7 +41,7 @@ test("--resolves writes the row and the pointer together", () => {
       "--why",
       "a consumer must be able to detect a breaking change",
       "--evidence",
-      "acceptance bullet 2",
+      "acceptance bullet 2 of the item, quoted in state.json",
       "--result",
       "version field required",
     ]);
@@ -122,9 +122,13 @@ test("state set refuses to move an item past its open fork", () => {
       "--resolves",
       "storage-layer",
       "--decision",
-      "versioned envelope",
+      "versioned envelope with a version field",
+      "--why",
+      "a consumer has to be able to detect a breaking change without asking anyone",
+      "--evidence",
+      "acceptance bullet 2 of the item, quoted in state.json",
       "--result",
-      "version field required",
+      "version field required; adding a field is compatible, changing one is a bump",
     ]);
     const allowed = mstack(sb.store.root, ["state", "set", "storage-layer", "--status", "spec_ready"]);
     assert.equal(allowed.status, 0, allowed.stderr);
@@ -188,10 +192,13 @@ test("resolving a fork demands an answer that says something", () => {
     // `--decision " "` plus the default `--result open` wrote a row that was a
     // timestamp and the word "open", and the gate called the fork answered.
     for (const args of [
-      ["--decision", " ", "--result", "x"],
-      ["--decision", "a real answer"],
-      ["--decision", "a real answer", "--result", "open"],
-      ["--decision", "a real answer", "--result", "  "],
+      ["--decision", " ", "--result", "a genuine result string here"],
+      ["--decision", "a real answer that is long enough"],
+      ["--decision", "a real answer that is long enough", "--result", "open"],
+      ["--decision", "a real answer that is long enough", "--result", "  "],
+      // Long enough decision and result, but nothing behind them.
+      ["--decision", "a real answer that is long enough", "--result", "a genuine result string here"],
+      ["--decision", "a real answer that is long enough", "--result", "a genuine result string here", "--why", "x"],
     ]) {
       const result = mstack(sb.store.root, ["decide", "--resolves", "storage-layer", ...args]);
       assert.notEqual(result.status, 0, `accepted ${JSON.stringify(args)}`);
@@ -203,9 +210,13 @@ test("resolving a fork demands an answer that says something", () => {
       "--resolves",
       "storage-layer",
       "--decision",
-      "versioned envelope",
+      "versioned envelope with a version field",
+      "--why",
+      "a consumer has to be able to detect a breaking change without asking anyone",
+      "--evidence",
+      "acceptance bullet 2 of the item, quoted in state.json",
       "--result",
-      "version field required",
+      "version field required; adding a field is compatible, changing one is a bump",
     ]);
     assert.equal(ok.status, 0, ok.stderr);
   } finally {
@@ -273,6 +284,84 @@ test("a header that is not a prefix is left alone rather than guessed at", () =>
     writeFileSync(sb.store.decisions, foreign, "utf8");
     ensureHeader(sb.store.decisions, ["ts", "phase", "decision"]);
     assert.equal(readFileSync(sb.store.decisions, "utf8"), foreign);
+  } finally {
+    sb.dispose();
+  }
+});
+
+test("state add refuses to write what parseState would refuse to read", () => {
+  const sb = sandbox();
+  try {
+    sb.writeState(state([]));
+    // One command used to brick the store: `state list` exited 2, the gate
+    // exited 1, the status line said "unreadable", and `state set` could not
+    // repair it because it parses before it writes.
+    for (const slug of ["Not A Slug", "UPPER", "trailing-", "has space", "", "../escape"]) {
+      const result = mstack(sb.store.root, ["state", "add", "--slug", slug, "--title", "T"]);
+      assert.notEqual(result.status, 0, `accepted slug ${JSON.stringify(slug)}`);
+    }
+    assert.equal(mstack(sb.store.root, ["state", "list"]).status, 0, "the store must still be readable");
+
+    assert.equal(mstack(sb.store.root, ["state", "add", "--slug", "good-slug", "--title", "T"]).status, 0);
+    assert.equal(
+      mstack(sb.store.root, ["state", "add", "--slug", "good-slug", "--title", "T"]).status !== 0,
+      true,
+      "a duplicate slug is the same class of unreadable",
+    );
+  } finally {
+    sb.dispose();
+  }
+});
+
+test("a reference is a slug, or all digits, and never a number by accident", () => {
+  const sb = sandbox();
+  try {
+    sb.writeState(
+      state([
+        item({ id: 1, slug: "alpha" }),
+        item({ id: 2, slug: "bravo" }),
+        item({ id: 3, slug: "2fa-login" }),
+      ]),
+    );
+    // `Number.parseInt("2fa-login")` is 2, so this moved item `bravo` and
+    // exited 0. `decide --resolves 2fa` attached reasoning to another item's
+    // fork the same way.
+    assert.equal(mstack(sb.store.root, ["state", "set", "2fa-login", "--status", "in_progress"]).status, 0);
+
+    const items = parseState(sb.store.state).items;
+    assert.equal(items.find((i) => i.slug === "2fa-login")!.status, "in_progress");
+    assert.equal(items.find((i) => i.slug === "bravo")!.status, "pending", "the wrong item must not move");
+
+    // An all-digit reference still resolves by id.
+    assert.equal(mstack(sb.store.root, ["state", "set", "2", "--status", "blocked"]).status, 0);
+    assert.equal(parseState(sb.store.state).items.find((i) => i.id === 2)!.status, "blocked");
+
+    assert.notEqual(mstack(sb.store.root, ["state", "set", "nope", "--status", "in_progress"]).status, 0);
+  } finally {
+    sb.dispose();
+  }
+});
+
+test("setup --force does not empty a populated work queue", () => {
+  const sb = sandbox();
+  try {
+    sb.writeState(state([item(), item({ id: 2, slug: "two" })]));
+    // `history.md` was protected by a literal `false`, which means the question
+    // was asked and `state.json` was left out of the answer — while the ledger
+    // survived, leaving verdicts pointing at items that no longer existed.
+    const result = mstack(sb.store.root, ["setup", "--force"]);
+    assert.notEqual(result.status, 0);
+    assert.match(result.stdout + result.stderr, /would delete them/);
+    assert.equal(parseState(sb.store.state).items.length, 2, "the queue must survive");
+  } finally {
+    sb.dispose();
+  }
+});
+
+test("setup --force is still allowed on an empty queue", () => {
+  const sb = sandbox();
+  try {
+    assert.equal(mstack(sb.store.root, ["setup", "--force"]).status, 0);
   } finally {
     sb.dispose();
   }

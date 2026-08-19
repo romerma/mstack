@@ -13,7 +13,7 @@ const TERMINAL_IGNORED = new Set<string>(["cancelled"]);
 const SUBSTANTIAL = /[a-z0-9]/i;
 import { UserError, type Store } from "./paths.ts";
 import { Report } from "./report.ts";
-import { MIN_REPORT_BYTES } from "./roles.ts";
+import { canCloseAnItem, MIN_REPORT_BYTES } from "./roles.ts";
 import { EMPTY_ITEM_LINE, EMPTY_NEXT_STEP } from "./setup.ts";
 import { parseState, type Item, type State } from "./state.ts";
 
@@ -306,10 +306,18 @@ function checkClosedItems(store: Store, state: State, report: Report): void {
   // ever closed red as the branch moves on.
   const missing: string[] = [];
   const failed: string[] = [];
+  const selfClosed: string[] = [];
   for (const item of closed) {
     const rows = ledgerEntries(store).filter((entry) => entry.target === item.slug);
-    if (rows.length === 0) missing.push(item.slug);
-    else if (rows.every((entry) => entry.verdict === "verifier-failed")) failed.push(item.slug);
+    if (rows.length === 0) {
+      missing.push(item.slug);
+    } else if (rows.every((entry) => entry.verdict === "verifier-failed")) {
+      failed.push(item.slug);
+    } else if (!rows.some((entry) => canCloseAnItem(entry.verifier))) {
+      // The pass that wrote the code does not get to close the item. Nothing
+      // read this column, so the implementer's own row was sufficient.
+      selfClosed.push(`${item.slug} (only ${[...new Set(rows.map((r) => r.verifier || "unnamed"))].join(", ")})`);
+    }
   }
 
   if (missing.length > 0) {
@@ -324,7 +332,13 @@ function checkClosedItems(store: Store, state: State, report: Report): void {
       "a failed verifier is a reason to reopen the item, not to close it",
     );
   }
-  if (missing.length === 0 && failed.length === 0) {
+  if (selfClosed.length > 0) {
+    report.fail(
+      `items closed on a verdict from the pass that wrote the code: ${selfClosed.join(", ")}`,
+      "a closing verdict has to come from somewhere other than the implementer; run the verification again from a pass that did not write it",
+    );
+  }
+  if (missing.length === 0 && failed.length === 0 && selfClosed.length === 0) {
     report.ok(`${closed.length} closed item(s) carry a ledger verdict`);
   }
 }

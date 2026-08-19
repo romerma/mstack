@@ -11,6 +11,15 @@ import { setup } from "../src/setup.ts";
 export interface Sandbox {
   readonly store: Store;
   readonly sha: string;
+  /**
+   * Another real commit, for a verdict that has gone stale.
+   *
+   * The ledger rejects a SHA that is not a commit in this repository — half of
+   * "keyed by (target, sha)" was unvalidated, so forty zeros recorded fine and
+   * read back indistinguishable from a real one. A stale verdict in the world
+   * is a verdict against a commit that existed, so the fixtures use one.
+   */
+  commit(): string;
   writeState(state: unknown): void;
   dispose(): void;
 }
@@ -39,6 +48,11 @@ export function sandbox(options: { git?: boolean } = {}): Sandbox {
   return {
     store,
     sha,
+    commit() {
+      const run = (args: string[]) => execFileSync("git", args, { cwd: root, stdio: "ignore" });
+      run(["commit", "-q", "--allow-empty", "-m", `commit ${Date.now()}`]);
+      return execFileSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).trim();
+    },
     writeState(state: unknown) {
       writeFileSync(store.state, `${JSON.stringify(state, null, 2)}\n`, "utf8");
     },

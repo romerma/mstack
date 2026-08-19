@@ -1,3 +1,5 @@
+import { execFileSync } from "node:child_process";
+
 import { UserError, type Store } from "./paths.ts";
 import { append, readRecords } from "./tsv.ts";
 
@@ -46,6 +48,22 @@ export interface Entry {
   ts: string;
 }
 
+/** Short enough for "python3 -m pytest -q", long enough to exclude "x". */
+const MIN_EVIDENCE = 8;
+
+function isCommit(store: Store, sha: string): boolean {
+  try {
+    execFileSync("git", ["cat-file", "-e", `${sha}^{commit}`], {
+      cwd: store.root,
+      stdio: "ignore",
+      timeout: 5_000,
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function record(store: Store, entry: Omit<Entry, "ts"> & { ts?: string }): Entry {
   if (entry.sha.trim() === "") {
     throw new UserError(
@@ -53,10 +71,19 @@ export function record(store: Store, entry: Omit<Entry, "ts"> & { ts?: string })
       "pass the output of 'git rev-parse HEAD'",
     );
   }
-  if (entry.evidence.trim() === "") {
+  if (entry.evidence.trim().length < MIN_EVIDENCE) {
     throw new UserError(
-      "a ledger row needs evidence",
+      `a ledger row needs evidence, and "${entry.evidence.trim()}" is not any`,
       "a command, a file path, a run URL - something a reviewer can re-open",
+    );
+  }
+  // The row is sold as "keyed by (target, sha)". Half that key was unvalidated:
+  // forty zeros recorded fine and read back indistinguishable from a real
+  // commit, so a verdict could name a state of the repository that never was.
+  if (!isCommit(store, entry.sha)) {
+    throw new UserError(
+      `${entry.sha.slice(0, 12)} is not a commit in this repository`,
+      "pass the output of 'git rev-parse HEAD'; a verdict against a SHA that does not exist proves nothing",
     );
   }
   const full: Entry = { ...entry, ts: entry.ts ?? new Date().toISOString() };

@@ -9,7 +9,11 @@ import * as ledger from "./ledger.ts";
 import { canTransition, isActive, isStatus, requiresDecision, STATUSES } from "./lifecycle.ts";
 import { lintPlugin } from "./lint.ts";
 import { requireStore, UserError } from "./paths.ts";
-import { findItem, parseState, saveState, type Item } from "./state.ts";
+import { assertWritable, findItem, parseState, saveState, type Item } from "./state.ts";
+import { MIN_REPORT_BYTES } from "./roles.ts";
+
+/** A few words. Enough that "x" is out and "versioned envelope" is in. */
+const MIN_PHRASE = 12;
 import { setup } from "./setup.ts";
 import { statusline, subagentStatusline } from "./statusline.ts";
 import * as worktree from "./worktree.ts";
@@ -224,6 +228,7 @@ function cmdState(argv: readonly string[]): number {
     if (values.verification !== undefined) item.verification = values.verification;
     if (values["decision-required"] !== undefined) item.decision_required = values["decision-required"];
     state.items.push(item);
+    assertWritable(item, state);
     saveState(store.state, state);
     console.log(`added ${itemLabel(item)}`);
     return 0;
@@ -379,6 +384,28 @@ function cmdDecide(argv: readonly string[]): number {
         "resolving a fork needs --result: what the answer actually is",
         "a result of 'open' is the default, and an open decision does not close a fork",
       );
+    }
+    // The same floor spec artifacts and subagent reports clear. Without it,
+    // `--decision x --result y` answered a product fork with two characters and
+    // an empty reasoning column — a boolean with extra steps, which is the
+    // phrase this whole mechanism exists to avoid earning.
+    // Two floors, because the columns are different jobs. A decision should be
+    // crisp — the log's own rule is that a row fits on one line — so it needs
+    // to be more than a token and no more. The reasoning and the evidence are
+    // what a reader consults later, and they clear the same floor a subagent
+    // report and a spec artifact do.
+    for (const [flag, value, floor] of [
+      ["--decision", values.decision, MIN_PHRASE],
+      ["--result", values.result ?? "", MIN_PHRASE],
+      ["--why", values.why ?? "", MIN_REPORT_BYTES],
+      ["--evidence", values.evidence ?? "", MIN_REPORT_BYTES],
+    ] as const) {
+      if (value.trim().length < floor) {
+        throw new UserError(
+          `resolving a fork needs ${flag} to say something; got ${value.trim().length} characters, ${flag === "--why" || flag === "--evidence" ? "and this is the column a reader consults later" : "and a token is not an answer"}`,
+          "answer it properly or leave the fork open; a row nobody can read is the boolean this mechanism exists to avoid",
+        );
+      }
     }
   }
 

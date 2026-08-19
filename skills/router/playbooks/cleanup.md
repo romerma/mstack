@@ -12,8 +12,11 @@ and abandoned.
 5. Branches merged but still present: `git branch --merged <default>`, then delete with `-d`.
    Never `-D`: the lowercase form refuses when work would be lost, and that refusal is the
    whole safety mechanism. A `PreToolUse` hook denies `-D` for this reason.
-6. Items in `.mstack/state.json` whose work landed long ago and were never closed out: check
-   whether each one is really done, then `mstack state set <ref> --status done --closed-by
-   "..."` or reopen it honestly.
+6. Items in `.mstack/state.json` whose work landed long ago and were never closed out. Closing
+   one needs a ledger verdict, not a note: `mstack ledger record <slug> <the SHA the work landed
+   on> <verdict> --evidence <path> --verifier <who ran it>`, then `mstack state set <ref>
+   --status done`. The verdict may be at an older SHA — that is what closing an old item means —
+   but it has to exist, and it has to come from a pass that did not write the code. If nobody
+   can produce one, reopen the item honestly rather than closing it on a sentence.
 
 **Reply:** what was removed, and what you deliberately left alone.
