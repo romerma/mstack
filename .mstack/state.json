@@ -49,9 +49,10 @@
         "Each one says what that source is good for and what it systematically lies about",
         "The 1% skill listing budget is unaffected, so they stay out of skills/"
       ],
-      "status": "pending",
+      "status": "done",
       "description": "pstack ships eight playbooks for reading a source: Slack, Linear, Notion, Sentry, Datadog and the rest. Merging how and why into one skill dropped them.",
-      "source": "gap list, 2026-08-19"
+      "source": "gap list, 2026-08-19",
+      "closed_by": "Closed on the fact-check's findings being fixed"
     },
     {
       "id": 4,
