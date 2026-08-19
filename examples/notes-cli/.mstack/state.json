@@ -23,7 +23,7 @@
       "status": "done",
       "verification": "python3 -m unittest tests.test_storage -q",
       "source": "direct request",
-      "closed_by": "Seeded as already-complete so the example starts with a closed item to read."
+      "closed_by": "Seeded as already-complete so the example starts with a closed item, and with the ledger row that closing one actually requires."
     },
     {
       "id": 2,

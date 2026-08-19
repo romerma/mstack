@@ -1,10 +1,10 @@
-import { existsSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { runGate } from "./gate.ts";
 import { isActive } from "./lifecycle.ts";
 import { findStore, type Store } from "./paths.ts";
-import { reportFiles, reportKind, roleOf } from "./roles.ts";
+import { reportFiles, reportKind, roleOf, substantialReports } from "./roles.ts";
 import { activeItem, parseState, type Item } from "./state.ts";
 
 /**
@@ -142,8 +142,11 @@ export function subagentStop(input: HookInput): string | null {
     );
   }
   // Judged per file, not in aggregate: one substantial report does not excuse a
-  // sibling lens that returned an empty stub.
-  const empty = found.filter((file) => statSync(file).size < 40);
+  // sibling lens that returned an empty stub. Anything we cannot stat counts as
+  // empty — an unguarded stat here threw all the way out of the hook, so a
+  // single unreadable entry in progress/ disabled the check entirely.
+  const real = new Set(substantialReports(store.progress, kind, item.slug));
+  const empty = found.filter((file) => !real.has(file));
   if (empty.length > 0) {
     return context(
       "SubagentStop",
@@ -183,29 +186,55 @@ interface Guard {
  * Commands that are hard or impossible to walk back. Hooks are evaluated before
  * the permission mode is consulted, so a deny here holds even under
  * `bypassPermissions`.
+ *
+ * These are regexes over the command string, not a shell parser, and the
+ * consequence is deliberate: `echo "do not git push --force"` is denied. Erring
+ * that way is recoverable — the author rewrites the line — and the other
+ * direction is not. Carrying a shell parser to fix it would buy accuracy on a
+ * case nobody hits and add a whole grammar to a hook that must never be the
+ * thing that breaks a session.
  */
+/**
+ * `git` accepts global options before the subcommand, so `git push` is not
+ * adjacent in `git -C /repo push`, `git -c k=v push`, `git --git-dir=... push`.
+ * Every one of those slipped straight past a `\bgit\s+push\b`. This eats the
+ * options rather than trying to enumerate them.
+ */
+const GIT = String.raw`\bgit\s+(?:-[cC]\s+\S+\s+|--(?:git-dir|work-tree|namespace|exec-path|config-env)(?:=\S+)?\s+|-{1,2}[a-zA-Z-]+\s+)*`;
+
 export const GUARDS: readonly Guard[] = [
   {
     // `--force(?![-\w])` is load-bearing: `\b` matches between "e" and "-",
     // so a plain `--force\b` also matches inside `--force-with-lease` and
     // denies the safe form this rule is telling people to use.
-    pattern: /\bgit\s+push\b[^\n]*\s(?:--force(?![-\w])|-f(?=\s|$))/,
+    pattern: new RegExp(`${GIT}push\\b[^\\n]*\\s(?:--force(?![-\\w])|-f(?=\\s|$))`),
     why: "force-push rewrites history other people may have pulled; use --force-with-lease, or ask first",
   },
   {
-    pattern: /\bgit\s+reset\s+--hard\b/,
+    // A leading `+` on a refspec is a force push spelled differently, and it is
+    // the spelling that reads as harmless. `git push origin +main` rewrites the
+    // remote exactly as `--force` would.
+    pattern: new RegExp(`${GIT}push\\b[^\\n]*\\s\\+[^\\s-]\\S*`),
+    why: "a leading + on a refspec is a force push; use --force-with-lease, or ask first",
+  },
+  {
+    pattern: new RegExp(`${GIT}reset\\s+(?:--hard\\b|--\\S+\\s+)*--hard\\b`),
     why: "git reset --hard discards uncommitted work with no undo; commit or stash first",
   },
   {
-    pattern: /\bgit\s+branch\s+-D\b/,
-    why: "-D deletes an unmerged branch; use -d, which refuses when work would be lost",
+    // Long and short spellings, and the `-d --force` pair that means the same
+    // thing as `-D`.
+    pattern: new RegExp(`${GIT}branch\\b[^\\n]*\\s(?:-[a-zA-Z]*D[a-zA-Z]*|--delete\\s+--force|--force\\s+--delete)(?![-\\w])`),
+    why: "deleting an unmerged branch loses the work on it; use -d, which refuses when that would happen",
   },
   {
     pattern: /\bgh\s+pr\s+merge\b[^\n]*--admin\b/,
     why: "--admin merges past a check gh would otherwise refuse; fix the check instead",
   },
   {
-    pattern: /\brm\s+-[a-zA-Z]*[rR][a-zA-Z]*f?[^\n]*\.mstack\b/,
+    // `.mstack*` and `.mstac?` reach the same directory through the shell, so
+    // the guard matches the prefix rather than the exact name.
+    pattern: /\brm\s+-[a-zA-Z]*[rR][a-zA-Z]*[^\n]*(?:\.mstack|\.mstac[^\s\/]|\.msta[^\s\/]{0,2}\*)/,
     why: "that would delete the durable state this workflow runs on",
   },
 ];

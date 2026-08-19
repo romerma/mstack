@@ -190,3 +190,60 @@ test("a neighbouring slug's report does not satisfy this item's contract", () =>
     sb.dispose();
   }
 });
+
+/**
+ * A guard that matches a spelling rather than an operation is a guard with a
+ * synonym for a hole. Every DENY row below was a live evasion at some point.
+ */
+const DENY: readonly [string, string][] = [
+  ["git push --force origin main", "the plain form"],
+  ["git push -f origin main", "the short flag"],
+  ["git push origin main --force", "the flag after the refspec"],
+  ["git  push   --force  origin", "extra whitespace"],
+  ["cd /tmp && git push --force origin main", "inside a compound command"],
+  ["git -C /repo push --force origin main", "a global option between git and push"],
+  ["git -c protocol.version=2 push --force origin main", "-c is the same hole as -C"],
+  ["git --git-dir=/x/.git push --force origin main", "--git-dir is the same hole again"],
+  ["git push origin +main", "a leading + on a refspec IS a force push"],
+  ["git push origin +HEAD:main", "the same, spelled as a full refspec"],
+  ["git reset --hard HEAD~3", "the plain form"],
+  ["git -C /repo reset --hard", "with a global option"],
+  ["git branch -D feature", "the short flag"],
+  ["git branch --delete --force feature", "the long spelling of -D"],
+  ["git branch --force --delete feature", "the same two flags, reversed"],
+  ["gh pr merge 3 --admin", "merging past a check"],
+  ["rm -rf .mstack", "the durable state"],
+  ["rm -rf .mstack*", "a glob reaching the same directory"],
+  ["rm -rf ./.mstac?", "a single-character wildcard reaching it too"],
+];
+
+const ALLOW: readonly [string, string][] = [
+  ["git push --force-with-lease origin main", "the safe form the guard recommends"],
+  ["git push --force-with-lease=main:abc123 origin", "with an explicit expected value"],
+  ["git push origin main", "an ordinary push"],
+  ["git push origin --set-upstream main", "a flag that is not a force"],
+  ["git branch -d feature", "the refusing delete"],
+  ["git branch --delete feature", "its long spelling"],
+  ["git reset --soft HEAD~1", "a reset that keeps the work"],
+  ["git reset HEAD~1", "a mixed reset"],
+  ["gh pr merge 3 --squash", "an ordinary merge"],
+  ["rm -rf node_modules", "something that is not the store"],
+  ["rm -rf dist", "likewise"],
+];
+
+function denied(command: string): boolean {
+  const output = preToolUse({ tool_name: "Bash", tool_input: { command }, cwd: process.cwd() });
+  return output !== null && output.includes('"deny"');
+}
+
+test("every irreversible operation is denied however it is spelled", () => {
+  for (const [command, why] of DENY) {
+    assert.ok(denied(command), `should be denied (${why}): ${command}`);
+  }
+});
+
+test("the safe forms are not denied, including the one the guard recommends", () => {
+  for (const [command, why] of ALLOW) {
+    assert.ok(!denied(command), `should be allowed (${why}): ${command}`);
+  }
+});

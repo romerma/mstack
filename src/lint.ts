@@ -270,8 +270,20 @@ function lintReferences(
   for (const file of skillFiles) known.add(nameOf(file) ?? basename(dirname(file)));
   for (const file of agentFiles) known.add(nameOf(file) ?? basename(file, ".md"));
 
+  // Playbooks and references are where these names are actually written — the
+  // router's route table names a skill on nearly every line. Scanning only
+  // SKILL.md and agents left that unchecked, which is the same scope bug the
+  // link check had, fixed only for links.
+  const prose = [
+    ...new Set([
+      ...skillFiles,
+      ...agentFiles,
+      ...collectAll(join(root, "skills")).filter((file) => extname(file) === ".md"),
+    ]),
+  ];
+
   const dangling = new Map<string, string[]>();
-  for (const file of [...skillFiles, ...agentFiles]) {
+  for (const file of prose) {
     const source = readFileSync(file, "utf8");
     for (const match of source.matchAll(/\bmstack:([a-z][a-z0-9-]*)/g)) {
       const name = match[1] ?? "";
@@ -282,7 +294,7 @@ function lintReferences(
     }
   }
   if (dangling.size === 0) {
-    report.ok(`${known.size} skills and agents, every cross-reference resolves`);
+    report.ok(`${known.size} skills and agents, every cross-reference in ${prose.length} file(s) resolves`);
     return;
   }
   for (const [name, files] of dangling) {

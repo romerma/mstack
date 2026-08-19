@@ -45,5 +45,7 @@
 
 ## Next step
 
-Item 1 needs a reviewer who did not write it. Then decide item 2, which is blocked on whether a
-plugin-shipped `subagentStatusLine` can name its own script at all — the docs do not say it can.
+Review panel is running on item 1: correctness, robustness, tests-by-mutation, plus one
+adversarial pass over the whole session asking whether the plugin lives up to its own thesis.
+Paths allocated by `mstack fanout plan`. When they return, `mstack fanout check`, then act on the
+findings before moving item 1 past `reviewing`.

@@ -83,10 +83,15 @@ work is planned. It never changes what counts as evidence.
 | `Stop` | Runs the fast gate. Returns feedback rather than a block, so it never burns the eight-block budget |
 | `PreToolUse` | Denies force-push, hard reset, `branch -D`, `pr merge --admin`. Hooks are evaluated before the permission mode, so this holds even under `bypassPermissions` |
 
-### Roles that structurally cannot approve themselves
+### Roles that cannot quietly approve themselves
 
 `orchestrator`, `spec-reviewer` and `reviewer` ship **without `Write` and without `Edit`**. The
 rule is not "please do not edit the code you are reviewing". The tool is not there.
+
+They do carry `Bash`, because a reviewer has to run the verification itself — so this is a speed
+bump with an audit trail, not an impossibility. Editing a file still takes a visible shell command
+that a human reads in the transcript, rather than an edit that looks like ordinary work. That is
+the honest strength of the claim, and it is worth having; it is not a sandbox.
 
 ### State that survives a dead context window
 
