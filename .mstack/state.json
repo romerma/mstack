@@ -34,9 +34,10 @@
         "Establish whether ${CLAUDE_PLUGIN_ROOT} is expanded in a plugin settings.json",
         "Either ship settings.json with a command proven to resolve, or record why it cannot be shipped and close the item"
       ],
-      "status": "pending",
+      "status": "cancelled",
       "description": "A plugin may ship subagentStatusLine in its own settings.json, but nothing documents how that command would name mstack's own script.",
       "decision_required": "The substitution table in the plugins reference lists skills, agents, hooks, monitors, MCP and LSP, and settings.json is not among them. bin/ is documented as reaching the Bash tool only. Both mechanisms may still work and simply be undocumented, but relying on undocumented behaviour in the one plugin whose subject is evidence is its own decision.",
+      "decision_resolved": "2026-08-19T19:04:49.706Z",
       "source": "statusline work, 2026-08-19"
     },
     {
