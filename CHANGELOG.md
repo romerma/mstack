@@ -25,7 +25,7 @@ First release.
 - The status line parses its arguments leniently, because a typo in a user's settings.json must
   not turn the bar into an error message. Everywhere else a typo stays loud, and `state list`,
   `state active` and `ledger summary` now reject stray arguments instead of ignoring them.
-- 167 tests, run under both `bun test` and `node --test`, plus a CI job pinned to node 22.6.
+- 169 tests, run under both `bun test` and `node --test`, plus a CI job pinned to node 22.6.
 
 ### Found by the review panel, before the first release
 
@@ -87,6 +87,25 @@ having proven nothing.
   eight-block budget" when the hooks reference says `additionalContext` keeps the same loop
   protections; a guard comment claimed `-d --force` was covered when the pattern did not cover it;
   the fan-out error said the excess "queues silently" when spawning past the cap fails outright.
+
+### Found by the fact-check
+
+A third reviewer checked every factual claim in the eight `why` playbooks against the tools' own
+documentation — which the evidence ladder demands and writing them from knowledge skipped.
+
+- **One command hung the agent that ran it.** `rg PATTERN --glob '*.md'` with no path takes
+  ripgrep's stdin form and blocks forever when stdin is not a terminal, which is how a subagent
+  runs a command. It shipped in the playbook whose job is to *start* an investigation. The linter
+  refuses that shape now.
+- "The branch commits, which no longer exist" is false: a squash merge removes them from the
+  trunk only, and they survive on the PR at `refs/pull/<n>/head`. Inherited from pstack and
+  strengthened in the rewrite.
+- Grafana and Datadog dashboards both keep dated, attributed version history — the one telemetry
+  artifact that reads like a commit, and the page said it did not exist.
+- Datadog keeps metrics 15 months, not weeks; Slack DMs are searchable by the participant; Linear
+  moves an issue to Done automatically on PR merge; a Sentry issue resolves from a commit in a
+  release as well as by hand; Notion's comments API returns un-resolved comments only; missing
+  telemetry is interpolated away rather than plotted as zero.
 
 ### Deliberately not shipped
 
