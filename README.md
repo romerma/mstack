@@ -24,15 +24,20 @@ model remembers it lives in a hook or in a gate that is code.
 
 ## Install
 
+Point Claude Code at a clone. There is nothing to install and no build step — the TypeScript in
+`src/` is what runs:
+
 ```bash
-/plugin marketplace add <owner>/mstack     # once this repository is pushed
-/plugin install mstack@mstack
+git clone <this repository> mstack
+claude --plugin-dir "$PWD/mstack"
 ```
 
-Before it is published, or while developing it:
+Once the repository is pushed somewhere, the marketplace route works too. Substitute the real
+owner and repository; the angle brackets below are a placeholder, not a value:
 
 ```bash
-claude --plugin-dir /path/to/mstack
+/plugin marketplace add <owner>/<repo>
+/plugin install mstack@mstack
 ```
 
 Then, in a repository:
@@ -54,10 +59,15 @@ writing a bespoke plan that quietly drops its named steps.
 ### A product fork is a gate, not a note
 
 An item can carry `decision_required`: prose naming a question whose two answers produce
-different work. Past `specifying` the gate refuses to let it move until the fork is answered, and
-the only way to answer it is `mstack decide --resolves <slug>`, which writes the reasoning to
-`decisions.tsv` and stamps the item with a pointer to that row. A boolean would have let someone
-mark a fork answered without saying what the answer was.
+different work. Past `specifying` the gate refuses to let it move until the fork is answered, and answering it
+means `mstack decide --resolves <slug>`: the reasoning goes to `decisions.tsv` in a row that
+**names the item it answers**, and the item gets a pointer back to that row.
+
+Both halves of that link are load-bearing. With the pointer alone, a row about tabs versus spaces
+closed a fork about a public API contract, because no column said what a row was about. And the
+answer has to say something: a blank decision, or one whose result is still `open`, is refused by
+the CLI and rejected by the gate, because a row that is a timestamp and the word "open" is a
+boolean with extra steps.
 
 ```bash
 $ mstack state set export-json --status spec_ready

@@ -25,7 +25,7 @@ First release.
 - The status line parses its arguments leniently, because a typo in a user's settings.json must
   not turn the bar into an error message. Everywhere else a typo stays loud, and `state list`,
   `state active` and `ledger summary` now reject stray arguments instead of ignoring them.
-- 151 tests, run under both `bun test` and `node --test`, plus a CI job pinned to node 22.6.
+- 156 tests, run under both `bun test` and `node --test`, plus a CI job pinned to node 22.6.
 
 ### Found by the review panel, before the first release
 

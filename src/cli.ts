@@ -136,7 +136,13 @@ function cmdStatusline(argv: readonly string[]): number {
   // Prefix match, not equality: `--subagents` should render subagent rows, not
   // silently fall through to the main bar and emit a line of text where the
   // caller is parsing JSON.
-  const subagent = argv.some((arg) => arg.startsWith("--subagent"));
+  // `--subagent=false` used to turn subagent mode on, because the prefix match
+  // never looked at the value.
+  const subagent = argv.some((arg) => {
+    if (!arg.startsWith("--subagent")) return false;
+    const eq = arg.indexOf("=");
+    return eq === -1 || !/^(false|0|no|off)$/i.test(arg.slice(eq + 1));
+  });
   return subagent ? subagentStatusline() : statusline();
 }
 
@@ -360,12 +366,29 @@ function cmdDecide(argv: readonly string[]): number {
     }
   }
 
+  if (item !== undefined) {
+    // A fork answered with a blank decision, or with the default result of
+    // "open", is not answered. Refusing here keeps the row honest; the gate
+    // refuses the same shapes because the row can also be hand-written.
+    if (!/[a-z0-9]/i.test(values.decision)) {
+      throw new UserError("resolving a fork needs a decision that says something");
+    }
+    const result = (values.result ?? "").trim();
+    if (result === "" || result === "open") {
+      throw new UserError(
+        "resolving a fork needs --result: what the answer actually is",
+        "a result of 'open' is the default, and an open decision does not close a fork",
+      );
+    }
+  }
+
   const written = decisions.add(store, {
     phase: values.phase ?? "",
     decision: values.decision,
     why: values.why ?? "",
     evidence: values.evidence ?? "",
     result: values.result ?? "open",
+    resolves: item?.slug ?? "",
   });
 
   if (item !== undefined && state !== undefined) {
@@ -383,6 +406,7 @@ function cmdWorktree(argv: readonly string[]): number {
   const [sub, ...rest] = argv;
 
   if (sub === "list" || sub === undefined) {
+    takesNothing("worktree list", rest);
     for (const w of worktree.list(store)) {
       const tags = [w.isMain ? "main" : "", w.merged ? "merged" : "", w.dirty ? "dirty" : ""]
         .filter((t) => t !== "")

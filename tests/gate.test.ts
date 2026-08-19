@@ -386,6 +386,7 @@ test("a fork answered by a real decisions row clears the item", () => {
       why: "a consumer has to be able to detect a breaking change",
       evidence: "acceptance bullet 2",
       result: "version field required",
+      resolves: "storage-layer",
     });
     sb.writeState(
       state([
@@ -410,7 +411,7 @@ test("a pointer to a decision that does not exist is worse than no pointer", () 
       ]),
     );
     trackCurrent(sb);
-    expectFail(runGate(sb.store, { quiet: true }), /which is not in decisions\.tsv/, "dangling pointer");
+    expectFail(runGate(sb.store, { quiet: true }), /no row with that timestamp resolves storage-layer/, "dangling pointer");
   } finally {
     sb.dispose();
   }
