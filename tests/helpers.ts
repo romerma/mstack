@@ -48,6 +48,21 @@ export function sandbox(options: { git?: boolean } = {}): Sandbox {
   };
 }
 
+/**
+ * Fill in `current.md` for a test whose subject is not `current.md`.
+ *
+ * The gate requires an active item to be reflected there, so a fixture that
+ * activates an item and leaves the template in place is red for a reason that
+ * has nothing to do with what the test is checking.
+ */
+export function trackCurrent(box: Sandbox, note = "carry on"): void {
+  writeFileSync(
+    box.store.current,
+    `# Current session\n\n- **Item:** the one under test\n\n## Next step\n\n${note}\n`,
+    "utf8",
+  );
+}
+
 export function item(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
     id: 1,

@@ -4,7 +4,8 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { runGate } from "../src/gate.ts";
-import { expectFail, expectPass, item, sandbox, state } from "./helpers.ts";
+import { EMPTY_NEXT_STEP } from "../src/setup.ts";
+import { expectFail, expectPass, item, sandbox, state, trackCurrent } from "./helpers.ts";
 
 const gate = (sb: ReturnType<typeof sandbox>) => runGate(sb.store, { quiet: true });
 
@@ -60,6 +61,7 @@ test("one active item is fine", () => {
   const sb = sandbox();
   try {
     sb.writeState(state([item({ status: "in_progress" }), item({ id: 2, slug: "two" })]));
+    trackCurrent(sb);
     expectPass(gate(sb), "one active");
   } finally {
     sb.dispose();
@@ -112,6 +114,7 @@ test("an sdd item past specifying needs its spec artifacts on disk", () => {
   const sb = sandbox();
   try {
     sb.writeState(state([item({ sdd: true, status: "in_progress" })]));
+    trackCurrent(sb);
     expectFail(gate(sb), /has no spec at/, "missing spec dir");
 
     const dir = join(sb.store.specs, "storage-layer");
@@ -130,6 +133,7 @@ test("a non-sdd item never needs a spec", () => {
   const sb = sandbox();
   try {
     sb.writeState(state([item({ status: "in_progress" })]));
+    trackCurrent(sb);
     expectPass(gate(sb), "direct path");
   } finally {
     sb.dispose();
@@ -159,6 +163,71 @@ test("every failure carries a message, so a red gate is never silent", () => {
     for (const failure of report.failures) {
       assert.ok(failure.trim().length > 10, `unhelpful failure text: ${JSON.stringify(failure)}`);
     }
+  } finally {
+    sb.dispose();
+  }
+});
+
+test("an active item with an untouched current.md is red, because that file is the whole recovery plan", () => {
+  const sb = sandbox();
+  try {
+    sb.writeState(state([item({ status: "in_progress" })]));
+
+    // Straight from setup: the file exists and says nothing. The third
+    // end-to-end run ended correctly, on a decision_required fork, and left
+    // exactly this — the question in one session's head and nothing on disk.
+    expectFail(
+      runGate(sb.store, { quiet: true }),
+      /is active but progress\/current\.md is not: the Item line still says _none_; Next step is still the empty template/,
+      "untouched current.md",
+    );
+  } finally {
+    sb.dispose();
+  }
+});
+
+test("current.md filled in for the active item passes", () => {
+  const sb = sandbox();
+  try {
+    sb.writeState(state([item({ status: "in_progress" })]));
+    writeFileSync(
+      sb.store.current,
+      "# Current session\n\n- **Item:** 1 storage-layer\n\n## Next step\n\nAnswer the export shape question.\n",
+      "utf8",
+    );
+    expectPass(runGate(sb.store, { quiet: true }), "filled current.md");
+  } finally {
+    sb.dispose();
+  }
+});
+
+test("a half-filled current.md names which half is missing", () => {
+  const sb = sandbox();
+  try {
+    sb.writeState(state([item({ status: "in_progress" })]));
+    // Item line updated, Next step left as the template. The common case, and
+    // the one that matters: the header is cosmetic, the next step is the handoff.
+    writeFileSync(
+      sb.store.current,
+      `# Current session\n\n- **Item:** 1 storage-layer\n\n## Next step\n\n${EMPTY_NEXT_STEP}\n`,
+      "utf8",
+    );
+    const report = runGate(sb.store, { quiet: true });
+    expectFail(report, /Next step is still the empty template/, "half-filled");
+    assert.ok(
+      !report.failures.some((f) => /Item line still says/.test(f)),
+      `should not blame the Item line, got ${JSON.stringify(report.failures)}`,
+    );
+  } finally {
+    sb.dispose();
+  }
+});
+
+test("with no active item, current.md is not judged", () => {
+  const sb = sandbox();
+  try {
+    sb.writeState(state([item({ status: "pending" })]));
+    expectPass(runGate(sb.store, { quiet: true }), "no active item");
   } finally {
     sb.dispose();
   }
