@@ -118,10 +118,10 @@ export function postEdit(input: HookInput): string | null {
  * SubagentStop: confirm the subagent left something on disk.
  *
  * This exists because of a specific failure. A review subagent went idle
- * without writing its report; the parent never sees a subagent's reply body, so
- * that analysis would have vanished silently, and it was caught only because
- * someone checked for the file rather than trusting the one-line summary. A
- * reply is not evidence. The file is.
+ * without writing its report; the analysis lived only in its working context,
+ * which the parent never sees, so it would have vanished silently, and it was
+ * caught only because someone checked for the file rather than trusting the
+ * one-line summary. A reply is not evidence. The file is.
  */
 export function subagentStop(input: HookInput): string | null {
   const role = roleOf(input.agent_type);

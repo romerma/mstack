@@ -68,7 +68,8 @@ is not a cost worth optimising away.
   how to verify, what is forbidden, and what to report. **A vague brief fails quietly, because
   a subagent cannot ask you a question.** Missing fields are a reason not to launch it yet.
 - Tell it to write its result to `.mstack/progress/<kind>_<slug>.md` and return one line naming
-  the path. You never see its reply body in full, so the file is the deliverable.
+  the path. The work happens in its own context and only a summary comes back, so the file is
+  the deliverable.
 - **Check for the file.** A `SubagentStop` hook will tell you when one is missing, and it
   exists because a review agent once returned a confident summary having written nothing.
 - A second opinion means the same prompt against a *different model*. Agreement across models

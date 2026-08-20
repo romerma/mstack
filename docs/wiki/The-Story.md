@@ -46,18 +46,19 @@ design pass is required and supplies the escape hatch in the same breath: step 2
 `architect`, and the next line reads *"Skipping stays as `architect skipped: <reason>`"*.
 Nothing blocks anything; its `orch ledger` is the only real gate in the plugin, because it is
 code. Its own shipping playbook records what advisory invalidation costs: *"Twenty-one
-verdicts went stale this way in one run with no signal at all."* And it carries an honest counter-datum about its own ceremony: measured head-to-head,
-the orchestration playbook turned a half-hour twelve-unit job into one landed unit while a
-plain agent landed all twelve. mstack quotes that number in its own `orchestrate` skill as the
-reason to check the threshold before reaching for the machinery.
+verdicts went stale this way in one run with no signal at all."* And it carries an honest
+counter-datum about its own ceremony: measured head-to-head, the orchestration playbook
+turned a half-hour twelve-unit job into one landed unit while a plain agent landed all
+twelve. mstack quotes that number in its own `orchestrate` skill as the reason to check the
+threshold before reaching for the machinery.
 
 ## The harness
 
 The other parent enforced what pstack asks for. Its work items carry a lifecycle a gate
 actually checks, split fast/slow so the fast pass finishes in seconds (mstack's own fast gate
 gets that down to milliseconds); its header states the design rule mstack inherited: *"a gate
-nobody waits for is a gate nobody runs."* Its
-reviewer roles ship without `Write` or `Edit`, so "never review your own work" is a tool list
+nobody waits for is a gate nobody runs."* Its reviewer roles ship without `Write` or
+`Edit`, so "never review your own work" is a tool list
 rather than a request. Its state lives on disk in two progress files with opposite disciplines:
 a live checkpoint overwritten every session, and an append-only history. Its human gate is
 lean and declarative: a human is interrupted only when the item is a direct request, carries a
@@ -66,10 +67,11 @@ outcomes.
 
 Two of its lessons became mstack fixtures. First, the shape check: its gate documents that a
 state file like `{"features": {}}` passes `jq empty` while silently disabling every downstream
-query, so the gate must check shape, not parseability; the gate's own comment pins that defect
-to two of the harness's issue numbers. Second, the report contract: a review subagent once
-went idle without writing its report. The analysis lived in the subagent's own working
-context, which a parent never sees, so it would have vanished silently; it was caught only
+query, so the gate must check shape, not parseability. The defect shipped there, in
+production, and the gate's own comment pins it to two of the harness's issue numbers.
+Second, the report contract: a review subagent once went idle without writing its report.
+The analysis lived in the subagent's own working context, which a parent never sees, so it
+would have vanished silently; it was caught only
 because the leader checked for the file rather than trusting the one-line reply. The recorded
 lesson, *"a reply is not evidence, the file is"*, is now the `SubagentStop` hook's whole job.
 

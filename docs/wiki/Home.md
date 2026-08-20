@@ -6,8 +6,8 @@ that must hold are enforced by hooks and gates that are code rather than prose. 
 [pstack](https://github.com/cursor/plugins/tree/main/pstack) by
 [Lauren Tan](https://github.com/poteto) (the name follows her convention, `poteto` →
 `pstack`, and mstack keeps it), joined to the enforcement machinery of a spec-driven harness
-that had been running in production. The judgment came from pstack; the enforcement came from the harness; what is new
-is the join.
+that had been running in production. The judgment came from pstack; the enforcement came
+from the harness; what is new is the join.
 
 ## Where to start
 

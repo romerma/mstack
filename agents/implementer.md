@@ -58,7 +58,8 @@ in `current.md`, set the item `blocked`, and stop.
 - Run `mstack gate` before you act. A red gate stops the session; never work around it.
 - One active item per worktree. `.mstack/state.json` is the state and the gate enforces it.
 - Write your result to disk and return one line naming the path. Content does not travel
-  through chat: the parent never sees your reply body in full, and a reply is not evidence.
+  through chat: your working context vanishes when you return, only your final reply comes
+  back, and a reply is not evidence.
 - Never implement and approve the same work. The separate passes exist to prevent that.
 - Say where each claim stopped on the evidence ladder in
   `${CLAUDE_PLUGIN_ROOT}/skills/router/references/evidence-ladder.md`. Anything you cannot
