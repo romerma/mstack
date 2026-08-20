@@ -215,7 +215,8 @@ $ echo '{"items": {}}' > .mstack/state.json && mstack gate
 `JSON.parse` accepts that file. So does `jq empty`. Every query downstream then reads
 `undefined`, every comparison sees an empty string and never fires, and a gate without this
 check reports green while enforcing nothing. That defect is a real one: it shipped, in
-production, in the harness this was drawn from. Every check is walked in
+production, in the harness this was drawn from, and the gate's own comment pins it to two of
+the harness's issue numbers. Every check is walked in
 [docs/wiki/Gates-and-Hooks.md](docs/wiki/Gates-and-Hooks.md).
 
 ## The status line

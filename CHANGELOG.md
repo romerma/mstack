@@ -50,6 +50,12 @@ drifted from their sources.
   docs do state.
 - Item 9's recorded verification was prose, not a command. The link checker now ships at
   `scripts/check-doc-links.mjs` and the field runs it.
+- Two findings reached files item 9 could not touch and closed as their own item: the
+  reply-body phrasing in the five agent contracts and the router now matches the sub-agents
+  docs (the working context is what a parent never sees; the final reply comes back), and the
+  three pages that characterised the shape-check defect two different ways now share one
+  sentence — shipped in production, pinned by the gate's own comment to two of the harness's
+  issue numbers.
 
 ## 0.1.0
 

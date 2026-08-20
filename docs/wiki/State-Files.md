@@ -2,8 +2,8 @@
 
 Everything durable lives in `.mstack/`, in the repository, under version control. Chat is not
 state: a context window dies mid-task, a subagent's working context vanishes with it and its
-parent only ever sees the final reply, and a resumed session starts from what is on disk. The store is small enough to read in one
-sitting, and that is deliberate.
+parent only ever sees the final reply, and a resumed session starts from what is on disk.
+The store is small enough to read in one sitting, and that is deliberate.
 
 ```
 .mstack/
