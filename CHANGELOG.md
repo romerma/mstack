@@ -21,6 +21,16 @@ The docs round, before publication.
 - The README's status line example dropped its "(1)": the renderer deliberately prints
   `verdict stale` without a count, because the number of rows at other SHAs grows with the age
   of the item and says nothing about how stale anything is.
+- Publication prep. Machine-local absolute paths scrubbed from the research doc and the
+  committed progress reports — the private harness repository is still cited by name and
+  commit, but by relative path now, not by where it sat on one laptop. The quickstart
+  placeholders pinned to the real URL, `romerma/mstack`, in the README and the two wiki
+  pages that carried them, and `homepage` and `repository` added to `plugin.json`.
+- `CONTRIBUTING.md` and `SECURITY.md`. The first carries the rules a PR would otherwise
+  learn from a review comment: no build step, no runtime dependencies, both runtimes green,
+  pasted output from real runs. The second says what the guardrails are honestly — speed
+  bumps with an audit trail, not a sandbox — and routes vulnerability reports to GitHub's
+  private advisory form rather than a public issue.
 
 ### Found by the docs review panel
 
