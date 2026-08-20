@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -42,6 +42,39 @@ test("the plugin as shipped lints clean", () => {
   const c = copy();
   try {
     assert.equal(lint(c.root).failed, false);
+  } finally {
+    c.dispose();
+  }
+});
+
+test("a plugin-root CLAUDE.md warns, because a consumer never loads it", () => {
+  const c = copy();
+  try {
+    writeFileSync(join(c.root, "CLAUDE.md"), "# memo\n");
+    const report = lint(c.root);
+    assert.equal(report.failed, false, "a warning, not a failure");
+    assert.ok(
+      report.warnings.some((w) => /plugin-root CLAUDE\.md/.test(w)),
+      `expected the CLAUDE.md warning, got ${JSON.stringify(report.warnings)}`,
+    );
+  } finally {
+    c.dispose();
+  }
+});
+
+test("a plugin-root CLAUDE.md is not a warning where .mstack/ shows the repo is worked in", () => {
+  // The self-hosting case: the setup skill tells the project to carry a
+  // CLAUDE.md, and this plugin's own repo is its own project.
+  const c = copy();
+  try {
+    writeFileSync(join(c.root, "CLAUDE.md"), "# memo\n");
+    mkdirSync(join(c.root, ".mstack"));
+    const report = lint(c.root);
+    assert.equal(report.failed, false);
+    assert.ok(
+      !report.warnings.some((w) => /CLAUDE\.md/.test(w)),
+      `expected no CLAUDE.md warning, got ${JSON.stringify(report.warnings)}`,
+    );
   } finally {
     c.dispose();
   }
