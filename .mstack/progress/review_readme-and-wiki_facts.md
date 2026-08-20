@@ -14,7 +14,7 @@ against a copy of `docs/wiki/`. Most of it holds. Nineteen findings do not, six 
 **"A first-time reader goes from clone to a first closed item by following the README in order; every command block is copy-pasteable and its output shown from a real run"**
 
 Partly met. I created a fresh repo at `scratchpad/review-facts-demo` (git init, `greet.py`,
-`test_greet.py`) and drove the README's five commands with `/Users/romerma/Code/mstack/bin/mstack`.
+`test_greet.py`) and drove the README's five commands with `bin/mstack`.
 Every block in *"Your first item, in five commands"* reproduced byte for byte: `added 1 greet-flag
 (pending)`, `1 greet-flag (in_progress)`, the `in_progress -> done` refusal with its `--force` hint,
 `recorded test-verified for greet-flag at <sha8>`, and the `only implementer` gate failure with its
@@ -176,7 +176,7 @@ not have one.
 ### Pasted output re-run in a fresh scratch repo
 
 Created `scratchpad/review-facts-demo` (`git init -b main`, one Python module, one test), ran
-`/Users/romerma/Code/mstack/bin/mstack` against it. Reproduced **exactly** as the docs paste them:
+`bin/mstack` against it. Reproduced **exactly** as the docs paste them:
 
 ```
 $ mstack setup                                    # Getting-Started.md:41-48, The-CLI.md:37-44

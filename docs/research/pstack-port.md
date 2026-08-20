@@ -3,7 +3,7 @@
 **Date:** 2026-08-19
 **Question:** What is Cursor's [`pstack`](https://github.com/cursor/plugins/tree/main/pstack) plugin, what can be improved about it, and can the `enxvo` harness serve as the model for that improvement in a Claude Code plugin?
 
-**Method.** Three parallel investigations against primary sources only. For pstack: the GitHub tree API and raw file contents, plus `cursor.com/docs` for every Cursor primitive it relies on. For the harness: direct reads of `/Users/romerma/Code/enxvo` at `main@99cb205c`, read-only. For Claude Code: the official docs, plus real installed plugin sources under `~/.claude/plugins/cache/`. No blog posts, no secondary write-ups. Every claim below carries the source that owns it. Statements marked **[inference]** are analysis, not sourced fact.
+**Method.** Three parallel investigations against primary sources only. For pstack: the GitHub tree API and raw file contents, plus `cursor.com/docs` for every Cursor primitive it relies on. For the harness: direct reads of a local checkout of `enxvo` — a private repository — at `main@99cb205c`, read-only. For Claude Code: the official docs, plus real installed plugin sources under `~/.claude/plugins/cache/`. No blog posts, no secondary write-ups. Every claim below carries the source that owns it. Statements marked **[inference]** are analysis, not sourced fact.
 
 **Headline.** The premise needed correcting twice.
 
@@ -147,7 +147,8 @@ Every item below is observed directly from source.
 
 ## Part 2 — The `enxvo` harness
 
-Read at `/Users/romerma/Code/enxvo`, `main@99cb205c`.
+Read from a local checkout at `main@99cb205c`. The repository is private; paths below are
+relative to its root.
 
 ### 2.1 The structural insight
 
@@ -180,7 +181,7 @@ The enforcement mechanism is the frontmatter, not the prose.
 
 ### 2.4 The gate
 
-`/Users/romerma/Code/enxvo/init.sh`, three modes, rationale in the file header:
+`enxvo/init.sh`, three modes, rationale in the file header:
 
 > `./init.sh` Fast gate: toolchain, harness files, feature_list, workspace hygiene. Seconds. Safe as a Stop hook.
 > `./init.sh --tests` Fast gate + `make test`.
@@ -194,7 +195,7 @@ The `feature_list.json` block contains the best single argument in either repo f
 
 ### 2.5 Negative tests for the gate itself
 
-`/Users/romerma/Code/enxvo/scripts/harness-openspec-gate_test.sh` — the `expect_fail` helper asserts **both** non-zero exit **and** that a failure message was emitted:
+`enxvo/scripts/harness-openspec-gate_test.sh` — the `expect_fail` helper asserts **both** non-zero exit **and** that a failure message was emitted:
 
 ```bash
 expect_fail() {
@@ -215,7 +216,7 @@ expect_fail() {
 
 ### 2.6 Hooks that nudge, never block
 
-`/Users/romerma/Code/enxvo/scripts/harness-postedit.sh` header states the design constraint:
+`enxvo/scripts/harness-postedit.sh` header states the design constraint:
 
 > "Cheapest" is the whole design constraint: a hook that runs `make verify` on every edit is a hook that gets switched off.
 > **Exits 0 unconditionally. This nudges, it never blocks.**
@@ -245,7 +246,7 @@ The rule has a documented origin, from `history.md`:
 
 ### 2.8 CHECKPOINTS — evaluate the destination, not the path
 
-`/Users/romerma/Code/enxvo/CHECKPOINTS.md` opens:
+`enxvo/CHECKPOINTS.md` opens:
 
 > In a multi-agent system you do not evaluate the path, you evaluate the destination. These are the objective checks a reviewer (human or agent) walks to decide whether the repository is healthy enough to close a feature.
 >
@@ -255,7 +256,7 @@ Six groups, ~40 boxes. The two highest-leverage details: **conditional gates** (
 
 ### 2.9 The verification ladder
 
-`/Users/romerma/Code/enxvo/docs/verification.md`. Thesis: *"an agent does not say it works, it shows that it works."* And: *"Climb only as far as the change requires — **but the reviewer decides that, not the implementer.**"*
+`enxvo/docs/verification.md`. Thesis: *"an agent does not say it works, it shows that it works."* And: *"Climb only as far as the change requires — **but the reviewer decides that, not the implementer.**"*
 
 L0 harness gate · L1 unit · L2 CI equivalence · L3 real Postgres · L4 full stack · L5 user-facing · L5b object storage, with a dispatch table mapping *what the change touches* → *required levels*. Its anti-patterns list is short and every entry is a real past failure:
 
@@ -268,7 +269,7 @@ It also carries a **"Not covered locally, by anyone"** section enumerating known
 
 ### 2.10 The lean human gate
 
-`/Users/romerma/Code/enxvo/docs/specs.md`. **[inference]** The mechanism that lets 17 features close autonomously without being reckless:
+`enxvo/docs/specs.md`. **[inference]** The mechanism that lets 17 features close autonomously without being reckless:
 
 > Human plan approval is required only when:
 > - the source is a direct request (no GitHub issue), or
@@ -502,6 +503,6 @@ pstack's `openspec`-equivalent hard dependency, Graphite `gt`, `bro`, `typescrip
 
 **enxvo (read-only, `main@99cb205c`):** `AGENTS.md` · `CLAUDE.md` · `CHECKPOINTS.md` · `init.sh` · `feature_list.json` · `skills-lock.json` · `Makefile` · `.claude/{agents,commands,skills,settings.json}` · `.openclaw/agents/` · `.grok/skills/` · `scripts/harness-*.sh` · `openspec/{config.yaml,schemas/enxvo/}` · `progress/` · `docs/{specs.md,verification.md,adr/,runbooks/}` · `.github/{workflows,actions}/` · `tests/`
 
-**Also read:** `/Users/romerma/Code/ejemplo-harness-subagentes/` — a portable distillation of the enxvo harness · `~/.claude/plugins/cache/claude-plugins-official/{mattpocock-skills,figma}/` — real installed plugin manifests and skills
+**Also read:** `ejemplo-harness-subagentes` — a portable distillation of the enxvo harness, also a private local repository · `~/.claude/plugins/cache/claude-plugins-official/{mattpocock-skills,figma}/` — real installed plugin manifests and skills
 
 **Measured locally (2026-08-19):** bun 1.3.11 vs node v24.14.0 cold start and a representative gate workload; Claude Code v2.1.235 distribution format.

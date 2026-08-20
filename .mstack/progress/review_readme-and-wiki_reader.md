@@ -77,11 +77,11 @@ removal) match what I actually found in the files. No finding here.
 ## Verification I ran
 
 I built the Getting-Started walkthrough by hand rather than trusting the pasted output. Scratch
-repo: `/private/tmp/claude-501/-Users-romerma-Code-mstack/63eec75e-2b19-4328-956f-fcef36c43c68/scratchpad/review-reader-demo`,
+repo: `<session scratchpad>/review-reader-demo`,
 `git init`, seeded with a trivial `greet.py` (prints `Hello, <name>`, default `world`) and
 `test_greet.py`, matching what Getting-Started.md:101 assumes ("The scratch repository has
 `greet.py` and `test_greet.py`"). Ran every command through
-`/Users/romerma/Code/mstack/bin/mstack` (the real binary; the page says bare `mstack` because
+`bin/mstack` (the real binary; the page says bare `mstack` because
 the plugin puts it on `PATH` for Claude Code's own Bash calls, and it does say this once,
 clearly, at `docs/wiki/Getting-Started.md:32` — "`mstack` is now on `PATH` for every Bash call
 Claude Code makes").
@@ -145,7 +145,7 @@ Also ran, matching the item's own `verify` field literally as prose (not as a co
 `bin/mstack gate --full` on the mstack repo itself passes the `lint-plugin` and test/typecheck
 legs, but the final clause of item 9's `verification` field in `.mstack/state.json`
 ("`node scratch link check over README.md and docs/wiki`") is not an executable command — run
-literally it throws `Cannot find module '/Users/romerma/Code/mstack/scratch'`. I did the link
+literally it throws `Cannot find module '<repo>/scratch'`. I did the link
 check by hand instead (see bullet 4 above), so this did not block the review, but it means the
 item's own recorded verification string cannot be re-run as given by the next person either.
 

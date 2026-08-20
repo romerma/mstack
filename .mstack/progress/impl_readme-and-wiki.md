@@ -42,7 +42,7 @@ Commits: `a35ba42` readme · `3ce1096` wiki · `06c589e` changelog · bookkeepin
 ## Commands
 
 Demo evidence was generated in a scratch repository
-(`/private/tmp/claude-501/.../scratchpad/demo-repo`), driven with the real `bin/mstack`:
+(`<session scratchpad>/demo-repo`), driven with the real `bin/mstack`:
 setup, gate green and red, the `current.md` tracking failure, the illegal-transition refusal,
 the self-close refusal and its reviewer resolution, the stale `ledger check`, the fork refusal
 and its `decide --resolves` answer, a refused one-character decision, `fanout plan/check` with

@@ -56,7 +56,7 @@ line, including output that was previously wrong in three places.
 ## The walkthrough, replayed
 
 Fresh repo at `scratchpad/r2-demo` (`git init -b main`, one module, one test), everything through
-`/Users/romerma/Code/mstack/bin/mstack`. SHAs differ from the docs, as expected; shape and text
+`bin/mstack`. SHAs differ from the docs, as expected; shape and text
 are what I judged.
 
 ```
