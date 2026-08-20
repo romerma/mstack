@@ -31,6 +31,12 @@ The docs round, before publication.
   pasted output from real runs. The second says what the guardrails are honestly — speed
   bumps with an audit trail, not a sandbox — and routes vulnerability reports to GitHub's
   private advisory form rather than a public issue.
+- Running `/mstack:setup` on this repository itself surfaced a contradiction: the setup
+  skill tells the project to carry a `CLAUDE.md`, while `lint-plugin` warned about any
+  plugin-root `CLAUDE.md`. The linter now accepts the file when `.mstack/` sits beside it —
+  the store is evidence the repo is a worked-in project whose sessions do load the file —
+  and this repo carries the `CLAUDE.md` the skill asks for. The call has its row in
+  `decisions.tsv`.
 
 ### Found by the docs review panel
 

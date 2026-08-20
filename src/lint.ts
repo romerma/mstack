@@ -162,7 +162,14 @@ function lintManifest(dir: string, report: Report): void {
     }
   }
   if (existsSync(join(dir, "CLAUDE.md"))) {
-    report.warn("a plugin-root CLAUDE.md is not loaded as context; ship instructions as a skill instead");
+    // A consumer's Claude Code never loads a plugin-root CLAUDE.md. But a repo
+    // carrying its own .mstack/ store is also a worked-in project, and there
+    // the file is ordinary project memory that a fresh session does load.
+    if (existsSync(join(dir, ".mstack"))) {
+      report.ok("plugin-root CLAUDE.md is project memory for this checkout; .mstack/ shows the repo is worked in");
+    } else {
+      report.warn("a plugin-root CLAUDE.md is not loaded as context; ship instructions as a skill instead");
+    }
   }
 }
 
