@@ -17,15 +17,14 @@ the product working, and it is shown rather than edited out.
 Point Claude Code at a clone. There is nothing to build and nothing to install:
 
 ```bash
-git clone <this repository> mstack
+git clone https://github.com/romerma/mstack.git
 claude --plugin-dir "$PWD/mstack"
 ```
 
-Once the repository is pushed somewhere, the marketplace route works too. Substitute the real
-owner and repository; the angle brackets are a placeholder, not a value:
+The marketplace route works too:
 
 ```bash
-/plugin marketplace add <owner>/<repo>
+/plugin marketplace add romerma/mstack
 /plugin install mstack@mstack
 ```
 

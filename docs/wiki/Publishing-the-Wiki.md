@@ -34,19 +34,16 @@ matter — the copy in step 4 will overwrite it — so save a one-line `Home`.
 The wiki clones from the repository URL with `.wiki` appended, exactly as the docs give it:
 
 ```bash
-git clone https://github.com/<owner>/<repo>.wiki.git
-cd <repo>.wiki
+git clone https://github.com/romerma/mstack.wiki.git
+cd mstack.wiki
 ```
-
-As everywhere in these docs, `<owner>/<repo>` is a placeholder for the real owner and
-repository name, unknown until publication.
 
 ## 4. Copy the pages in
 
 From the wiki clone, with the main repository checked out next to it:
 
 ```bash
-cp ../<repo>/docs/wiki/*.md .
+cp ../mstack/docs/wiki/*.md .
 ```
 
 That includes `_Sidebar.md` and `_Footer.md`. They are special files, rendered as the footer
@@ -81,7 +78,7 @@ The one repo-relative link these pages do carry (`../research/pstack-port.md`, i
 repository's URL:
 
 ```bash
-sd -F '](../research/pstack-port.md)' '](https://github.com/<owner>/<repo>/blob/main/docs/research/pstack-port.md)' The-Story.md Gates-and-Hooks.md
+sd -F '](../research/pstack-port.md)' '](https://github.com/romerma/mstack/blob/main/docs/research/pstack-port.md)' The-Story.md Gates-and-Hooks.md
 ```
 
 Named files again for the same reason: this page quotes that command in a code block, and a
