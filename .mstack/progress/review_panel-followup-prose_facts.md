@@ -163,3 +163,65 @@ is absent from the stat, confirmed untouched.
   extraneous moved.
 - Full verification battery green: 169/169 tests, clean typecheck, lint-plugin 0/0, 54/54 links,
   `gate --full` passed (1 expected warning, no failures).
+
+## Round 2
+
+**Verdict:** APPROVED
+
+Fix commit `3a38bab` addresses both round-1 findings and nothing else of substance.
+
+**Check 1 — repo-wide `rg -n "reply body"` sweep.** Re-ran it clean:
+
+```
+$ rg -n "reply body" -g '!node_modules' -g '!.git'
+CHANGELOG.md:43:  "a parent never sees a subagent's reply body in full" contradicted the sub-agents docs
+```
+
+One hit, and it is a record: `CHANGELOG.md:43` is the historical bullet describing the item-9
+follow-up finding, quoting the old wrong phrasing as the thing that was contradicted — not an
+assertion. `hooks/hooks.json:40` and `tests/hooks.test.ts:76` no longer match this pattern at
+all (see check 2/3). No live claim remains anywhere in the repo.
+
+**Check 2 — hooks.json validity and lint.** `hooks/hooks.json` now reads: *"...the analysis
+lived only in its working context, which the parent never sees, so it would have vanished
+silently. A reply is not evidence, the file is."* This is the same corrected formulation used
+everywhere else in the diff (working context is what's never seen; the file, not the reply, is
+the evidence). `node -e "JSON.parse(readFileSync('hooks/hooks.json'))"` confirms it still
+parses. `bin/mstack lint-plugin .` → `PASSED - 0 failures, 0 warnings`, including the `hooks`
+section validating every hook event, `SubagentStop` among them.
+
+**Check 3 — `npm test` tail.** Full suite: `169/169 pass, 0 fail`. Ran `tests/hooks.test.ts` in
+isolation as well: `17/17 pass, 0 fail`, including `"SubagentStop catches a subagent that
+returned without writing its report"` — the test whose comment was edited (now: *"The analysis
+lives in the subagent's working context, which the parent never sees. A reply is not
+evidence."*) — still green.
+
+**Check 4 — diff scope.** `git diff c5de4fb 3a38bab --stat`:
+
+```
+ .mstack/progress/current.md                        |  22 ++-
+ .../progress/review_panel-followup-prose_facts.md  | 165 +++++++++++++++++++++
+ .mstack/state.json                                 |   2 +-
+ CHANGELOG.md                                       |   3 +-
+ hooks/hooks.json                                   |   2 +-
+ tests/hooks.test.ts                                |   3 +-
+ 6 files changed, 187 insertions(+), 10 deletions(-)
+```
+
+`hooks/hooks.json` and `tests/hooks.test.ts` are the two fixes. `CHANGELOG.md` now adds *"The
+four prose lines the round-2 sweep had named as past the column convention are rewrapped with
+it"* — closing the non-blocking gap noted in round 1 (the Unreleased bullet now covers all three
+things this diff did, not two). The rest is bookkeeping: `.mstack/state.json` flips the item's
+status from `in_progress` to `reviewing`, `.mstack/progress/current.md` logs the session
+narrative (including an honest note that `sd` silently no-opped on the multi-line `src/hooks.ts`
+comment during round 1 and the Edit tool was used instead — a tooling note, not a content
+change), and `.mstack/progress/review_panel-followup-prose_facts.md` is this report's round-1
+content being committed to disk — not new prose subject to review. Nothing outside the three
+named sites plus bookkeeping was touched.
+
+Final battery re-run clean: `npm test` 169/169, `npm run typecheck` clean, `bin/mstack
+lint-plugin .` 0/0, `node scripts/check-doc-links.mjs` 54/54, `bin/mstack gate --full` →
+`PASSED - 0 failures, 0 warnings` (the round-1 uncommitted-state warning is gone now that
+`state.json`'s change is committed).
+
+All five acceptance bullets are now met without qualification.

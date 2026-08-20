@@ -26,3 +26,17 @@
   README and Gates-and-Hooks say the shape-check defect "shipped" while The-Story pins it to
   two issue numbers — three pages, two characterisations of one defect; four prose lines sit
   past the ~100-column convention after the fix round's reflow.
+
+## 2026-08-20 — item 10, panel-followup-prose
+
+- The two follow-ups item 9 recorded, closed as their own item on the bug-fix playbook's
+  shape: the reply-body claim now matches the sub-agents docs everywhere it appears as a live
+  claim (five agent contracts, the router, a src/hooks.ts comment, the hooks.json description,
+  a test comment), and README, Gates-and-Hooks and The-Story share one characterisation of the
+  shape-check defect, with the decision row recording why the shipped half stands.
+- The orchestrator implemented (eight prose lines; delegation skipped with the reason in the
+  plan) and an independent reviewer judged the diff: round 1 CHANGES_REQUESTED after its
+  repo-wide sweep caught two live sites the item's own sweep had missed, round 2 APPROVED at
+  3a38bab. The record files (CHANGELOG, research doc, history, item-9 reports) keep the old
+  wording deliberately: they are records of the finding, not claims.
+- Ship: merge-gate skip: no remote exists before publication; local fast-forward into main.
