@@ -16,7 +16,7 @@ $ node epipe-check.mjs "$REPO" bin/mstack statusline   # spawns mstack, destroys
   "exitCode": 1,
   "signal": null,
   "stderrBytes": 270,
-  "stderr": "EPIPE: broken pipe, write\n ... code: \"EPIPE\"\n\n  at write (unknown:1:1)\n  at writeFast (internal:fs/streams:345:38)\n  at statusline (/Users/romerma/Code/mstack/src/statusline.ts:193:20)\n\nBun v1.3.11 (macOS arm64)\n"
+  "stderr": "EPIPE: broken pipe, write\n ... code: \"EPIPE\"\n\n  at write (unknown:1:1)\n  at writeFast (internal:fs/streams:345:38)\n  at statusline (src/statusline.ts:193:20)\n\nBun v1.3.11 (macOS arm64)\n"
 }
 ```
 Forcing the node fallback path (PATH stripped of `~/.bun`) reproduces the same thing under node:
@@ -28,7 +28,7 @@ Forcing the node fallback path (PATH stripped of `~/.bun`) reproduces the same t
 ```
 5/5 repeat runs reproduced `exitCode: 1` deterministically. Also reproduced on the `--subagent` path
 (50 tasks, stdout destroyed 1ms in): `exitCode: 1`, stack frame `at subagentStatusline
-(/Users/romerma/Code/mstack/src/statusline.ts:310:44)`. A plain shell pipeline confirms the same thing
+(src/statusline.ts:310:44)`. A plain shell pipeline confirms the same thing
 interactively: `printf '{...}' | bin/mstack statusline | :` prints the Bun stack trace to the terminal
 5/5 times.
 
