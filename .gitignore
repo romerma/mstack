@@ -14,3 +14,7 @@ npm-shrinkwrap.json
 # There is no build step. This is here only so a manual `bun build` never gets
 # committed: src/ is what ships and what runs.
 dist/
+
+# Local dogfooding ground: a nested git repository where mstack gets run end to
+# end against a real project. Never pushed; its history and evidence stay local.
+sandbox/
