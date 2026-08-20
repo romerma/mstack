@@ -6,28 +6,30 @@
 > On close: append the summary to `history.md` and reset this file to the
 > empty template below.
 
-- **Item:** _none_
-- **Status:** _-_
-- **Branch:** _-_
-- **Base:** _-_
-- **Worktree:** _-_
+- **Item:** 11 sandbox-weather-dogfood
+- **Status:** in_progress
+- **Branch:** chore/sandbox-dogfood
+- **Base:** main
+- **Worktree:** none (sandbox/ is a nested, gitignored repository, not a worktree)
 
 ## Plan
 
-_Three to five bullets, written before touching code._
+- Add `sandbox/` to .gitignore so nothing in it can reach GitHub; commit that plus this state change.
+- Create sandbox/ as its own git repository, run `mstack setup` inside it, and start `sandbox/PROTOCOL.md` logging every command from zero.
+- Inside the sandbox, run the weather app through the feature playbook, copied verbatim into the sandbox current.md: understand, design, throughput checkpoint, delegate to mstack:implementer, verify, rebase, review, ship. Spec path is on (user steps away and trusts it later).
+- Verification target: Lighthouse 100/100/100/100 against the built app, report saved under sandbox/.mstack/ as evidence, verdict recorded in the sandbox ledger.
+- Close both stores green: sandbox gate, then this repo's gate; append history here.
 
 ## Log
 
-_Every significant step: files created, decisions taken, commands run, blockers hit._
-
-- ...
+- `mstack gate` green (1 warning: on main), no active item. Branched chore/sandbox-dogfood.
+- Added item 11 sandbox-weather-dogfood, set in_progress.
+- Friction for PROTOCOL.md: subcommands have no `--help` (`mstack state add --help` exits 2; `state set --help` tries to resolve '--help' as an item ref). Flag syntax only discoverable from src/cli.ts.
 
 ## Verification
 
-_Which rung of the evidence ladder this reached, and what proved it._
-
-- ...
+- Nothing yet. Target: rung 5 (Lighthouse against the running built app) for the sandbox app; rung 4 (gate runs) for the workflow itself.
 
 ## Next step
 
-_If this session dies right now, the first thing the next one should do._
+- If this dies: sandbox/ may exist without its own .mstack. Re-run `mstack setup` inside sandbox/, read sandbox/PROTOCOL.md for where the app work stopped.

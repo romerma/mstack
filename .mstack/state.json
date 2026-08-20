@@ -161,6 +161,20 @@
       "source": "history.md entry for item 9; review_readme-and-wiki_r2-facts.md regression sweep; review_readme-and-wiki_facts.md finding 6",
       "verification": "npm test && npm run typecheck && bin/mstack lint-plugin . && node scripts/check-doc-links.mjs README.md docs/wiki/*.md",
       "closed_by": "Closed on the reviewer's round-2 APPROVED after its round-1 findings were fixed"
+    },
+    {
+      "id": 11,
+      "slug": "sandbox-weather-dogfood",
+      "title": "Dogfood the full mstack lifecycle on a sandbox weather app and record the UX protocol",
+      "acceptance": [
+        "sandbox/ exists, is its own git repository, and is ignored by the plugin repo so nothing in it can reach GitHub",
+        "The weather app is built inside sandbox/ through the complete mstack lifecycle: setup, intake, spec, spec review, implementation by a separate pass, verify, review by a separate pass, merge",
+        "sandbox/PROTOCOL.md records every command actually run, real output where it matters, wall-clock per phase, and every point of friction found",
+        "Lighthouse against the built app reports 100 in performance, accessibility, best practices and SEO, with the report saved as evidence"
+      ],
+      "status": "in_progress",
+      "description": "Build an Apple-Weather-style web app from scratch inside a gitignored sandbox, driving every mstack phase for real, and keep a command-by-command protocol of how easy or hard each step was. The protocol feeds a later refinement round on mstack itself.",
+      "source": "user request, 2026-08-20"
     }
   ]
 }
