@@ -42,15 +42,14 @@ There is nothing to install and no build step; the TypeScript in `src/` is what 
 1. Point Claude Code at a clone:
 
    ```bash
-   git clone <this repository> mstack
+   git clone https://github.com/romerma/mstack.git
    claude --plugin-dir "$PWD/mstack"
    ```
 
-   Once the repository is pushed somewhere, the marketplace route works too; the angle
-   brackets are a placeholder, not a value:
+   Or skip the clone and install through the marketplace:
 
    ```bash
-   /plugin marketplace add <owner>/<repo>
+   /plugin marketplace add romerma/mstack
    /plugin install mstack@mstack
    ```
 
@@ -297,6 +296,11 @@ node scripts/check-doc-links.mjs README.md docs/wiki/*.md
 claude --plugin-dir .             # then /reload-plugins after editing hooks or agents
 claude plugin validate . --strict
 ```
+
+The contribution rules that are not obvious from the code — no build step, no runtime
+dependencies, both runtimes green, output pasted from real runs — are in
+[CONTRIBUTING.md](CONTRIBUTING.md). The security posture, and where to report a
+vulnerability privately, is in [SECURITY.md](SECURITY.md).
 
 `examples/notes-cli/` is a working repository with a seeded queue: one closed item, one that
 takes the direct path, and one carrying a real product fork so you can watch the same command
