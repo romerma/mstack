@@ -37,7 +37,7 @@
             "command": "${CLAUDE_PLUGIN_ROOT}/bin/mstack",
             "args": ["hook", "subagent-stop"],
             "timeout": 10,
-            "description": "Confirm the subagent left its report on disk. A review subagent once went idle without writing one; the parent never sees a subagent's reply body, so that analysis would have vanished silently. A reply is not evidence, the file is."
+            "description": "Confirm the subagent left its report on disk. A review subagent once went idle without writing one; the analysis lived only in its working context, which the parent never sees, so it would have vanished silently. A reply is not evidence, the file is."
           }
         ]
       }

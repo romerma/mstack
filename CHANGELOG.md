@@ -55,7 +55,8 @@ drifted from their sources.
   docs (the working context is what a parent never sees; the final reply comes back), and the
   three pages that characterised the shape-check defect two different ways now share one
   sentence — shipped in production, pinned by the gate's own comment to two of the harness's
-  issue numbers.
+  issue numbers. The four prose lines the round-2 sweep had named as past the column
+  convention are rewrapped with it.
 
 ## 0.1.0
 
