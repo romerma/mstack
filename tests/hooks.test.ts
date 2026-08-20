@@ -73,7 +73,8 @@ test("SubagentStop catches a subagent that returned without writing its report",
   const sb = sandbox();
   try {
     sb.writeState(state([item({ status: "in_progress" })]));
-    // The parent never sees a subagent's reply body. A reply is not evidence.
+    // The analysis lives in the subagent's working context, which the parent
+    // never sees. A reply is not evidence.
     const missing = contextOf(subagentStop({ cwd: sb.store.root, agent_type: "mstack:implementer" }));
     assert.match(missing ?? "", /without writing/);
 

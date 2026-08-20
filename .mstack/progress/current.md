@@ -37,15 +37,25 @@ Bug-fix playbook, steps verbatim, with dispositions:
 
 - Item 10 opened with five acceptance bullets quoting the follow-up record.
 - Sub-agents doc verified at rung 4 before touching any file.
+- Edits applied: the shared bullet in the five agent contracts (sd, verified 5/5), the router
+  delegation bullet, the three shape-check sentences unified with the decision row recording
+  why the shipped half stands, the four flagged rewraps, one CHANGELOG bullet.
+- The opening sweep missed src/: the same reply-body claim lived in a src/hooks.ts comment.
+  Fixed, comment-only. sd silently no-opped on that multi-line comment (its known failure
+  mode); the Edit tool applied it. My own The-Story rewrap merged a line twice before it
+  stayed under the convention; both caught by the awk sweep.
+- Committed as c5de4fb. Battery green: 169 tests, typecheck, lint-plugin, 54 links, gate.
+- Item at reviewing; facts reviewer launched on the allocated fanout path, told to re-fetch
+  the sub-agents doc itself and to confirm the src/hooks.ts hunk is comment-only.
 
 ## Verification
 
-- Pending: battery after the edits, then the review pass re-fetches the doc itself.
+- Rung 4 for the mechanism (sub-agents doc fetched this session) and the battery; the review
+  pass re-derives both independently.
 
 ## Next step
 
-If this session dies now: item 10 is in_progress on fix/panel-followup-prose, no file edited
-yet. The edits: the shared rules bullet in agents/{implementer,reviewer,orchestrator,
-spec-author,spec-reviewer}.md, the delegation bullet in skills/router/SKILL.md:71, the
-shape-check sentences in README.md:217 and docs/wiki/Gates-and-Hooks.md:95 and
-docs/wiki/The-Story.md:68-70, the four reflow lines, one CHANGELOG Unreleased bullet.
+If this session dies now: reviewer is running against review_panel-followup-prose_facts.md.
+fanout check, act on the report, closing verdict from the reviewer, verifying -> done,
+history.md append, current.md reset, fast-forward fix/panel-followup-prose into main.
+Ship note: merge-gate skip: no remote exists before publication; local fast-forward instead.

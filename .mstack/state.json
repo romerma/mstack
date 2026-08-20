@@ -156,7 +156,7 @@
         "docs/research/pstack-port.md and every quoted primary source stay byte-identical: they are records, not claims",
         "The verification field runs green and the CHANGELOG Unreleased section records the round"
       ],
-      "status": "in_progress",
+      "status": "reviewing",
       "description": "Two follow-ups recorded in history.md at item 9's close: the reply-body phrasing in the five agent contracts and the router contradicts the sub-agents docs, and three pages characterise the shape-check defect two different ways. Plus the four reflow lines the round-2 sweep named.",
       "source": "history.md entry for item 9; review_readme-and-wiki_r2-facts.md regression sweep; review_readme-and-wiki_facts.md finding 6",
       "verification": "npm test && npm run typecheck && bin/mstack lint-plugin . && node scripts/check-doc-links.mjs README.md docs/wiki/*.md"
