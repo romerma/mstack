@@ -38,7 +38,8 @@ The reviewer did not write the code. If that is not true, stop: fetch someone wh
    severity, each with a `file:line`. A finding without a location is a feeling.
 9. One ledger row per review round, typed by the pass that formed the verdict it carries:
    - A lone `mstack:reviewer` records its own row (`--verifier reviewer`) before returning.
-     Confirm the row exists with `mstack ledger check <slug>`; do not type a second one on
+     Confirm the row exists with `mstack ledger check <slug>`. If no row exists, the
+     reviewer did not finish its contract: re-run the reviewer, and do not type the row on
      its behalf.
    - After a panel, the lenses have recorded nothing, so record the synthesized verdict
      yourself: `mstack ledger record <slug> "$(git rev-parse HEAD)" <verdict> --evidence
@@ -48,6 +49,8 @@ The reviewer did not write the code. If that is not true, stop: fetch someone wh
 
    Either way the mapping is fixed: `APPROVED` records the rung the verification reached,
    `CHANGES_REQUESTED` records `verifier-failed`, and a verification nobody could run
-   records `verifier-blocked`.
+   records `verifier-blocked`. A `verifier-failed` row records the rejection with the report
+   as its evidence; what keeps a rejected item open is that it does not move past
+   `reviewing`.
 
 **Reply:** the verdict, and the findings that changed the outcome.

@@ -21,7 +21,9 @@ synthesizing pass records the one synthesized row under its own role name, never
 alone: their generic `--verifier <role>` / `--verifier <who ran it>` wording agrees with the
 new rule that whoever types the row signs it. README.md:100-102 and
 docs/wiki/Getting-Started.md:233-249 already narrate the reviewer recording its own row, so
-no document now contradicts another. Both decisions are in `decisions.tsv` under phase
+the documents that name who records agree. (Narrowed in round 2: this claim was too broad as
+first written. The evidence ladder's verdict table still disagreed on which verdict a
+green-suite rejection records, review finding 4; reconciled in the round-2 section below.) Both decisions are in `decisions.tsv` under phase
 `item-15`. Deliberately untouched, per the item's scope: `agents/implementer.md:45`,
 `src/roles.ts`, `src/gate.ts`, all agent frontmatter.
 
@@ -128,3 +130,96 @@ And the new skills/review/SKILL.md step, verbatim:
 >    Either way the mapping is fixed: `APPROVED` records the rung the verification reached,
 >    `CHANGES_REQUESTED` records `verifier-failed`, and a verification nobody could run
 >    records `verifier-blocked`.
+
+---
+
+# Round 2
+
+Review verdict on round 1: CHANGES_REQUESTED
+(`.mstack/progress/review_reviewer-writes-the-verdict.md`). All four acceptance bullets were
+judged met; the rejection is on the diff. Four findings, four fixes, all landed on
+`fix/reviewer-writes-the-verdict`. `src/gate.ts` untouched, per the brief: making the struck
+promise true is now acceptance bullet 4 on item 18 `closing-row-cites-own-report`.
+
+## Finding to fix
+
+| Finding | Fix | Where |
+|---|---|---|
+| 1 (blocking): "`verifier-failed` clears nothing and blocks a close" is false; with the implementer's row already at the sha, the reviewer's rejection is what satisfies the no-self-approval audit (`src/gate.ts:371` fires only on `every`, `:373` needs only `rows.some(canCloseAnItem)`; proven live twice, probe revF) | The claim is struck, not hedged. The bullet now states what is true: the row records the rejection with the report as its evidence, it does not by itself block anything, and what keeps the item open is that a rejected item does not move past `reviewing` | `agents/reviewer.md:87-91` |
+| 2 (blocking): `skills/review/SKILL.md` mapping paragraph must move with finding 1 or the documents drift | The same true statement appended to the mapping paragraph, in the same terms | `skills/review/SKILL.md:52-54` |
+| 3 (blocking): "Given a lens, skip this step" makes lensing a guess, and the wrong guesses are asymmetric (N rows collapse to the most favorable and close over a rejection; the reverse deadlocks with no remedy) | Lensing is now the observable test the reviewer already used to pick its filename: lensed iff the handed report path carries the `review_<slug>_<lens>.md` suffix. The alone branch opens "Handed `review_<slug>.md`"; the lens branch opens "Handed a lens suffix". And the review skill's no-row case gained its remedy: re-run the reviewer, do not type the row on its behalf | `agents/reviewer.md:71-76,95-98`; `skills/review/SKILL.md:41-43` |
+| 4 (now required): the ladder maps "Ran it and it failed" to `verifier-failed` while reviewer.md says record it "even when the suite was green"; a reviewer looking up "green suite, uncovered requirement" got two answers | Reconciled in the ladder, which now says the check in its last two table rows is the whole claim under judgement, not the suite that ran inside it. Changed the ladder rather than reviewer.md because the other direction, recording the suite's rung on a rejection, places a close-enabling reviewer row at the sha of a rejected implementation, which is finding 1's mechanism made live on every rejection. Decision recorded in `decisions.tsv`, phase `item-15` | `skills/router/references/evidence-ladder.md:43-45` |
+| Also required: `impl_...md:24` "no document now contradicts another" was broader than established, finding 4 the counterexample | Narrowed in place to "the documents that name who records agree", with a pointer here | this file, What changed |
+
+Out of scope, already filed, not chased: the row going stale on the commit that carries it
+(item 19), the stale plugin cache governing which agent file actually loads (item 17
+bullet 5).
+
+## The changed wording, verbatim
+
+`agents/reviewer.md`, the reworked parts of `## Record it`:
+
+> Whether you record is not a judgement call, and you do not infer it from the phrasing of your
+> brief: you were given a lens iff the report path you were handed carries a lens suffix,
+> `review_<slug>_<lens>.md`. That is the same signal that chose your filename above.
+>
+> Handed `review_<slug>.md`, you are reviewing alone: type your own ledger row, through Bash,
+> once the report exists:
+
+> - **CHANGES_REQUESTED** records `verifier-failed`, even when the suite was green. The check
+>   that ran is the review, and the item failed it; a green suite next to an uncovered
+>   requirement is a failed verification, not a pass with a footnote. The row records the
+>   rejection with your report as its evidence; it does not by itself block anything. What
+>   keeps the item open is that a rejected item does not move past `reviewing`.
+
+> Handed a lens suffix, write your report and record nothing. The ledger keeps the best row
+> per `(target, sha)` by rank, so N lens rows would collapse to the panel's most favorable
+> member, and a split panel means the opposite. The pass that synthesizes the panel's verdict
+> records the one row, under its own name.
+
+`skills/review/SKILL.md`, the reworked parts of step 9:
+
+>    - A lone `mstack:reviewer` records its own row (`--verifier reviewer`) before returning.
+>      Confirm the row exists with `mstack ledger check <slug>`. If no row exists, the
+>      reviewer did not finish its contract: re-run the reviewer, and do not type the row on
+>      its behalf.
+
+>    Either way the mapping is fixed: `APPROVED` records the rung the verification reached,
+>    `CHANGES_REQUESTED` records `verifier-failed`, and a verification nobody could run
+>    records `verifier-blocked`. A `verifier-failed` row records the rejection with the report
+>    as its evidence; what keeps a rejected item open is that it does not move past
+>    `reviewing`.
+
+`skills/router/references/evidence-ladder.md`, inserted directly under the mapping table:
+
+> The check in the last two rows is the whole claim you were asked to judge, not the suite that
+> ran inside it. A reviewer whose suite was green but whose review found a blocking defect ran
+> the check and the check failed: that records `verifier-failed`, never the suite's rung.
+
+## Commands, round 2
+
+```
+$ npm test
+(bun)  258 pass, 0 fail
+(node) tests 258 / pass 258 / fail 0
+npm test exit=0
+
+$ npm run typecheck
+typecheck exit=0
+
+$ ./bin/mstack lint-plugin .
+PASSED - 0 failures, 0 warnings
+
+$ git diff -U1 -- agents/reviewer.md skills/review/SKILL.md skills/router/references/evidence-ladder.md
+(three files, insertions and the struck sentence only; frontmatter untouched, single first
+hunk in agents/reviewer.md starts at line 70, inside the round-1 section)
+```
+
+## Where round 2 stopped on the ladder
+
+Findings 1-4 are wording fixes; the mechanical facts behind them were established at rung 5
+by the review's probes (revC, revD, revF), which I did not re-derive. The fixes themselves
+are prose: rung 3 by read-back (a reviewer now decides lensing from the path it was handed,
+records the mapped verdict, and no document promises the row blocks anything), rung 4 for
+`lint-plugin`, both suites, and the gate at this head. As in round 1, no test can fail on
+this wording and none was invented.
