@@ -45,6 +45,17 @@ The docs round, before publication.
   coverage file into the repository does not void its own receipt; and a working tree git
   cannot describe now warns that only the commit half of the key was checked, instead of
   reporting "verification ran and passed" over the top of it.
+- Untracked **symlinks** are keyed by their target string, the way git records them, and are
+  never read through. `git hash-object` follows a link and hashes the target's bytes, and that
+  broke four ways at once: a link to a directory or a dangling link could not be hashed at all,
+  so the tree half switched itself off and an item closed green on a verification exiting 1; a
+  link to a file hashed bytes from outside the repository on a path that runs every turn; and a
+  link to `/dev/zero` cost 5.25s a call. That last row is now 25ms.
+- A store in a **subdirectory** of its repository had its tree half silently off, because
+  `git ls-files` prints paths relative to the current directory while `git hash-object` resolves
+  them relative to the repository root. Found while fixing the symlinks, not reported.
+- The tree fingerprint is computed once per gate instead of twice, which halves the content
+  hashing on the `Stop` hook path. The fast gate at `verifying` is 77ms in this repository.
 - A later `--closed-by` no longer erases the `closed unverified (forced):` marker, which is the
   only durable record that an item closed on a verification nobody ran — and `skills/ship`
   tells people to run exactly that command after a merge.

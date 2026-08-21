@@ -111,6 +111,17 @@ edit inside those same paths moved nothing and the gate called a red verificatio
 edit to code after a green run voids the run exactly as an edit to the command does, while
 writing your own progress notes does not.
 
+An untracked **symlink** contributes its target string, which is what git itself stores for one,
+and is never read through. That is not a detail: `git hash-object` follows links, and following
+them meant a link to a directory or a dangling link could not be hashed at all, which switched
+the whole tree half off and let an item close green on a failing verification.
+
+Two costs worth knowing, both measured. Untracked files are re-read on every fast gate while an
+item sits at `verifying`, so a large untracked artifact — a 500 MB build output that is not yet
+in `.gitignore` — costs about 0.7s a turn until you ignore it, which is what you would do
+anyway. And ignored files are in neither half of the fingerprint, deliberately: build output is
+not the project. On this repository the whole fast gate is 0.06-0.08s.
+
 The fast gate reads these back and, from `verifying` on, refuses to call an item green on a
 command that never ran here; the rules and the reasoning are in
 [Gates-and-Hooks](Gates-and-Hooks.md#verification-that-actually-ran).
