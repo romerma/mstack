@@ -1,5 +1,5 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { basename } from "node:path";
+import { basename, join } from "node:path";
 
 import { storeAt, type Store } from "./paths.ts";
 import { Report } from "./report.ts";
@@ -53,6 +53,23 @@ _Which rung of the evidence ladder this reached, and what proved it._
 ## Next step
 
 _If this session dies right now, the first thing the next one should do._
+`;
+
+/**
+ * The one file in the store that must not be committed.
+ *
+ * `verification.tsv` records that a command was executed *here*, keyed to the
+ * commit it ran against. Committing it breaks both halves of that: the commit
+ * moves HEAD and voids the receipt it is carrying, and a receipt from another
+ * machine would let one worktree's run stand in for a run nobody in this one
+ * ever did. Written into the store rather than the project's root `.gitignore`
+ * so `mstack setup` never edits a file it does not own.
+ */
+export const STORE_GITIGNORE = `# Machine-local: which verification command ran here, at which commit.
+# Never committed - a receipt is keyed to HEAD, so committing one voids it, and
+# a receipt from another checkout is not evidence that anything ran in this one.
+verification.tsv
+verification.tsv.lock
 `;
 
 export const HISTORY_TEMPLATE = `# Session history (append-only)
@@ -109,6 +126,11 @@ export function setup(root: string, options: { force?: boolean } = {}): Report {
   report.ok("ledger.tsv ready");
   ensureHeader(store.decisions, DECISIONS_HEADER);
   report.ok("decisions.tsv ready");
+  // Rewritten even when it exists, and it is the only file here that is: an
+  // older store predates it, and one that silently loses the rule starts
+  // committing receipts that void themselves.
+  writeFileSync(join(store.dir, ".gitignore"), STORE_GITIGNORE, "utf8");
+  report.ok(".mstack/.gitignore ready (verification.tsv is machine-local)");
 
   report.summary();
   return report;
