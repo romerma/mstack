@@ -187,12 +187,37 @@ interface Guard {
  * the permission mode is consulted, so a deny here holds even under
  * `bypassPermissions`.
  *
- * These are regexes over the command string, not a shell parser, and the
- * consequence is deliberate: `echo "do not git push --force"` is denied. Erring
- * that way is recoverable — the author rewrites the line — and the other
- * direction is not. Carrying a shell parser to fix it would buy accuracy on a
- * case nobody hits and add a whole grammar to a hook that must never be the
- * thing that breaks a session.
+ * These are regexes over one shell command at a time, not a shell parser, and
+ * the two halves of that pull in opposite directions on purpose.
+ *
+ * *Within* a command the match is loose, so `echo "do not git push --force"` is
+ * denied. Erring that way is recoverable — the author rewrites the line — and
+ * the other direction is not.
+ *
+ * *Across* commands it is not loose at all, because there is nothing to be
+ * loose about: a separator ends a command, so text after one cannot be an
+ * argument to what came before. `preToolUse` splits on separators first (see
+ * `shellSegments`) and matches each piece alone. Skipping that step denied
+ * `rm -rf /tmp/x && mstack decide --evidence ".mstack/x.md"`, which deletes
+ * nothing any of these rules is about. That is not a tolerable cost the way the
+ * `echo` case is: a guard that fires on work the author knows is harmless
+ * teaches them to route around it, which is the behaviour the guard exists to
+ * prevent.
+ *
+ * What these cannot see, stated rather than implied away. The input is a
+ * command string, so every deletion that does not spell itself out in one is
+ * allowed:
+ *
+ * - an interpreter one-liner — `node -e "fs.rmSync('.mstack',{recursive:true})"`,
+ *   `python -c ...`, anything through `sh -c` with the path concatenated;
+ * - a tool that removes a tree without the word `rm` in front of the path —
+ *   `find .mstack -delete`, `fd . .mstack -X rm`, `git clean -xdf`;
+ * - the path arriving indirectly — `rm -rf "$STORE"`, `rm -rf $(ls -d .mst*)`;
+ * - two steps — `mv .mstack /tmp/x`, then a deletion of `/tmp/x`.
+ *
+ * No regex closes those; the state they are about is on the filesystem, and a
+ * PreToolUse hook only ever sees the string. Read this array as a speed bump in
+ * front of the obvious spelling, not as a sandbox.
  */
 /**
  * `git` accepts global options before the subcommand, so `git push` is not
@@ -236,18 +261,98 @@ export const GUARDS: readonly Guard[] = [
   },
   {
     // `.mstack*` and `.mstac?` reach the same directory through the shell, so
-    // the guard matches the prefix rather than the exact name.
+    // the guard matches the prefix rather than the exact name. The `[^\n]*`
+    // between the flags and the name is what let this rule read a store name
+    // out of the *next* command; it is safe now only because the input is one
+    // segment, so treat `shellSegments` as part of this pattern.
     pattern: /\brm\s+-[a-zA-Z]*[rR][a-zA-Z]*[^\n]*(?:\.mstack|\.mstac[^\s\/]|\.msta[^\s\/]{0,2}\*)/,
     why: "that would delete the durable state this workflow runs on",
   },
 ];
+
+/**
+ * Cut a command line where the shell would start a new command.
+ *
+ * `&&`, `||`, `;`, `&`, `|` and a newline each end one command and begin
+ * another. Every guard above matches a verb together with its arguments, so
+ * running one against a whole line lets it take the verb from one command and
+ * the argument from another and deny a line that does neither thing.
+ *
+ * This is a scanner, not a parser, and it tracks exactly three things:
+ *
+ * - Quotes. A separator inside `'...'` or `"..."` is a filename character.
+ * - Backslash escapes, outside single quotes, for the same reason.
+ * - Redirections. The `&` of `2>&1` and of `&>log` belongs to the redirection,
+ *   and `>|` is a clobbering redirect rather than a pipe.
+ *
+ * The first two lean one way and the third leans the other, deliberately.
+ * Refusing to split inside a quote leaves the segment longer, so the guards see
+ * more and deny more; if the quoting is misread the cost is a false denial the
+ * author can rewrite. Refusing to split a redirection is the opposite case:
+ * cutting `git push origin main 2>&1 --force` in half hides `--force` from the
+ * rule that exists to catch it, and a false *allow* is the one outcome nothing
+ * downstream recovers from.
+ *
+ * Everything it still gets wrong — `$(...)` holding a separator, a heredoc — it
+ * gets wrong by leaving a segment too long, which denies rather than allows.
+ */
+export function shellSegments(command: string): string[] {
+  const segments: string[] = [];
+  let current = "";
+  let quote: string | null = null;
+
+  for (let i = 0; i < command.length; i += 1) {
+    const char = command[i] as string;
+    if (quote !== "'" && char === "\\" && i + 1 < command.length) {
+      current += char + command[i + 1];
+      i += 1;
+      continue;
+    }
+    if (quote !== null) {
+      if (char === quote) quote = null;
+      current += char;
+      continue;
+    }
+    if (char === "'" || char === '"') {
+      quote = char;
+      current += char;
+      continue;
+    }
+    if (isSeparator(command, i)) {
+      segments.push(current);
+      current = "";
+      continue;
+    }
+    current += char;
+  }
+  segments.push(current);
+  return segments.map((segment) => segment.trim()).filter((segment) => segment !== "");
+}
+
+function isSeparator(command: string, index: number): boolean {
+  const char = command[index];
+  if (char === "\n" || char === ";") return true;
+  if (char !== "&" && char !== "|") return false;
+  // `2>&1`, `2>|out`, `<&3`: the character belongs to the redirection operator.
+  const previous = command[index - 1];
+  if (previous === ">" || previous === "<") return false;
+  // `&>log` and `&>>log` redirect both streams; that `&` starts nothing.
+  if (char === "&" && command[index + 1] === ">") return false;
+  return true;
+}
 
 export function preToolUse(input: HookInput): string | null {
   if (input.tool_name !== "Bash") return null;
   const command = typeof input.tool_input?.["command"] === "string" ? input.tool_input["command"] : "";
   if (command === "") return null;
 
-  const hit = GUARDS.find((g) => g.pattern.test(command));
+  // Every guard is judged per segment, not just the rm one. Five of the six
+  // patterns above carry the same `[^\n]*` shape and had the same defect —
+  // `git reset --hard` escaped only because its pattern happens to be anchored
+  // tighter, which is luck, not design. Making this per-guard would mean the
+  // same mechanism written five times and forgotten on the seventh rule.
+  const segments = shellSegments(command);
+  const hit = GUARDS.find((g) => segments.some((segment) => g.pattern.test(segment)));
   if (hit === undefined) return null;
 
   return JSON.stringify({
