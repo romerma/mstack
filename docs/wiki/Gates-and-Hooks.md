@@ -226,11 +226,18 @@ Walking the lines that carry the weight:
   committed `src` tree differs gets a **warning** naming both tree ids and the launcher to
   run instead. That severity is a recorded decision — the mismatch is genuine (the sibling's
   checks may not be this store's checks), and it is also the normal state for the whole life
-  of a branch that touches `src/`. Two limits, stated rather than implied: `HEAD:src` is the
-  *committed* tree, so uncommitted edits to `src/` are invisible to the comparison, and the
-  Stop hook composes its `additionalContext` from failures only, so the warning reaches a
-  shell `mstack gate` (and a stderr note on every other subcommand) but not the hook's
-  injected context. A separate clone answers with a different common dir and stays a
+  of a branch that touches `src/`. Two limits, stated rather than implied. First, `HEAD:src`
+  is the *committed* tree, so uncommitted edits to `src/` are invisible to the comparison —
+  the adjacent "uncommitted change(s)" warning is what puts that fact one line away. Second,
+  who sees the warning splits three ways. In a shell, `mstack gate` prints it and every other
+  subcommand puts one note on stderr. On a hook invocation, the *model* gets nothing: the
+  Stop hook composes its `additionalContext` from failures only, so a warning cannot reach it
+  by construction. The note is then the only signal, and it goes to the stderr field the
+  client captures verbatim — whether a person sees that field rendered is what
+  [the two-streams section above](#what-claude-code-does-with-those-two-streams) already
+  declines to promise. What holds either way: the copy a worktree contributor is told to run
+  is that worktree's own `./bin/mstack`, which gives the branch's own verdict correctly.
+  A separate clone answers with a different common dir and stays a
   failure, as does the installed cache, which is not a git repository at all. And the oldest
   limit still holds: the check ships with the code that is being missed, so a copy installed
   *before* it existed still reports nothing — it closes every future round of this trap, not
