@@ -44,8 +44,9 @@ twice by two different passes, already carrying acceptance criteria.
 
 - Implementer pass done. `shellSegments` added to `src/hooks.ts`; `preToolUse` now matches
   every guard per segment rather than per line. 24/24 rows correct, was 14/24.
-- Segmentation applied to all five guards, not just `rm`. The sibling guards had the same
-  `[^\n]*` defect (3 of them reproduced), and the fix is one line at one call site.
+- Segmentation applied to all six guards, not just `rm`. Four siblings had the same `[^\n]*`
+  defect, all four reproduced; only `git reset --hard` escaped, and by luck. One line, one
+  call site.
 - The `&` of `2>&1` is not a separator. Splitting there would have hidden a trailing
   `--force` from the push guard, turning a false deny into a false allow.
 
@@ -54,9 +55,12 @@ twice by two different passes, already carrying acceptance criteria.
 - The defect: rung 5, reproduced against the shipped regex in a standalone script, twice by
   two passes; re-reproduced this pass, 10 wrong rows out of 24.
 - The fix: rung 5. `bin/mstack hook pre-tool-use` driven as a real process with real JSON on
-  stdin, 10/10 rows correct. Plus rung 4: `npm test` 174 pass on both runtimes, three
+  stdin, 14/14 rows correct. Plus rung 4: `npm test` 174 pass on both runtimes, three
   separate mutations of the new code each caught by a named test.
 - `npm run typecheck` and `./bin/mstack lint-plugin .` both clean.
+- Commits: `a8e8d90` the fix, `51a79cc` and `9b951a4` the tests, `0c0c24d` the report.
+  Ledger row `live-verified` at `0c0c24d`, verifier `implementer` — that is the implementer's
+  own evidence, not an approval.
 
 ## Next step
 
