@@ -28,3 +28,4 @@ verification-never-runs	6d58ca491a565f93c030cf3234548fba87e3239d	live-verified	.
 verification-never-runs	e4d32081fb43e2e18778336a42dc55368835d5e1	live-verified	.mstack/progress/impl_verification-never-runs.md round-3 section	implementer	2026-08-21T13:47:13.212Z
 verification-never-runs	a4db73b91193cf94e4daf1a30b8f6e532e0a6943	live-verified	.mstack/progress/impl_verification-never-runs.md round-4 section	implementer	2026-08-21T14:30:17.247Z
 verification-never-runs	aaac96122d0834ad4b2be692873b5e30ac358e2c	live-verified	.mstack/progress/review_verification-never-runs_r4.md	reviewer	2026-08-21T14:45:51.500Z
+reviewer-writes-the-verdict	2c2b367fb4c3fc4365a07276c1712df42eca6a3b	test-verified	.mstack/progress/impl_reviewer-writes-the-verdict.md	implementer	2026-08-21T17:30:19.599Z
