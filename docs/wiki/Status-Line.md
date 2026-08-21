@@ -1,5 +1,10 @@
 # The status line
 
+An optional one-line display in Claude Code's status bar that shows where the work stands
+on every turn. Read this page to wire it up, and for the one signal it exists to deliver:
+that a recorded verdict no longer applies to the commit you are on. Setup is one block in
+your own settings file.
+
 The status line exists for one signal nothing else can deliver in time: **a verdict going
 stale**. A ledger row is keyed by `(target, sha)`, and a new head SHA voids it. The gate
 catches that, but only when something runs the gate, and by then the work has usually moved

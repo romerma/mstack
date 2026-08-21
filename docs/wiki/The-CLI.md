@@ -1,5 +1,10 @@
 # The CLI
 
+Every command mstack ships, each one shown doing its job with real output. Read it as a
+reference rather than in order: when a command refuses something and you want to know what
+the refusal means, this is the page. Day to day you type few of these yourself; the router
+and [the agents](The-Agents.md) run them for you.
+
 `bin/mstack` is on `PATH` for every Bash call while the plugin is enabled. It is a small `sh`
 launcher over `src/cli.ts`; there is no build step, and the CLI uses only `node:` builtins.
 Every output block below is from one real run in a scratch repository, except where a command

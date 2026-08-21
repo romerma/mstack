@@ -1,5 +1,11 @@
 # Getting started
 
+Start here the first time you use mstack. You need Claude Code and a repository you can
+experiment in; by the end the plugin is installed and one work item has gone from filed to
+closed. If you would rather meet the moving parts before running anything, read
+[The-Agents](The-Agents.md) and [Skills-and-Playbooks](Skills-and-Playbooks.md) first and
+come back.
+
 This page takes a clean repository from nothing to a first closed work item. Every command
 block below is followed by the output it actually produced; the run was done in a scratch
 repository containing one Python file and one test. Where a command is refused, the refusal is

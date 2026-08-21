@@ -2,10 +2,48 @@
 
 Rigorous, verifiable agent workflows for Claude Code.
 
+mstack makes agent work inspectable. You ask for something in plain words; a router turns
+the request into a plan with named steps; agents that cannot approve their own work build
+and judge it; and nothing closes until a gate that is code has seen the proof. Everything
+the workflow knows lives in files in your repository, so a crashed session, or you, can
+always see where things stand.
+
 In practice that means three things: work items live in a durable store on disk, every claim
 about the work carries a typed verdict keyed to a commit SHA, and the rules that must hold
 are enforced by hooks and gates that are code rather than prose. The rest of this README is
 those three things, shown running.
+
+## The map
+
+Each concept, in one plain sentence, and the page that owns it:
+
+| Concept | In one sentence | The page |
+|---|---|---|
+| Work items and the lifecycle | One unit of work, with acceptance criteria and a status machine the gate enforces | [How-A-Work-Item-Flows](docs/wiki/How-A-Work-Item-Flows.md) |
+| The five agents | The roles that coordinate, specify, build and judge, so nobody approves their own work | [The-Agents](docs/wiki/The-Agents.md) |
+| The twelve skills | The `/mstack:<name>` commands, with the router as the front door | [Skills-and-Playbooks](docs/wiki/Skills-and-Playbooks.md) |
+| The seven playbooks | The step lists the router copies into the todo list before any reasoning | [Skills-and-Playbooks](docs/wiki/Skills-and-Playbooks.md) |
+| Gates and hooks | The checks that run by themselves and refuse things | [Gates-and-Hooks](docs/wiki/Gates-and-Hooks.md) |
+| The ledger and the evidence ladder | Typed verdicts keyed to a commit, and the five rungs a claim can reach | [State-Files](docs/wiki/State-Files.md) |
+| The CLI | Every `mstack` command, shown with its real output | [The-CLI](docs/wiki/The-CLI.md) |
+| The status line | One line per turn, carrying the verdict-went-stale signal | [Status-Line](docs/wiki/Status-Line.md) |
+| First run | Install to first closed item, every command with its output | [Getting-Started](docs/wiki/Getting-Started.md) |
+
+One request, end to end:
+
+```mermaid
+flowchart TD
+    you(["You: /mstack, in plain words"]) --> router["Router matches a playbook"]
+    router --> steps["Playbook steps land in the todo list, verbatim"]
+    steps -->|"spec path"| spec["spec-author writes it, spec-reviewer grills it"]
+    steps -->|"direct path"| impl["implementer builds it, tests included"]
+    spec --> impl
+    impl --> review["reviewer judges it, and did not write it"]
+    review -->|"CHANGES_REQUESTED"| impl
+    review -->|"APPROVED"| ledger["Verdict in the ledger, keyed to this commit"]
+    ledger --> gate["mstack gate green"]
+    gate --> merged(["Merged, item done"])
+```
 
 ## Where this comes from
 
@@ -368,6 +406,8 @@ publish route is [docs/wiki/Publishing-the-Wiki.md](docs/wiki/Publishing-the-Wik
 | [Getting-Started](docs/wiki/Getting-Started.md) | Clone to first closed item, every command with its real output |
 | [The-Story](docs/wiki/The-Story.md) | pstack, the harness, where they agree, and what the join fixed |
 | [How-A-Work-Item-Flows](docs/wiki/How-A-Work-Item-Flows.md) | The lifecycle, the two paths, and the walkthrough of the example repo |
+| [The-Agents](docs/wiki/The-Agents.md) | The five agents: who builds, who judges, and why nobody approves their own work |
+| [Skills-and-Playbooks](docs/wiki/Skills-and-Playbooks.md) | The twelve `/mstack` commands, the route table, and the seven playbooks |
 | [Gates-and-Hooks](docs/wiki/Gates-and-Hooks.md) | The five hooks, every gate check, and the merge gate's rules |
 | [The-CLI](docs/wiki/The-CLI.md) | Every subcommand with real output, exit codes, the verdict enum |
 | [State-Files](docs/wiki/State-Files.md) | The anatomy of `.mstack/`, column by column |
