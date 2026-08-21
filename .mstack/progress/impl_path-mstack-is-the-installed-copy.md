@@ -582,3 +582,151 @@ rounds by design, as stated above.
 warned after, through real `bin/mstack` processes including the hook path; every
 behaviour-change test shown red against the round-2 byte copy; full suite (274 × 2
 runtimes), typecheck, lint-plugin, doc links and the gate green at this head.
+
+---
+
+# Round 4
+
+Review verdict CHANGES_REQUESTED at `e32a86c`
+(`.mstack/progress/review_path-mstack-is-the-installed-copy_r3.md`): one blocker (the two
+provenance surfaces disagree on the uncomparable case, and the CLI one over-claims) and two
+smaller items; item 21 was filed by the review for the unidentified flake and is not this
+round's to fix. Base: `4103db1` (round-3 review artifacts and item 21 committed). The
+pre-fix byte copy is round 3's code (`scratchpad/r3-src`, verified identical to `src/`
+before any edit); every swap and restore was `rm -rf src && cp -R`, never `git checkout` or
+`git reset`. One process slip to disclose: while staging the reviewer's artifacts I ran a
+stray `git stash` that briefly stashed them; `git stash pop` restored all four files intact,
+verified by `git status` before and after, and nothing else was touched.
+
+## The blocker: one clause for both surfaces, agreement by construction
+
+`warnForeignCli` branched on `!provenance.sameSrc` alone, and `sameSrc` is false both when
+the trees differ and when a tree id is `null` — so on a worktree whose HEAD has no committed
+`src/` the gate said "could not be compared" while the CLI note said "differs", asserting a
+comparison that never happened, on the one branch of the switch with no test.
+
+**Fix.** The clause is hoisted into `describeSrcComparison` in `src/paths.ts`, consumed by
+both the gate's warning and the CLI's note, which is the "better still" option the review
+named: the invariant "both must agree or the two surfaces drift" now holds by construction
+rather than by discipline. A side effect the tests pin deliberately: the note in the
+*comparable* case now names both tree ids, the same honesty the gate already had.
+
+**Live before/after, real runs** (`scratchpad/r4-before` from `r3-src`, `r4-after` from
+`r4-src`; worktree via `git rm -r --cached src` so `src/` exists on disk but not in HEAD):
+
+```
+=== BEFORE (round-3 code): the two surfaces on one state ===
+gate:  [warn]  ... whose committed src tree could not be compared (git gave no answer): .../r4-before/main ...
+       PASSED - 0 failures, 2 warnings    exit=0
+note:  mstack: note: this command ran a sibling copy from .../r4-before/main whose committed
+       src tree differs from this store's; prefer .../r4-before/wt/bin/mstack
+
+=== AFTER (round-4 code): the same state ===
+gate:  [warn]  ... whose committed src tree could not be compared (git gave no answer): .../r4-after/main ...
+       PASSED - 0 failures, 2 warnings    exit=0
+note:  mstack: note: this command ran a sibling copy from .../r4-after/main whose committed
+       src tree could not be compared (git gave no answer); prefer .../r4-after/wt/bin/mstack
+```
+
+**Pinned** by `tests/provenance.test.ts:314` — gate warn and CLI note both say "could not be
+compared", and the note is asserted *not* to contain "differs" or a tree id. Red against the
+round-3 byte copy.
+
+## Smaller 1: hook visibility split three ways in the docs
+
+`docs/wiki/Gates-and-Hooks.md` no longer lumps `hook stop` in with terminal subcommands. It
+now states the review's three-valued finding: the model gets nothing by construction
+(`additionalContext` is failures only), the client captures the stderr note verbatim as its
+own field, and whether a person sees that field rendered is what the page's own two-streams
+section declines to promise — linked, not restated. It also adds the reason the severity
+call survives independent of all that: the instructed signal in a worktree is that
+worktree's own `./bin/mstack`, which gives the branch's own verdict correctly. The same
+reason is recorded as an annotating decision row (phase item-17), because the round-3 row
+leaned on a premise the review showed to be only one third of the truth.
+
+## Smaller 2: the committed-tree limit is now pinned
+
+`tests/provenance.test.ts:354`: a worktree with an *uncommitted* `src/cli.ts` edit
+observably runs that edit under its own CLI (a stderr marker appended as top-level code —
+there is no build step, so the working tree is what executes), and a sibling still prints
+the full `[ok] ... same committed src tree` at exit 0, with the adjacent
+"uncommitted change(s)" warning carrying the missing fact, and no stderr note. A guard by
+design — it passes on round-3 code too, because the behaviour is unchanged; what it does is
+make the limit a decision: anyone tightening the comparison to see the working tree has to
+change this test knowingly.
+
+## The item-21 flake
+
+Not chased, per the brief. Four full-suite runs this round (one `npm test` under both
+runtimes, three further `bun test tests/`): all `276 pass / 0 fail`, no red suite observed,
+so no test name to capture. Said here rather than settled.
+
+## Files (round 4)
+
+- `src/paths.ts` — `describeSrcComparison`, exported, with the drift story
+- `src/gate.ts` — warn consumes the shared clause
+- `src/cli.ts` — note consumes the shared clause, with the sameSrc-is-not-enough comment
+- `tests/provenance.test.ts` — uncomparable-case test (`:314`, red on r3), committed-tree
+  limit guard (`:354`), sibling note assertion updated to the tree-id form (red on r3)
+- `docs/wiki/Gates-and-Hooks.md` — three-way visibility split, linked to the streams section
+- `.mstack/decisions.tsv` — one annotating row on the severity rationale
+
+## Commands (round 4)
+
+```
+$ npm test
+ 276 pass
+ 0 fail
+Ran 276 tests across 15 files. [64.39s]
+ℹ tests 276
+ℹ pass 276
+ℹ fail 0
+
+$ bun test tests/        # x3, hunting the item-21 flake
+ 276 pass
+ 0 fail                  # all three runs
+
+$ npm run typecheck
+> bunx --bun tsc --noEmit
+(exit 0)
+
+$ ./bin/mstack lint-plugin .
+PASSED - 0 failures, 0 warnings
+
+$ node scripts/check-doc-links.mjs README.md docs/wiki/*.md
+61 relative links checked, 0 broken
+
+$ ./bin/mstack gate
+[ok]    store root is an mstack checkout, and this report came from its own ./bin/mstack
+PASSED - 0 failures, 1 warning     # the warning is this session's uncommitted store files
+```
+
+Red against the round-3 byte copy (`rm -rf src && cp -R scratchpad/r3-src src`, restored
+from `scratchpad/r4-src` and re-verified green):
+
+```
+$ node --test tests/provenance.test.ts
+✖ a sibling at a different committed src tree is a named warning, not an ok and not a red gate
+✖ when the trees cannot be compared, both surfaces say so instead of claiming a difference
+ℹ tests 12  pass 10  fail 2
+```
+
+The sibling-test red tracks the deliberate note change to the tree-id form; the
+uncomparable-case red is the blocker's fix biting. The committed-tree guard passes on both
+rounds by design, as stated above.
+
+## Finding → evidence (round 4)
+
+| Finding | Fix | Test | Rung |
+|---|---|---|---|
+| Blocker: CLI note over-claims on the uncomparable branch | `describeSrcComparison` shared by both surfaces | `tests/provenance.test.ts:314` (red on r3); before/after transcript above | 5 |
+| Docs lump hook stop in with terminal output | three-way split, linked to the streams section | prose; the three values are the review's rung-5/rung-2 findings, cited not re-derived | 2 |
+| Committed-tree limit unpinned | guard test with an observable uncommitted divergence | `tests/provenance.test.ts:354` (guard, passes both rounds — said, not hidden) | 5 for the behaviour it documents |
+| Item-21 flake | not chased, per the brief | four clean full-suite runs, no name to capture | 5 that these runs were clean; the flake itself stays rung 1 |
+
+## Verdict (round 4)
+
+`live-verified` — the blocker's drift reproduced live on a byte-copy pair before the fix and
+shown unified after, through real `bin/mstack` processes; the new behaviour test shown red
+against the round-3 byte copy; full suite (276 × 2 runtimes, plus three clean re-runs),
+typecheck, lint-plugin, doc links and the gate green at this head.
