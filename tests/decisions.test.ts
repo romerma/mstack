@@ -299,6 +299,38 @@ test("rewriting the fork drops the answer to the question it replaced", () => {
   }
 });
 
+test("restating the same fork changes nothing, even on an item past the line", () => {
+  const sb = sandbox();
+  try {
+    sb.writeState(state([item({ status: "specifying", decision_required: FORK })]));
+    trackCurrent(sb);
+    mstack(sb.store.root, [
+      "decide",
+      "--resolves",
+      "storage-layer",
+      "--decision",
+      "versioned envelope with a version field",
+      "--why",
+      "a consumer has to be able to detect a breaking change without asking anyone",
+      "--evidence",
+      "acceptance bullet 2 of the item, quoted in state.json",
+      "--result",
+      "version field required; adding a field is compatible, changing one is a bump",
+    ]);
+    assert.equal(mstack(sb.store.root, ["state", "set", "storage-layer", "--status", "spec_ready"]).status, 0);
+    const answered = parseState(sb.store.state).items[0]!.decision_resolved;
+
+    // Same prose, so there is no new fork and nothing to refuse. A guard that
+    // fired on every write would refuse this and re-open an answered fork.
+    const same = mstack(sb.store.root, ["state", "set", "storage-layer", "--decision-required", FORK]);
+    assert.equal(same.status, 0, same.stderr);
+    assert.equal(parseState(sb.store.state).items[0]!.decision_resolved, answered, "the answer still stands");
+    assert.equal(mstack(sb.store.root, ["gate"]).status, 0);
+  } finally {
+    sb.dispose();
+  }
+});
+
 test("--clear decision-required drops the pointer along with the question", () => {
   const sb = sandbox();
   try {
