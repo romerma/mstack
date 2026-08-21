@@ -29,6 +29,10 @@ import { parseState, type Item, type State } from "./state.ts";
 
 export interface GateOptions {
   readonly full?: boolean;
+  /**
+   * Failures only, one line each, on stderr. No passes, no sections, no
+   * warnings, no summary — see `Report#fail`, which owns the rendering.
+   */
   readonly quiet?: boolean;
 }
 
