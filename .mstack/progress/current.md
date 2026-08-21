@@ -6,24 +6,25 @@
 > On close: append the summary to `history.md` and reset this file to the
 > empty template below.
 
-- **Item:** 12 rm-guard-command-boundary
+- **Item:** 13 editable-item-fields
 - **Status:** in_progress
-- **Branch:** fix/rm-guard-command-boundary
+- **Branch:** feat/editable-item-fields
 - **Base:** main
 - **Worktree:** none
 
 ## Plan
 
-First item of the refinement round driven by `sandbox/PROTOCOL.md`. Started ahead of the
-triage because it is the one finding nobody disputes: a shipped defect, reproduced at rung 5
-twice by two different passes, already carrying acceptance criteria.
+Item 13 of the refinement round. The most serious of the three enforcement gaps the divergent
+pass surfaced, because it makes the plugin's headline human gate unreachable.
 
-- Re-reproduce the defect against HEAD before touching it. **Done**: 4 false positives and
-  2 bypasses against the shipped regex.
-- Delegate the fix to an implementer: evaluate only the shell segment containing the `rm`,
-  keep every true positive, and state the limits the guard cannot see rather than implying
-  it has none.
-- Review by a pass that did not write it, then close.
+- `state set` accepts only `--status`, `--closed-by` and `--force` (`src/cli.ts:242`). Every
+  other field is write-once at intake, including `decision_required`.
+- `README.md:116-129` leads with `decision_required` as the human gate, and
+  `skills/spec/SKILL.md:33-38` says forks are found during `specifying` — after intake. So the
+  gate cannot be attached at the moment the workflow says the fork appears.
+- The dogfood run produced two textbook forks and answered both with a plain `mstack decide`;
+  30 decision rows, zero with a `resolves` value. The gate never had an opinion.
+- Delegate the implementation, review with a pass that did not write it, close.
 
 ## Log
 
@@ -99,9 +100,5 @@ twice by two different passes, already carrying acceptance criteria.
 
 ## Next step
 
-- Hand item 12 back to a reviewer that did not write it, for round 2. Report at
-  `.mstack/progress/impl_rm-guard-command-boundary.md`, round-2 section at the bottom. The
-  implementer did **not** mark it done and did not touch its status.
-- Open question still standing for the reviewer: the sibling guards were fixed as a side
-  effect, and round 1's reviewer noted that widening also opened four of the five false
-  allows. They are closed now, but the scope judgement is still theirs to make.
+- If this dies: item 13 is in flight on feat/editable-item-fields. Its four acceptance
+  criteria are in state.json. Items 14 and 15 are still pending and untouched.
