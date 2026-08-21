@@ -49,8 +49,7 @@ The reviewer did not write the code. If that is not true, stop: fetch someone wh
 
    Either way the mapping is fixed: `APPROVED` records the rung the verification reached,
    `CHANGES_REQUESTED` records `verifier-failed`, and a verification nobody could run
-   records `verifier-blocked`. A `verifier-failed` row records the rejection with the report
-   as its evidence; what keeps a rejected item open is that it does not move past
-   `reviewing`.
+   records `verifier-blocked`. A `verifier-failed` row is the typed record of the rejection,
+   carrying the report as its evidence; it is not itself a gate.
 
 **Reply:** the verdict, and the findings that changed the outcome.
