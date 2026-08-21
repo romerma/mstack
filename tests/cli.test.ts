@@ -4,8 +4,10 @@ import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
+import { mkdirSync } from "node:fs";
+
 import { parseState } from "../src/state.ts";
-import { item, sandbox, state } from "./helpers.ts";
+import { item, sandbox, state, trackCurrent } from "./helpers.ts";
 
 const BIN = join(dirname(fileURLToPath(import.meta.url)), "..", "bin", "mstack");
 
@@ -291,6 +293,186 @@ test("--status and --closed-by keep working exactly as before", () => {
     const bogus = run(sb.store.root, ["state", "set", "1", "--status", "nonsense"]);
     assert.equal(bogus.code, 2);
     assert.match(bogus.stderr, /'nonsense' is not a status/);
+
+    // The one input that did *not* keep working the same way, pinned here
+    // rather than left to a reader of the report. On main this exited 0 and
+    // wrote `closed_by: ""`; the empty-value rule applies to every value flag,
+    // and a flag exempted from it would be the surprise this item is about.
+    const blank = run(sb.store.root, ["state", "set", "1", "--closed-by", ""]);
+    assert.equal(blank.code, 2);
+    assert.match(blank.stderr, /an empty --closed-by is not a value/);
+    assert.match(blank.stderr, /--clear closed-by/);
+    assert.equal(only(sb).closed_by, "PR #4 merged as abc1234", "the previous note survives a refusal");
+  } finally {
+    sb.dispose();
+  }
+});
+
+/** The six `--clear` takes, exactly as `docs/wiki/The-CLI.md` promises them. */
+const CLEARABLE: readonly (readonly [string, string, unknown])[] = [
+  ["description", "description", "a description to remove"],
+  ["source", "source", "issue #4"],
+  ["verification", "verification", "npm test"],
+  ["decision-required", "decision_required", "A question whose two answers produce different work?"],
+  ["sdd", "sdd", true],
+  ["closed-by", "closed_by", "a note for the next reader"],
+];
+
+test("every field the wiki says is clearable clears, and clearing it again says so", () => {
+  const sb = sandbox();
+  try {
+    for (const [flag, key, value] of CLEARABLE) {
+      sb.writeState(state([item(Object.fromEntries(CLEARABLE.map(([, k, v]) => [k, v])))]));
+      assert.notEqual(only(sb)[key as keyof ReturnType<typeof only>], undefined, `${flag}: fixture must carry it`);
+
+      const cleared = run(sb.store.root, ["state", "set", "1", "--clear", flag]);
+      assert.equal(cleared.code, 0, `${flag}: ${cleared.stderr}`);
+      assert.equal(
+        only(sb)[key as keyof ReturnType<typeof only>],
+        undefined,
+        `--clear ${flag} must remove ${key}, not blank it`,
+      );
+      assert.match(cleared.stdout, new RegExp(`${key}: .* -> \\(unset\\)`), `${flag}: the removal must be reported`);
+      // Every other field is untouched, so no --clear is quietly clearing two.
+      for (const [, otherKey, otherValue] of CLEARABLE) {
+        if (otherKey === key || otherKey === "decision_resolved") continue;
+        assert.equal(only(sb)[otherKey as keyof ReturnType<typeof only>], otherValue, `${flag} also cleared ${otherKey}`);
+      }
+
+      const again = run(sb.store.root, ["state", "set", "1", "--clear", flag]);
+      assert.equal(again.code, 0, `${flag}: clearing an absent field is a no-op, not an error`);
+      assert.match(again.stdout, new RegExp(`${key}: already unset`), `${flag}: the no-op has to say so`);
+    }
+  } finally {
+    sb.dispose();
+  }
+});
+
+test("the change line never prints an identical before and after", () => {
+  const sb = sandbox();
+  try {
+    // Two forks sharing a 45-character prefix. The preview truncates at 48, so
+    // both render the same, and the same command drops decision_resolved: the
+    // line that exists to make a write visible showed no change at all.
+    const before = "Should the export be a stable public contract other tools may depend on?";
+    const after = "Should the export be a stable public contract we are free to reshape at will?";
+    sb.writeState(state([item({ status: "specifying", decision_required: before })]));
+
+    const rewritten = run(sb.store.root, ["state", "set", "1", "--decision-required", after]);
+    assert.equal(rewritten.code, 0, rewritten.stderr);
+    assert.equal(only(sb).decision_required, after);
+
+    const line = rewritten.stdout.split("\n").find((l) => l.includes("decision_required")) ?? "";
+    assert.doesNotMatch(line, /"(.+)" -> "\1"/, `the arrow form printed the same value twice: ${line}`);
+    assert.match(rewritten.stdout, /decision_required: changed, and the short forms match, so both in full/);
+    // Literal, not a regex: the question marks in these forks are quantifiers
+    // to a pattern, and a check that matches loosely is the thing this whole
+    // finding is about.
+    assert.ok(
+      rewritten.stdout.includes(`was (72 chars) ${JSON.stringify(before)}`),
+      `the old value in full: ${rewritten.stdout}`,
+    );
+    assert.ok(
+      rewritten.stdout.includes(`now (77 chars) ${JSON.stringify(after)}`),
+      `the new value in full: ${rewritten.stdout}`,
+    );
+
+    // ...and the ordinary case still abbreviates, which is what makes a
+    // collision possible in the first place.
+    const plain = run(sb.store.root, ["state", "set", "1", "--description", after]);
+    assert.equal(plain.code, 0, plain.stderr);
+    assert.match(plain.stdout, /description: \(unset\) -> "Should the export be a stable public contract\.\.\."/);
+  } finally {
+    sb.dispose();
+  }
+});
+
+test("a value is stored trimmed, so a trailing space is not a different value", () => {
+  const sb = sandbox();
+  try {
+    sb.writeState(state([item()]));
+    const padded = run(sb.store.root, ["state", "set", "1", "--description", "  a padded description  "]);
+    assert.equal(padded.code, 0, padded.stderr);
+    assert.equal(only(sb).description, "a padded description", "surrounding whitespace is not part of a value");
+
+    // The reason it matters: untrimmed, "$FORK " and "$FORK" were a rewrite,
+    // which dropped the answer to a fork nobody had actually changed.
+    const fork = "Is this a stable public contract, or a dump we can reshape?";
+    sb.writeState(
+      state([item({ status: "specifying", decision_required: fork, decision_resolved: "2026-01-01T00:00:00.000Z" })]),
+    );
+    const restated = run(sb.store.root, ["state", "set", "1", "--decision-required", `${fork} `]);
+    assert.equal(restated.code, 0, restated.stderr);
+    assert.equal(only(sb).decision_required, fork, "the stored fork is unchanged");
+    assert.equal(only(sb).decision_resolved, "2026-01-01T00:00:00.000Z", "and its answer still stands");
+    assert.doesNotMatch(restated.stdout, /decision_required/, "nothing changed, so nothing is reported");
+  } finally {
+    sb.dispose();
+  }
+});
+
+test("--sdd past specifying announces what it does to the gate", () => {
+  const sb = sandbox();
+  try {
+    // The gate is green before the command and red after it, at exit 0. The
+    // fork path already announces exactly this; review found --sdd was the one
+    // door that did it silently.
+    sb.writeState(state([item({ status: "in_progress" })]));
+    trackCurrent(sb);
+    assert.equal(run(sb.store.root, ["gate", "--quiet"]).code, 0, "green before");
+
+    const marked = run(sb.store.root, ["state", "set", "1", "--sdd"]);
+    assert.equal(marked.code, 0, marked.stderr);
+    assert.match(marked.stdout, /sdd: \(unset\) -> true/);
+    assert.match(marked.stdout, /forced: storage-layer is in_progress with no spec at .*specs\/storage-layer/);
+    assert.match(marked.stdout, /'mstack gate' fails until one is written or the item moves back to specifying/);
+
+    const gate = run(sb.store.root, ["gate"]);
+    assert.equal(gate.code, 1, "and the gate says the same thing the command just said");
+    assert.match(gate.stdout, /sdd item storage-layer is in_progress but has no spec/);
+
+    // With a spec on disk the command must not claim a failure that did not
+    // happen; whether four present files are also complete is the gate's call.
+    mkdirSync(join(sb.store.specs, "storage-layer"), { recursive: true });
+    sb.writeState(state([item({ status: "in_progress" })]));
+    const withSpec = run(sb.store.root, ["state", "set", "1", "--sdd"]);
+    assert.equal(withSpec.code, 0, withSpec.stderr);
+    assert.match(withSpec.stdout, /forced: storage-layer is in_progress, so 'mstack gate' now holds it to a complete spec/);
+    assert.doesNotMatch(withSpec.stdout, /fails until one is written/, "no failure was created here");
+
+    // Below the line there is nothing to announce.
+    sb.writeState(state([item({ status: "pending" })]));
+    const pending = run(sb.store.root, ["state", "set", "1", "--sdd"]);
+    assert.equal(pending.code, 0, pending.stderr);
+    assert.doesNotMatch(pending.stdout, /forced:/, "pending needs no spec, so there is no consequence to name");
+  } finally {
+    sb.dispose();
+  }
+});
+
+test("state add refuses the empty values state set refuses", () => {
+  const sb = sandbox();
+  try {
+    sb.writeState(state([]));
+    for (const [flag, value] of [
+      ["--description", ""],
+      ["--source", ""],
+      ["--verification", ""],
+      ["--decision-required", ""],
+      ["--acceptance", "   "],
+      ["--title", " "],
+    ] as const) {
+      const args = ["state", "add", "--slug", "empty-fields", "--title", "Empty everywhere", "--acceptance", "one"];
+      const refused = run(sb.store.root, flag === "--title" ? [...args.slice(0, 4), flag, value, ...args.slice(6)] : [...args, flag, value]);
+      assert.equal(refused.code, 2, `state add ${flag} "" must be refused: ${refused.stdout}`);
+      assert.match(refused.stderr, new RegExp(`an empty ${flag} is not a value`));
+    }
+    assert.equal(parseState(sb.store.state).items.length, 0, "no refused add wrote an item");
+
+    // The shape that made this a finding: an empty fork reads as no fork at
+    // all in src/gate.ts, so the gate called an item carrying one green.
+    const good = run(sb.store.root, ["state", "add", "--slug", "real-item", "--title", "Real", "--acceptance", "one"]);
+    assert.equal(good.code, 0, good.stderr);
   } finally {
     sb.dispose();
   }

@@ -1,3 +1,5 @@
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { parseArgs } from "node:util";
 
 import * as decisions from "./decisions.ts";
@@ -6,7 +8,14 @@ import { EXIT, evaluate, fetchPr } from "./mergegate.ts";
 import { defaultBranch, headSha, itemLabel, runGate } from "./gate.ts";
 import * as hooks from "./hooks.ts";
 import * as ledger from "./ledger.ts";
-import { canTransition, isActive, isStatus, requiresDecision, STATUSES } from "./lifecycle.ts";
+import {
+  canTransition,
+  isActive,
+  isStatus,
+  requiresDecision,
+  requiresSpecArtifacts,
+  STATUSES,
+} from "./lifecycle.ts";
 import { lintPlugin } from "./lint.ts";
 import { requireStore, UserError } from "./paths.ts";
 import { assertWritable, findItem, parseState, saveState, type Item } from "./state.ts";
@@ -198,6 +207,19 @@ function preview(value: string | boolean | undefined): string {
 }
 
 /**
+ * The unabbreviated value, with its length and its escapes.
+ *
+ * The length is not decoration. It is what distinguishes two values whose
+ * printed forms look identical — a doubled space, a tab, a trailing newline —
+ * in the one place where looking identical is the bug.
+ */
+function detail(value: string | boolean | undefined): string {
+  if (value === undefined) return "(unset)";
+  if (typeof value === "boolean") return String(value);
+  return `(${value.length} chars) ${JSON.stringify(value)}`;
+}
+
+/**
  * One line per field the command touched.
  *
  * `state set` printed the item label and nothing else, which was enough while
@@ -205,13 +227,32 @@ function preview(value: string | boolean | undefined): string {
  * that. It is not enough for a flag that replaces a list of quoted acceptance
  * criteria: a write nobody sees is indistinguishable from a no-op, and what it
  * overwrote is gone.
+ *
+ * Every caller has already established that the two values differ, so equal
+ * previews mean the abbreviation is hiding the change rather than that there
+ * is none. Review caught this rendering as
+ *
+ *   decision_required: "Should the export be a stable public contract..." -> "Should the export be a stable public contract..."
+ *   decision_resolved: "2026-08-21T09:40:18.366Z" -> (unset)
+ *
+ * on two forks sharing a 45-character prefix: the same line that exists to make
+ * a write visible, printing no visible change, on the one field where this
+ * command silently un-answers a fork. When the previews collide the values go
+ * out in full instead.
  */
-function fieldChange(field: string, from: string | boolean | undefined, to: string | boolean | undefined): string {
-  return `  ${field}: ${preview(from)} -> ${preview(to)}`;
+function fieldChange(field: string, from: string | boolean | undefined, to: string | boolean | undefined): string[] {
+  const before = preview(from);
+  const after = preview(to);
+  if (before !== after) return [`  ${field}: ${before} -> ${after}`];
+  return [
+    `  ${field}: changed, and the short forms match, so both in full`,
+    `    was ${detail(from)}`,
+    `    now ${detail(to)}`,
+  ];
 }
 
 /**
- * An empty string is not a value.
+ * An empty string is not a value, and surrounding whitespace is not part of one.
  *
  * `--description ""` reads as "set it to nothing", which is the same intent as
  * removing the field and a different result: a key whose value is `""` survives
@@ -219,10 +260,17 @@ function fieldChange(field: string, from: string | boolean | undefined, to: stri
  * is a third state nobody asked for, and the two files already disagree about
  * it — `src/gate.ts` treats a `decision_required` of `""` as no fork at all.
  * One spelling for removal, and it says the word.
+ *
+ * The trim is the same argument one step in. This validated with `.trim()` and
+ * stored the raw value, so `"$FORK "` and `"$FORK"` were different prose: a
+ * trailing space re-opened an answered fork and dropped its `decision_resolved`
+ * pointer, printing two lines a reader cannot tell apart. Nothing downstream
+ * has ever meant anything by leading or trailing whitespace.
  */
 function required(flag: string, value: string, fix: string): string {
-  if (value.trim() === "") throw new UserError(`an empty ${flag} is not a value`, fix);
-  return value;
+  const trimmed = value.trim();
+  if (trimmed === "") throw new UserError(`an empty ${flag} is not a value`, fix);
+  return trimmed;
 }
 
 function clearField(item: Item, name: string): string[] {
@@ -234,12 +282,12 @@ function clearField(item: Item, name: string): string[] {
   }
   const before = item[key];
   if (before === undefined) return [`  ${key}: already unset`];
-  const lines = [fieldChange(key, before as string | boolean, undefined)];
+  const lines = fieldChange(key, before as string | boolean, undefined);
   // The answer named the question. With the question gone the pointer leads to
   // a row about a fork this item no longer carries, and a different fork
   // attached later would find that pointer and be born answered.
   if (key === "decision_required" && item.decision_resolved !== undefined) {
-    lines.push(fieldChange("decision_resolved", item.decision_resolved, undefined));
+    lines.push(...fieldChange("decision_resolved", item.decision_resolved, undefined));
     delete item.decision_resolved;
   }
   delete item[key];
@@ -293,18 +341,36 @@ function cmdState(argv: readonly string[]): number {
       throw new UserError("state add needs --slug and --title");
     }
     const state = parseState(store.state);
+    // Both writers, one rule. The empty-string trap was closed in `state set`
+    // and left open here, so `state add --description "" --decision-required ""`
+    // still wrote every shape `state set` refuses — including the
+    // `decision_required: ""` that `src/gate.ts` reads as no fork at all — and
+    // the gate called it green. A rule enforced in one of two doors is a rule
+    // with a documented way around it.
     const item: Item = {
       id: Math.max(0, ...state.items.map((i) => i.id)) + 1,
       slug: values.slug,
-      title: values.title,
-      acceptance: values.acceptance ?? [],
+      title: required("--title", values.title, "an item needs a title; it is the one field that cannot be removed"),
+      acceptance: (values.acceptance ?? []).map((a) =>
+        required("--acceptance", a, "a criterion has to say something; quote it from the source"),
+      ),
       status: "pending",
     };
-    if (values.description !== undefined) item.description = values.description;
+    if (values.description !== undefined) {
+      item.description = required("--description", values.description, "leave the flag off instead");
+    }
     if (values.sdd === true) item.sdd = true;
-    if (values.source !== undefined) item.source = values.source;
-    if (values.verification !== undefined) item.verification = values.verification;
-    if (values["decision-required"] !== undefined) item.decision_required = values["decision-required"];
+    if (values.source !== undefined) item.source = required("--source", values.source, "leave the flag off instead");
+    if (values.verification !== undefined) {
+      item.verification = required("--verification", values.verification, "leave the flag off instead");
+    }
+    if (values["decision-required"] !== undefined) {
+      item.decision_required = required(
+        "--decision-required",
+        values["decision-required"],
+        "leave the flag off instead; an empty fork is not a fork, and the gate would read it as none",
+      );
+    }
     state.items.push(item);
     assertWritable(item, state);
     saveState(store.state, state);
@@ -427,7 +493,7 @@ function cmdState(argv: readonly string[]): number {
           "pass --force if you mean to skip a phase, and say why in decisions.tsv",
         );
       }
-      if (item.status !== values.status) changes.push(fieldChange("status", item.status, values.status));
+      if (item.status !== values.status) changes.push(...fieldChange("status", item.status, values.status));
       item.status = values.status;
     }
 
@@ -446,7 +512,7 @@ function cmdState(argv: readonly string[]): number {
           ? "an item needs a title, and it is the one field 'state set' cannot remove"
           : `to remove a field, say so: 'mstack state set ${item.slug} --clear ${flag.slice(2)}'`,
       );
-      if (item[key] !== next) changes.push(fieldChange(key, item[key], next));
+      if (item[key] !== next) changes.push(...fieldChange(key, item[key], next));
       item[key] = next;
     }
 
@@ -466,8 +532,26 @@ function cmdState(argv: readonly string[]): number {
       changes.push(`  acceptance: ${added.length} added, now ${item.acceptance.length}`);
     }
     if (values.sdd === true && item.sdd !== true) {
-      changes.push(fieldChange("sdd", item.sdd, true));
+      changes.push(...fieldChange("sdd", item.sdd, true));
       item.sdd = true;
+      // The same announcement the fork path makes, for the same reason and on
+      // review's insistence: `--sdd` on an item already past `specifying` took
+      // a green gate to red at exit 0, which is the shape this file's own
+      // comment at the status check argues against — the gate is the authority,
+      // and this is the cheapest place to say so.
+      //
+      // The disk is read rather than assumed, because the two cases are
+      // genuinely different and a line claiming a failure that did not happen
+      // would be worse than no line. Existence only: whether four present
+      // artifacts are also complete is the gate's judgement, not this one's.
+      if (requiresSpecArtifacts(item.status)) {
+        const dir = join(store.specs, item.slug);
+        changes.push(
+          existsSync(dir)
+            ? `  forced: ${item.slug} is ${item.status}, so 'mstack gate' now holds it to a complete spec at ${dir}`
+            : `  forced: ${item.slug} is ${item.status} with no spec at ${dir}, so 'mstack gate' fails until one is written or the item moves back to specifying`,
+        );
+      }
     }
 
     if (values["decision-required"] !== undefined) {
@@ -477,6 +561,9 @@ function cmdState(argv: readonly string[]): number {
         `to remove a fork, say so: 'mstack state set ${item.slug} --clear decision-required'`,
       );
       // Identical prose is left alone, so re-stating a fork stays idempotent.
+      // `required` trims, so a trailing space is the same fork rather than a
+      // rewrite that would drop the answer and print two lines nobody can tell
+      // apart.
       if (fork !== item.decision_required) {
         // The same line the status move is refused across, guarded in the other
         // direction. Attaching a fork to an item already sitting past it would
@@ -488,13 +575,13 @@ function cmdState(argv: readonly string[]): number {
             `park it first ('mstack state set ${item.slug} --status blocked --decision-required ...'), or pass --force to attach it where it stands and let the gate report it`,
           );
         }
-        changes.push(fieldChange("decision_required", item.decision_required, fork));
+        changes.push(...fieldChange("decision_required", item.decision_required, fork));
         // The answer named the question it answered. Left in place across a
         // rewrite, the pointer would make the new fork read as already answered:
         // the gate matches a row on its timestamp and the slug it resolves, and
         // never on the question.
         if (item.decision_resolved !== undefined) {
-          changes.push(fieldChange("decision_resolved", item.decision_resolved, undefined));
+          changes.push(...fieldChange("decision_resolved", item.decision_resolved, undefined));
           delete item.decision_resolved;
         }
         item.decision_required = fork;
@@ -506,6 +593,10 @@ function cmdState(argv: readonly string[]): number {
       }
     }
 
+    // A belt, and deliberately not load-bearing today: with `--slug` refused
+    // and `--title ""` caught by `required`, nothing this branch can write
+    // violates it. It stands so that whatever makes the slug or the title
+    // editable next has to pass the same check `state add` does.
     assertWritable(item, state);
     saveState(store.state, state);
     console.log(itemLabel(item));
