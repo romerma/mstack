@@ -269,3 +269,49 @@ binary, and mutation runs with a green baseline confirmed on both sides.
 The lesson worth carrying: this item spent four rounds because each fix for a "reports green
 when it should not" defect introduced a narrower version of the same thing. A pass hunting a
 pattern is entirely capable of reintroducing it twenty lines below the comment describing it.
+
+## Item 15 reviewer-writes-the-verdict, 2026-08-21
+
+Three review rounds on a change that touched no source file at all.
+
+The gap: `src/gate.ts:373` already refused to close an item on a row from the pass that wrote
+the code, and nobody was ever told to produce the row it looks for. `agents/implementer.md:45`
+was the only `ledger record` in any agent file. The review path ended at "synthesize into one
+verdict" and wrote nothing, so the coordinating pass typed the reviewer's row on its behalf.
+Every closing row in this repo's ledger up to this point was produced that way.
+
+Rounds 1 and 2 each shipped a false promise in the same paragraph, and both were caught at
+rung 5 rather than by reading:
+
+- Round 1 claimed `verifier-failed` "clears nothing and blocks a close". It unblocks one.
+  `:371` needs `rows.every` and `:373` needs only `rows.some`, so the reviewer's own rejection
+  is what satisfies the no-self-approval audit. Adding it flipped a scratch store's gate from
+  FAILED exit 1 to PASSED exit 0. The implementer's own decision row had stated the fact
+  correctly, with the qualifier "whose only verdict"; the qualifier was dropped on the way into
+  the agent file.
+- Round 2 replaced it with "what keeps the item open is that a rejected item does not move past
+  `reviewing`". Nothing keeps it. `src/lifecycle.ts:90` allows `reviewing -> verifying`
+  unconditionally and `canTransition` never reads the ledger. A rejected item walked to `done`
+  with no `--force` and the gate ended PASSED. Two passes reproduced this independently, before
+  either saw the other's result.
+- Round 2 also introduced a cure that overshot: any report suffix meant "lens", and a lensed
+  reviewer records nothing. Six of this repo's review reports carry `_r<N>` round suffixes, and
+  `review_verification-never-runs_r4.md` is the evidence on the row that closed item 14 - the
+  only reviewer-typed closing row in the repo's history at that point. The rule would have
+  suppressed exactly the row this item exists to produce.
+
+Round 3 stopped guessing. The causal clause is struck with nothing in its place, because
+nothing true was available to say. `_r<digits>` is reserved as a round marker, lenses are
+words, and the two compose. The rule was run as code over all 23 real report names by two
+passes separately: 12 record, 10 lens, 1 unclassified.
+
+What this cost and what it bought: three rounds, no source changed, and four new items filed
+rather than folded in (17 gained a bullet, 18 gained a bullet, 19 and 20 are new). The closing
+row is the first in this repo typed by the pass that judged the code.
+
+Two things this session got wrong and had to correct out loud. The claim that the new
+instruction had been proven to work unaided was false: the reviewer subagent loaded
+`agents/reviewer.md` from the plugin cache, which has no `Record it` section, so it recorded
+because the brief pointed it there. That test cannot run until item 17 lands and the plugin is
+reloaded from this checkout. And the merge to main aborted once on a dirty `state.json`, which
+the transcript shows rather than hides.
