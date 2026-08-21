@@ -134,6 +134,30 @@ mstack: export-json has an unanswered decision: "Is this a stable public contrac
         answer it with 'mstack decide --resolves export-json ...' first
 ```
 
+### A verification nobody ran is not a check
+
+An item carries the exact command that proves it works. That field used to be executed by
+nothing but a human typing `mstack gate --full`: in one real session it held a non-executable
+string from intake — half command, half prose — and stayed red for 230 minutes across four
+agent passes, because `sh -n` accepts such a string and only *running* it says otherwise.
+
+So `--full` records what it ran, against which commit, and how it went, and the fast gate reads
+that back. From `verifying` on, an item whose verification has no passing run at this commit is
+a gate failure; moving it to `done` to make the gate stop looking is refused at the transition.
+
+```bash
+$ mstack state set greet-flag --status done
+mstack: greet-flag cannot close on a verification that has not run: `python3 -m unittest
+        test_greet` ran at e735b338 and failed
+        run 'mstack gate --full' at this commit; closing is the one moment the run has to be
+        real, and --force closes it unverified
+```
+
+Nothing runs a test suite on a hook. The `Stop` hook reads one small file, and the line falls at
+`verifying` because that is the only legal way into `done` — held any earlier, the gate would
+go red after every commit for the whole phase where most commits happen, and that is the version
+of this feature people switch off.
+
 ### Two paths, one bar for proof
 
 Most work goes straight to implementation. The spec path turns on when the item is marked
@@ -180,11 +204,12 @@ the honest strength of the claim, and it is worth having; it is not a sandbox.
 
 ```
 .mstack/
-├── state.json      work items and the lifecycle the gate enforces
-├── ledger.tsv      target · sha · verdict · evidence · verifier · ts
-├── decisions.tsv   ts · phase · decision · why · evidence · result · resolves
-├── progress/       current.md (live) · history.md (append-only) · <kind>_<slug>.md
-└── specs/<slug>/   proposal · design · tasks · spec
+├── state.json        work items and the lifecycle the gate enforces
+├── ledger.tsv        target · sha · verdict · evidence · verifier · ts
+├── decisions.tsv     ts · phase · decision · why · evidence · result · resolves
+├── verification.tsv  target · sha · command · outcome · ts   (machine-local, gitignored)
+├── progress/         current.md (live) · history.md (append-only) · <kind>_<slug>.md
+└── specs/<slug>/     proposal · design · tasks · spec
 ```
 
 Two files with opposite disciplines: `current.md` is overwritten every session and its last
@@ -197,7 +222,7 @@ append-only and never edited; if an entry turned out to be wrong, a later one sa
 
 | Command | |
 |---|---|
-| `mstack gate` | Fast session gate, milliseconds. `--full` also runs the project's verification |
+| `mstack gate` | Fast session gate, milliseconds. `--full` also runs the project's verification, and records that it did |
 | `mstack state add\|set\|list\|active` | The work queue |
 | `mstack ledger record\|check\|summary` | Typed verdicts keyed by `(target, sha)` |
 | `mstack decide` | One row per decision, append-only |

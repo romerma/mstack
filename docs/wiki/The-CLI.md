@@ -43,11 +43,15 @@ $ mstack setup
 [ok]    progress/history.md written
 [ok]    ledger.tsv ready
 [ok]    decisions.tsv ready
+[ok]    .mstack/.gitignore ready (verification.tsv is machine-local)
 
 PASSED - 0 failures, 0 warnings
 ```
 
-Never overwrites an existing file unless you pass `--force`.
+Never overwrites an existing file unless you pass `--force`. The store's own `.gitignore` is
+the one exception, rewritten every run: an older store predates it, and a store that silently
+loses that rule starts committing verification receipts, which void themselves the moment they
+are committed.
 
 ## gate
 
@@ -58,7 +62,22 @@ $ mstack gate --quiet; echo $?
 ```
 
 Fast, milliseconds, safe as a `Stop` hook. `--full` also runs the project's `verify` command
-and the active item's `verification` command.
+and the active item's `verification` command, and **records what it ran** so the fast gate can
+hold an item at `verifying` to a run that really happened. The whole mechanism is in
+[Gates-and-Hooks](Gates-and-Hooks.md#verification-that-actually-ran).
+
+`--full` that runs nothing is a failure, not a pass. It used to warn and exit 0, which made
+"you asked for the full gate and got no verification at all" indistinguishable from "you asked
+for it and it passed":
+
+```console
+$ mstack gate --full | tail -6
+-- verification
+[fail]  --full ran no verification: state.json has no 'verify' command and parse-config has no 'verification' command
+        fix: set one with 'mstack state set <slug> --verification "<command>"', or put a project-wide 'verify' in state.json
+
+FAILED - 1 failure, 0 warnings
+```
 
 On the fast gate, `--quiet` prints one line per failure and nothing else: no `[ok]` lines, no
 section headers, no warnings, no summary count. The fix stays on the line, because a failure
@@ -94,7 +113,13 @@ exit 1
 subprocess's output.)
 
 So "nothing else on stdout" is a promise about `mstack gate --quiet`, not about
-`mstack gate --full --quiet`. Anything that wires `--full` to a hook has to solve that first.
+`mstack gate --full --quiet`. Anything that wires `--full` to a hook has to solve that first,
+and the answer this repository reached is **not to**: no hook runs `--full`, `stdio: "inherit"`
+stays exactly as it is, and a human running the full gate keeps live progress output from
+their own test suite. The rule that a session cannot close on an unverified item is enforced
+instead by the fast gate reading a *record* of a past run, which costs a small file read and
+nothing else. Both halves are in
+[Gates-and-Hooks](Gates-and-Hooks.md#verification-that-actually-ran).
 
 A gate with warnings but no failures prints nothing at all and exits 0. That is what keeps it
 cheap to fire on every turn: "uncommitted changes" and "on main" are normal mid-session states,

@@ -17,7 +17,7 @@ timed-out hook renders no decision at all, so a gate must never depend on being 
 | `SessionStart` | A session starts, including on `--resume` | Prints the active item, its open `decision_required` if any, and the last checkpoint from `progress/current.md` back into context. Resume is the case that matters: a session that resumes without its checkpoint restarts work that was already done |
 | `PostToolUse` | After a matched tool call succeeds (a failed call fires `PostToolUseFailure` instead); mstack matches `Edit\|Write` | The cheapest useful check and nothing more. Re-validates `state.json` after an edit to it, and reminds that `history.md` is append-only after an edit to that. Exits 0 unconditionally: it nudges, it never blocks, because a hook that runs the test suite on every edit is a hook someone switches off |
 | `SubagentStop` | A subagent finishes | Checks that the subagent left its report file on disk, and that the file says something: under 40 bytes is a stub, judged per file so one substantial lens does not excuse an empty sibling. Exists because a review subagent once returned a confident summary having written nothing. A reply is not evidence, the file is |
-| `Stop` | The main agent is about to end its turn | Runs the fast gate, quiet. On failures it returns feedback (`additionalContext`) rather than a block: the same loop protections apply, including the eight-continuation cap, but the transcript labels it feedback and no hook error is raised. That `additionalContext` is how the failures reach the model, and it always was. The failures are *also* written to the hook process's stderr, which Claude Code captures as its own field — what it does with that field is the client's business, not this plugin's; the measurements are [below](#what-the-stop-hook-prints-on-a-red-gate) |
+| `Stop` | The main agent is about to end its turn | Runs the fast gate, quiet — never `--full`, and [never a test suite](#verification-that-actually-ran). On failures it returns feedback (`additionalContext`) rather than a block: the same loop protections apply, including the eight-continuation cap, but the transcript labels it feedback and no hook error is raised. That `additionalContext` is how the failures reach the model, and it always was. The failures are *also* written to the hook process's stderr, which Claude Code captures as its own field — what it does with that field is the client's business, not this plugin's; the measurements are [below](#what-the-stop-hook-prints-on-a-red-gate) |
 | `PreToolUse` | Before a matched tool call; mstack matches `Bash` | Denies the handful of commands that are hard or impossible to walk back. This is the only hook that blocks |
 
 ### What the Stop hook prints on a red gate
@@ -150,6 +150,7 @@ $ mstack gate
 [ok]    no item carries a decision fork
 [ok]    no sdd item is past specifying
 [ok]    no closed items to audit
+[ok]    greet-flag is in_progress; a verification run is due at verifying
 
 -- workspace
 [ok]    on branch feat/greet-flag
@@ -199,6 +200,10 @@ Walking the lines that carry the weight:
   hatch for "no check could be run" is not a prose note but a typed verdict:
   `verifier-blocked`, keyed to a SHA, carrying its reason.
 
+- **"a verification run is due at verifying"** is the check described [below](#verification-that-actually-ran).
+  It runs nothing; it reads a record of what `--full` ran, and from `verifying` on it refuses
+  to call an item green on a verification that never executed here.
+
 ### `gate --full`
 
 `mstack gate --full` runs everything above plus the project's own verification: the `verify`
@@ -218,14 +223,15 @@ $ mstack gate --full
 [ok]    ids are unique
 [ok]    slugs are unique
 [ok]    every item has at least one acceptance criterion
-[ok]    no active item
+[ok]    one active item: greet-flag (verifying)
+[ok]    progress/current.md tracks the active item
 [ok]    no item carries a decision fork
 [ok]    no sdd item is past specifying
-[ok]    1 closed item(s) carry a ledger verdict
+[ok]    no closed items to audit
 
 -- workspace
 [ok]    on branch feat/greet-flag
-[ok]    working tree is clean
+[warn]  1 uncommitted change(s); expected mid-session, not at close
 
 -- verification
 test_greet (test_greet.TestGreet) ... ok
@@ -237,20 +243,114 @@ Ran 2 tests in 0.000s
 OK
 [ok]    python3 -m unittest test_greet -v
 
-PASSED - 0 failures, 0 warnings
+PASSED - 0 failures, 1 warning
 ```
 
-That run is from the walkthrough repository after its item closed: the fast sections re-run,
-then the `verify` command from `state.json` executes with its output passed straight through,
-and its success becomes the `[ok]` line.
+That run is from the walkthrough repository with its item at `verifying`: the fast sections
+re-run, then the item's `verification` command executes with its output passed straight
+through, and its success becomes the `[ok]` line. The `state` section is one line shorter than
+on the fast gate, because the check that asks for a *record* of a past run stands down when a
+real one is about to happen in the same process.
 
 "Passed straight through" is literal, and it is the one place `--quiet` does not hold.
 `src/gate.ts` runs the verify command with its stdio inherited, so its output lands on stdout
 whether or not `--quiet` was given; `--quiet` governs the gate's own lines, not a subprocess
-handed the terminal. Anything that wires `--full` to a hook — where stdout is the structured
-channel — has to answer that first. It is shown in
-[The-CLI](The-CLI.md#gate), and it is why the "nothing else on stdout" promise on that page is
-scoped to the fast gate.
+handed the terminal. It is shown in [The-CLI](The-CLI.md#gate), and it is why the "nothing else
+on stdout" promise on that page is scoped to the fast gate. It is also why no hook runs
+`--full`: stdout is the structured channel there, and arbitrary test output in front of a
+hook's JSON stops it parsing.
+
+A `--full` that ran nothing at all is a failure and exits 1:
+
+```console
+$ mstack gate --full | tail -6
+-- verification
+[fail]  --full ran no verification: state.json has no 'verify' command and parse-config has no 'verification' command
+        fix: set one with 'mstack state set <slug> --verification "<command>"', or put a project-wide 'verify' in state.json
+
+FAILED - 1 failure, 0 warnings
+```
+
+It used to warn and exit 0, so asking for the full gate and getting no verification was
+indistinguishable from asking for it and passing. Same family as `{"items": {}}` above: a check
+whose own inputs are missing has to say so, not report success.
+
+## Verification that actually ran
+
+The gap this closes is the one the `Stop` hook could not see. The fast gate touches only the
+store and the workspace, so `state.verify` and `item.verification` were executed by nothing but
+a human typing `mstack gate --full`. In one real session an item's `verification` was a
+non-executable string from intake — half command, half prose — and it stayed red for 230
+minutes across four agent passes. Nothing noticed, because nothing ran it:
+
+```console
+$ sh -n -c "run the unit tests for greet and confirm they pass: python3 -m unittest test_greet"
+$ echo $?
+0
+```
+
+`sh -n` accepts it. **The only thing that catches a non-executable verification is running it.**
+
+So the two halves are joined by a receipt rather than by making the fast pass slow. `--full`
+writes down what it ran, against which commit, and how it went; the fast gate reads that back.
+Here is the whole loop against a store whose `verification` is that same string, one line per
+step:
+
+```console
+$ echo '{"hook_event_name":"Stop","cwd":"'$PWD'"}' | mstack hook stop 2>&1 >/dev/null
+[fail]  1 greet-flag (verifying) is one step from done, and `run the unit tests for greet and confirm they pass: python3 -m unittest test_greet` has never been executed -> run 'mstack gate --full'; nothing else executes it, and a verification nobody runs is not a check
+
+$ mstack gate --full | tail -5
+-- verification
+/bin/sh: run: command not found
+[fail]  run the unit tests for greet and confirm they pass: python3 -m unittest test_greet failed
+        fix: fix it; a red verification is not a partial pass
+
+$ column -s$'\t' -t .mstack/verification.tsv
+target      sha                                       command                                                                             outcome  ts
+greet-flag  2585b1f4882e76854f83d40e8e8914cdf9dc4f07  run the unit tests for greet and confirm they pass: python3 -m unittest test_greet  failed   2026-08-21T11:58:07.118Z
+
+$ echo '{"hook_event_name":"Stop","cwd":"'$PWD'"}' | mstack hook stop 2>&1 >/dev/null
+[fail]  1 greet-flag (verifying) is one step from done, and `run the unit tests for greet and confirm they pass: python3 -m unittest test_greet` ran at 2585b1f4 and failed -> run 'mstack gate --full'; nothing else executes it, and a verification nobody runs is not a check
+
+$ mstack state set greet-flag --status done
+mstack: greet-flag cannot close on a verification that has not run: `run the unit tests for greet and confirm they pass: python3 -m unittest test_greet` ran at 2585b1f4 and failed
+        run 'mstack gate --full' at this commit; closing is the one moment the run has to be real, and --force closes it unverified
+```
+
+Note what the second `Stop` costs: nothing is executed, and it still cannot go green. That is
+the whole design. The four rules that make it hold:
+
+| Rule | Why it is that and not something looser |
+|---|---|
+| The record is keyed to `(commit, command text)` | The ledger's rule, applied to a run: a new head SHA voids the row. Keying it to the *item* instead would let a green run of the old string vouch for a string edited afterwards, which is precisely the failure above |
+| The **last** run at a commit wins, not the best | A suite that passed and was then re-run red is red. "Best" is how a stale pass survives a broken build |
+| It is demanded from `verifying`, and nowhere earlier | This rides the `Stop` hook, which fires at the end of every turn. Held from `in_progress` it would go red after every commit for the whole phase where most commits happen, and a gate that is red for a normal mid-session state is a gate someone switches off. `verifying -> done` is the only legal transition into `done`, so `verifying` is the earliest status that is also sufficient (`src/lifecycle.ts`) |
+| `state set --status done` re-checks at the transition | Without it the requirement has a one-command way around it: `done` is not an active status, so relabelling the item makes the gate stop looking and a store that was red a second ago goes green. `--force` still closes it and prints on the record that it did |
+
+An item at `verifying` that nothing verifies at all is a **warning**, not a failure:
+
+```console
+$ mstack gate | tail -7
+[warn]  parse-config is verifying and nothing verifies it: state.json has no 'verify' command and the item has no 'verification' command
+
+-- workspace
+[ok]    on branch feat/x
+[warn]  1 uncommitted change(s); expected mid-session, not at close
+
+PASSED - 0 failures, 2 warnings
+```
+
+The line is deliberate and it is narrow. This check is about an item *whose* verification never
+ran; whether a verification has to exist at all is `require_verdict_to_close`'s question, and
+its typed answer for "no check could be run" is the `verifier-blocked` verdict. Failing here
+would wedge every store still carrying the empty `verify` that `mstack setup` seeds.
+
+`verification.tsv` is the one file in the store that is **not** committed, and `mstack setup`
+writes a `.mstack/.gitignore` saying so. Two reasons, both structural: a receipt is keyed to
+HEAD, so committing one moves HEAD and voids the receipt being committed; and a receipt from
+another checkout would let one worktree's run stand in for a run nobody in this one ever did,
+when "somebody here actually executed it" is the entire claim.
 
 ## The merge gate
 
