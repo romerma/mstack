@@ -26,7 +26,7 @@ const TERMINAL_IGNORED = new Set<string>(["cancelled"]);
 
 /** An answer has to be words. A row of spaces is a boolean with extra steps. */
 const SUBSTANTIAL = /[a-z0-9]/i;
-import { cliProvenance, runningCliRoot, UserError, type Store } from "./paths.ts";
+import { cliProvenance, describeSrcComparison, runningCliRoot, UserError, type Store } from "./paths.ts";
 import { Report } from "./report.ts";
 import { canCloseAnItem, MIN_REPORT_BYTES } from "./roles.ts";
 import { EMPTY_ITEM_LINE, EMPTY_NEXT_STEP } from "./setup.ts";
@@ -460,12 +460,8 @@ export function checkCliProvenance(store: Store, report: Report, running: string
       // that produced round two's silence. What warn gives up is stated in
       // the same row: the Stop hook composes its context from failures only,
       // so this line reaches a shell gate and not the hook.
-      const compared =
-        provenance.runningSrc === null || provenance.storeSrc === null
-          ? "whose committed src tree could not be compared (git gave no answer)"
-          : `at committed src tree ${provenance.runningSrc.slice(0, 8)}, not this store's ${provenance.storeSrc.slice(0, 8)}`;
       report.warn(
-        `this report was produced by a sibling of this repository ${compared}: ${provenance.running} — its checks may not be this store's checks; run ${join(store.root, "bin", "mstack")} for a report this store's code stands behind`,
+        `this report was produced by a sibling of this repository ${describeSrcComparison(provenance)}: ${provenance.running} — its checks may not be this store's checks; run ${join(store.root, "bin", "mstack")} for a report this store's code stands behind`,
       );
       return;
     }
