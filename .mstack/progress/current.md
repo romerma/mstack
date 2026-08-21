@@ -20,8 +20,10 @@ failure, the failure stays invisible and 14 buys nothing.
 
 - `docs/wiki/The-CLI.md:60` says "`--quiet` prints failures only". Reproduced at rung 5 against
   a store with two real failures: empty output, exit 1.
-- `src/hooks.ts:172` wires the Stop hook to `runGate(store, { quiet: true })`, so a red gate at
-  session close is silent by construction and the exit code is the only signal.
+- `src/hooks.ts:172` wires the Stop hook to `runGate(store, { quiet: true })`, so the gate
+  itself writes nothing on any stream in the mode the hook runs. **Corrected in review round 2:
+  the failures still reached the model — `stop()` composed them into `additionalContext` on
+  `main` too. What was missing was stream output, for a human or a script.**
 - Found by item 13's implementer, reproduced independently on main by its reviewer and by me.
 - Delegate, review with a pass that did not write it, close. Then item 14, then item 15.
 
@@ -193,9 +195,37 @@ failure, the failure stays invisible and 14 buys nothing.
   transcript at exit 0. The bytes reach fd 2; what the client does with them is the client's.
 - Commits: `40c37cf` fix, `cc33e27` tests, `29a7304` comment correction, `86615b0` docs.
 
+- Round 2. Review came back CHANGES_REQUESTED with four findings, all prose; the code and all
+  five design decisions were confirmed sound and no product code changed this round.
+- Finding 1 was mine and real: four places said the failures reached nobody. `main`'s `stop()`
+  already put them in `additionalContext`, so the **model always had them**; what was empty was
+  every stream. Corrected in the wiki, `src/report.ts`, `tests/gate.test.ts` and here — plus a
+  fifth site the review did not name, an assertion message in `tests/cli.test.ts`.
+- Finding 2 moved two rungs rather than being softened. A live canary against claude 2.1.238
+  proves at rung 5 that the client parses hook stdout as JSON **while stderr sits beside it**,
+  captured verbatim as its own field. Whether the transcript *renders* that field is still
+  unverified (a Stop turn was refused for credit, as it was for the reviewer), and the docs now
+  say exactly that instead of claiming the session shows it.
+- Finding 4: `--full` runs the verify command with `stdio: "inherit"`, so it writes to stdout
+  through `--quiet`. Both wiki pages scoped to the fast gate, a characterization test added at
+  `tests/cli.test.ts:552`, and the `10:23:55.039Z` decision row superseded by `11:16:06.989Z`.
+- **Item 14 inherits the `--full` stdio question** and must answer it before writing code.
+
+## Verification
+
+- Round 2 rung 5: `git show main:src/hooks.ts` for the framing; the `--full` canary in both
+  stream directions; a live `claude -p` run whose `hook_response` event shows stdout parsed and
+  stderr captured separately.
+- Round 2 rung 4: 4 mutations, 4 killed, **baseline run first and confirmed green** so the
+  harness is falsifiable; both byte copies restored to pristine sha256. `npm test` 203 pass on
+  bun and node; typecheck, lint-plugin and check-doc-links clean.
+- Still unverified and stated as such: whether Claude Code displays a hook's stderr at exit 0.
+- Commits: `2ee2fda` finding 1 + the new test + minors, `878e92b` findings 2 and 4.
+
 ## Next step
 
-- If this dies: item 16 is implemented and reported at
-  `.mstack/progress/impl_quiet-gate-prints-nothing.md`; it needs a **review pass that did not
-  write this code** before it can be closed. Items 14 and 15 still pending; 14 was waiting on
-  this one.
+- If this dies: item 16 round 2 is complete and appended to
+  `.mstack/progress/impl_quiet-gate-prints-nothing.md`. It needs a **re-review by a pass that
+  did not write this code**, and finding 3 — a reviewer ledger row at the head SHA — is the
+  only thing left before it can close. Items 14, 15 and 17 pending; 14 was waiting on this one
+  and inherits the `--full` stdio question.

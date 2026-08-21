@@ -47,7 +47,8 @@ correction, `86615b0` the docs.
 ## Design decisions
 
 Each recorded with `mstack decide --phase implement` before the code was written (rows at
-`2026-08-21T13:2*` in `.mstack/decisions.tsv`).
+`2026-08-21T10:23:55.039Z` and `10:24:09.935Z`–`10:24:10.016Z` in `.mstack/decisions.tsv`;
+this line said `13:2*` in round 1, which matches nothing — see round 2, minor 2).
 
 | Question | Answer | Why, in one line |
 |---|---|---|
@@ -381,3 +382,268 @@ the non-quiet path is byte-identical, which the "same store without the flag" ha
    returned without writing its report` into the runner's output, because `src/fanout.ts:105`
    builds a non-quiet `Report`. Confirmed identical on `main` in a detached worktree, so it is
    out of scope for this item; filing it is a call for whoever owns the queue.
+
+---
+
+# Round 2 — answering the review
+
+Review at `.mstack/progress/review_quiet-gate-prints-nothing.md`, verdict CHANGES_REQUESTED,
+four findings. No product code changed in this round: findings 1, 2 and 4 are all prose that
+overclaimed, and the reviewer confirmed the four acceptance criteria and all five design
+decisions hold. Finding 3 (no ledger verdict at head) is the coordinator's to record at close.
+
+Commits: `2ee2fda` finding 1 plus the new `--full` test and three minors, `878e92b` findings 2
+and 4 with the wiki and two decision rows.
+
+## Finding 1 — the framing was wrong in four places, and I wrote it
+
+Verified myself before acting, at rung 5 by reading the shipped pre-change file:
+
+```console
+$ git show main:src/hooks.ts | sed -n '159,180p'
+export function stop(input: HookInput): string | null {
+  if (input.stop_hook_active === true) return null;
+  const store = findStore(input.cwd ?? process.cwd());
+  if (store === null) return null;
+
+  const report = runGate(store, { quiet: true });
+  if (!report.failed) return null;
+  return context(
+    "Stop",
+    ["The mstack gate is red. Fix these before closing:", ...report.failures.map((f) => `- ${f}`)].join("\n"),
+  );
+}
+```
+
+`main` already composed `report.failures` into `additionalContext`. **The model always had the
+failures.** What produced nothing was every stream, so the cost was to a human running `mstack
+gate --quiet` and to anything scripting it — not to the model. The reviewer is right, and my
+own round-1 report contained the true version ("the hook's return value carried the failures
+into the model's context") three paragraphs from the false one.
+
+Corrected in all four places named, in the same words:
+
+| Where | Now says |
+|---|---|
+| `docs/wiki/Gates-and-Hooks.md` | "the **model always had the failures** … What produced nothing was every stream", citing `git show main:src/hooks.ts` |
+| `src/report.ts` | "the failures always reached the *model* … What nobody got was output on a stream" |
+| `tests/gate.test.ts` | "the `Stop` hook already put the failures in `additionalContext`, so the model always had them" |
+| `.mstack/progress/current.md` | Plan bullet corrected in place and marked as a round-2 correction |
+
+One more site the review did not name, found while fixing these: the assertion message at
+`tests/cli.test.ts` said "the human watching the session sees the failure, not just an exit
+code" — the same overclaim as finding 2, inside a test. It now reads "the failure reaches fd 2
+of the hook process; what the client renders is the client's business."
+
+## Finding 2 — the one that mattered, and it moved two rungs
+
+I did not take the reviewer's rung-3 read on trust. I reproduced it, and then got further.
+
+**Independent rung 3.** Searching the shipped client (`2.1.238`) for the exit-0 hook branch:
+
+```js
+us===0){Gq({hookId:oe,hookName:m,hookEvent:f,output:me.output,stdout:me.stdout,stderr:me.stderr,exitCode:me.status,outcome:"success"});let Ne=await gTt(me.stdout.trim(),oe,"stdout");yield{message:gc({type:"hook_success",hookName:m,toolUseID:n,hookEvent:f,content:Ne,stdout:me.stdout,stderr:me.stderr,exitCode:me.status,command:fe,durationMs:pe}),outcome:"success",hook:z};return}
+```
+
+Same conclusion as the reviewer's, reached separately: on `status===0` the rendered `content`
+is `gTt(me.stdout.trim(), …)` — derived from **stdout** — with `stderr` a sibling field.
+
+**Then rung 5, for the half that can be measured.** A live `claude -p` run with a canary Stop
+hook hit the same refusal the reviewer got (`"Credit balance is too low"`, `is_error: true`),
+so the Stop turn never completed. But the same run showed `SessionStart` firing and emitting a
+`system/hook_response` event — and the client's exit-0 handling is one shared branch across
+hook events in the source above. So I re-ran with the canary on `SessionStart`, writing to both
+streams and exiting 0:
+
+```console
+hook_response for SessionStart:startup exit_code=0 outcome=success
+   output : "CANARY-ON-STDERR\n{\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\",\"additionalContext\":\"CANARY-IN-CONTEXT\"}}"
+   stdout : "{\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\",\"additionalContext\":\"CANARY-IN-CONTEXT\"}}"
+   stderr : "CANARY-ON-STDERR\n"
+```
+
+That is a real run of the shipped client and it settles two things at **rung 5**:
+
+1. **The stream split is the arrangement the client expects.** The JSON on stdout is parsed and
+   its `additionalContext` honoured *while stderr sits beside it*. This is the first direct
+   confirmation that the stream decision is right; round 1 argued it from the parse and never
+   watched the client do it.
+2. **Hook stderr is not discarded.** It is captured verbatim as its own field, and appears in
+   `output` as well.
+
+What is still **not** settled, and the page now says so: whether the interactive transcript
+*renders* that field to a person. The source read says the `hook_success` content comes from
+stdout. So: captured, provably; displayed, unverified and the source suggests not as the hook's
+content line.
+
+`docs/wiki/Gates-and-Hooks.md:47` now carries that measurement under "What Claude Code does
+with those two streams", including the caveat that the canary was `SessionStart` because the
+Stop turn could not complete, and why that substitution is fair. The `Stop` row at `:20` no
+longer says "the session shows them"; it says the failures are written to stderr, "which Claude
+Code captures as its own field — what it does with that field is the client's business".
+
+### Does the stream decision still hold? — the coordinator's question, answered
+
+**Yes, and for the reason originally given, which never depended on rendering.** The reason for
+stderr was that failure text in front of the `additionalContext` object would stop it parsing.
+That is true independently of what any client displays, and the canary above now shows the
+client parsing stdout as JSON with stderr beside it, so the reason is stronger than it was.
+Moving to stdout would break the hook outright; that is not a trade, it is a regression.
+
+**Which audience does the fix serve? Three, and they are not equal.** Stating it plainly
+because "reaching only the model is a real outcome; claiming it reaches a person is not":
+
+| Audience | Reached? | Evidence |
+|---|---|---|
+| Anyone running `mstack gate --quiet` in a terminal or a script | **Yes, and this is new** | rung 5, the fix's whole point; `OUT=$(mstack gate --quiet 2>&1)` now returns the failures instead of an empty string |
+| The model, via `additionalContext` | Yes — **and it always was** | rung 5, `main:src/hooks.ts`; this fix adds nothing here |
+| A human watching a Claude Code session | **Captured, display unverified** | rung 5 for capture; rung 3 says the rendered content comes from stdout |
+
+So the honest summary is that for the **CLI** audience this fix converts silence into output,
+and for the **hook** audience it moves the failures from "in the model's context only" to "in
+the model's context, and in a field the client keeps". Whether a person sees that field is the
+client's behaviour. I have written it that way rather than the way that sounds better.
+
+Worth keeping even so, and not only for symmetry: the bytes are retained by the client
+(`hook_response.stderr`, `hook_response.output`), reachable with `--debug` and by anything
+wrapping the CLI, and the alternative — special-casing the hook path to print nothing — would
+mean two behaviours for one flag and a `--quiet` whose meaning depends on its caller.
+
+## Finding 4 — scoped, tested, and the decision row superseded
+
+Reproduced independently before acting:
+
+```console
+$ mstack gate --full --quiet 2>/dev/null; echo "exit $?"      # stdout only
+VERIFY-STDOUT-CANARY
+exit 1
+
+$ mstack gate --full --quiet 2>&1 1>/dev/null; echo "exit $?" # stderr only
+[fail]  1 export-json (in_progress) is active but progress/current.md is not: the Item line still says _none_; Next step is still the empty template -> if this session dies now, nothing tells the next one where to start
+exit 1
+```
+
+The reviewer is right that my new prose turned a pre-existing leak into a false absolute.
+Three changes:
+
+- `docs/wiki/The-CLI.md` scopes both sentences to the fast gate and shows the canary, with the
+  rule stated as a rule: `--quiet` governs the gate's own lines and cannot muzzle a subprocess
+  it hands the terminal to.
+- `docs/wiki/Gates-and-Hooks.md` says the same at the `gate --full` section, where "output
+  passed straight through" already lived, and points at the flag that item 14 will meet.
+- The decision row `2026-08-21T10:23:55.039Z` promised "hook JSON on stdout stays
+  byte-identical and JSON.parse-able". Superseded rather than edited, `decisions.tsv` being
+  append-only, by `2026-08-21T11:16:06.989Z`: *"the stdout guarantee is scoped to the fast
+  gate; --full is excluded and item 14 owns it"*. A second row,
+  `2026-08-21T11:16:14.645Z`, records the finding-2 calibration.
+
+**Item 14 inherits the `--full` stdio question**, and it is a real design fork, not a detail:
+`src/gate.ts` runs the verify command with `stdio: "inherit"`, so putting `--full` behind the
+`Stop` hook puts arbitrary subprocess output on the stream that carries the hook's JSON. Either
+the verify output gets captured and re-emitted through the `Report`, or `--full` never runs in
+a hook. Whoever takes item 14 has to answer that before the first line of code.
+
+### A new test, so the scoping is executable rather than prose
+
+`tests/cli.test.ts:552` "--full lets the verify command's output onto stdout, quiet or not".
+It is **characterization, not endorsement**, and the comment says so: it pins today's behaviour
+so that changing it is a decision someone makes rather than a side effect. It asserts the
+canary is on stdout, that the gate's own quiet line is still failures-only on stderr, that
+neither stream leaks into the other, and that the same store *without* `--full` has an empty
+stdout — the contrast the docs now draw.
+
+## Round-2 mutations
+
+Driver at `scratchpad/mutate2.mjs`, byte copies of both `src/gate.ts` and `src/report.ts` taken
+before the first mutation, sha256 verified after every restore. **A baseline run with no
+mutation goes first**, because a driver whose harness is broken reports everything as killed:
+
+```console
+sha256 pristine gate   4a1ff309b30b9597074122e8b93a9a21f98dd4324260d05556fe3605d98fa370
+sha256 pristine report 3e38b57864bc0d952a1ad52455e2328ddf6c3dfe3c2700fab8250a51888229a1
+
+BASELINE (no mutation): green — the harness is falsifiable
+
+killed   R2-M1 --full captures the verify command's stdio instead of inheriting it
+         by: --full lets the verify command's output onto stdout, quiet or not
+         restore: ok
+killed   R2-M2 --full stops running the verify command at all
+         by: --full lets the verify command's output onto stdout, quiet or not
+         restore: ok
+killed   R2-M3 (regression) quiet prints nothing at all, as before the fix
+         by: quiet prints every failure with its fix, on stderr, and nothing else
+         by: Stop puts the gate's failures on stderr while its JSON stays clean
+         by: gate --quiet prints its failures on stderr and leaves stdout empty
+         by: hook stop keeps its JSON on stdout and the gate's failures on stderr
+         by: --full lets the verify command's output onto stdout, quiet or not
+         restore: ok
+killed   R2-M4 (regression) quiet writes to stdout instead of stderr
+         by: quiet prints every failure with its fix, on stderr, and nothing else
+         by: Stop puts the gate's failures on stderr while its JSON stays clean
+         by: gate --quiet prints its failures on stderr and leaves stdout empty
+         by: hook stop keeps its JSON on stdout and the gate's failures on stderr
+         by: --full lets the verify command's output onto stdout, quiet or not
+         restore: ok
+
+final gate   4a1ff309b30b9597074122e8b93a9a21f98dd4324260d05556fe3605d98fa370 == pristine
+final report 3e38b57864bc0d952a1ad52455e2328ddf6c3dfe3c2700fab8250a51888229a1 == pristine
+```
+
+R2-M1 and R2-M2 are the new test's own mutations; R2-M3 and R2-M4 re-run round 1's two
+load-bearing mutations to show nothing regressed.
+
+## The review's minors
+
+| # | Minor | Done |
+|---|---|---|
+| 1 | `current.md` Plan still had the pre-correction sentence | Fixed with finding 1 |
+| 2 | the report cited the decision rows as `13:2*`; they are at `10:23:55.039Z`–`10:24:10.016Z` | Corrected below, and the round-1 line rewritten |
+| 3 | `captured()` restored a `.bind()` copy, not the original function object | Fixed: originals saved unbound. Probed in both runtimes — `stdoutWriteIsOriginal: true, stderrWriteIsOriginal: true, consoleLogIsOriginal: true` after two calls |
+| 4 | `spawnSync`'s `result.error` discarded, so a spawn failure read as exit 1 with empty streams | Fixed: `if (result.error !== undefined) throw result.error` |
+| 5 | the `console.log` stand-in used `args.join(" ")`, not `util.format` | Fixed: `format` from `node:util`. Probe: `console.log("%s has %d", "cache", 2)` now captures as `"cache has 2\n"`, in both runtimes |
+| 6 | `README.md` describes the `Stop` hook and was untouched | Clause added, calibrated: "The failures go into that feedback, and onto the hook's stderr" — no claim about display |
+
+**Correction to round 1, minor 2:** the five design decision rows are at
+`2026-08-21T10:23:55.039Z` and `10:24:09.935Z`–`10:24:10.016Z`. My round-1 report wrote
+"`2026-08-21T13:2*`", which is neither UTC nor local and finds nothing when grepped. The two
+round-2 rows are `11:16:06.989Z` and `11:16:14.645Z`.
+
+## Round-2 verification
+
+```console
+$ npm test >/dev/null 2>&1; echo "npm test=$?"
+npm test=0
+$ npm run typecheck >/dev/null 2>&1; echo "typecheck=$?"
+typecheck=0
+$ ./bin/mstack lint-plugin . >/dev/null 2>&1; echo "lint=$?"
+lint=0
+$ node scripts/check-doc-links.mjs README.md docs/wiki/*.md
+57 relative links checked, 0 broken
+```
+
+`npm test` is 203 pass on bun and 203 on node — one more than round 1, the new `--full` test.
+
+## Where round 2's claims stopped on the ladder
+
+| Claim | Rung | What was run |
+|---|---|---|
+| `main`'s Stop hook already carried the failures to the model | **5** | `git show main:src/hooks.ts`, the shipped pre-change file, quoted above |
+| `gate --full --quiet` writes the verify command's output to stdout | **5** | canary in a scratch store, both stream directions; and `tests/cli.test.ts:552` |
+| the client parses hook stdout as JSON while stderr sits beside it | **5** | live `claude -p` run, 2.1.238, `hook_response` event quoted above |
+| the client captures hook stderr verbatim at exit 0 | **5** | same run, `stderr: "CANARY-ON-STDERR\n"` |
+| the exit-0 hook branch derives the rendered content from stdout | **3** | read the branch in the shipped binary myself, matching the reviewer independently |
+| **the transcript displays that stderr field to a person** | **still unverified** | a live Stop-hook turn was refused (`"Credit balance is too low"`), same as the reviewer. Not claimed anywhere in the docs now |
+| the new test bites | **4** | R2-M1 and R2-M2, baseline confirmed falsifiable, restores sha256-verified |
+| round 1's behaviour did not regress | **4** | R2-M3 and R2-M4 |
+| both runtimes green, types, plugin lint, doc links | **4** | pasted above |
+| `captured()` restores identity-exact and formats correctly | **5** | probe run under both node and bun, output quoted in the minors table |
+
+## What I did not do
+
+- **No product code changed in round 2.** `src/report.ts` and `src/gate.ts` differ from round 1
+  only in a comment. The reviewer found the code sound and I found nothing to contradict that.
+- **Finding 3 is not mine to close.** The ledger still has only my `live-verified` row at
+  `2ebd5c5`, which is now several commits behind head and is the implementer's evidence, not an
+  approval. A reviewer row at the final head SHA is what closes this.
+- **Item status untouched**, and the `--full` stdio question is filed here for item 14 rather
+  than fixed here.
