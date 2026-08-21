@@ -34,3 +34,4 @@ reviewer-writes-the-verdict	cbe680b45e0be7f38bc41869ed1290c9d3c368d0	test-verifi
 reviewer-writes-the-verdict	1f45f5ceebf2c7346cc9f1924dda71ba734b13e0	verifier-failed	.mstack/progress/review_reviewer-writes-the-verdict_r2.md	reviewer	2026-08-21T17:57:04.680Z
 reviewer-writes-the-verdict	392b79e82935617c4934773222611f19072a6c64	test-verified	.mstack/progress/impl_reviewer-writes-the-verdict.md	implementer	2026-08-21T18:04:36.089Z
 reviewer-writes-the-verdict	112ffc3ce04ab17cdca930895614b1331a3344f1	live-verified	.mstack/progress/review_reviewer-writes-the-verdict_r3.md	reviewer	2026-08-21T18:12:48.308Z
+path-mstack-is-the-installed-copy	2a1fe341db23b01517e3aa930d39ed89d073384d	live-verified	.mstack/progress/impl_path-mstack-is-the-installed-copy.md	implementer	2026-08-21T18:36:42.356Z
