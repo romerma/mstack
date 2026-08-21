@@ -6,26 +6,27 @@
 > On close: append the summary to `history.md` and reset this file to the
 > empty template below.
 
-- **Item:** 16 quiet-gate-prints-nothing
+- **Item:** 14 verification-never-runs
 - **Status:** in_progress
-- **Branch:** fix/quiet-gate-prints-nothing
+- **Branch:** feat/verification-never-runs
 - **Base:** main
 - **Worktree:** none
 
 ## Plan
 
-Third item of the refinement round. Taken before item 14 because it is 14's prerequisite: if
-the Stop hook starts running an item's verification while `--quiet` still prints nothing on
-failure, the failure stays invisible and 14 buys nothing.
+Last of the three enforcement gaps the divergent pass surfaced, and the one that cost this
+programme 230 minutes of a red gate nobody saw.
 
-- `docs/wiki/The-CLI.md:60` says "`--quiet` prints failures only". Reproduced at rung 5 against
-  a store with two real failures: empty output, exit 1.
-- `src/hooks.ts:172` wires the Stop hook to `runGate(store, { quiet: true })`, so the gate
-  itself writes nothing on any stream in the mode the hook runs. **Corrected in review round 2:
-  the failures still reached the model — `stop()` composed them into `additionalContext` on
-  `main` too. What was missing was stream output, for a human or a script.**
-- Found by item 13's implementer, reproduced independently on main by its reviewer and by me.
-- Delegate, review with a pass that did not write it, close. Then item 14, then item 15.
+- `src/hooks.ts` wires the Stop hook to the **fast** gate, which never touches `state.verify`
+  or `item.verification`. Only a human typing `mstack gate --full` executes them.
+- `CLAUDE.md` and `skills/setup/SKILL.md` both say the gate must be green before a session
+  closes. For the verification half of that sentence, nothing enforces it.
+- Item 16 left this item a live constraint, pinned by a characterization test: `--full` runs
+  the verify command with `stdio: "inherit"`, so putting `--full` behind the Stop hook as-is
+  would put arbitrary test output in front of the hook's JSON on stdout. That question is
+  answered before code, not after.
+- The cost has to be bounded: a Stop hook that runs a full suite every turn is a Stop hook
+  people disable, which is worse than the gap.
 
 ## Log
 
@@ -224,8 +225,5 @@ failure, the failure stays invisible and 14 buys nothing.
 
 ## Next step
 
-- If this dies: item 16 round 2 is complete and appended to
-  `.mstack/progress/impl_quiet-gate-prints-nothing.md`. It needs a **re-review by a pass that
-  did not write this code**, and finding 3 — a reviewer ledger row at the head SHA — is the
-  only thing left before it can close. Items 14, 15 and 17 pending; 14 was waiting on this one
-  and inherits the `--full` stdio question.
+- If this dies: item 14 is in flight on feat/verification-never-runs, four acceptance criteria
+  in state.json. Items 15 and 17 still pending. Items 12, 13 and 16 closed and merged.
