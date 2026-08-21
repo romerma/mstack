@@ -174,3 +174,50 @@ fork had been re-opened. That was false: its own `mstack decide` had failed sile
 `decision_resolved` never existed and it was measuring the absence of a value nobody deleted.
 Caught by asking whether the test measured anything. Fifth instance in this programme of a check
 that could not fail, and the first one caught in flight rather than by a later pass.
+
+## 2026-08-21 — item 16 quiet-gate-prints-nothing, closed
+
+`docs/wiki/The-CLI.md:60` said "`--quiet` prints failures only". It printed nothing: empty on
+both streams, exit 1, against a store with two real failures. The fix lives in `Report#fail` —
+under `quiet` it writes one `[fail]` line per failure to **stderr**, and nothing else. stderr
+because `mstack hook stop` writes its `additionalContext` JSON to stdout, and failure text in
+front of that object would stop it parsing.
+
+**The filing pass overstated the finding, and the record says so.** The original description
+claimed a red gate at session close was "silent by construction, and the exit code is the only
+signal anyone gets." False: `main`'s `stop()` already composed the failures into
+`additionalContext`, so the model always received them. What nobody received was human-visible
+output on a stream. The correction was made with `state set --description` — the first real use
+of what item 13 shipped, an hour after it merged — and the same false framing then had to be
+chased out of four more places, one of which the review missed and the implementer found: an
+assertion message in `tests/cli.test.ts`.
+
+**The load-bearing claim went from rung 2 to rung 5, through three passes each refusing to
+stop where the last one did.** The implementer marked "Claude Code renders a hook's stderr" as
+rung 2 and said so. The reviewer would not let the docs state it flatly, and got to rung 3 by
+reading the shipped client (2.1.238): on the exit-0 branch the rendered content derives from
+stdout, with stderr a sibling field. The implementer then reproduced that read independently,
+hit the same credit refusal on a Stop turn the reviewer had hit, and instead of stopping
+re-ran the canary on `SessionStart` — the same shared exit-0 branch — producing a real
+`hook_response` with stdout parsed, `additionalContext` honoured, and stderr captured verbatim
+beside it.
+
+So the stream split is confirmed as the arrangement the client expects. **Display remains
+unverified and the docs now say exactly that.** The report separates three audiences rather
+than one: the CLI user, newly reached; the model, reached all along, so this fix adds nothing
+there; and a session watcher, captured but display unproven. Its own sentence: "I did not write
+the version that sounds better."
+
+**Turned up and filed:** item 17, `which mstack` resolves to the installed 0.1.0 plugin rather
+than the checkout, so a contributor validates changes against the old CLI. The loud failure is
+benign (an unknown flag); the dangerous one is an old gate reporting green against a new store.
+
+**Left for item 14:** `--quiet` does not leave stdout free under `--full`, because
+`src/gate.ts` runs the verify command with `stdio: "inherit"`. Both wiki pages are now scoped
+to the fast gate, the decision row promising byte-identical hook JSON was superseded rather
+than left standing, and a characterization test pins the boundary so item 14 cannot land on a
+guarantee that stopped holding.
+
+**Closed on:** 203 tests on both runtimes; typecheck, lint and doc links clean; four cases
+verified by the coordinating pass with streams captured separately; 4/4 round-2 mutations
+killed with a green baseline confirmed first, byte copies restored to pristine sha256.
