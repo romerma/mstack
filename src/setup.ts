@@ -69,7 +69,6 @@ export const STORE_GITIGNORE = `# Machine-local: which verification command ran 
 # Never committed - a receipt is keyed to HEAD, so committing one voids it, and
 # a receipt from another checkout is not evidence that anything ran in this one.
 verification.tsv
-verification.tsv.lock
 `;
 
 export const HISTORY_TEMPLATE = `# Session history (append-only)
