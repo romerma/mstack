@@ -490,3 +490,335 @@ not defend it past a reviewer's call.
 - The one judgement call worth a second opinion is the sibling-guard scope, argued above.
 - The one thing not at rung 4 is the honesty of the comment, which is what criterion 4 asks a
   human to check.
+
+---
+
+# Round 2 — the three review findings
+
+**Review:** `.mstack/progress/review_rm-guard-command-boundary.md`, CHANGES_REQUESTED at `b99857b`.
+**Commits:** `7b81823` (findings 1 and 2), `5b8397f` (finding 3).
+**Still not approving my own work.** Item status untouched; a reviewer closes this.
+
+> Read every `file:line` above this divider against the tree at `0c0c24d`, not against head.
+> Round 2 inserted ~57 lines into `src/hooks.ts` and ~11 into `tests/hooks.test.ts`, so the
+> round-1 pointers have shifted: `shellSegments` 299 → 330, `preToolUse` 344 → 406, the
+> `GUARDS` doc comment 185-221 → unchanged, `CROSS_SEGMENT_DENY` 302 → 310 and its rows
+> `:303-:307` → `:311-:315`, and the three round-1 tests 326/334/342 → 361/369/385. Nothing
+> above the divider was edited to hide that; every pointer in **this** section is against head.
+
+The reviewer was right, and the finding is the worst kind: my change turned a denial into an
+allow. Round 1's own report claimed at rung 3 that "an unmodelled construct leaves the segment
+too long, so the failure mode is a denial, not an allow", flagged that it was walked rather
+than tested, and invited a reviewer to take it to rung 4. They took it to rung 5 and it was
+false. That is exactly the transaction the ladder exists for, and the round-1 claim was wrong
+in the direction that costs most.
+
+## Finding 1 — a separator inside `$(...)` cut one command in half
+
+### Re-reproduced first, against both shipped binaries
+
+The same 30 spellings the review names, `bin/mstack hook pre-tool-use` spawned as a real
+process against `main` and against the round-1 branch build:
+
+```
+$ node scratch/subst.mjs                     # round-1 build
+REGRESSION  main=DENY  branch=allow  "rm -rf $(cd /r && pwd)/.mstack"
+REGRESSION  main=DENY  branch=allow  "git push origin $(cd /r && pwd) --force"
+REGRESSION  main=DENY  branch=allow  "git push origin $(cd /r && pwd) -f"
+REGRESSION  main=DENY  branch=allow  "git branch $(cd /r && pwd) -D feature"
+REGRESSION  main=DENY  branch=allow  "gh pr merge $(cd /r && pwd) --admin"
+REGRESSION  main=DENY  branch=allow  "rm -rf $(cd /r ; pwd)/.mstack"
+REGRESSION  main=DENY  branch=allow  "git push origin $(cd /r ; pwd) --force"
+REGRESSION  main=DENY  branch=allow  "git push origin $(cd /r ; pwd) -f"
+REGRESSION  main=DENY  branch=allow  "git branch $(cd /r ; pwd) -D feature"
+REGRESSION  main=DENY  branch=allow  "gh pr merge $(cd /r ; pwd) --admin"
+REGRESSION  main=DENY  branch=allow  "rm -rf $(ls /r | head -1)/.mstack"
+REGRESSION  main=DENY  branch=allow  "git push origin $(ls /r | head -1) --force"
+REGRESSION  main=DENY  branch=allow  "git push origin $(ls /r | head -1) -f"
+REGRESSION  main=DENY  branch=allow  "git branch $(ls /r | head -1) -D feature"
+REGRESSION  main=DENY  branch=allow  "gh pr merge $(ls /r | head -1) --admin"
+REGRESSION  main=DENY  branch=allow  "rm -rf $(git rev-parse --show-toplevel 2>/dev/null || echo .)/.mstack"
+REGRESSION  main=DENY  branch=allow  "git push origin $(git rev-parse --show-toplevel 2>/dev/null || echo .) --force"
+REGRESSION  main=DENY  branch=allow  "git push origin $(git rev-parse --show-toplevel 2>/dev/null || echo .) -f"
+REGRESSION  main=DENY  branch=allow  "git branch $(git rev-parse --show-toplevel 2>/dev/null || echo .) -D feature"
+REGRESSION  main=DENY  branch=allow  "gh pr merge $(git rev-parse --show-toplevel 2>/dev/null || echo .) --admin"
+REGRESSION  main=DENY  branch=allow  "rm -rf `cd /r && pwd`/.mstack"
+REGRESSION  main=DENY  branch=allow  "git push origin `cd /r && pwd` --force"
+REGRESSION  main=DENY  branch=allow  "git push origin `cd /r && pwd` -f"
+REGRESSION  main=DENY  branch=allow  "git branch `cd /r && pwd` -D feature"
+REGRESSION  main=DENY  branch=allow  "gh pr merge `cd /r && pwd` --admin"
+REGRESSION  main=DENY  branch=allow  "rm -rf $(a & wait)/.mstack"
+REGRESSION  main=DENY  branch=allow  "git push origin $(a & wait) --force"
+REGRESSION  main=DENY  branch=allow  "git push origin $(a & wait) -f"
+REGRESSION  main=DENY  branch=allow  "git branch $(a & wait) -D feature"
+REGRESSION  main=DENY  branch=allow  "gh pr merge $(a & wait) --admin"
+
+30/30 spellings regressed from DENY to allow
+exit: 1
+```
+
+### The fix
+
+`shellSegments` now carries a `depth` counter and a `backtick` flag
+(`src/hooks.ts:330-383`). `$(`, `<(`, `>(` and any `(` nested inside an already-open construct
+increment it; the matching `)` decrements; a backtick toggles the flag; and while depth is
+non-zero or the flag is set, `isSeparator` is never consulted. An opener with no closer holds
+the rest of the line in one segment, which denies. Six lines of state, no parser, no
+dependency, `node:` builtins untouched.
+
+### The same 30 rows after
+
+```
+$ node scratch/subst.mjs                     # round-2 build
+  ok        main=DENY  branch=DENY   "rm -rf $(cd /r && pwd)/.mstack"
+  ok        main=DENY  branch=DENY   "git push origin $(cd /r && pwd) --force"
+  ok        main=DENY  branch=DENY   "git push origin $(cd /r && pwd) -f"
+  ok        main=DENY  branch=DENY   "git branch $(cd /r && pwd) -D feature"
+  ok        main=DENY  branch=DENY   "gh pr merge $(cd /r && pwd) --admin"
+  ok        main=DENY  branch=DENY   "rm -rf $(cd /r ; pwd)/.mstack"
+  ok        main=DENY  branch=DENY   "git push origin $(cd /r ; pwd) --force"
+  ok        main=DENY  branch=DENY   "git push origin $(cd /r ; pwd) -f"
+  ok        main=DENY  branch=DENY   "git branch $(cd /r ; pwd) -D feature"
+  ok        main=DENY  branch=DENY   "gh pr merge $(cd /r ; pwd) --admin"
+  ok        main=DENY  branch=DENY   "rm -rf $(ls /r | head -1)/.mstack"
+  ok        main=DENY  branch=DENY   "git push origin $(ls /r | head -1) --force"
+  ok        main=DENY  branch=DENY   "git push origin $(ls /r | head -1) -f"
+  ok        main=DENY  branch=DENY   "git branch $(ls /r | head -1) -D feature"
+  ok        main=DENY  branch=DENY   "gh pr merge $(ls /r | head -1) --admin"
+  ok        main=DENY  branch=DENY   "rm -rf $(git rev-parse --show-toplevel 2>/dev/null || echo .)/.mstack"
+  ok        main=DENY  branch=DENY   "git push origin $(git rev-parse --show-toplevel 2>/dev/null || echo .) --force"
+  ok        main=DENY  branch=DENY   "git push origin $(git rev-parse --show-toplevel 2>/dev/null || echo .) -f"
+  ok        main=DENY  branch=DENY   "git branch $(git rev-parse --show-toplevel 2>/dev/null || echo .) -D feature"
+  ok        main=DENY  branch=DENY   "gh pr merge $(git rev-parse --show-toplevel 2>/dev/null || echo .) --admin"
+  ok        main=DENY  branch=DENY   "rm -rf `cd /r && pwd`/.mstack"
+  ok        main=DENY  branch=DENY   "git push origin `cd /r && pwd` --force"
+  ok        main=DENY  branch=DENY   "git push origin `cd /r && pwd` -f"
+  ok        main=DENY  branch=DENY   "git branch `cd /r && pwd` -D feature"
+  ok        main=DENY  branch=DENY   "gh pr merge `cd /r && pwd` --admin"
+  ok        main=DENY  branch=DENY   "rm -rf $(a & wait)/.mstack"
+  ok        main=DENY  branch=DENY   "git push origin $(a & wait) --force"
+  ok        main=DENY  branch=DENY   "git push origin $(a & wait) -f"
+  ok        main=DENY  branch=DENY   "git branch $(a & wait) -D feature"
+  ok        main=DENY  branch=DENY   "gh pr merge $(a & wait) --admin"
+
+0/30 spellings regressed from DENY to allow
+exit: 0
+```
+
+### Widened, because 30 rows is a sample and not a property
+
+528 destructive spellings — 22 genuinely destructive commands across all six guards, times 24
+wrappers including five substitution shapes — through both shipped binaries. Section B is the
+other half of the bargain: the item's own false positives must not come back.
+
+```
+$ node scratch/differential.mjs
+-- A. differential over 528 destructive spellings (22 commands x 24 wrappers)
+   main DENIED, branch allows (FALSE ALLOWS introduced): 0
+   main allowed, branch denies (bypasses closed):        0
+
+-- B. the false positives item 12 exists to remove, through the branch binary
+     ok    main=DENY  branch=allow  acceptance FP 1: a later flag value            "rm -rf /tmp/x && mstack decide --evidence \".mstack/evidence/x.md\""
+     ok    main=DENY  branch=allow  acceptance FP 2: after a semicolon             "rm -rf build; echo see .mstack/state.json"
+     ok    main=DENY  branch=allow  acceptance FP 3: after a pipe                  "rm -rf dist | grep .mstack"
+     ok    main=DENY  branch=allow  acceptance FP 4: inside a commit message       "rm -rf node_modules && git commit -m \"docs: .mstack notes\""
+     ok    main=DENY  branch=allow  after ||                                       "rm -rf /tmp/x || echo .mstack survived"
+     ok    main=allow branch=allow  on the next line                               "rm -rf /tmp/x &\necho .mstack"
+     ok    main=DENY  branch=allow  after a backgrounding &                        "rm -rf /tmp/scratch & mstack gate .mstack"
+     ok    main=DENY  branch=allow  redirection then pipe                          "rm -rf /tmp/x 2>&1 | grep .mstack"
+     ok    main=DENY  branch=allow  a closed substitution before the separator     "rm -rf $(mktemp -d) && echo .mstack"
+     ok    main=DENY  branch=allow  the backtick spelling of the same              "rm -rf `mktemp -d` && echo .mstack"
+     ok    main=allow branch=allow  a substitution holding the store, no rm at all "mstack decide --evidence \"$(pwd)/.mstack/x.md\""
+     ok    main=DENY  branch=allow  sibling: --force in a later echo               "git push origin main && echo 'use --force only after asking'"
+     ok    main=DENY  branch=allow  sibling: + refspec in a later echo             "git push origin main && echo 'the +main spelling forces too'"
+     ok    main=DENY  branch=allow  sibling: --admin in a later echo               "gh pr merge 3 --squash && echo skipped --admin"
+     ok    main=DENY  branch=allow  sibling: -D in a later echo                    "git branch -a && echo remember -D deletes unmerged work"
+     ok    main=allow branch=allow  the safe form the guard recommends             "git push --force-with-lease origin main"
+     ok    main=allow branch=allow  an ordinary cleanup                            "rm -rf node_modules"
+
+   0 of 17 still denied by the branch
+
+PASS - 0 false allow(s), 0 unfixed false positive(s)
+exit: 0
+```
+
+Rows 9 and 10 of section B are what decides between the two fixes the reviewer offered.
+`rm -rf $(mktemp -d) && echo .mstack` must stay allowed: the substitution closes before the
+separator, so the `&&` really does end the command. The reviewer's smaller alternative — also
+match every guard against the whole line whenever it contains a `$(` — provably cannot regress
+anything `main` caught, but it re-denies that row and `mstack decide --evidence
+"$(pwd)/.mstack/x.md"`, which is a line this project's own workflow tells people to write.
+Depth tracking costs a false denial only when the destructive argument is *inside* the
+substitution (`rm -rf /tmp/x $(grep -l . .mstack/*)`), which is the recoverable direction.
+Recorded in `decisions.tsv`.
+
+### Mutation testing — one construct removed at a time
+
+Each row deletes exactly one thing the scanner models, runs `node --test tests/hooks.test.ts`,
+and restores. A surviving mutation would mean that construct is asserted nowhere.
+
+```
+$ bash scratch/mutate.sh
+killed       drop $( tracking :: a separator inside a substitution does not end the command that contains it; shellSegments keeps a whole substitution inside one segment
+killed       drop backtick tracking :: a separator inside a substitution does not end the command that contains it; shellSegments keeps a whole substitution inside one segment
+killed       drop <( tracking :: shellSegments keeps a whole substitution inside one segment
+killed       drop >( tracking :: shellSegments keeps a whole substitution inside one segment
+killed       drop nested-paren depth (breaks $(( and $( ( ) )) :: a separator inside a substitution does not end the command that contains it; shellSegments keeps a whole substitution inside one segment
+killed       never give the depth back :: a store name in a later command does not deny the rm in an earlier one; shellSegments keeps a whole substitution inside one segment
+killed       ignore depth entirely (the shipped round-1 behaviour) :: a separator inside a substitution does not end the command that contains it; shellSegments keeps a whole substitution inside one segment
+
+src/hooks.ts restored: yes
+```
+
+Seven mutations, seven killed, and not by accident of a neighbouring assertion: `<(` and `>(`
+are killed **only** by the `shellSegments` unit test. That is why that test exists — neither
+has a destructive one-liner anyone would actually write, so the cut points are the only honest
+place to assert them.
+
+**A process error in this run, recorded because it nearly cost the whole fix.** My first
+mutation driver restored with `git checkout -- src/hooks.ts`. The fix was not committed yet,
+so the first mutation's restore silently discarded it, and the next six reported
+`SETUP-ERROR :: pattern did not match` against un-mutated code — a result that reads like
+"nothing to mutate" rather than "your work is gone". Caught by an `rg` for the new identifiers
+coming back empty. The fix was re-applied, verified, and **committed before** any mutation ran;
+the driver now takes a byte copy under a `trap` and asserts the file matches at the end (the
+`src/hooks.ts restored: yes` line above). Recorded in `decisions.tsv`.
+
+## Finding 2 — the stated limit was false in the unsafe direction
+
+The sentence the reviewer quoted is gone as a claim and kept as a section. `shellSegments`'s
+doc comment (`src/hooks.ts:273-329`) now opens with the rule rather than a feature list:
+
+> A construct it cannot model must leave a segment too **long**, never too short.
+
+followed by why the two directions are not symmetric, and then by the incident itself — that
+this scanner shipped splitting inside `$(...)`, and that `rm -rf $(cd /r && pwd)/.mstack` went
+from denied to allowed — so the next person to touch it cannot read the rule as decoration.
+"What it does not model" is now a list where **every entry names its direction**:
+
+| Unmodelled | Direction | Why that is the direction |
+|---|---|---|
+| a heredoc body scanned as command text | long | each body line is already whole, so nothing is hidden; a body line that reads destructive is denied even though it is data |
+| `[[ a && b ]]`, `((i && j))`, `case` patterns spelled with `\|` | **short** | said plainly rather than implied away. None of them is a command with a destructive verb and an argument to separate, so nothing the guards look for straddles the cut. Written as an argument, and named as the first place to look if a bypass appears |
+| `isSeparator` cannot see that a preceding `>` was escaped | long | review minor 2, carried into the comment |
+
+The accurate list at `src/hooks.ts:207-220` — the one the reviewer verified at rung 5 — is
+untouched. All seven of its forms were re-run against the round-2 binary and all seven are
+still allowed (the `wiki-claims` table below, rows 7-12).
+
+## Finding 3 — `docs/wiki/Gates-and-Hooks.md`
+
+- `:25` now cites `src/hooks.ts:230-271`, which is where `GUARDS` actually is.
+- The paragraph at `:42-46` is replaced. It said the guards are "regexes over the command
+  string" and used `echo "do not git push --force"` to justify the false-positive cost — one
+  sentence made obsolete by this change and one still true. The page now separates them: loose
+  within a command (with that same `echo` example, still denied), not loose across commands,
+  the substitution false allow and what closed it, and a closing paragraph saying the array is
+  not a sandbox.
+
+Per `CONTRIBUTING.md:43-44`, every behavioural claim the page makes was re-run before the
+sentence was written, through the shipped binary on both revisions:
+
+```
+$ node scratch/wiki-claims.mjs
+  ok            branch=DENY   the guards eat git's global options                  "git -C dir push --force"
+  ok            branch=DENY   a + refspec is a force push                          "git push origin +main"
+  ok            branch=DENY   within a command the match is loose, cost accepted   "echo \"do not git push --force\""
+  ok    main=DENY  branch=allow  matching across a separator denied harmless work     "rm -rf /tmp/x && mstack decide --evidence \".mstack/x.md\""
+  ok            branch=allow  ...is therefore allowed                              "git push origin main && echo 'use --force only after asking'"
+  ok    main=DENY  branch=DENY   the substitution false allow, now closed             "rm -rf $(cd /r && pwd)/.mstack"
+  ok            branch=allow  an interpreter one-liner passes                      "node -e \"fs.rmSync('.mstack',{recursive:true})\""
+  ok            branch=allow  find -delete passes                                  "find .mstack -delete"
+  ok            branch=allow  fd -X rm passes                                      "fd . .mstack -X rm"
+  ok            branch=allow  a path arriving through a variable passes            "rm -rf \"$STORE\""
+  ok            branch=allow  mv followed by a deletion passes (step 1)            "mv .mstack /tmp/x"
+  ok            branch=allow  mv followed by a deletion passes (step 2)            "rm -rf /tmp/x"
+  ok    main=DENY  branch=DENY   the table row: rm -r on the store                    "rm -rf .mstack"
+  ok            branch=DENY   the table row: git reset --hard                      "git reset --hard HEAD~1"
+  ok            branch=DENY   the table row: the --delete --force spelling         "git branch --delete --force feature"
+  ok            branch=DENY   the table row: gh pr merge --admin                   "gh pr merge 3 --admin"
+  ok            branch=allow  --force-with-lease stays allowed                     "git push --force-with-lease origin main"
+
+0 claim(s) wrong out of 17
+exit: 0
+```
+
+One claim the page does *not* make: I cut a "denied for a year" phrase from my own draft. I
+have no evidence for the duration and did not go looking for it.
+
+## The four minors
+
+| # | What | Done |
+|---|---|---|
+| 1 | the newline row documents rather than falsifies | a comment at `tests/hooks.test.ts:286-289` says so, and says it does not count toward criterion 2 |
+| 2 | `isSeparator` cannot see an escaped `>` | now the third entry in the comment's unmodelled list, with its direction |
+| 3 | "Five of the six patterns" reads as if the sixth is one of the five | reworded to "All but one of the patterns above ... the exception is `git reset --hard`", `src/hooks.ts:411-416` |
+| 4 | `shellSegments` is exported only for the test | said, and why, at `src/hooks.ts:281-283` |
+
+## Round-2 commands
+
+```
+$ npm test
+> bun test tests/ && node --test 'tests/*.test.ts'
+bun test v1.3.11 (af24e281)
+ 176 pass
+ 0 fail
+Ran 176 tests across 13 files. [12.43s]
+...
+ℹ tests 176
+ℹ suites 0
+ℹ pass 176
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+npm test exit: 0
+
+$ npm run typecheck
+> bunx --bun tsc --noEmit
+typecheck exit: 0
+
+$ ./bin/mstack lint-plugin .
+[ok]    20 reference file(s), every relative link resolves
+PASSED - 0 failures, 0 warnings
+lint exit: 0
+```
+
+174 tests before this round, 176 after: two new tests, and one existing table grew by two rows.
+
+## Round-2 R to test
+
+| Finding | Covered by | Where |
+|---|---|---|
+| 1 — a separator inside `$(...)` or a backtick must not end the command | `a separator inside a substitution does not end the command that contains it`, 11 rows across all five affected guards, including the idiom that really deleted a store | `tests/hooks.test.ts:377`, table at `:342` |
+| 1 — the cut points themselves, for `<(`, `>(`, `$((` and a nested paren | `shellSegments keeps a whole substitution inside one segment` | `tests/hooks.test.ts:415` |
+| 1 — a closed substitution gives the depth back, so later separators still separate | `a store name in a later command does not deny the rm in an earlier one`, rows `:301` and `:302` | `tests/hooks.test.ts:361` |
+| 1 — a bare `(` is a subshell and *should* split | `shellSegments keeps a whole substitution inside one segment`, the `(cd /r && rm -rf x)` assertion | `tests/hooks.test.ts:415` |
+| 1 — nothing round 1 fixed came back | `a store name in a later command...` (14 rows) and `segmenting the command...` (13 rows), both green; plus the 528-spelling differential | `tests/hooks.test.ts:361`, `:369` |
+| 2 — the limit is stated, and stated in the right direction | Prose. Not testable, and that is the point of the criterion | `src/hooks.ts:273-329` |
+| 3 — the wiki page matches the code | Prose plus a 17-claim re-run through both binaries | `docs/wiki/Gates-and-Hooks.md:25`, `:43-74` |
+
+## Where the round-2 claims stopped on the ladder
+
+| Claim | Rung | How |
+|---|---|---|
+| The false allow was real, and mine | **5** | 30/30 reproduced against both shipped binaries as real processes, before touching anything |
+| All 30 are back to DENY | **5** | Same script, same two binaries, after |
+| No *new* false allow was introduced by depth tracking | **4** | 528-spelling differential, 22 commands x 24 wrappers, both binaries. A large sample against a fixed corpus, not a proof of absence — I say so, the same way the reviewer did about theirs |
+| Every false positive the item exists to remove is still removed | **5** | Section B, 17 rows through the shipped binary, all four acceptance rows among them |
+| Each modelled construct is asserted by a test that fails without it | **4** | 7 mutations, 7 killed, each by a named test, driver verified to restore |
+| Both runtimes, typecheck and lint green | **4** | `npm test` 176/176 on bun and node, exit 0; `tsc --noEmit` exit 0; `lint-plugin` 0 failures |
+| Every behavioural claim in the wiki page is true | **5** | 17 claims re-run through the shipped binaries; the page was written from that output, not the other way round |
+| The unmodelled `[[ ]]` / `((` / `case` class cannot hide a destructive verb from its argument | **3** | Argued, not tested. The comment says so in the comment itself and names it as the first place to look. If a reviewer wants it at rung 4, the shape is a differential over those three wrappers — say so and I will run it |
+
+## For the reviewer, round 2
+
+- Round 1's rung-3 claim was wrong and the reviewer's rung-5 check is what caught it. I have
+  not quietly amended round 1's ladder table; it stands as written, and this section says it
+  was false. A report that edits its own history to look better is worse than one that was
+  wrong once.
+- The scope question is still open and still yours. The four sibling guards were segmented as
+  a side effect of this item, and the reviewer correctly noted that this diff therefore
+  *created* four of the five false allows. They are closed now and verified per guard, but if
+  the judgement is that segmenting the siblings belongs in its own item, the revert is small
+  and I will not argue past your call.

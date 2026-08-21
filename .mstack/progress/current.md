@@ -75,11 +75,33 @@ twice by two different passes, already carrying acceptance criteria.
 - Sent back to the implementer for depth tracking, plus the false limit statement in the module
   comment and the wiki page that now describes the pre-change behaviour.
 
+- Round 2 done. `shellSegments` now tracks substitution depth: `$(`, `<(`, `>(`, `$((`, any
+  paren nested inside one, and a backtick toggle. While depth is non-zero nothing is a
+  separator. 30/30 regressed spellings back to DENY through the shipped binary.
+- Finding 2 closed by rewriting the comment rather than deleting it: it now leads with the
+  one-directional rule (a construct it cannot model must leave a segment too long, never too
+  short), names the incident that proves the asymmetry, and lists every unmodelled construct
+  with the direction it fails in.
+- Finding 3 closed: `docs/wiki/Gates-and-Hooks.md` cited a moved line range and described the
+  pre-change guard. All 17 behavioural claims on the page re-run through both shipped binaries.
+- Process error worth keeping: my first mutation driver restored with `git checkout`, which
+  discarded the uncommitted fix and made six of seven mutations report SETUP-ERROR against
+  unmodified code. Re-applied, committed first, driver now restores from a byte copy.
+
+## Verification
+
+- Round 2, rung 5: differential over **528** destructive spellings across two shipped
+  binaries (`main` and this branch) - **0** false allows introduced, and all 17 false
+  positives including the four acceptance rows stay allowed.
+- Round 2, rung 4: 7 per-construct mutations of the depth tracking, all killed by a named
+  test. `npm test` 176 pass on both runtimes; typecheck and lint clean.
+- Commits: `7b81823` the depth fix and its tests, `5b8397f` the wiki.
+
 ## Next step
 
-- Hand item 12 to a reviewer that did not write it. Report at
-  `.mstack/progress/impl_rm-guard-command-boundary.md`. The implementer did **not** mark it
-  done and did not touch its status.
-- Open question for the reviewer, not for this pass: the sibling guards were fixed as a side
-  effect. If that reads as scope creep, the alternative is a per-guard opt-in flag, which is
-  worse code for a cleaner boundary. Decision is recorded in decisions.tsv.
+- Hand item 12 back to a reviewer that did not write it, for round 2. Report at
+  `.mstack/progress/impl_rm-guard-command-boundary.md`, round-2 section at the bottom. The
+  implementer did **not** mark it done and did not touch its status.
+- Open question still standing for the reviewer: the sibling guards were fixed as a side
+  effect, and round 1's reviewer noted that widening also opened four of the five false
+  allows. They are closed now, but the scope judgement is still theirs to make.
