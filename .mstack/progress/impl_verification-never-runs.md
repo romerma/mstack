@@ -548,3 +548,404 @@ Three things worth a deliberate ruling rather than a skim.
 
 When you move this item to `verifying`, the gate will demand a `gate --full` at that commit
 before it goes green — which is this feature verifying itself, and worth watching.
+
+---
+
+# Round 2 — response to CHANGES_REQUESTED
+
+Reviewed at `26b0671`. Eight findings, two blocking. All eight addressed below; the reviewer's
+ruling on finding 5 is followed rather than re-argued, and finding 6 is left where the reviewer
+put it. **Both blocking findings were reproduced by me first, at rung 5, before any fix.**
+
+## What changed
+
+The two blocking findings were both cases of the receipt claiming more than it could prove.
+Finding 1: `receipts` reads a file, a read throws, and `cmdHook` catches every throw and returns
+0 by design, so an unreadable `verification.tsv` made `mstack hook stop` produce zero bytes and
+exit 0 — byte-identical to a green gate — and threw `mstack gate` out mid-run so the workspace
+section and the summary never happened. That is the seventh instance of this repository's
+check-that-cannot-fail pattern, shipped by the change built to close the sixth, and it is now
+wrapped in the shape of the sibling twenty lines above it whose comment already named the bug.
+Finding 2: a receipt keyed to `(sha, command)` certified a *commit* and not a *tree*, so an
+uncommitted edit after a green `--full` was invisible to the fast gate and to the closing guard
+alike; receipts now carry a sixth `tree` column holding a fingerprint of `git status
+--porcelain` with paths under `.mstack/` removed, which voids a run when code changes and does
+not when someone writes a line of their own progress notes. Around those, finding 3 added a gate
+warning naming both commands an existing store needs, finding 4 pinned the whitespace boundary
+that a surviving mutation showed was emergent, finding 5 made `--force` on an unverified close
+demand `--closed-by` and store the reason prefixed `closed unverified (forced):`, finding 7 told
+`agents/reviewer.md` what a red `--full` that ran nothing actually means, and nitpicks 1, 2 and
+4 were applied. `git()` moved to `src/git.ts` so `verification.ts` could use it without a cycle,
+and gained a `raw` option — which turned out to be load-bearing rather than cosmetic, below.
+
+## Finding by finding
+
+| # | Verdict | What landed |
+|---|---|---|
+| 1 BLOCKING | fixed | `checkVerificationRuns` wraps the read and reports it (`src/gate.ts:481-500`); the closing guard reports it too instead of a bare errno (`src/cli.ts:513-522`). Three tests, four mutations |
+| 2 BLOCKING | fixed, option (b) | `tree` column + `treeId` (`src/verification.ts:117-152`), matched in `lastRun` and explained in `why`. Four tests, six mutations. Rules table row added, as option (c) would have required anyway |
+| 3 REQUIRED | fixed, both halves | `CHANGELOG.md` upgrade paragraph naming `mstack setup` **and** `git rm --cached`, plus the gate check the reviewer preferred: `checkReceiptIsIgnored` (`src/gate.ts:117-140`). Two tests, two mutations |
+| 4 REQUIRED | fixed | `tests/verification.test.ts:180` pins five tolerated spellings and three refused ones. Kills the reviewer's M12 (my R2-4b) |
+| 5 REQUIRED | fixed, reviewer's ruling followed | `--force` on this transition now exits 2 without `--closed-by`, and stores `closed unverified (forced): <reason>` in `state.json`. Two tests, three mutations |
+| 6 REQUIRED before close | left for the closing pass, as the reviewer directed | A fresh implementer row is recorded at the round-2 head. It cannot close the item: `--verifier implementer` is refused by `canCloseAnItem`, which is the point |
+| 7 MODERATE | fixed | `agents/reviewer.md:19-26`. Also `skills/router/playbooks/cleanup.md` for nitpick 7 |
+| 8 | agreed | `db80b45` kept |
+
+### Nitpicks
+
+| # | Action |
+|---|---|
+| 1 dedupe | **Done.** `obligations` dedupes on exact text (`src/verification.ts:98-108`), pinned at `tests/verification.test.ts:220`, mutation R2-1n. It does **not** fire in this store: `state.verify` and item 14's `verification` differ by a `./`, and aligning them is store data, not code — flagged below for whoever closes the item |
+| 2 `Status` collision | **Done.** `RunStatus`; the alias at the gate's import is gone |
+| 3 `ts?` override | **Kept**, and it is not test-only surface: `ledger.record` has the identical `Omit<Entry, "ts"> & { ts?: string }` signature for the identical reason. Divergence would be the cost here |
+| 4 backwards conjunct | **Done.** Restructured into an `add()` helper that does the empty check once |
+| 5 `withLock` | **Not changed**, deliberately, decision `2026-08-21T12:38:06.357Z`. `ledger.record` shares the identical window through the same `append` helper; locking one of two would leave the codebase inconsistent about a race present in both. Documented in the module header at rung 3, with the reviewer's 8-of-8 result quoted |
+| 6 `cell` flattening | **Not changed.** Agreed as described: consistent on both sides, so not a bug. Now visible in the `tree`-column table in the wiki |
+| 7 cleanup playbook | **Done.** It now says a dormant item needs a run at today's HEAD, names `--force`+`--closed-by` for a harness that no longer exists, and forbids the obvious cheat of editing the `verification` field to something trivial |
+
+## Decisions
+
+| Row | Decision |
+|---|---|
+| `2026-08-21T12:37:42.179Z` | An unreadable `verification.tsv` is a gate failure, not an exception that escapes the run |
+| `2026-08-21T12:37:54.676Z` | A receipt is keyed to the working tree as well as the commit — option (b), with (a) rejected because `state set --status done` writes `state.json` itself so the tree is dirty at close by construction, and (c) rejected because it leaves criterion 1 overclaimed |
+| `2026-08-21T12:37:54.702Z` | The fingerprint excludes `.mstack/`, and that exclusion is the whole reason it is usable rather than merely correct |
+| `2026-08-21T12:38:06.331Z` | Forcing an unverified close requires `--closed-by`, and the stored note is prefixed so a reader can tell |
+| `2026-08-21T12:38:06.357Z` | `record` still appends without `withLock`, and the reason is consistency rather than confidence |
+
+## Commands
+
+### Baseline, before any round-2 change
+
+```console
+$ npm test 2>&1 | rg "^\s*(\d+ pass|\d+ fail)|ℹ (tests|pass|fail)"
+27: 230 pass
+28: 0 fail
+278:ℹ tests 230
+280:ℹ pass 230
+281:ℹ fail 0
+```
+
+### Finding 1, reproduced by me before the fix
+
+```console
+### readable receipt file: the hook blocks
+{"hookSpecificOutput":{"hookEventName":"Stop","additionalContext":"The mstack gate is red. Fix these before closing:\n- 1 perm (verifying) is one step from done, and `true` has not run at a9897f4f; 1 earlier run(s) exist at other commits, and a new commit voids them -> run 'mstack gate --full'; nothing else executes it, and a verification nobody runs is not a check"}}  [exit 0]
+
+### chmod 000, same store, one command later
+hook stop exit 0
+stdout bytes:        0   stderr bytes:        0
+
+### and the gate itself
+[ok]    no sdd item is past specifying
+[ok]    no closed items to audit
+mstack: EACCES: permission denied, open '.../scratchpad/f1/.mstack/verification.tsv'
+gate exit 2
+```
+
+Zero bytes and exit 0 is what a green gate looks like. Note also that the gate never reached
+`-- workspace` and never printed a summary.
+
+### Finding 1, after the fix
+
+```console
+### FINDING 1, after the fix: chmod 000 on the receipt file
+hook stop exit 0
+stdout bytes:      501, stderr bytes:      387
+--- stderr ---
+[fail]  1 perm (verifying) is one step from done, and its verification runs could not be read: EACCES: permission denied, open '.../scratchpad/r2f1/.mstack/verification.tsv' -> fix the file or delete it and re-run 'mstack gate --full'; an unreadable record of what ran is not a record that anything did
+--- the hook's JSON still parses, alone on stdout ---
+The mstack gate is red. Fix these before closing:
+- 1 perm (verifying) is one step from done, and its verification runs could not be read: EACCES: permission denied, open '.../scratchpad/r2f1/.mstack/verification.tsv' -> fix the file or delete it and re-run 'mstack gate --full'; an unreadable record of what ran is not a record that anything did
+
+### and the gate reaches its workspace section and its summary
+
+-- workspace
+[ok]    on branch feat/x
+[ok]    working tree is clean
+
+FAILED - 1 failure, 0 warnings
+gate exit 1
+
+### and the close is refused with something a reader can act on
+mstack: perm's verification runs could not be read, so nothing here can say whether it was verified: EACCES: permission denied, open '.../scratchpad/r2f1/.mstack/verification.tsv'
+        fix the file or delete it and re-run 'mstack gate --full'; an unreadable record of what ran is not a record that anything did
+exit 2
+```
+
+### Finding 2, reproduced by me before the fix
+
+```console
+[ok]    sh check.sh
+PASSED - 0 failures, 0 warnings
+
+### the verification is now red, uncommitted. sh check.sh exits 1
+[ok]    verification ran and passed at 63086310: sh check.sh
+[warn]  1 uncommitted change(s); expected mid-session, not at close
+PASSED - 0 failures, 1 warning
+
+1 drift-probe (done)
+  status: "verifying" -> "done"
+EXIT=0
+```
+
+### Finding 2, after the fix — including the usability half
+
+```console
+[ok]    sh check.sh
+PASSED - 0 failures, 0 warnings
+
+### the verification is now red, uncommitted (sh check.sh exits 1)
+[fail]  1 drift-probe (verifying) is one step from done, and `sh check.sh` last ran at c2ef219e against a different working tree, so it does not vouch for the files as they are now
+[warn]  1 uncommitted change(s); expected mid-session, not at close
+FAILED - 1 failure, 1 warning
+
+### and the close
+mstack: drift-probe cannot close on a verification that has not run: `sh check.sh` last ran at c2ef219e against a different working tree, so it does not vouch for the files as they are now
+        run 'mstack gate --full' at this commit; closing is the one moment the run has to be real, and --force closes it unverified
+EXIT=2
+
+### store churn alone does NOT void it: revert the code, edit the store
+[ok]    verification ran and passed at c2ef219e: sh check.sh
+PASSED - 0 failures, 1 warning
+
+### the receipt, with the tree it ran against
+target       sha                                       command      outcome  ts                        tree
+drift-probe  c2ef219e6b92fcf0bb5f0bb117eb810b4c2488a2  sh check.sh  passed   2026-08-21T12:52:29.382Z  clean
+```
+
+The last block is the half that decides whether this ships or gets disabled. Reverting the code
+edit and then editing the store restores the green: store churn is not code churn, so the check
+does not fire on the thing every session does every turn.
+
+### Finding 3, the migration path, end to end
+
+```console
+### the gate now names the cause
+[warn]  .mstack/verification.tsv is not gitignored, and committing it voids the runs it records: run 'mstack setup' to install .mstack/.gitignore, then 'git rm --cached .mstack/verification.tsv' if it is already tracked
+PASSED - 0 failures, 2 warnings
+
+### and the documented recovery works
+[ok]    .mstack/.gitignore ready (verification.tsv is machine-local)
+0 warnings about it now
+?? .mstack/.gitignore
+```
+
+### Mutations: 36, all killed, baseline green before and after
+
+Round 1's nineteen re-anchored against the new code, plus seventeen for round 2. Every `R2-*`
+entry reverts one round-2 fix to exactly the behaviour the reviewer reproduced at `26b0671`, so
+the same run is the "red against the code as it was" evidence for every new test.
+
+```console
+=== BASELINE (must be green, or nothing below means anything) ===
+
+ 242 pass
+ 0 fail
+M1     src/verification.ts    lastRun keeps the FIRST match instead of the last
+       killed (1 of 1 matching "the last run at a commit wins" went red)   (restored ok, sha256 5dc7541370f4)
+M2     src/verification.ts    lastRun stops caring which commit the run was at
+       killed (1 of 1 matching "a run recorded at an older commit does not carry over" went red)   (restored ok, sha256 5dc7541370f4)
+M3     src/verification.ts    lastRun stops caring which command was run
+       killed (1 of 1 matching "editing the verification string voids the receipt" went red)   (restored ok, sha256 5dc7541370f4)
+M4     src/verification.ts    any recorded run counts, pass or fail
+       killed (1 of 1 matching "a recorded failing run keeps the gate red" went red)   (restored ok, sha256 5dc7541370f4)
+M5     src/verification.ts    a passing run no longer satisfies the command
+       killed (1 of 1 matching "a recorded passing run at this commit turns it green" went red)   (restored ok, sha256 5dc7541370f4)
+M6     src/verification.ts    the item's own verification drops out of the obligation list
+       killed (1 of 1 matching "both configured commands have to have run" went red)   (restored ok, sha256 5dc7541370f4)
+M7     src/verification.ts    the project verify command drops out of the obligation list
+       killed (1 of 1 matching "the obligation list is exactly what --full would run" went red)   (restored ok, sha256 5dc7541370f4)
+M8     src/verification.ts    an empty obligation list reads as unsatisfied
+       killed (1 of 1 matching "closing an item nothing verifies is not blocked by this guard" went red)   (restored ok, sha256 5dc7541370f4)
+M9     src/verification.ts    'never ran' and 'ran at another commit' collapse into one message
+       killed (1 of 1 matching "a run recorded at an older commit does not carry over" went red)   (restored ok, sha256 5dc7541370f4)
+M10    src/gate.ts            the receipt problem becomes a warning instead of a failure
+       killed (1 of 1 matching "whose verification never ran is red" went red)   (restored ok, sha256 a11818f53599)
+M11    src/gate.ts            the run is demanded from every active status, not just verifying
+       killed (1 of 1 matching "nothing before verifying is held to a run" went red)   (restored ok, sha256 a11818f53599)
+M12    src/gate.ts            --full runs the commands but records nothing
+       killed (1 of 1 matching "--full records what it ran" went red)   (restored ok, sha256 a11818f53599)
+M13    src/gate.ts            --full records every run as a pass
+       killed (1 of 1 matching "--full records a failure too" went red)   (restored ok, sha256 a11818f53599)
+M14    src/gate.ts            --full that ran nothing goes back to warn-and-exit-0
+       killed (1 of 1 matching "gate --full is distinguishable" went red)   (restored ok, sha256 a11818f53599)
+M15    src/gate.ts            --full also demands a receipt of the run it is about to perform
+       killed (1 of 1 matching "--full does not ask for a receipt" went red)   (restored ok, sha256 a11818f53599)
+M16    src/gate.ts            the check stays silent when nothing is due
+       killed (1 of 1 matching "with no active item the check says so" went red)   (restored ok, sha256 a11818f53599)
+M17    src/gate.ts            verifying with nothing configured becomes a hard failure
+       killed (1 of 1 matching "with nothing configured warns rather than wedging" went red)   (restored ok, sha256 a11818f53599)
+M18    src/cli.ts             the closing guard is consulted and its answer ignored
+       killed (1 of 1 matching "an item cannot be closed on a verification that never ran here" went red)   (restored ok, sha256 f0ea8a46bfb5)
+M20    src/cli.ts             the guard fires on every status move, not only into done
+       killed (1 of 1 matching "only the move into done is guarded" went red)   (restored ok, sha256 f0ea8a46bfb5)
+R2-1a  src/gate.ts            F1: the receipt read is unguarded again, as at 26b0671
+       killed (1 of 1 matching "an unreadable receipt file is a failure" went red)   (restored ok, sha256 a11818f53599)
+R2-1b  src/gate.ts            F1: the same, seen from the checks below it
+       killed (1 of 1 matching "does not stop the checks below it" went red)   (restored ok, sha256 a11818f53599)
+R2-1c  src/cli.ts             F1: the closing guard's read reports a raw errno again
+       killed (1 of 1 matching "an unreadable receipt file refuses the close" went red)   (restored ok, sha256 f0ea8a46bfb5)
+R2-2a  src/verification.ts    F2: the receipt certifies a commit again, not a tree
+       killed (1 of 1 matching "an uncommitted edit after the run voids the receipt" went red)   (restored ok, sha256 5dc7541370f4)
+R2-2b  src/verification.ts    F2: the same, against a modified tracked file
+       killed (1 of 1 matching "a modified tracked file voids the receipt too" went red)   (restored ok, sha256 5dc7541370f4)
+R2-2c  src/verification.ts    F2: the fingerprint stops excluding the store
+       killed (1 of 1 matching "edits inside .mstack/ do not void a run" went red)   (restored ok, sha256 5dc7541370f4)
+R2-2d  src/verification.ts    F2: a pre-migration row is blamed on a tree it never had
+       killed (1 of 1 matching "before the tree column existed" went red)   (restored ok, sha256 5dc7541370f4)
+R2-2e  src/verification.ts    F2: a clean tree is hashed rather than named, so the TSV is unreadable
+       killed (1 of 1 matching "the tree fingerprint ignores the store and nothing else" went red)   (restored ok, sha256 5dc7541370f4)
+R2-2f  src/git.ts             F2: git() trims porcelain again, so the first line's path parse shifts by one
+       killed (1 of 1 matching "edits inside .mstack/ do not void a run" went red)   (restored ok, sha256 fb1d422c2071)
+R2-3a  src/gate.ts            F3: a receipt file git would commit is not called out
+       killed (1 of 1 matching "a receipt file that git would commit is called out by name" went red)   (restored ok, sha256 a11818f53599)
+R2-3b  src/gate.ts            F3: the warning fires even when the store is correctly ignored
+       killed (1 of 1 matching "the ignored case says nothing at all" went red)   (restored ok, sha256 a11818f53599)
+R2-4a  src/verification.ts    F4: obligations stop trimming, so a whitespace-only verify becomes a command
+       killed (1 of 1 matching "the obligation list is exactly what --full would run" went red)   (restored ok, sha256 5dc7541370f4)
+R2-4b  src/verification.ts    F4: the match stops normalising, so internal whitespace becomes tolerated
+       killed (1 of 1 matching "surrounding whitespace is the same command" went red)   (restored ok, sha256 5dc7541370f4)
+R2-1n  src/verification.ts    nitpick 1: identical project and item commands run twice again
+       killed (1 of 1 matching "identical project and item commands are one obligation" went red)   (restored ok, sha256 5dc7541370f4)
+R2-5a  src/cli.ts             F5: --force closes unverified with no reason demanded
+       killed (1 of 1 matching "refused without a reason on the record" went red)   (restored ok, sha256 f0ea8a46bfb5)
+R2-5b  src/cli.ts             F5: the reason is stored unmarked, indistinguishable from an ordinary note
+       killed (1 of 1 matching "the reason is durable and marked" went red)   (restored ok, sha256 f0ea8a46bfb5)
+R2-5c  src/cli.ts             F5: the note is never written to state.json, only printed
+       killed (1 of 1 matching "the reason is durable and marked" went red)   (restored ok, sha256 f0ea8a46bfb5)
+
+=== SUMMARY ===
+36 mutations, 36 killed, 0 survived, 0 setup errors
+
+=== POST-RUN BASELINE (proves every restore landed) ===
+
+ 243 pass
+ 0 fail
+```
+
+Read the driver's closing `git status --porcelain src/` line with care: it lists my *uncommitted
+round-2 work*, not a failed restore. The restore proof is the per-mutation sha256, which is
+compared against the byte copy taken immediately before that mutation and printed on every line.
+
+**The first run of this driver was 31 of 36, and two of the five gaps were mine, not the code's.**
+Both survivors were tests pointed at the wrong behaviour, and finding them corrected two things
+I had believed:
+
+- **R2-2f survived**, so my "modified tracked file" test did not pin the `raw` option at all. The
+  trim bug does not make the fingerprint miss a code change; it makes it *over-count a store
+  change*, because the eaten leading space shifts `.mstack/...` to `stack/...` and the store
+  filter stops matching. Re-pointed at `edits inside .mstack/ do not void a run`, where it kills.
+  The comment in `src/git.ts` was rewritten to say the true consequence.
+- **R2-4a survived**, so `obligations`' `.trim()` is not what makes surrounding whitespace
+  tolerated — `cell()` trims on both sides of the comparison, so the match is already immune.
+  What that `.trim()` really guards is the empty check: without it a `verify` of `"   "` becomes
+  a command. Re-pointed at the obligations test, where it kills.
+
+Three more were setup errors of the same kind — a stale anchor after the rewrite, and two
+mutations aimed at tests that were in a different file or did not exist yet (the missing one is
+now `tests/cli.test.ts:742`).
+
+### Final state
+
+```console
+$ npm test
+> bun test tests/ && node --test 'tests/*.test.ts'
+ 243 pass
+ 0 fail
+ℹ pass 243
+ℹ fail 0
+
+$ npm run typecheck
+> bunx --bun tsc --noEmit
+
+$ ./bin/mstack lint-plugin . | tail -3
+[ok]    the lifecycle enum appears only in src/lifecycle.ts
+
+PASSED - 0 failures, 0 warnings
+
+$ node scripts/check-doc-links.mjs README.md docs/wiki/*.md
+60 relative links checked, 0 broken
+```
+
+This repository, verifying itself at `2c61061`:
+
+```console
+$ ./bin/mstack gate | tail -6
+[ok]    verification-never-runs is in_progress; a verification run is due at verifying
+
+-- workspace
+[ok]    on branch feat/verification-never-runs
+[ok]    working tree is clean
+
+PASSED - 0 failures, 0 warnings
+
+$ ./bin/mstack gate --full | tail -3
+[ok]    npm test && npm run typecheck && ./bin/mstack lint-plugin .
+
+PASSED - 0 failures, 0 warnings
+
+$ column -s$'\t' -t .mstack/verification.tsv | tail -3
+verification-never-runs  26b0671d46b655ae82bda50eb9ef1a1c75e9010c  npm test && npm run typecheck && ./bin/mstack lint-plugin .  passed   2026-08-21T12:17:46.438Z
+(project)                2c61061500c2269b0810d29e97ec6127120d69bc  npm test && npm run typecheck && bin/mstack lint-plugin .    passed   2026-08-21T12:57:10.948Z  clean
+verification-never-runs  2c61061500c2269b0810d29e97ec6127120d69bc  npm test && npm run typecheck && ./bin/mstack lint-plugin .  passed   2026-08-21T12:57:10.948Z  clean
+```
+
+The round-1 row has no `tree` value and the round-2 rows do: that is `ensureHeader` widening the
+file in place, live, in this store. The old row is voided rather than trusted, and
+`tests/gate.test.ts:945` pins the message it produces.
+
+## Round-2 requirement to test
+
+| Finding | Test | `file:line` | Mutation that proves it bites |
+|---|---|---|---|
+| 1 — unreadable file is a failure, not a green gate | `an unreadable receipt file is a failure, not a green gate` | `tests/gate.test.ts:822` | R2-1a |
+| 1 — and the checks below it still run | `an unreadable receipt file does not stop the checks below it either` | `tests/gate.test.ts:847` | R2-1b |
+| 1 — the closing guard says what it is refusing | `an unreadable receipt file refuses the close, and says what it is refusing` | `tests/cli.test.ts:742` | R2-1c |
+| 2 — an uncommitted edit voids the run, and reverting restores it | `an uncommitted edit after the run voids the receipt` | `tests/gate.test.ts:878` | R2-2a |
+| 2 — the same for a modified tracked file | `a modified tracked file voids the receipt too, leading space and all` | `tests/gate.test.ts:909` | R2-2b |
+| 2 — store churn does **not** void a run | `edits inside .mstack/ do not void a run, or the gate would be red every turn` | `tests/gate.test.ts:926` | R2-2c, R2-2f |
+| 2 — a pre-migration row says what it is | `a run recorded before the tree column existed says so rather than blaming a tree` | `tests/gate.test.ts:945` | R2-2d |
+| 2 — the fingerprint itself | `the tree fingerprint ignores the store and nothing else` | `tests/verification.test.ts:242` | R2-2e |
+| 3 — an unignored receipt file is named, with both commands | `a receipt file that git would commit is called out by name` | `tests/gate.test.ts:963` | R2-3a |
+| 3 — and silent when correctly ignored | `the ignored case says nothing at all, on the path that runs every turn` | `tests/gate.test.ts:985` | R2-3b |
+| 4 — the whitespace boundary, both directions | `surrounding whitespace is the same command; internal whitespace is not` | `tests/verification.test.ts:180` | R2-4b (the reviewer's M12) |
+| 5 — `--force` alone is refused | `--force on an unverified close is refused without a reason on the record` | `tests/cli.test.ts:662` | R2-5a |
+| 5 — the reason is durable and marked | `--force with a reason closes it, and the reason is durable and marked` | `tests/cli.test.ts:677` | R2-5b, R2-5c |
+| nitpick 1 — dedupe | `identical project and item commands are one obligation, not two runs` | `tests/verification.test.ts:220` | R2-1n |
+
+## Where each round-2 claim stopped on the ladder
+
+| Claim | Rung | What got it there |
+|---|---|---|
+| Finding 1 was real: the unreadable file turned a red hook silently green | 5 | My own repro before any fix — `hook stop` 0 bytes exit 0, `gate` EACCES exit 2 with no summary |
+| Finding 1 is fixed: the hook blocks, the JSON still parses alone on stdout, the gate finishes | 5 | Same store, shipped `bin/mstack hook stop` as a real process; 501 bytes of parseable JSON, 387 on stderr |
+| Finding 2 was real: a green receipt survived an edit that broke the command, and the item closed | 5 | My own repro before any fix, exit 0 throughout |
+| Finding 2 is fixed, **and store churn still does not void a run** | 5 | Scratch store: code edit → red; revert code, edit `.mstack/` → green again |
+| Finding 3's warning fires on a pre-change store and clears after `mstack setup` | 5 | Store built without `.mstack/.gitignore`, through the shipped binary |
+| The tree key does not break this repository's own gate | 5 | `./bin/mstack gate --full` green at `2c61061`, two rows recorded `clean`, tree still clean afterwards |
+| Every round-2 behaviour is enforced by code rather than prose | 4 | 243 tests on bun and node; 36 mutations, all killed, baseline green before and after, restores byte-verified |
+| `record` under concurrency can lose a row | **3** | Unchanged from the reviewer's finding: the `ensureHeader` window is real, 8 of 8 concurrent runs lost nothing. Not settled, and not written up as settled |
+| A store on a filesystem that refuses the **write** reports usefully | **2** | Still only read and typechecked. The read path is now rung 4; the write path is not, and I am not claiming otherwise |
+| Whether Claude Code renders a hook's stderr to a person | **2** | Unchanged since item 16 |
+
+## For the reviewer, round 2
+
+1. **Process, and it is worse than round 1.** Round 1 landed as five ordered commits. Round 2's
+   code landed as **one** (`db80ca9`), because the fixes interleave inside the same functions and
+   splitting them cleanly needed per-hunk staging, which is not available here. I did not rewrite
+   history to fake it. The docs are a separate commit; the code is not separable after the fact.
+2. **The dedupe does not help this store**, because `state.verify` says `bin/mstack lint-plugin .`
+   and item 14's `verification` says `./bin/mstack lint-plugin .`, so every `gate --full` here
+   still runs the suite twice. Aligning them is a one-character edit to `state.json` and it is
+   store data, not code — I left it rather than editing the item under review. Worth doing.
+3. **`--closed-by` is now mandatory on a forced unverified close only.** Every other use of
+   `--closed-by` and of `--force` is untouched. If you would rather it were a `decisions.tsv`
+   row, that is the reviewer's alternative and it is a larger change: `decide` writes a row and
+   `state set` would have to compose with it.
+4. **Finding 6 stands.** Both ledger rows for this item are `--verifier implementer`, and a third
+   one at the round-2 head is too. None of them can close it, by design.
+5. **One transcript in this report was wrong when first written**, and I caught it re-running the
+   command rather than trusting what I had typed: the third receipt row's target is
+   `verification-never-runs`, not `(project)`. Recording it because a pasted-output rule that
+   only holds when nobody slips is not a rule.

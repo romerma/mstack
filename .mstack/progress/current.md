@@ -282,10 +282,50 @@ programme 230 minutes of a red gate nobody saw.
   row is itself a commit, so a row can never name the HEAD that carries it. The reviewer records
   their own row against whatever HEAD they verify at, which is the point of the rule.
 
+- **Round 2.** Review came back CHANGES_REQUESTED with eight findings, two blocking. Both
+  blocking ones were reproduced by me at rung 5 *before* any fix, and both were the receipt
+  claiming more than it could prove.
+- Finding 1: `receipts` read a file with no try/catch, and `cmdHook` swallows every throw, so an
+  unreadable `verification.tsv` made `hook stop` emit zero bytes and exit 0 — a green gate — and
+  threw `mstack gate` out mid-run. The seventh instance of this repo's own defect class, shipped
+  by the change built to close the sixth. Wrapped now, in the shape of the sibling whose comment
+  already named the bug.
+- Finding 2: the receipt certified a **commit**, not a **tree**. A sixth `tree` column now holds
+  a fingerprint of `git status --porcelain` with `.mstack/` removed, so a code edit voids a run
+  and writing progress notes does not. That exclusion is what makes it usable rather than merely
+  correct.
+- Findings 3, 4, 5, 7 and nitpicks 1, 2, 4, 7 also landed; 5's ruling was the reviewer's:
+  `--force` on an unverified close now needs `--closed-by` and stores it prefixed
+  `closed unverified (forced):`. Nitpick 5 (`withLock`) deliberately unchanged, reason in a row.
+- `git()` moved to `src/git.ts` so `verification.ts` can use it without a cycle, and gained a
+  `raw` option that turned out to be load-bearing: the whole-output trim eats the leading space
+  of the first porcelain line, which shifted `.mstack/...` to `stack/...` and broke the store
+  exclusion for that line only.
+- 36 mutations, 36 killed. The first run was 31/36 and **two of the five gaps were mine**: two
+  tests pointed at the wrong behaviour, and finding that corrected two things I believed about
+  my own code. Written up rather than quietly re-pointed.
+
+## Verification
+
+- Round 2, rung 5: both blocking findings reproduced before the fix and re-run after, through
+  `./bin/mstack` and `./bin/mstack hook stop` as real processes. Plus the usability half of
+  finding 2 — revert the code edit, edit the store, gate green again — which is the property
+  that decides whether this ships or gets switched off.
+- Round 2, rung 4: `npm test` 243 pass on bun and node; typecheck clean; `lint-plugin` 0/0;
+  `check-doc-links` 60 links 0 broken. 36 mutations killed, baseline green before and after,
+  every restore byte-verified by sha256.
+- Still rung 2 and said so: the receipt **write** failure path, and whether Claude Code renders a
+  hook's stderr. Still rung 3: losing a row under concurrent `gate --full`.
+- Commits: `db80ca9` the round-2 code (one commit, which is worse than round 1's five and is
+  called out in the report), `2c61061` the docs.
+
 ## Next step
 
-- If this dies: item 14's implementation is complete on feat/verification-never-runs and the
-  report is at `.mstack/progress/impl_verification-never-runs.md`. It is **not** approved —
-  a reviewer that did not write it decides that, and the item stays `in_progress` until then.
-  Note for whoever moves it to `verifying`: the gate will then demand a `gate --full` run at
-  that commit, which is this feature verifying itself. Items 15 and 17 still pending.
+- If this dies: round 2 of item 14 is complete on feat/verification-never-runs; the round-2
+  section is at the end of `.mstack/progress/impl_verification-never-runs.md`, and the reviewer's
+  findings are in `.mstack/progress/review_verification-never-runs.md`. It is **not** approved —
+  a reviewer that did not write it decides that, and the item stays `in_progress`.
+  Two things for the closing pass, both named in the report: finding 6 (this item needs a verdict
+  at the SHA it closes on, from a pass that did not write the code — every existing row is
+  `--verifier implementer`), and the one-character `state.json` edit that would let the new
+  dedupe stop running this repo's suite twice per `gate --full`. Items 15 and 17 still pending.
