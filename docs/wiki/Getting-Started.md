@@ -3,7 +3,10 @@
 This page takes a clean repository from nothing to a first closed work item. Every command
 block below is followed by the output it actually produced; the run was done in a scratch
 repository containing one Python file and one test. Where a command is refused, the refusal is
-the product working, and it is shown rather than edited out.
+the product working, and it is shown rather than edited out. The binary that produces and
+re-runs these transcripts is the mstack repository's own `./bin/mstack` at the commit that
+last edited this page; for you, with the plugin installed, `mstack` on `PATH` is the right
+spelling, which is why the blocks are written that way.
 
 ## Prerequisites
 

@@ -3,7 +3,10 @@
 `bin/mstack` is on `PATH` for every Bash call while the plugin is enabled. It is a small `sh`
 launcher over `src/cli.ts`; there is no build step, and the CLI uses only `node:` builtins.
 Every output block below is from one real run in a scratch repository, except where a command
-is shown refusing for a documented reason. The scratch queue mirrors `examples/notes-cli`:
+is shown refusing for a documented reason. The binary behind every `$ mstack` on this page is
+the repository's own `./bin/mstack` at the commit that last edited it — inside the mstack repo
+the `mstack` on `PATH` is the installed plugin, a different copy, and re-running these blocks
+against it exercises whatever release is installed rather than the transcripts. The scratch queue mirrors `examples/notes-cli`:
 `greet-flag` is the [Getting-Started](Getting-Started.md) walkthrough item, and ids 2 and 3
 are the example's `cli-search` and `export-json`, so the fork item here is the same item, same
 id, same question you will meet in the shipped example.

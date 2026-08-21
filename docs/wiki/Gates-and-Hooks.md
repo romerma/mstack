@@ -206,16 +206,28 @@ Walking the lines that carry the weight:
 
 - **"store root is an mstack checkout"** does not appear in the transcript above, and in your
   repository it never will: it speaks only where the store's root is a checkout of this
-  plugin itself, carrying both `bin/mstack` and `src/cli.ts`. There, the `mstack` on `PATH`
-  is the *installed* copy, and a report it produces comes from code that can predate the
-  checks under review — reproduced as an installed 0.1.0 printing `PASSED` exit 0 over a
-  store whose own gate printed `FAILED` exit 1, at the same commit. So a gate run by a
-  foreign copy in a checkout is a failure that names the copy that ran and the
-  `bin/mstack` to run instead, and every other subcommand adds one stderr line saying the
-  same; `mstack version` prints which copy is running either way. The honest limit: the
-  check ships with the code that is being missed, so a copy installed *before* it existed
-  still reports nothing — it closes every future round of this trap, not the one already on
-  disk.
+  plugin itself, identified by `.claude-plugin/plugin.json` naming `mstack` (plus
+  `bin/mstack` and `src/cli.ts` existing, so the fix it prints is runnable — file markers
+  alone false-positived on an ordinary project that happened to carry both names). There,
+  the `mstack` on `PATH` is the *installed* copy, and a report it produces comes from code
+  that can predate the checks under review — reproduced as an installed 0.1.0 printing
+  `PASSED` exit 0 over a store whose own gate printed `FAILED` exit 1, at the same commit.
+  So a gate run by a foreign copy in a checkout is a failure that names the copy that ran
+  and the `bin/mstack` to run instead, and every other subcommand adds one stderr line
+  saying the same; `mstack version` prints which copy is running either way.
+
+  Foreign means outside the *repository*, not merely at another path. A `git worktree` of
+  the checkout shares its git common dir and is not foreign — deliberately, at any commit,
+  because the hooks run `${CLAUDE_PLUGIN_ROOT}/bin/mstack`, a path a session cannot redirect
+  per worktree, and the orchestrate flow makes worktrees the unit of parallel work; a gate
+  that is red every turn on byte-identical code is a hook people switch off. What that
+  trades away is recorded in the decision row: a worktree at a different commit runs
+  different code and is accepted, bounded by the fact that worktrees are created from,
+  merged into and pruned by the same repository. A separate clone answers with a different
+  common dir and stays foreign, as does the installed cache, which is not a git repository
+  at all. The honest limit: the check ships with the code that is being missed, so a copy
+  installed *before* it existed still reports nothing — it closes every future round of
+  this trap, not the one already on disk.
 
 ### `gate --full`
 
