@@ -1,5 +1,9 @@
 # The story
 
+This page is background, not instructions: where mstack comes from, and why it is shaped
+the way it is. Read it when you want the reasoning behind the workflow's rules. Skip it
+freely if you just want to use the tool.
+
 mstack has two parents. One is [pstack](https://github.com/cursor/plugins/tree/main/pstack), a
 Cursor plugin by [Lauren Tan](https://github.com/poteto). The other is a spec-driven harness
 that had been running in production, which these pages leave unnamed by convention. This page

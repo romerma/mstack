@@ -1,5 +1,10 @@
 # State files
 
+mstack's memory is a handful of small files in your repository, and this page reads
+through them one by one. Come here when you want to know what a column means, which file to
+trust after a crash, or where a verdict or a decision actually lands. Nothing in `.mstack/`
+is opaque: every file is plain text, and each one is small enough to read whole.
+
 Everything durable lives in `.mstack/`, in the repository, under version control. Chat is not
 state: a context window dies mid-task, a subagent's working context vanishes with it and its
 parent only ever sees the final reply, and a resumed session starts from what is on disk.

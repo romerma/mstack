@@ -1,5 +1,10 @@
 # Publishing the wiki
 
+This page is for maintainers of mstack itself, not for users of the plugin. It records
+the mechanical steps that copy `docs/wiki/` to the project's GitHub wiki, and the link
+rewrites the copy needs. If you are reading the published wiki, nothing here changes what
+you read.
+
 The files in `docs/wiki/` are the wiki. They live in the repository so they can be reviewed
 like code, exist before the GitHub repository does, and carry links that resolve in-repo. A
 GitHub wiki is itself a git repository, one the docs let you clone once its first page has
@@ -61,8 +66,9 @@ the docs pages checked — so strip `.md` from the intra-wiki links. With
 
 ```bash
 sd '\]\(([A-Za-z-][A-Za-z_-]*)\.md\)' ']($1)' \
-  Home.md Getting-Started.md The-Story.md How-A-Work-Item-Flows.md Gates-and-Hooks.md \
-  The-CLI.md State-Files.md Status-Line.md _Sidebar.md _Footer.md
+  Home.md Getting-Started.md The-Story.md How-A-Work-Item-Flows.md The-Agents.md \
+  Skills-and-Playbooks.md Gates-and-Hooks.md The-CLI.md State-Files.md Status-Line.md \
+  _Sidebar.md _Footer.md
 ```
 
 Two deliberate scopings. The character class matches bare page names like

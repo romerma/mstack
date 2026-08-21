@@ -1,5 +1,11 @@
 # mstack
 
+mstack makes agent work inspectable. You ask for something in plain words; a router turns
+the request into a plan with named steps; agents that cannot approve their own work build
+and judge it; and nothing closes until a gate that is code has seen the proof. Everything
+the workflow knows lives in files in your repository, so a crashed session, or you, can
+always see where things stand.
+
 mstack is a Claude Code plugin for rigorous, verifiable agent workflows: work items live in a
 durable store on disk, every claim carries a typed verdict keyed to a commit SHA, and the rules
 that must hold are enforced by hooks and gates that are code rather than prose. It is a port of
@@ -8,6 +14,26 @@ that must hold are enforced by hooks and gates that are code rather than prose. 
 `pstack`, and mstack keeps it), joined to the enforcement machinery of a spec-driven harness
 that had been running in production. The judgment came from pstack; the enforcement came
 from the harness; what is new is the join.
+
+## One request, end to end
+
+```mermaid
+flowchart TD
+    you(["You: /mstack, in plain words"]) --> router["Router matches a playbook"]
+    router --> steps["Playbook steps land in the todo list, verbatim"]
+    steps -->|"spec path"| spec["spec-author writes it, spec-reviewer grills it"]
+    steps -->|"direct path"| impl["implementer builds it, tests included"]
+    spec --> impl
+    impl --> review["reviewer judges it, and did not write it"]
+    review -->|"CHANGES_REQUESTED"| impl
+    review -->|"APPROVED"| ledger["Verdict in the ledger, keyed to this commit"]
+    ledger --> gate["mstack gate green"]
+    gate --> merged(["Merged, item done"])
+```
+
+The router and its playbooks are on [Skills-and-Playbooks](Skills-and-Playbooks.md), the
+agents in the middle are on [The-Agents](The-Agents.md), and the gate at the end is on
+[Gates-and-Hooks](Gates-and-Hooks.md).
 
 ## Where to start
 
@@ -25,6 +51,8 @@ If you want to know why the plugin is shaped the way it is before you run anythi
 | [Getting-Started](Getting-Started.md) | Prerequisites, both install routes, the status line, and a first work item driven end to end, with real output |
 | [The-Story](The-Story.md) | pstack and its author, the unnamed harness, where the two agree, where they disagree, and what the port fixed |
 | [How-A-Work-Item-Flows](How-A-Work-Item-Flows.md) | The lifecycle and its legal transitions, direct path versus spec path, the decision gate, and the example repo's three seeded items |
+| [The-Agents](The-Agents.md) | The five agents: who builds, who judges, which report each one writes, and why nobody approves their own work |
+| [Skills-and-Playbooks](Skills-and-Playbooks.md) | The twelve `/mstack` commands, the router's route table, the seven playbooks, and the two paths |
 | [Gates-and-Hooks](Gates-and-Hooks.md) | The five hooks and what each one enforces, every check `mstack gate` runs, and the merge gate's decision rules |
 | [The-CLI](The-CLI.md) | Every subcommand with a real example and its output, the exit codes, and the verdict enum |
 | [State-Files](State-Files.md) | The anatomy of `.mstack/`: state.json fields, ledger and decisions columns, the progress-file disciplines, and the evidence ladder |

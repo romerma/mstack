@@ -1,5 +1,11 @@
 # Gates and hooks
 
+This page covers the part of mstack that does not ask nicely: the checks that run by
+themselves and refuse things. Read it when the gate has gone red and you want to know why,
+or when you want to know what is actually enforced rather than merely written down. The
+short version: hooks watch the session, `mstack gate` audits the store, and the merge gate
+decides whether a change may land.
+
 The enforcement plane has three parts: five hooks that run on Claude Code's events
 (`hooks/hooks.json`, handlers in `src/hooks.ts`), the session gate (`mstack gate`,
 `src/gate.ts`), and the merge gate (`mstack merge-gate`, `src/mergegate.ts`). Skills ask;

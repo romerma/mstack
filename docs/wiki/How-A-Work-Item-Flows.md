@@ -1,5 +1,13 @@
 # How a work item flows
 
+Every piece of work mstack tracks is a work item, and this page follows one through its
+life: from filed, through being built and reviewed, to closed. The machinery exists for two
+guarantees: an item cannot be closed by the pass that built it, and it cannot skip the
+checks on the way out. Read this page when you want to know what a status means, why a
+transition was refused, or which of the two planning routes your work will take. Who does
+the building and judging is in [The-Agents](The-Agents.md); this page is about the item
+itself.
+
 A work item is a row in `.mstack/state.json` with a slug, an acceptance array quoted from its
 source, and a status. The status machine is defined once, in `src/lifecycle.ts`, and `mstack
 lint-plugin` fails the build if a second copy of the enum appears anywhere in the repository.
@@ -10,6 +18,39 @@ Nine statuses (`src/lifecycle.ts:10-20`):
 
 ```
 pending · specifying · spec_ready · in_progress · reviewing · verifying · done · blocked · cancelled
+```
+
+Drawn as a machine. `blocked` is kept to a note because it connects to nearly everything,
+which is also how the code handles it; the table below the diagram is the precise reference.
+
+```mermaid
+stateDiagram-v2
+    [*] --> pending
+    pending --> specifying
+    pending --> in_progress
+    pending --> cancelled
+    specifying --> spec_ready
+    specifying --> pending
+    specifying --> cancelled
+    spec_ready --> in_progress
+    spec_ready --> specifying
+    spec_ready --> cancelled
+    in_progress --> reviewing
+    in_progress --> cancelled
+    reviewing --> in_progress
+    reviewing --> verifying
+    reviewing --> cancelled
+    verifying --> done
+    verifying --> in_progress
+    verifying --> cancelled
+    cancelled --> pending
+    done --> [*]
+    blocked
+    note right of blocked
+        reachable from any status except
+        done and cancelled; leaves to any
+        status except done and blocked
+    end note
 ```
 
 The legal transitions, from `TRANSITIONS` (`src/lifecycle.ts:63-73`):
