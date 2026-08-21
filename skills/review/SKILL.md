@@ -36,5 +36,18 @@ The reviewer did not write the code. If that is not true, stop: fetch someone wh
    not carry over.
 8. Synthesize into one verdict: `APPROVED` or `CHANGES_REQUESTED`, then the findings ordered by
    severity, each with a `file:line`. A finding without a location is a feeling.
+9. One ledger row per review round, typed by the pass that formed the verdict it carries:
+   - A lone `mstack:reviewer` records its own row (`--verifier reviewer`) before returning.
+     Confirm the row exists with `mstack ledger check <slug>`; do not type a second one on
+     its behalf.
+   - After a panel, the lenses have recorded nothing, so record the synthesized verdict
+     yourself: `mstack ledger record <slug> "$(git rev-parse HEAD)" <verdict> --evidence
+     <the lens reports> --verifier <your own role, never reviewer>`. One row, not one per
+     lens: the ledger keeps the best row per `(target, sha)`, and a split panel means its
+     worst lens, not its best.
+
+   Either way the mapping is fixed: `APPROVED` records the rung the verification reached,
+   `CHANGES_REQUESTED` records `verifier-failed`, and a verification nobody could run
+   records `verifier-blocked`.
 
 **Reply:** the verdict, and the findings that changed the outcome.
