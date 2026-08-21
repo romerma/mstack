@@ -79,3 +79,47 @@ refinement round built on two defects that do not exist.
 **Honest remainder.** The agent timings and token counts in PROTOCOL.md come from task
 notifications and are not verifiable from either repository; the document says so. Six
 minors on the app itself are unfixed and listed in `sandbox/.mstack/progress/review_weather-app_r2.md`.
+
+## 2026-08-21 — item 12 rm-guard-command-boundary, closed
+
+Found by the dogfood session in `sandbox/PROTOCOL.md`: the `PreToolUse` guard matched its
+patterns against the whole command line, so `[^\n]*` crossed `&&`, `;` and `|`. Four false
+denials reproduced, and two trivial bypasses. The harm was never the inconvenience — whoever
+hits a false positive learns to route around the guard, which is the behaviour it exists to
+prevent.
+
+**Shipped wider than filed, deliberately.** The fix segments the command and applies the
+match per segment at one call site, so all six guards get it, not only `rm`. The item's title
+and its four acceptance criteria still say `rm`; the shipped behaviour is wider, and the
+reviewer's closing answer is that the widening was right on evidence it did not have when it
+first raised the scope question: over a 736-spelling corpus the widening closes **three real
+bypasses `main` shipped with** (`git push origin main -f` followed immediately by `;`, `|` or
+`&`, where the lookahead failed against an unsegmented line), and it removed four sibling
+false positives of the same kind the item was filed about. Recorded as a decision row rather
+than slipped in.
+
+**Two rounds, and round 1 was wrong in the dangerous direction.** The first fix introduced a
+real false allow: a separator inside `$(...)` or backticks split one shell command in half,
+the verb landed in one fragment and its argument in the other, and **30 of 30 spellings
+regressed from DENY to allow across all five guards**. The reviewer proved it at rung 5 by
+letting the allowed command delete a real store directory. Two of the spellings were everyday
+idioms, not contrivances. Round 2 closed it with substitution-depth tracking.
+
+The orchestrating pass's own check missed that entirely — 9/9 green on cases that never
+included command substitution. It tested the hypothesis, not the change. That is the reason
+this item took two rounds and it is worth remembering: the direction to attack a guard fix is
+false *allows*, and the pass that wrote the brief is the one least likely to think of them.
+
+**Closed on:** 528-spelling differential across both shipped binaries with zero false allows
+introduced; 50 further adversarial cases against the new depth tracking, five of which looked
+like regressions and were each run through real bash before being dismissed — none was a real
+deletion or force push, and one was `main` over-denying a file literally named with a
+backtick. Seven per-construct mutations each killed by a named test. 176 tests on both
+runtimes, typecheck and lint clean.
+
+**One process note kept on the record.** The implementer's first mutation driver restored with
+`git checkout`, which discarded the uncommitted fix and made six of seven mutations run
+against unmodified code. It caught that itself, re-ran after committing, and reported it. A
+mutation suite that silently tests nothing is the fourth instance of the same shape this
+programme has caught: a spec predicate that could not fail, a drill disjunct that was always
+false, an accessibility audit that cannot fail over gradients, and now this.
