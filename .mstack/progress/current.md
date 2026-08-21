@@ -60,6 +60,23 @@ implementer ledger row recorded. If this session stops now: nothing is left for 
 implementer — the item awaits a review pass that did not write this code. Do not close it on
 the implementer's row.
 
+- Round 1 landed the mechanism: `runningCliRoot()` off `import.meta.url`, `isMstackCheckout`
+  on two markers, `foreignCliRoot` canonicalising both sides. 267 tests, was 258.
+- Verified the five rows myself at rung 5: own CLI ok exit 0, a foreign copy of the same code
+  fails exit 1, the actually-stale 0.1.0 says nothing and exits 0 (the honest limit), an
+  ordinary user repo silent both ways, and `version` printing the resolved path.
+- Round 1 review: CHANGES_REQUESTED, two blocking findings, both reproduced here before
+  sending them back.
+  - A `git worktree` of this repo at the SAME commit is a red gate when run with the main
+    checkout's binary, which is what `hooks/hooks.json` wires. This plugin ships worktree
+    tooling and an orchestrate playbook that mandates worktrees, so the check as written turns
+    a normal program session red every turn on byte-identical code.
+  - The two-marker heuristic fires on any project carrying `bin/mstack` and `src/cli.ts`, and
+    the `fix:` line then tells a stranger to run their own unrelated script. No way to switch
+    it off.
+- Two docs findings: the transcript convention is stated where the transcripts are not, and
+  README claims a red gate that today's foreign copy does not produce.
+
 ## Verification
 
 - Pending.
