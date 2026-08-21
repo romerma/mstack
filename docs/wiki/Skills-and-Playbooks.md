@@ -27,7 +27,7 @@ sits behind.
 | `/mstack:verify` | Proves one claim on the surface where it is actually true or false, and records a typed verdict in the ledger | After implementing anything |
 | `/mstack:review` | Judges work that already exists against its requirements, its tests and the real diff, using reviewers that did not write it | A branch, a PR, or a diff needs judging |
 | `/mstack:ship` | Takes a verified change through review threads, CI and the merge gate to merged | Opening or landing a PR |
-| `/mstack:orchestrate` | Runs a program of work across many changes, tracks and sessions, with isolated [worktrees](The-CLI.md) | Multi-session programs only; single-session work takes the feature route |
+| `/mstack:orchestrate` | Runs a program of work across many changes, tracks and sessions, with isolated [worktrees](The-CLI.md) (each its own checkout of the repository) | Multi-session programs only; single-session work takes the feature route |
 | `/mstack:reflect` | Reviews a finished session for what should change in the workflow itself | After closing an item, or after something went wrong |
 | `/mstack:unslop` | Cuts the tells that make writing read as machine-generated | Writing anything a human will read |
 
@@ -40,12 +40,12 @@ window, so most of them write something durable. Per skill:
 |---|---|
 | `/mstack` | The matched playbook's steps in the todo list, and the ledger and decision rows the passes it routes to earn along the way |
 | `/mstack:setup` | The `.mstack/` store itself (`state.json`, `progress/current.md`, `progress/history.md`, `ledger.tsv`, `decisions.tsv`, an empty `specs/`), the seeded items, and a Workflow note in the project's `CLAUDE.md` |
-| `/mstack:understand` | `.mstack/progress/explore_<topic>.md`, one per fanned-out reader; a one-file question is answered in the reply and writes nothing |
+| `/mstack:understand` | `.mstack/progress/explore_<topic>.md`, one per fanned-out reader (fanning out runs several readers in parallel, each with its own narrow question); a one-file question is answered in the reply and writes nothing |
 | `/mstack:design` | `.mstack/specs/<slug>/design.md`, or a decision row in `decisions.tsv` when there is no spec |
 | `/mstack:spec` | The four artifacts in `.mstack/specs/<slug>/`: `proposal.md`, `design.md`, `tasks.md`, `spec.md`; a product fork it cannot settle goes onto the item as `decision_required` |
 | `/mstack:implement` | The code and its tests, `.mstack/progress/impl_<slug>.md`, decision rows as calls are made, and `current.md` kept live throughout |
 | `/mstack:verify` | One ledger row: target, commit, typed verdict, evidence path, and who ran it |
-| `/mstack:review` | One report per lens under `.mstack/progress/` (paths allocated up front by `mstack fanout plan`), and one ledger row per review round |
+| `/mstack:review` | One report per [lens](The-Agents.md#reviewer) under `.mstack/progress/` (paths allocated up front by `mstack fanout plan`), and one ledger row per review round |
 | `/mstack:ship` | The PR, a ledger verdict at the merge SHA if that SHA has none, the item's close in `state.json`, an appended `history.md` entry and a reset `current.md` |
 | `/mstack:orchestrate` | One item per unit in `state.json`, a worktree (its own checkout of the repository) per concurrent unit with the base SHA recorded in that worktree's `current.md`, and a report from every worker |
 | `/mstack:reflect` | An appended entry in `.mstack/progress/history.md`; changes to the workflow itself are proposed to the human, never applied unilaterally |
@@ -67,7 +67,8 @@ Most skills also carry a prohibition, and they are worth knowing before you run 
   exist and a different pass has approved them.
 - `implement` does not widen the acceptance array, and never weakens an existing test to
   get green.
-- `verify` never records a rung above what actually ran, and inconclusive is not a pass.
+- `verify` never records a [rung](#the-evidence-ladder) above what actually ran, and
+  inconclusive is not a pass.
 - `review` requires reviewers that did not write the code, and nobody types the lone
   reviewer's ledger row on its behalf.
 - `ship` never merges past a red check by another route, and never force-pushes the default

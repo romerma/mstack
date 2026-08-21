@@ -38,10 +38,11 @@ the cast - agents, skills, playbooks, gates.
 
 ## Next step if this session dies
 
-Round 2 is implemented, verified (full chain green, mermaid 11.17.0 parse green) and
-reported in the round-2 section of impl_docs-for-newcomers.md. Remaining: commit, fresh
-implementer ledger row at the final head, then a round-2 review by a pass that did not
-write this.
+Round 3 (narrow: the false gate caption replaced with what the code does, and four
+before-definition uses on Skills-and-Playbooks glossed or linked) is implemented and
+verified: full chain green, 100 links 0 broken, both mermaid validators green. Remaining:
+commit, fresh implementer ledger row at the final head, then a round-3 review by a pass
+that did not write this.
 
 - Implementer landed `7a85351`: The-Agents.md (163 lines), Skills-and-Playbooks.md (107),
   lifecycle stateDiagram + flow flowchart, opening summaries on all 8 existing pages, README
@@ -77,6 +78,17 @@ write this.
   cli.ts:497-507); nits taken: Status-Line opener full sentence, State-Files opener claim
   softened, reviewer cast cell qualified. Mermaid re-validated with real mermaid 11.17.0 in
   the scratchpad plus the TRANSITIONS edge check.
+
+- Round-2 panel relaunched after both lenses died on a usage limit at launch (nothing lost;
+  they resumed with context).
+- Reader r2: CHANGES_REQUESTED, narrow. 10 of 11 jargon items fixed, three fixes better than
+  asked; but the new leaves-on-disk tables reintroduced unglossed jargon (fanout, lens,
+  rung), and it flagged a subgraph-binding risk in the diagram it could only take to rung 3.
+- Settled that risk myself at rung 4: mermaid 11.17.0's parser db places [spec, impl, review]
+  inside the orchestrator frame for the shipped source; a true-failure mutant returns
+  [review] only, so the probe can fail; Home and README copies are byte-identical. Probe at
+  scratchpad/mermaid-probe.
+- Facts r2 still running; round-3 brief goes out as one message when it lands.
 
 ## Verification
 

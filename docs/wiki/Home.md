@@ -38,9 +38,10 @@ flowchart TD
 
 The router and its playbooks are on [Skills-and-Playbooks](Skills-and-Playbooks.md), and the
 orchestrator and the agents inside the frame are on [The-Agents](The-Agents.md). One box is
-deliberately missing: the session gate, `mstack gate`, is not a step in this flow. It runs at
-the start and end of every session and can go red at any point in the picture. Both gates
-are on [Gates-and-Hooks](Gates-and-Hooks.md).
+deliberately missing: the session gate, `mstack gate`, is not a step in this flow. The `Stop`
+hook runs the fast gate at the end of every turn, and every pass runs `mstack gate` before it
+acts, so it can go red at any point in the picture. Both gates are on
+[Gates-and-Hooks](Gates-and-Hooks.md).
 
 ## Where to start
 

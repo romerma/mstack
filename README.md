@@ -51,7 +51,8 @@ flowchart TD
 ```
 
 One box is deliberately missing: the session gate, `mstack gate`, is not a step in this flow.
-It runs at the start and end of every session and can go red at any point in the picture.
+The `Stop` hook runs the fast gate at the end of every turn, and every pass runs `mstack gate`
+before it acts, so it can go red at any point in the picture.
 
 ## Where this comes from
 
