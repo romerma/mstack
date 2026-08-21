@@ -4,6 +4,30 @@
 
 The docs round, before publication.
 
+- A verification nobody ran is no longer treated as a check. `state.verify` and an item's
+  `verification` were executed by nothing but a human typing `mstack gate --full`; in one real
+  session an item's field held a non-executable string from intake and stayed red for 230
+  minutes across four agent passes, because `sh -n` accepts such a string and only running it
+  says otherwise. `--full` now records what it ran, against which commit, and how it went, in
+  a new machine-local `.mstack/verification.tsv`; the fast gate reads that back and, from
+  `verifying` on, refuses to call an item green on a run that never happened here. `state set
+  --status done` re-checks at the transition, because `done` is not an active status and
+  relabelling the item would otherwise make the gate stop looking.
+- The cost line is at `verifying` and nowhere earlier, and that is the whole design. This
+  check rides the `Stop` hook, which fires at the end of every turn; held from `in_progress`
+  it would go red after every commit for the phase where most commits happen, and a gate that
+  is red for a normal mid-session state is a gate someone switches off. `verifying -> done` is
+  the only legal transition into `done`, so it is also the earliest status that is sufficient.
+  Nothing runs a test suite on a hook: the `Stop` path reads one small TSV.
+- The question item 16 left open — whether wiring `--full` behind a hook could work, given
+  that the verify command inherits stdio and the hook's JSON owns stdout — is answered by not
+  doing it. `stdio: "inherit"` is unchanged, the characterization test that pins it is
+  untouched, and a human running the full gate still sees their suite's progress live.
+- `mstack gate --full` that ran no verification at all now fails and exits 1. It warned and
+  exited 0, which made "you asked for the full gate and got nothing" indistinguishable from
+  "you asked for it and it passed" — the same check-that-cannot-fail shape as `{"items": {}}`
+  passing a gate that then enforces nothing.
+
 - README rewritten around the story and the on-ramp: where mstack comes from on the first
   screen, a quickstart, and a first item walked in five commands whose output — refusals
   included — is pasted from a real run.
