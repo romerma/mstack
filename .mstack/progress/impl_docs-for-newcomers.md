@@ -394,3 +394,91 @@ exceptions, each ordered by the panel:
   parser but still unobserved on github.com itself. One glance at the PR view closes it.
 - The EARS expansion is rung 1 (standard name, not stated in the repo); the five forms it
   glosses are rung 2 against `skills/spec/references/ears.md`.
+
+---
+
+# Round 3
+
+Two fixes, per the round-2 panel (`review_docs-for-newcomers_r2-reader.md`,
+`review_docs-for-newcomers_r2-facts.md`). Nothing else changed: the diagrams, transcripts,
+tables and counts from rounds 1-2 are byte-identical except the caption prose quoted below.
+
+## Fix 1 (facts blocker, rung-5 refuted): the gate caption
+
+The false sentence "It runs at the start and end of every session and can go red at any
+point in the picture" is replaced, in both copies, with identical prose:
+
+> One box is deliberately missing: the session gate, `mstack gate`, is not a step in this
+> flow. The `Stop` hook runs the fast gate at the end of every turn, and every pass runs
+> `mstack gate` before it acts, so it can go red at any point in the picture.
+
+Home.md additionally keeps its closing "Both gates are on [Gates-and-Hooks](Gates-and-Hooks.md)."
+sentence. Re-verified myself before writing it: `runGate` is called at exactly one hook
+site, `src/hooks.ts:172`, inside the `Stop` handler whose doc comment reads "Stop: run the
+fast gate before the turn ends" (`src/hooks.ts:160`); the SessionStart handler builds a
+state string and runs no gate. "Every pass runs `mstack gate` before it acts" is the first
+rule of the shared rules block in all five `agents/*.md`, which is the wording the facts
+lens itself proposed. Rung 2 here (call-site read); the facts lens holds the rung-5 run.
+
+## Fix 2 (reader blocker): round-2 tables introduced before-definition uses
+
+1. "fanned-out reader" glossed at first use, `Skills-and-Playbooks.md`, understand row of
+   the leaves-on-disk table:
+
+   > `.mstack/progress/explore_<topic>.md`, one per fanned-out reader (fanning out runs
+   > several readers in parallel, each with its own narrow question); ...
+
+   The later uses (`mstack fanout plan` in the review row, the playbook table) lean on that
+   one clause, per the brief: no new page, no new anchor.
+
+2. "lens" linked at its first use on the page, review row: `[lens](The-Agents.md#reviewer)`,
+   pointing at the section where round 2 defined it. Anchor target confirmed:
+   `## reviewer` at `docs/wiki/The-Agents.md:139`. Same `Page.md#anchor` shape as the
+   existing instances, so item 24 stays one class.
+
+3. "rung" linked at its first use, the verify prohibition bullet:
+   `[rung](#the-evidence-ladder)`, same-page anchor, same fix shape as
+   `The-Agents.md:78`. Target confirmed: `## The evidence ladder` at
+   `docs/wiki/Skills-and-Playbooks.md:157` pre-edit.
+
+4. worktree partial closed by moving the gloss to first use, next to the existing link, in
+   the skills index table: `[worktrees](The-CLI.md) (each its own checkout of the
+   repository)`. No anchor added; the later gloss in the leaves-on-disk table stays for
+   readers who jump straight to it.
+
+Deliberately not done, on the coordinator's rung-4 probe: restructuring the flowchart for
+the reader's subgraph-binding doubt. mermaid 11.17.0's parser db reports the shipped
+diagram's subgraph as [spec, impl, review], so the edges-before-declaration order binds
+correctly; the diagram is unchanged this round.
+
+## Round-3 commands
+
+```
+$ npm test && npm run typecheck && ./bin/mstack lint-plugin . && node scripts/check-doc-links.mjs README.md docs/wiki/*.md
+Ran 276 tests across 15 files. [32.34s]      # bun test
+ℹ tests 276                                  # node --test
+ℹ pass 276
+ℹ fail 0
+> bunx --bun tsc --noEmit                    # no diagnostics
+PASSED - 0 failures, 0 warnings              # lint-plugin
+100 relative links checked, 0 broken         # was 99; +1 is the new lens link
+chain exit: 0
+```
+
+Both mermaid validators re-run for regression, unchanged results:
+
+```
+ok    state diagram edges match TRANSITIONS exactly (18 edges, blocked via note)
+ok    Home.md: flowchart shape ok, 9 nodes, 10 edges
+ok    README.md: flowchart shape ok, 9 nodes, 10 edges
+ok    Home.md and README.md carry the identical flowchart
+PASSED
+ok    docs/wiki/How-A-Work-Item-Flows.md:27  diagramType=stateDiagram
+ok    docs/wiki/Home.md:21  diagramType=flowchart-v2
+ok    README.md:35  diagramType=flowchart-v2
+PASSED - parsed by mermaid 11.17.0
+```
+
+Em-dash check over the round-3 diff additions: no matches. The two caption copies carry the
+identical corrected sentence; the Home paragraph was rewrapped to the tree's column width
+(reader nit 7 was about exactly this).
