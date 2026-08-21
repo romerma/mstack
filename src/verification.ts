@@ -50,20 +50,27 @@ export const PROJECT_TARGET = "(project)";
 /** `tree` for a working tree with nothing uncommitted outside the store. */
 export const CLEAN_TREE = "clean";
 
-/** `tree` when git could not be asked. Both sides compute it, so it still matches. */
+/**
+ * `tree` when git could not be asked, or could not be asked unambiguously.
+ *
+ * Both sides compute it identically, so a receipt written under this value is
+ * satisfied by a check under it — which means the tree half is *off*. That is
+ * why `checkVerificationRuns` warns whenever it sees this: the one value that
+ * disables half the key must not be the one value nothing mentions.
+ */
 export const UNKNOWN_TREE = "unknown";
 
 /**
- * A path inside an mstack store, anywhere in the repository.
+ * Every `.mstack/` in the repository, excluded from the fingerprint.
  *
- * `git status --porcelain` prints paths relative to the repository root, so a
- * store in a subdirectory shows up as `sub/.mstack/...`. Matching the segment
- * rather than computing the relative prefix saves a `rev-parse --show-toplevel`
- * on the one code path that runs at the end of every turn, and a nested
- * `.mstack/` is a store too — its churn is no more "code the verification could
- * execute" than this one's.
+ * `:(top)` anchors the positive side to the repository root rather than to the
+ * process's cwd, so a store in a subdirectory still fingerprints the whole
+ * project; `**​/.mstack/**` with `glob` then removes every store, this one and
+ * any nested one, because a store's churn is no more "code the verification
+ * could execute" than this one's. Verified against both a root and a nested
+ * store, from both directories.
  */
-const STORE_SEGMENT = /(^|\/)\.mstack\//;
+const OUTSIDE_THE_STORE = ["--", ":(top)", ":(exclude,top,glob)**/.mstack/**"] as const;
 
 export interface Receipt {
   readonly target: string;
@@ -109,50 +116,94 @@ export function obligations(state: State, item: Item | undefined): Obligation[] 
 }
 
 /**
- * A fingerprint of everything uncommitted, outside the store.
+ * A fingerprint of the **contents** of everything uncommitted, outside the store.
  *
- * The receipt used to be keyed to `(sha, command)` alone, which certified a
- * *commit* and not a *tree*: a green `gate --full`, then an uncommitted edit
- * that broke the very command, then a close — all at exit 0, with the
- * verification red the whole time. That is this module's own defect wearing a
- * different hat, and the dirty-tree warning is a uniquely weak backstop against
- * it, because `state set --status done` writes `state.json` itself, so the tree
+ * ## Why the tree is in the key at all
+ *
+ * The receipt was once keyed to `(sha, command)` alone, which certified a
+ * *commit* and not a *tree*: a green `gate --full`, then an uncommitted edit that
+ * broke the very command, then a close — all at exit 0, with the verification red
+ * the whole time. The dirty-tree warning is a uniquely weak backstop against
+ * that, because `state set --status done` writes `state.json` itself, so the tree
  * is dirty at close by construction and the warning carries no signal.
  *
- * `.mstack/` is excluded, and that exclusion is what makes this usable rather
- * than merely correct. Every session writes `state.json`, `current.md` and this
- * very file while an item is open; a fingerprint over the whole porcelain output
- * would void a run because someone appended a line to their own progress notes,
- * which is a red gate for a normal mid-session state — the thing that gets a
- * hook switched off.
+ * ## Why contents, and not the list of dirty paths
  *
- * Sorted before hashing so git's ordering is not part of the identity, and
+ * The first version of this hashed `git status --porcelain`. A porcelain line is
+ * two status characters and a path, so it fingerprints *which paths are dirty*,
+ * not what is in them — and if the tree was already dirty when `--full` ran,
+ * which is the ordinary mid-session state, every further edit confined to those
+ * same paths was invisible. The same green-gate-on-a-red-verification, one layer
+ * in, and the code and the docs asserted the guarantee it did not provide.
+ *
+ * So this reads content:
+ *
+ * - `git diff HEAD` covers every tracked path — modified, staged, deleted, mode
+ *   changed — as content rather than as a status letter.
+ * - Untracked, non-ignored files are not in that diff, so their contents are
+ *   hashed separately and paired with their paths. Without this, an untracked
+ *   `check.sh` edited after a green run would be the same hole again.
+ * - Ignored files are in neither, deliberately: build output is not the project.
+ * - Tracked files that match HEAD appear nowhere, because `sha` already covers
+ *   them.
+ *
+ * Measured against the alternative before choosing it, on a synthetic 30k-file
+ * repository with 500 modified and 200 untracked files: `git diff HEAD` 58ms and
+ * the untracked hashing 34ms, against 638ms for a temp-index
+ * `read-tree`/`add -A`/`write-tree`, which is equally complete but twelve times
+ * the cost and writes loose objects into `.git` as a side effect of a read-only
+ * check. This runs on the `Stop` hook inside the `verifying` window, so an order
+ * of magnitude matters here.
+ *
+ * ## What is excluded, and why that is what makes it usable
+ *
+ * Every `.mstack/`, this one and any nested one. Every session writes
+ * `state.json`, `current.md` and this very file while an item is open; a
+ * fingerprint that counted those would void a run because someone appended a line
+ * to their own progress notes, which is a red gate for a normal mid-session state
+ * — the thing that gets a hook switched off.
+ *
  * `CLEAN_TREE` rather than a hash for the common case, because a human reading
  * `verification.tsv` should be able to see at a glance that a run happened
  * against committed state.
  */
 export function treeId(store: Store): string {
-  // `raw`, and it is load-bearing: porcelain's first status character may be a
-  // space, and trimming the buffer eats it off the first line only, which shifts
-  // that line's path parse by one character and nothing else's.
-  const porcelain = git(store, ["status", "--porcelain"], { raw: true });
-  if (porcelain === null) return UNKNOWN_TREE;
-  const lines = porcelain
-    .split("\n")
-    .filter((line) => line.trim() !== "")
-    // Porcelain v1 is two status characters, a space, then the path; a rename
-    // is `old -> new`. Both sides are checked, so a rename *out of* the store
-    // still counts as a change to the tree.
-    .filter((line) => !line.slice(3).split(" -> ").every(isStorePath))
-    .sort();
-  if (lines.length === 0) return CLEAN_TREE;
-  return createHash("sha256").update(lines.join("\n")).digest("hex").slice(0, 16);
-}
+  const diff = git(store, ["diff", "HEAD", ...OUTSIDE_THE_STORE], { raw: true });
+  if (diff === null) return UNKNOWN_TREE;
 
-function isStorePath(path: string): boolean {
-  // git quotes a path containing special characters; the quote is not part of it.
-  const bare = path.startsWith('"') ? path.slice(1) : path;
-  return STORE_SEGMENT.test(bare);
+  // `-z` because this list is read, not displayed: without it git quotes any
+  // path with a special character in it, and a quoted path is not the path.
+  const listed = git(store, ["ls-files", "-o", "--exclude-standard", "-z", ...OUTSIDE_THE_STORE], {
+    raw: true,
+  });
+  if (listed === null) return UNKNOWN_TREE;
+  const untracked = listed.split("\0").filter((path) => path !== "");
+
+  let hashes: string[] = [];
+  if (untracked.length > 0) {
+    // `git hash-object --stdin-paths` is newline-separated and has no `-z`
+    // form, so a filename containing a newline cannot be handed to it
+    // unambiguously. Hashing the rest and calling the result a tree fingerprint
+    // would be a partial answer wearing a complete answer's name, which is the
+    // defect this whole module exists to close.
+    if (untracked.some((path) => path.includes("\n"))) return UNKNOWN_TREE;
+    const out = git(store, ["hash-object", "--stdin-paths"], { stdin: `${untracked.join("\n")}\n` });
+    if (out === null) return UNKNOWN_TREE;
+    hashes = out.split("\n").filter((line) => line !== "");
+    // One hash per path or the pairing below is a lie. A file that vanished
+    // between the listing and the hashing lands here.
+    if (hashes.length !== untracked.length) return UNKNOWN_TREE;
+  }
+
+  if (diff === "" && untracked.length === 0) return CLEAN_TREE;
+
+  // Paths as well as hashes: two empty untracked files hash identically, and
+  // which of them exists is part of the state a verification runs against.
+  const pairs = untracked.map((path, i) => `${path}\0${hashes[i]}`).sort();
+  return createHash("sha256")
+    .update(`${diff}\0${pairs.join("\0")}`)
+    .digest("hex")
+    .slice(0, 16);
 }
 
 /**
@@ -251,9 +302,14 @@ export function status(store: Store, state: State, item: Item | undefined, sha: 
 function why(rows: readonly Receipt[], command: string, sha: string): string {
   const atSha = lastRun(rows, command, sha, undefined);
   if (atSha !== undefined) {
+    // "Uncommitted files have changed since" and not "a different working
+    // tree": the sentence a user reads has to describe what was compared. While
+    // this hashed porcelain lines it said "it does not vouch for the files as
+    // they are now" and vouched only for which files were dirty, which is the
+    // message telling a reader it checked something it had not.
     return atSha.tree === ""
       ? `last ran at ${short(sha)} before receipts recorded the working tree, so it cannot vouch for one`
-      : `last ran at ${short(sha)} against a different working tree, so it does not vouch for the files as they are now`;
+      : `last ran at ${short(sha)}, and an uncommitted file has changed since`;
   }
   const needle = cell(command);
   const elsewhere = rows.filter((row) => cell(row.command) === needle);

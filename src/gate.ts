@@ -17,6 +17,7 @@ import {
   record as recordRun,
   status as verificationStatus,
   treeId,
+  UNKNOWN_TREE,
   type Outcome,
 } from "./verification.ts";
 
@@ -495,6 +496,16 @@ function checkVerificationRuns(store: Store, state: State, report: Report): void
     );
     return;
   }
+  // `unknown` is the one tree value that turns half the key off: both sides
+  // compute it identically, so a receipt written while git could not be asked
+  // is satisfied by a check while git could not be asked, with nothing compared.
+  // Saying so is the whole fix — the gate printed "verification ran and passed"
+  // over the top of it, which is the mechanism claiming a check it did not make.
+  if (treeId(store) === UNKNOWN_TREE) {
+    report.warn(
+      "git could not describe the working tree, so only the commit half of the verification key was checked; an uncommitted change since the run would not be noticed",
+    );
+  }
   if (result.satisfied) {
     report.ok(`verification ran and passed at ${sha.slice(0, 8)}: ${required.map((r) => r.command).join(", ")}`);
     return;
@@ -543,12 +554,21 @@ function runVerification(store: Store, state: State, report: Report): void {
   }
   if (sha === null) return;
 
-  // Sampled once, *after* every command, and shared by every row. Sampling it
-  // first would let a suite that writes a log or a coverage file into the
-  // repository void its own receipt the instant it wrote one, leaving the gate
-  // permanently red; sampling per command would leave every row but the last
-  // recording a tree that no longer exists. What a receipt claims is "these
-  // commands passed, and the tree looked like this when they finished".
+  // Sampled once, *after* every command, and shared by every row.
+  //
+  // Sampling it first would let a suite that writes a log or a coverage file
+  // into the repository void its own receipt the instant it wrote one: a green
+  // `--full` followed immediately by a red gate, which is the disable-it
+  // failure the cost boundary exists to bound. Not *permanently* red — a second
+  // `--full` recovers, because by then the artifact already exists and the tree
+  // stops moving — but "run it twice and it works" is the shape people stop
+  // running. Sampling per command would leave every row but the last recording
+  // a tree that no longer exists.
+  //
+  // The ordering is load-bearing and it is one line from reversing, so
+  // `tests/gate.test.ts` pins it with a verification that really does write into
+  // the repository. It went unpinned for a review round and a mutation moving
+  // this call left the whole suite green.
   const tree = treeId(store);
   for (const { command, target, outcome } of outcomes) {
     try {

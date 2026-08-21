@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { runGate, SPEC_ARTIFACTS } from "../src/gate.ts";
@@ -23,6 +24,11 @@ function quietGate(sb: ReturnType<typeof sandbox>): { report: ReturnType<typeof 
 }
 
 const gate = (sb: ReturnType<typeof sandbox>) => quietGate(sb).report;
+
+/** What git says is dirty, for fixtures whose point is that this does not move. */
+function porcelain(sb: ReturnType<typeof sandbox>): string {
+  return execFileSync("git", ["status", "--porcelain"], { cwd: sb.store.root, encoding: "utf8" });
+}
 
 test("a well-formed store passes", () => {
   const sb = sandbox();
@@ -885,12 +891,133 @@ test("an uncommitted edit after the run voids the receipt", () => {
     expectPass(gate(sb), "green against the tree it ran on");
 
     writeFileSync(join(sb.store.root, "app.js"), "throw new Error('broken');\n", "utf8");
-    expectFail(gate(sb), /against a different working tree/, "edited after the run");
+    expectFail(gate(sb), /an uncommitted file has changed since/, "edited after the run");
 
     // ...and reverting the edit brings the receipt back, because the tree is
     // byte-identical to the one it ran against. A timestamp could not do that.
     rmSync(join(sb.store.root, "app.js"));
     expectPass(gate(sb), "the edit reverted");
+  } finally {
+    sb.dispose();
+  }
+});
+
+/**
+ * Round 3, finding A. The tree key must fingerprint **contents**, not the list
+ * of dirty paths.
+ *
+ * The first version hashed `git status --porcelain`, whose lines are two status
+ * characters and a path. So it certified *which paths are dirty*, and if the
+ * tree was already dirty when `--full` ran — the ordinary mid-session state —
+ * every further edit confined to those same paths was invisible. Round 1's
+ * finding 2 again, one layer in, with the code and the docs both asserting the
+ * guarantee it did not provide.
+ *
+ * Every other tree test starts from a quiesced tree, so all of them exercise
+ * clean -> dirty, which moves a path-set fingerprint too. This one is the case
+ * none of them reached.
+ */
+test("editing an already-dirty tracked file voids the receipt, though its status line does not move", () => {
+  const sb = sandbox();
+  try {
+    writeFileSync(join(sb.store.root, "check.sh"), "exit 0\n", "utf8");
+    sb.writeState(state([item({ status: "verifying", verification: "sh check.sh" })]));
+    trackCurrent(sb);
+    const head = quiesce(sb);
+
+    // The precondition that made this invisible: dirty *before* the run.
+    writeFileSync(join(sb.store.root, "check.sh"), "exit 0  # tweak\n", "utf8");
+    recordReceipt(sb, { target: "storage-layer", sha: head, command: "sh check.sh", outcome: "passed" });
+    expectPass(gate(sb), "green against the dirty tree it ran on");
+    const porcelainBefore = porcelain(sb);
+
+    // Same path, same status letter, different contents — and the verification
+    // is now red.
+    writeFileSync(join(sb.store.root, "check.sh"), "exit 1\n", "utf8");
+    assert.equal(porcelain(sb), porcelainBefore, "the fixture is only meaningful if the status line is unchanged");
+    expectFail(gate(sb), /an uncommitted file has changed since/, "content edit within an already-dirty path");
+  } finally {
+    sb.dispose();
+  }
+});
+
+test("editing an already-dirty untracked file voids it too, which git diff alone would miss", () => {
+  const sb = sandbox();
+  try {
+    sb.writeState(state([item({ status: "verifying", verification: "sh check.sh" })]));
+    trackCurrent(sb);
+    const head = quiesce(sb);
+
+    // Untracked and staying untracked: `?? check.sh` before and after, and
+    // `git diff HEAD` never mentions it at all. Hashing the diff without also
+    // hashing untracked contents would be the same hole in a fourth hat.
+    writeFileSync(join(sb.store.root, "check.sh"), "exit 0\n", "utf8");
+    recordReceipt(sb, { target: "storage-layer", sha: head, command: "sh check.sh", outcome: "passed" });
+    expectPass(gate(sb), "green against the tree with that untracked file");
+    const porcelainBefore = porcelain(sb);
+
+    writeFileSync(join(sb.store.root, "check.sh"), "exit 1\n", "utf8");
+    assert.equal(porcelain(sb), porcelainBefore, "still just '?? check.sh'");
+    expectFail(gate(sb), /an uncommitted file has changed since/, "untracked content edit");
+  } finally {
+    sb.dispose();
+  }
+});
+
+/**
+ * Round 3, finding B. The tree is sampled *after* the commands, and a mutation
+ * moving that one line left the whole suite green.
+ *
+ * A verification that writes anything into the repository — a log, a coverage
+ * file, a snapshot — would then void its own receipt the instant it ran, so a
+ * green `--full` would be followed immediately by a red gate. That is the
+ * disable-it failure the cost boundary exists to bound.
+ */
+test("a verification that writes into the repository does not void its own receipt", () => {
+  const sb = sandbox();
+  try {
+    sb.writeState(
+      state([item({ status: "verifying", verification: "printf 'ran\\n' >> build.log" })]),
+    );
+    trackCurrent(sb);
+    quiesce(sb);
+
+    expectPass(captured(() => runGate(sb.store, { full: true, quiet: true })).value, "--full itself");
+    // The artifact exists now, and it did not exist when the command started.
+    assert.equal(readFileSync(join(sb.store.root, "build.log"), "utf8"), "ran\n");
+    expectPass(gate(sb), "the very next fast gate, with nothing else touched");
+  } finally {
+    sb.dispose();
+  }
+});
+
+/**
+ * Round 3, finding C. `unknown` is the one tree value that switches half the key
+ * off, because both sides compute it identically and therefore match.
+ *
+ * The gate used to print "verification ran and passed" over the top of that,
+ * which is the mechanism claiming a check it did not make.
+ */
+test("a tree git cannot describe is said out loud, not passed over in silence", () => {
+  const sb = sandbox();
+  try {
+    sb.writeState(state([item({ status: "verifying", verification: "pytest -q" })]));
+    trackCurrent(sb);
+    const head = quiesce(sb);
+    recordReceipt(sb, { target: "storage-layer", sha: head, command: "pytest -q", outcome: "passed" });
+    const clean = gate(sb);
+    assert.deepEqual(clean.warnings.filter((w) => /working tree/.test(w)), [], "nothing to say when git answers");
+
+    // `rev-parse HEAD` still works with an unreadable index, so `headSha` does
+    // not short-circuit and the check runs with the tree half disabled.
+    rmSync(join(sb.store.root, ".git", "index"));
+    mkdirSync(join(sb.store.root, ".git", "index"));
+
+    const report = gate(sb);
+    assert.ok(
+      report.warnings.some((w) => /only the commit half of the verification key was checked/.test(w)),
+      `the disabled half has to be named: ${JSON.stringify(report.warnings)}`,
+    );
   } finally {
     sb.dispose();
   }
@@ -917,7 +1044,7 @@ test("a modified tracked file voids the receipt too, leading space and all", () 
     expectPass(gate(sb), "committed and green");
 
     writeFileSync(join(sb.store.root, "app.js"), "module.exports = 2;\n", "utf8");
-    expectFail(gate(sb), /against a different working tree/, "one modified tracked file");
+    expectFail(gate(sb), /an uncommitted file has changed since/, "one modified tracked file");
   } finally {
     sb.dispose();
   }

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { STORE_GITIGNORE } from "../src/setup.ts";
@@ -12,6 +12,7 @@ import {
   record,
   status,
   treeId,
+  UNKNOWN_TREE,
 } from "../src/verification.ts";
 import { parseState } from "../src/state.ts";
 import { item, quiesce, recordReceipt, sandbox, state } from "./helpers.ts";
@@ -262,6 +263,93 @@ test("the tree fingerprint ignores the store and nothing else", () => {
     assert.equal(treeId(sb.store), dirty, "an identical tree must produce an identical id");
     writeFileSync(join(sb.store.root, "other.js"), "2\n", "utf8");
     assert.notEqual(treeId(sb.store), dirty);
+  } finally {
+    sb.dispose();
+  }
+});
+
+/**
+ * `git hash-object --stdin-paths` is newline-separated and has no `-z` form, so
+ * a filename containing a newline cannot be handed to it unambiguously.
+ *
+ * Hashing the rest and calling the result a tree fingerprint would be a partial
+ * answer wearing a complete answer's name, which is the defect class this whole
+ * module exists to close. It becomes an unknown tree instead, which the gate
+ * then warns about out loud.
+ */
+/**
+ * Two untracked files with identical contents and different names are two
+ * different states, so the path has to be in the key beside the content hash.
+ *
+ * A mutation dropping the path from the pairing survived every other tree test,
+ * because all of them happened to use files whose contents differed too.
+ */
+test("which untracked files exist is part of the tree, not just what is in them", () => {
+  const sb = sandbox();
+  try {
+    quiesce(sb);
+    writeFileSync(join(sb.store.root, "a.js"), "same bytes\n", "utf8");
+    const withA = treeId(sb.store);
+
+    rmSync(join(sb.store.root, "a.js"));
+    writeFileSync(join(sb.store.root, "b.js"), "same bytes\n", "utf8");
+    assert.notEqual(
+      treeId(sb.store),
+      withA,
+      "identical content under a different name is a different working tree",
+    );
+  } finally {
+    sb.dispose();
+  }
+});
+
+/**
+ * A filename whose last character is whitespace still fingerprints.
+ *
+ * `-z` is what earns this: without it git *quotes* any path with a special
+ * character, and a quoted path is not the path. (`raw` is not what earns it —
+ * that was the first version of this comment, and measuring said otherwise: JS
+ * `trim()` stops at the NUL, so the trailing space never reaches it.)
+ */
+test("an untracked filename ending in a space is still fingerprinted", () => {
+  const sb = sandbox();
+  try {
+    quiesce(sb);
+    writeFileSync(join(sb.store.root, "trailing space "), "one\n", "utf8");
+    const before = treeId(sb.store);
+    assert.match(before, /^[0-9a-f]{16}$/, `a trailing-space path must not disable the tree half: ${before}`);
+
+    writeFileSync(join(sb.store.root, "trailing space "), "two\n", "utf8");
+    assert.notEqual(treeId(sb.store), before, "and its contents still have to matter");
+  } finally {
+    sb.dispose();
+  }
+});
+
+test("a newline in an untracked path yields an unknown tree, not a partial one", () => {
+  const sb = sandbox();
+  try {
+    quiesce(sb);
+    assert.equal(treeId(sb.store), CLEAN_TREE);
+
+    writeFileSync(join(sb.store.root, "ordinary.js"), "1\n", "utf8");
+    assert.match(treeId(sb.store), /^[0-9a-f]{16}$/, "an ordinary untracked file still fingerprints");
+
+    // The nasty spelling, and the reason it is this one: `two` and `lines.js`
+    // also exist, so feeding `two\nlines.js` to `hash-object --stdin-paths`
+    // *succeeds* — as two hashes for one listed path. Without the count check
+    // those get paired up and a fingerprint comes out that quietly ignores a
+    // file. Measured: with both guards `unknown`, with either one `unknown`,
+    // with neither a real-looking hash. Each guard alone is an equivalent
+    // mutant; the pair is not, which is what this fixture pins.
+    writeFileSync(join(sb.store.root, "two"), "x\n", "utf8");
+    writeFileSync(join(sb.store.root, "lines.js"), "y\n", "utf8");
+    writeFileSync(join(sb.store.root, "two\nlines.js"), "z\n", "utf8");
+    assert.equal(
+      treeId(sb.store),
+      UNKNOWN_TREE,
+      "a path this cannot feed through hash-object must not be silently skipped",
+    );
   } finally {
     sb.dispose();
   }

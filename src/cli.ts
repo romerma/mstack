@@ -198,6 +198,14 @@ const UNCLEARABLE: Readonly<Record<string, string>> = {
   slug: "the slug names the branch, the spec directory and the progress files",
 };
 
+/**
+ * The marker a forced unverified close leaves in `closed_by`.
+ *
+ * One constant, because it is written in one place and matched in another, and
+ * two spellings of it would silently stop the marker surviving a later note.
+ */
+export const FORCED_UNVERIFIED = "closed unverified (forced): ";
+
 /** How much of a long field to echo back when reporting what changed. */
 const PREVIEW = 48;
 
@@ -466,6 +474,8 @@ function cmdState(argv: readonly string[]): number {
     const changes: string[] = [];
     /** Set when `--force` carried a close past an unverified verification. */
     let forcedUnverified: string | undefined;
+    /** What the note said before this command touched anything. */
+    const closedByBefore = item.closed_by;
 
     // Clears first, then the status move, then the values. The order is what
     // makes both single-command shapes work: dropping a fork and moving on, and
@@ -540,7 +550,7 @@ function cmdState(argv: readonly string[]): number {
           if (values["closed-by"] === undefined) {
             throw new UserError(
               `--force would close ${item.slug} on a verification that has not run, and that has to be on the record`,
-              `add --closed-by "<why closing unverified is right here>"; it is stored in state.json, where the next reader will find it`,
+              `add --closed-by "<why closing unverified is right here>"; it is stored in state.json as "${FORCED_UNVERIFIED}...", where the next reader will find it`,
             );
           }
           forcedUnverified = proof.problems.join("; ");
@@ -558,6 +568,7 @@ function cmdState(argv: readonly string[]): number {
       ["--closed-by", "closed_by", values["closed-by"]],
     ] as const) {
       if (given === undefined) continue;
+      const before = item[key];
       const next = required(
         flag,
         given,
@@ -565,8 +576,21 @@ function cmdState(argv: readonly string[]): number {
           ? "an item needs a title, and it is the one field 'state set' cannot remove"
           : `to remove a field, say so: 'mstack state set ${item.slug} --clear ${flag.slice(2)}'`,
       );
-      if (item[key] !== next) changes.push(...fieldChange(key, item[key], next));
-      item[key] = next;
+      // A later `--closed-by` used to erase the forced-close marker, which is
+      // the only durable record that an item closed on a verification nobody
+      // ran — and `skills/ship/SKILL.md` tells people to run exactly that
+      // command after a merge, so it was not a contrived path. The marker is
+      // carried across any rewrite of the note; the words after it are theirs.
+      const marked =
+        key === "closed_by" && (item.closed_by ?? "").startsWith(FORCED_UNVERIFIED) ? `${FORCED_UNVERIFIED}${next}` : next;
+      item[key] = marked;
+      // A forced close reports its own `closed_by` line below, from the value
+      // the item carried when the command started. Reporting it here as well
+      // printed two consecutive `closed_by:` changes, which is honest and reads
+      // like a bug.
+      if (before !== marked && !(key === "closed_by" && forcedUnverified !== undefined)) {
+        changes.push(...fieldChange(key, before, marked));
+      }
     }
 
     // After the loop, so it prefixes the value the loop just stored rather than
@@ -574,8 +598,8 @@ function cmdState(argv: readonly string[]): number {
     // tell a forced unverified close from an ordinary note, and the reason they
     // gave is kept verbatim after the marker.
     if (forcedUnverified !== undefined) {
-      const note = `closed unverified (forced): ${item.closed_by ?? ""}`;
-      changes.push(...fieldChange("closed_by", item.closed_by, note));
+      const note = `${FORCED_UNVERIFIED}${item.closed_by ?? ""}`;
+      changes.push(...fieldChange("closed_by", closedByBefore, note));
       item.closed_by = note;
       changes.push(`  forced: closed on a verification that did not run here - ${forcedUnverified}`);
     }
