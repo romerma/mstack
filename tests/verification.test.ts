@@ -1,6 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync, rmSync, writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { lstatSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { STORE_GITIGNORE } from "../src/setup.ts";
@@ -15,6 +17,7 @@ import {
   UNKNOWN_TREE,
 } from "../src/verification.ts";
 import { parseState } from "../src/state.ts";
+import { storeAt } from "../src/paths.ts";
 import { item, quiesce, recordReceipt, sandbox, state } from "./helpers.ts";
 
 /** The parsed State the module's functions take, built from the helpers' shape. */
@@ -298,6 +301,17 @@ test("which untracked files exist is part of the tree, not just what is in them"
       withA,
       "identical content under a different name is a different working tree",
     );
+
+    // The same rule for entries that are described rather than read. Two
+    // symlinks to one target take the token path, not the blob path, and a
+    // mutation dropping the path from *that* pairing survived until this pair
+    // existed — the file case above went through the other branch entirely.
+    rmSync(join(sb.store.root, "b.js"));
+    symlinkSync("/some/shared/target", join(sb.store.root, "link-one"));
+    const withOne = treeId(sb.store);
+    rmSync(join(sb.store.root, "link-one"));
+    symlinkSync("/some/shared/target", join(sb.store.root, "link-two"));
+    assert.notEqual(treeId(sb.store), withOne, "one target, two link names, two different trees");
   } finally {
     sb.dispose();
   }
@@ -321,6 +335,192 @@ test("an untracked filename ending in a space is still fingerprinted", () => {
 
     writeFileSync(join(sb.store.root, "trailing space "), "two\n", "utf8");
     assert.notEqual(treeId(sb.store), before, "and its contents still have to matter");
+  } finally {
+    sb.dispose();
+  }
+});
+
+/**
+ * Round 4. `git hash-object` follows symlinks and hashes the target's bytes;
+ * git's own index does not — it records a symlink blob as the *target string*.
+ *
+ * Following the link was wrong four ways at once, and every one of them was an
+ * ordinary untracked symlink: made, not yet committed, not yet ignored. Two of
+ * the four could not be hashed at all, so the whole tree half switched itself
+ * off and a real item closed green on a verification exiting 1.
+ *
+ * No test in the suite created a symlink before this one.
+ */
+const SYMLINK_ROWS = [
+  ["a directory", (base: string) => base],
+  ["a dangling target", () => "/nonexistent/nothing"],
+  ["a file outside the repository", (base: string) => join(base, "outside.txt")],
+  ["a character device", () => "/dev/zero"],
+] as const;
+
+test("an untracked symlink is fingerprinted, never followed and never opened", () => {
+  const sb = sandbox();
+  try {
+    const outside = mkdtempSync(join(tmpdir(), "mstack-symlink-"));
+    writeFileSync(join(outside, "outside.txt"), "bytes that are not part of this project\n", "utf8");
+    try {
+      quiesce(sb);
+      for (const [label, target] of SYMLINK_ROWS) {
+        const link = join(sb.store.root, "the-link");
+        symlinkSync(target(outside), link);
+        const started = Date.now();
+        const id = treeId(sb.store);
+        const elapsed = Date.now() - started;
+        // A directory link and a dangling link used to yield `unknown`, which is
+        // the tree half switching off; `/dev/zero` used to read until the
+        // five-second git timeout and then yield `unknown` anyway.
+        assert.match(id, /^[0-9a-f]{16}$/, `a symlink to ${label} must fingerprint, got ${id}`);
+        // The `/dev/zero` row: reading through the link sat on the git timeout,
+        // twice per gate. Generous, because this guards against a stall rather
+        // than measuring one.
+        assert.ok(elapsed < 2_000, `a symlink to ${label} must not be read through: took ${elapsed}ms`);
+        rmSync(link);
+        assert.equal(treeId(sb.store), CLEAN_TREE, `removing the link to ${label} must restore clean`);
+      }
+    } finally {
+      rmSync(outside, { recursive: true, force: true });
+    }
+  } finally {
+    sb.dispose();
+  }
+});
+
+test("a symlink's target contents are not in the key, but its target is", () => {
+  const sb = sandbox();
+  try {
+    const outside = mkdtempSync(join(tmpdir(), "mstack-symlink-"));
+    try {
+      const first = join(outside, "one.txt");
+      const second = join(outside, "two.txt");
+      writeFileSync(first, "ORIGINAL\n", "utf8");
+      writeFileSync(second, "OTHER\n", "utf8");
+      quiesce(sb);
+      symlinkSync(first, join(sb.store.root, "the-link"));
+      const before = treeId(sb.store);
+
+      // The bytes on the far side of the link are not part of this repository,
+      // and reading them would put a file outside the project into a key that is
+      // recomputed at the end of every turn.
+      writeFileSync(first, "COMPLETELY DIFFERENT CONTENTS\n", "utf8");
+      assert.equal(treeId(sb.store), before, "the target's contents must not move the fingerprint");
+
+      // ...but the link itself is state, and git records exactly this.
+      rmSync(join(sb.store.root, "the-link"));
+      symlinkSync(second, join(sb.store.root, "the-link"));
+      assert.notEqual(treeId(sb.store), before, "repointing the link must move it");
+    } finally {
+      rmSync(outside, { recursive: true, force: true });
+    }
+  } finally {
+    sb.dispose();
+  }
+});
+
+/**
+ * Found while fixing the symlinks, not reported by review.
+ *
+ * `git ls-files` prints paths relative to the *current directory*;
+ * `hash-object --stdin-paths` resolves them relative to the *repository root*.
+ * For a store in a subdirectory those disagree, `hash-object` fails outright,
+ * and every run in that store fingerprinted as `unknown` — the same silent
+ * switch-off, reachable by nothing more exotic than where the store sits.
+ */
+test("a store in a subdirectory fingerprints its repository, rather than giving up", () => {
+  const outer = mkdtempSync(join(tmpdir(), "mstack-nested-"));
+  try {
+    const run = (args: string[], cwd: string) => execFileSync("git", args, { cwd, stdio: "ignore" });
+    run(["init", "-q", "."], outer);
+    run(["config", "user.email", "t@e.com"], outer);
+    run(["config", "user.name", "t"], outer);
+    writeFileSync(join(outer, "root.txt"), "a\n", "utf8");
+    run(["add", "-A"], outer);
+    run(["commit", "-q", "-m", "i"], outer);
+
+    const sub = join(outer, "sub");
+    mkdirSync(join(sub, ".mstack"), { recursive: true });
+    const store = storeAt(sub);
+    assert.equal(treeId(store), CLEAN_TREE, "a committed nested store starts clean");
+
+    // Untracked on both sides of the store's own directory: one above it, one
+    // beside it. Both are the project, and both have to be in the key.
+    writeFileSync(join(outer, "above.js"), "1\n", "utf8");
+    const withAbove = treeId(store);
+    assert.match(withAbove, /^[0-9a-f]{16}$/, `a nested store must not answer unknown, got ${withAbove}`);
+
+    writeFileSync(join(sub, "beside.js"), "2\n", "utf8");
+    const withBoth = treeId(store);
+    assert.notEqual(withBoth, withAbove, "a file beside the store counts too");
+
+    // The assertions above both hold even when every path resolves to nowhere,
+    // because a path that cannot be stat-ed still contributes a token and still
+    // moves the hash. Only content proves the paths were actually resolved —
+    // a mutation dropping `--full-name` survived until this pair existed.
+    writeFileSync(join(outer, "above.js"), "CHANGED\n", "utf8");
+    assert.notEqual(treeId(store), withBoth, "contents above the store have to be read");
+    const beforeBeside = treeId(store);
+    writeFileSync(join(sub, "beside.js"), "CHANGED TOO\n", "utf8");
+    assert.notEqual(treeId(store), beforeBeside, "contents beside the store have to be read");
+  } finally {
+    rmSync(outer, { recursive: true, force: true });
+  }
+});
+
+/**
+ * Git only ever offers regular files and symlinks, which is worth pinning
+ * because I got it wrong.
+ *
+ * I justified classifying by file kind on the grounds that a fifo in the
+ * worktree would stall `hash-object` with no symlink involved. It does not: git
+ * lists neither a fifo, nor a socket, nor a device node as untracked, so the
+ * only entry kinds that reach the fingerprint are the two below. The
+ * `/dev/zero` stall only ever arrived *through* a link.
+ */
+test("git never offers a fifo as untracked, so only files and symlinks reach the fingerprint", () => {
+  const sb = sandbox();
+  try {
+    quiesce(sb);
+    // POSIX, and asserted rather than assumed: a silently skipped fixture here
+    // would be a check that cannot fail, in the module about checks that cannot
+    // fail.
+    execFileSync("mkfifo", [join(sb.store.root, "a-pipe")]);
+    assert.ok(lstatSync(join(sb.store.root, "a-pipe")).isFIFO(), "the fixture has to actually be a fifo");
+
+    const listed = execFileSync("git", ["ls-files", "-o", "--exclude-standard"], {
+      cwd: sb.store.root,
+      encoding: "utf8",
+    });
+    assert.equal(listed, "", `git listed something other than files and symlinks: ${JSON.stringify(listed)}`);
+    assert.equal(treeId(sb.store), CLEAN_TREE, "and so it is not in the tree either");
+  } finally {
+    sb.dispose();
+  }
+});
+
+test("status judges against the tree it is handed, so the gate can compute it once", () => {
+  const sb = sandbox();
+  try {
+    const st = parsed(sb, state([item({ status: "verifying", verification: "pytest -q" })]));
+    quiesce(sb);
+    const head = execFileSync("git", ["rev-parse", "HEAD"], { cwd: sb.store.root, encoding: "utf8" }).trim();
+    record(sb.store, {
+      target: "storage-layer",
+      sha: head,
+      command: "pytest -q",
+      outcome: "passed",
+      tree: "a-tree-that-is-not-this-one",
+    });
+
+    // Default: computed from the real working tree, which is clean, so the
+    // receipt above does not match.
+    assert.equal(status(sb.store, st, st.items[0], head).satisfied, false);
+    // Handed one explicitly: that is what it judges against. Threading this is
+    // what stops the fast gate computing the fingerprint twice per run.
+    assert.equal(status(sb.store, st, st.items[0], head, "a-tree-that-is-not-this-one").satisfied, true);
   } finally {
     sb.dispose();
   }

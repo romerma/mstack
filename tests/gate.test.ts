@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { runGate, SPEC_ARTIFACTS } from "../src/gate.ts";
@@ -986,6 +987,44 @@ test("a verification that writes into the repository does not void its own recei
     // The artifact exists now, and it did not exist when the command started.
     assert.equal(readFileSync(join(sb.store.root, "build.log"), "utf8"), "ran\n");
     expectPass(gate(sb), "the very next fast gate, with nothing else touched");
+  } finally {
+    sb.dispose();
+  }
+});
+
+/**
+ * Round 4. The whole point of the symlink fix, end to end.
+ *
+ * An ordinary untracked symlink to a directory — a `venv`, a shared assets dir,
+ * a package link — made `hash-object` fail, which made `treeId` `unknown`, which
+ * switched the tree half of the key off for the whole session. A green `--full`,
+ * then a genuinely red verification, and the gate still said `PASSED` and the
+ * item closed. Two commands, no exotic state.
+ */
+test("an untracked symlink does not switch the tree half off, so a red verification stays caught", () => {
+  const sb = sandbox();
+  try {
+    const shared = mkdtempSync(join(tmpdir(), "mstack-assets-"));
+    try {
+      writeFileSync(join(sb.store.root, "check.sh"), "exit 0\n", "utf8");
+      sb.writeState(state([item({ status: "verifying", verification: "sh check.sh" })]));
+      trackCurrent(sb);
+      quiesce(sb);
+      symlinkSync(shared, join(sb.store.root, "assets"));
+
+      expectPass(captured(() => runGate(sb.store, { full: true, quiet: true })).value, "--full itself");
+      assert.notEqual(
+        receipts(sb.store)[0]?.tree,
+        "unknown",
+        "the receipt must carry a real tree, or the key is off and everything below is theatre",
+      );
+
+      // The verification is now genuinely red, uncommitted.
+      writeFileSync(join(sb.store.root, "check.sh"), "exit 1\n", "utf8");
+      expectFail(gate(sb), /an uncommitted file has changed since/, "red verification behind a symlink");
+    } finally {
+      rmSync(shared, { recursive: true, force: true });
+    }
   } finally {
     sb.dispose();
   }
