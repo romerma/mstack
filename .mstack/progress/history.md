@@ -40,3 +40,42 @@
   3a38bab. The record files (CHANGELOG, research doc, history, item-9 reports) keep the old
   wording deliberately: they are records of the finding, not claims.
 - Ship: merge-gate skip: no remote exists before publication; local fast-forward into main.
+
+## 2026-08-21 — item 11 sandbox-weather-dogfood, closed
+
+Ran mstack end to end against real work, in a gitignored nested repository, to find out how
+easy it actually is. The deliverable is `sandbox/PROTOCOL.md`: a command-by-command record
+of every phase, with the friction found. The app that carried the exercise is an
+Apple-Weather-style web client on Open-Meteo — Astro static, zero runtime dependencies, 248
+unit tests, 140 browser drills, Lighthouse 100 in all five categories across four runs.
+
+**What the exercise found in this plugin.** Eight friction points survived fact-checking:
+no per-subcommand `--help` (F1); a brief can name a report path the contract rejects and
+nothing catches it (F3, reduced to operator error); `fanout plan` doubles the slug and
+`fanout check` then calls the canonical report unplanned (F4); nothing says when to stop
+reviewing (F5); `--verification` is settable at intake, never correctable by CLI, and never
+validated as executable (F6); `merge-gate` requires a GitHub PR so a local repo cannot use
+it (F7); the feature playbook orders verify→review while `lifecycle.ts:68` requires
+reviewing→verifying→done (F8); a bare `ledger check` reads FAIL after a correct close, and
+only the full 40-char SHA passes (F9); and `gate --full` stops covering an item the moment
+it closes, warns that it checked nothing, and exits 0 (F10).
+
+One real defect is queued as **item 12 rm-guard-command-boundary**: the shipped `rm` guard's
+pattern crosses `&&`, `;` and `|`, so four reproduced false positives deny legitimate work
+while two trivial indirections walk past it. The fact-check pass hit it unplanned.
+
+**What it found in me.** Nine errors by the orchestrating pass, every one caught by another
+pass or by re-verification: a false claim about an API field, a defect report that was an
+artifact of a mistyped `rg` flag, an over-general conclusion from a minimal probe, a
+misattributed exit code, a non-executable `verification` field that left the gate red for
+four hours, stale figures quoted in the file that was those figures' evidence, a byte
+measurement taken with the wrong compressor, a superseded test count, and an undercount of
+this very list. Two of the nine friction claims first written up were also mine rather than
+the plugin's, and were withdrawn after fact-checking.
+
+That last part is the finding worth acting on. A single-pass workflow would have shipped a
+refinement round built on two defects that do not exist.
+
+**Honest remainder.** The agent timings and token counts in PROTOCOL.md come from task
+notifications and are not verifiable from either repository; the document says so. Six
+minors on the app itself are unfixed and listed in `sandbox/.mstack/progress/review_weather-app_r2.md`.
