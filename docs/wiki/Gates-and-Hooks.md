@@ -319,14 +319,19 @@ mstack: greet-flag cannot close on a verification that has not run: `run the uni
 ```
 
 Note what the second `Stop` costs: nothing is executed, and it still cannot go green. That is
-the whole design. The four rules that make it hold:
+the whole design. The six rules that make it hold:
 
 | Rule | Why it is that and not something looser |
 |---|---|
-| The record is keyed to `(commit, command text)` | The ledger's rule, applied to a run: a new head SHA voids the row. Keying it to the *item* instead would let a green run of the old string vouch for a string edited afterwards, which is precisely the failure above |
+| The record is keyed to `(commit, command text, tree)` | Each third of that key was a hole once. The ledger's rule, applied to a run: a new head SHA voids the row. Keying it to the *item* instead would let a green run of the old string vouch for a string edited afterwards, which is precisely the failure above. And keying it to the commit alone certifies a *commit*, not a *tree* — see the row below |
+| The working tree is part of the key, minus `.mstack/` | A commit-only key made every uncommitted edit after the run invisible: a green `gate --full`, then `printf 'exit 1' > check.sh`, then a close, all at exit 0 with the verification red the whole time. The dirty-tree warning is a uniquely weak backstop here, because `state set --status done` writes `state.json` itself, so the tree is dirty at close by construction and the warning carries no signal. The store is excluded, and that exclusion is what makes the rule usable rather than merely correct: every session writes `state.json`, `current.md` and the receipt file itself while an item is open, so hashing those would go red because someone wrote a line of their own progress notes |
 | The **last** run at a commit wins, not the best | A suite that passed and was then re-run red is red. "Best" is how a stale pass survives a broken build |
 | It is demanded from `verifying`, and nowhere earlier | This rides the `Stop` hook, which fires at the end of every turn. Held from `in_progress` it would go red after every commit for the whole phase where most commits happen, and a gate that is red for a normal mid-session state is a gate someone switches off. `verifying -> done` is the only legal transition into `done`, so `verifying` is the earliest status that is also sufficient (`src/lifecycle.ts`) |
-| `state set --status done` re-checks at the transition | Without it the requirement has a one-command way around it: `done` is not an active status, so relabelling the item makes the gate stop looking and a store that was red a second ago goes green. `--force` still closes it and prints on the record that it did |
+| `state set --status done` re-checks at the transition | Without it the requirement has a one-command way around it: `done` is not an active status, so relabelling the item makes the gate stop looking and a store that was red a second ago goes green. `--force` still closes it — and now only with `--closed-by`, whose reason is stored in `state.json` prefixed `closed unverified (forced):`, because an override that leaves nothing behind is the `closed_by` shape this plugin already had to fix once |
+| An unreadable receipt file is a failure, never a pass | `receipts` reads a file, a read throws, and the hook wrapper catches every throw and exits 0 by design — so an unreadable `verification.tsv` produced zero bytes and exit 0 from `mstack hook stop`, byte-identical to a green gate, and threw `mstack gate` out mid-run so the workspace section and the summary never happened. The trigger is not exotic: this is the one store file a clone never recreates and whose ownership is purely local |
+
+Two of those six were found by review, after the first version shipped its own instance of the
+defect it was built to close. Both are reproduced above from real runs.
 
 An item at `verifying` that nothing verifies at all is a **warning**, not a failure:
 
@@ -351,6 +356,25 @@ writes a `.mstack/.gitignore` saying so. Two reasons, both structural: a receipt
 HEAD, so committing one moves HEAD and voids the receipt being committed; and a receipt from
 another checkout would let one worktree's run stand in for a run nobody in this one ever did,
 when "somebody here actually executed it" is the entire claim.
+
+### Upgrading a store that predates this
+
+A store created before this change has no `.mstack/.gitignore`, so its first `gate --full`
+leaves an untracked `verification.tsv` that the next `git add -A` commits — and a committed
+receipt cannot vouch for the commit that carries it, which is a permanent
+red-gate-and-dirty-tree loop. It is fail-closed, never a false green, but it is useless without
+naming the cause, so the gate names it:
+
+```console
+$ mstack gate | rg "gitignored|PASSED"
+[warn]  .mstack/verification.tsv is not gitignored, and committing it voids the runs it records: run 'mstack setup' to install .mstack/.gitignore, then 'git rm --cached .mstack/verification.tsv' if it is already tracked
+PASSED - 0 failures, 2 warnings
+```
+
+Both commands are in the message because `setup` alone is not enough once the file is already
+tracked: `.gitignore` does not apply to a path git is already following. `mstack setup` is safe
+to re-run on a populated store — it leaves every existing file alone and only installs the
+missing `.gitignore`.
 
 ## The merge gate
 

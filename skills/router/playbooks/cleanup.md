@@ -19,4 +19,12 @@ and abandoned.
    but it has to exist, and it has to come from a pass that did not write the code. If nobody
    can produce one, reopen the item honestly rather than closing it on a sentence.
 
+   The verdict may be old; the **run** may not. `mstack state set <ref> --status done` also
+   requires the item's verification to have been executed at today's HEAD, against today's
+   working tree, so a dormant item needs one `mstack gate --full` before it closes. If the
+   verification no longer runs at all — the harness is gone, the service is retired — that is
+   `--force` with `--closed-by` saying so, which is stored in `state.json` where the next
+   reader will find it. Do not edit the `verification` field to something trivial to get past
+   the gate; that is the check-that-cannot-fail this whole mechanism exists to prevent.
+
 **Reply:** what was removed, and what you deliberately left alone.

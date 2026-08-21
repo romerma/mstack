@@ -141,9 +141,11 @@ nothing but a human typing `mstack gate --full`: in one real session it held a n
 string from intake — half command, half prose — and stayed red for 230 minutes across four
 agent passes, because `sh -n` accepts such a string and only *running* it says otherwise.
 
-So `--full` records what it ran, against which commit, and how it went, and the fast gate reads
-that back. From `verifying` on, an item whose verification has no passing run at this commit is
-a gate failure; moving it to `done` to make the gate stop looking is refused at the transition.
+So `--full` records what it ran, against which commit and working tree, and how it went, and the
+fast gate reads that back. From `verifying` on, an item whose verification has no passing run
+here is a gate failure; moving it to `done` to make the gate stop looking is refused at the
+transition; and an uncommitted edit to code after the run voids the run, because a receipt that
+certified only the commit would call a verification green while it was red right now.
 
 ```bash
 $ mstack state set greet-flag --status done

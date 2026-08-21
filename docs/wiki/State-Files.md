@@ -91,7 +91,7 @@ own; and anything you cannot get to rung 4 you say out loud rather than writing 
 One row per verification command `mstack gate --full` actually executed:
 
 ```
-target	sha	command	outcome	ts
+target	sha	command	outcome	ts	tree
 ```
 
 A ledger row is a *verdict* by a pass that looked at the work; a row here is a *fact* about one
@@ -100,9 +100,11 @@ hand them a `verifier` column the gate accepts, so running `gate --full` would c
 it was meant to prove — the self-closing shape `require_verdict_to_close` exists to refuse.
 
 `target` is the item's slug, or `(project)` for the `verify` command from `state.json`; a slug
-is kebab-case, so the parentheses cannot collide with one. The fast gate reads these back and,
-from `verifying` on, refuses to call an item green on a command that never ran here; the rules
-and the reasoning are in
+is kebab-case, so the parentheses cannot collide with one. `tree` is `clean` when nothing
+outside `.mstack/` was uncommitted, and otherwise a hash of what was — so an edit to code after
+a green run voids the run exactly as an edit to the command does, while writing your own
+progress notes does not. The fast gate reads these back and, from `verifying` on, refuses to
+call an item green on a command that never ran here; the rules and the reasoning are in
 [Gates-and-Hooks](Gates-and-Hooks.md#verification-that-actually-ran).
 
 **This is the one file in the store that is not committed**, and `mstack setup` writes a
