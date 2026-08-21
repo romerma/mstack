@@ -315,3 +315,57 @@ instruction had been proven to work unaided was false: the reviewer subagent loa
 because the brief pointed it there. That test cannot run until item 17 lands and the plugin is
 reloaded from this checkout. And the merge to main aborted once on a dirty `state.json`, which
 the transcript shows rather than hides.
+
+## Item 17 path-mstack-is-the-installed-copy, 2026-08-21
+
+Four review rounds. The mechanism was rewritten three times, and each rewrite fixed the previous
+round's defect by introducing the opposite one.
+
+The gap: `which -a mstack` resolves only to the installed plugin cache. Reproduced before any
+code, same store and same commit, an item whose verification exits 1 and had never run - the
+cached 0.1.0 gate printed PASSED exit 0 where the checkout's gate printed FAILED exit 1.
+
+The trap inside the fix, caught before writing it: both copies declare `"version": "0.1.0"`
+while ten of twelve `src/` files differ and two modules exist only in the checkout. A version
+comparison reports "identical" for two binaries whose gate disagrees on an exit code. The check
+keys on the path the running code resolves to, never on a version string.
+
+- Round 1 keyed on two file markers and a path equality. Loud false positives both ways: a
+  `git worktree` of this repo at the SAME commit was a red gate under the launcher
+  `hooks/hooks.json` actually wires, and an ordinary project carrying `bin/mstack` and
+  `src/cli.ts` failed with a `fix:` line telling a stranger to run their own unrelated script.
+- Round 2 fixed both by making the manifest the identity and "foreign" mean outside this git
+  repository. That inverted the failure: a worktree on a feature branch whose `src` tree
+  genuinely differed got `[ok] came from within the same repository`, PASSED exit 0, over a
+  store its own code called FAILED. That is verbatim the item's own description, printed with an
+  affirmative `[ok]` over it. Round 1 was a loud false positive; round 2 was a silent false
+  negative.
+- The round-2 decision row's cost argument was refuted at rung 5 by two passes separately:
+  `git rev-parse --git-common-dir HEAD HEAD:src` returns git's stored tree object in the same
+  two spawns already being made, measured at 19.7ms against 21.4ms for the common dir alone. The
+  comparison it was priced out of is free.
+- Round 3 made same-repository necessary and the committed `src` tree sufficient, splitting
+  severity: `fail` outside the repository, `warn` for a sibling whose tree differs. Its blocker
+  was narrow and exactly this item's defect class - the CLI note said "differs" where the gate
+  said "could not be compared", so one surface asserted more than had happened.
+- Round 4 closed that structurally rather than by patching two strings: the shared helper is
+  typed to the `same-repo` arm, so the divergent state cannot be written at all. All nine
+  reachable provenance states were enumerated through the real launcher.
+
+Two things worth keeping. The severity question - does a `warn` reach a human when `--quiet` is
+what the Stop hook runs - was answered three-valued rather than guessed: the model gets nothing
+by construction, the client captures exit-0 hook stderr, and whether a person sees it rendered
+is something this repo already declines to promise. The round-4 decision row then moved its
+argument off the value that could not be established. And the honest limit is stated rather than
+papered over: this check ships with the code that was being missed, so a copy installed before it
+existed still says nothing.
+
+Bullet 5 was added mid-item and widened it. The stale copy governs agent and skill definitions,
+not only the CLI. `agents/reviewer.md` in the cache has no `Record it` section, so every subagent
+launched in this session ran the 0.1.0 contract - which is why this session's earlier claim that
+item 15's instruction "worked unaided" was false, and was corrected out loud rather than quietly.
+
+Left behind and not cleaned: branch `review17-wt-probe` from a round-1 review probe. Its worktree
+is removed; the force-delete spelling is refused by this plugin's own guard, which is the guard
+working. Filed separately: writing that spelling inside this very history entry tripped the
+guard, because it scans the whole invocation including heredoc bodies.
