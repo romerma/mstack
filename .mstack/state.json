@@ -327,6 +327,20 @@
       "description": "During the item 17 round-3 review a single 'npm test' run reported 273 pass, 1 fail. Nineteen subsequent runs were clean: 12 plain, 3 npm test, 6 under saturating load. The failing test name was not captured, which the reviewer recorded as its own error rather than dropping. The obvious suspect was ruled out: the fifo manifest test's 10s guard has 26x headroom at a 0.38s mean. Rung 5 that it happened, rung 1 for the cause. Filed so that a one-in-twenty red suite is a tracked fact rather than a sentence in one report.",
       "source": "item 17 round-3 review, non-blocking, 2026-08-21",
       "verification": "npm test && npm run typecheck && ./bin/mstack lint-plugin ."
+    },
+    {
+      "id": 22,
+      "slug": "guard-scans-heredoc-bodies",
+      "title": "The destructive-command guards fire on text inside a heredoc body",
+      "acceptance": [
+        "A destructive spelling that appears only inside a heredoc body is allowed, and the same spelling as an actual command is still denied",
+        "Proven at rung 5 through the shipped hook with real JSON on stdin, both directions",
+        "The differential from item 12 is re-run so the fix is shown to introduce no false allows"
+      ],
+      "status": "pending",
+      "description": "Item 12 gave the PreToolUse guards command-boundary awareness, splitting on separators with substitution-depth tracking. They still scan the whole invocation as one string, so a destructive spelling appearing inside a heredoc body is matched as if it were a command. Reproduced live while writing this repo's own history entry: a paragraph containing the force-delete branch spelling was denied, twice, and the entry had to be reworded to land. The direction is a false deny, which is the safe one, but it makes the guards fire on documentation about the guards - and this repository's docs discipline is to paste real commands.",
+      "source": "writing the item 17 history entry, 2026-08-21",
+      "verification": "npm test && npm run typecheck && ./bin/mstack lint-plugin ."
     }
   ]
 }
