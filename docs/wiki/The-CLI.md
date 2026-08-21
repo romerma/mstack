@@ -60,20 +60,41 @@ $ mstack gate --quiet; echo $?
 Fast, milliseconds, safe as a `Stop` hook. `--full` also runs the project's `verify` command
 and the active item's `verification` command.
 
-`--quiet` prints one line per failure and nothing else: no `[ok]` lines, no section headers,
-no warnings, no summary count. The fix stays on the line, because a failure that does not name
-the next action sends the reader to the source, and this is the mode where they are least able
-to ask. It is also the exact text the `Stop` hook hands the model, so the transcript and the
-context cannot drift apart.
+On the fast gate, `--quiet` prints one line per failure and nothing else: no `[ok]` lines, no
+section headers, no warnings, no summary count. The fix stays on the line, because a failure
+that does not name the next action sends the reader to the source, and this is the mode where
+they are least able to ask. It is also the exact text the `Stop` hook hands the model, so the
+transcript and the context cannot drift apart.
 
-The stream is deliberate. Failures go to **stderr**, which leaves stdout free for a hook's
-structured output — `mstack hook stop` writes JSON there, and failure text in front of it would
-stop that JSON parsing:
+The stream is deliberate. Failures go to **stderr**, which leaves the fast gate's stdout free
+for a hook's structured output — `mstack hook stop` writes JSON there, and failure text in
+front of it would stop that JSON parsing:
 
 ```console
 $ mstack gate --quiet 2>/dev/null | wc -c
        0
 ```
+
+**`--full` is the exception, and it is not a small one.** The verify command runs with its
+stdio inherited (`src/gate.ts`), so whatever it prints goes straight to stdout no matter what
+`--quiet` says. `--quiet` suppresses the gate's *own* output; it does not and cannot muzzle a
+subprocess it hands the terminal to:
+
+```console
+$ mstack gate --full --quiet 2>/dev/null; echo "exit $?"      # stdout only
+VERIFY-STDOUT-CANARY
+exit 1
+
+$ mstack gate --full --quiet 2>&1 1>/dev/null; echo "exit $?" # stderr only
+[fail]  1 export-json (in_progress) is active but progress/current.md is not: the Item line still says _none_; Next step is still the empty template -> if this session dies now, nothing tells the next one where to start
+exit 1
+```
+
+(`verify` in that store is a one-line canary, so `VERIFY-STDOUT-CANARY` is the whole of the
+subprocess's output.)
+
+So "nothing else on stdout" is a promise about `mstack gate --quiet`, not about
+`mstack gate --full --quiet`. Anything that wires `--full` to a hook has to solve that first.
 
 A gate with warnings but no failures prints nothing at all and exits 0. That is what keeps it
 cheap to fire on every turn: "uncommitted changes" and "on main" are normal mid-session states,

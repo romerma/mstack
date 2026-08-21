@@ -17,7 +17,7 @@ timed-out hook renders no decision at all, so a gate must never depend on being 
 | `SessionStart` | A session starts, including on `--resume` | Prints the active item, its open `decision_required` if any, and the last checkpoint from `progress/current.md` back into context. Resume is the case that matters: a session that resumes without its checkpoint restarts work that was already done |
 | `PostToolUse` | After a matched tool call succeeds (a failed call fires `PostToolUseFailure` instead); mstack matches `Edit\|Write` | The cheapest useful check and nothing more. Re-validates `state.json` after an edit to it, and reminds that `history.md` is append-only after an edit to that. Exits 0 unconditionally: it nudges, it never blocks, because a hook that runs the test suite on every edit is a hook someone switches off |
 | `SubagentStop` | A subagent finishes | Checks that the subagent left its report file on disk, and that the file says something: under 40 bytes is a stub, judged per file so one substantial lens does not excuse an empty sibling. Exists because a review subagent once returned a confident summary having written nothing. A reply is not evidence, the file is |
-| `Stop` | The main agent is about to end its turn | Runs the fast gate, quiet. On failures it returns feedback (`additionalContext`) rather than a block: the same loop protections apply, including the eight-continuation cap, but the transcript labels it feedback and no hook error is raised. The failures also go to stderr, so the session shows them rather than only an exit code — see [below](#what-the-stop-hook-prints-on-a-red-gate) |
+| `Stop` | The main agent is about to end its turn | Runs the fast gate, quiet. On failures it returns feedback (`additionalContext`) rather than a block: the same loop protections apply, including the eight-continuation cap, but the transcript labels it feedback and no hook error is raised. That `additionalContext` is how the failures reach the model, and it always was. The failures are *also* written to the hook process's stderr, which Claude Code captures as its own field — what it does with that field is the client's business, not this plugin's; the measurements are [below](#what-the-stop-hook-prints-on-a-red-gate) |
 | `PreToolUse` | Before a matched tool call; mstack matches `Bash` | Denies the handful of commands that are hard or impossible to walk back. This is the only hook that blocks |
 
 ### What the Stop hook prints on a red gate
@@ -36,9 +36,42 @@ output; anything printed in front of it would stop it parsing, which is why `--q
 where it does. The exit code is 0, because a `Stop` hook nudges and only exit 2 blocks.
 
 Until this was fixed, the `[fail]` line was not there at all: `--quiet` printed nothing on any
-stream, the page describing it said "prints failures only", and a red gate at session close
-came down to an exit code nobody displays. A green gate still prints nothing on either stream,
-warnings included, which is what makes it cheap to run at the end of every turn.
+stream and the page describing it said "prints failures only". Stating the cost precisely,
+because the loose version of that sentence is wrong: the **model always had the failures**,
+because `stop()` composes them into `additionalContext` and did so before this change too
+(`git show main:src/hooks.ts`, lines 167-178). What produced nothing was every stream, so
+`mstack gate --quiet` in a terminal or a script gave back an exit code and no bytes. A green
+gate still prints nothing on either stream, warnings included, which is what makes it cheap to
+run at the end of every turn.
+
+### What Claude Code does with those two streams
+
+Measured against the shipped client, 2.1.238, because the honest answer differs by stream and
+this page previously asserted more than had been checked. A hook exiting 0 that writes to both:
+
+```console
+hook_response for SessionStart:startup exit_code=0 outcome=success
+   output : "CANARY-ON-STDERR\n{\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\",\"additionalContext\":\"CANARY-IN-CONTEXT\"}}"
+   stdout : "{\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\",\"additionalContext\":\"CANARY-IN-CONTEXT\"}}"
+   stderr : "CANARY-ON-STDERR\n"
+```
+
+Two things that settles. The JSON on stdout is parsed and its `additionalContext` honoured
+**while stderr sits beside it** — so the stream split is not a theory, it is the arrangement the
+client expects. And stderr is not discarded: it is captured verbatim as its own field, and
+appears in `output` too.
+
+One thing it does not settle, stated rather than glossed: whether the interactive transcript
+*renders* that field to a person. Reading the client's exit-0 hook branch, the `hook_success`
+message's rendered `content` is derived from `stdout`, with `stderr` carried as a sibling
+field. So the failures are certainly **captured**; that they are **displayed** is the client's
+behaviour and is not something this repository can promise. The audience this fix reliably
+reaches is anyone running `mstack gate --quiet` themselves, plus the model, which had them all
+along.
+
+The canary above is a `SessionStart` hook rather than `Stop` only because completing a turn
+was not available in that environment; the client's exit-0 handling is one shared branch across
+hook events, which is what makes the substitution fair.
 
 ### What PreToolUse denies
 
@@ -210,6 +243,14 @@ PASSED - 0 failures, 0 warnings
 That run is from the walkthrough repository after its item closed: the fast sections re-run,
 then the `verify` command from `state.json` executes with its output passed straight through,
 and its success becomes the `[ok]` line.
+
+"Passed straight through" is literal, and it is the one place `--quiet` does not hold.
+`src/gate.ts` runs the verify command with its stdio inherited, so its output lands on stdout
+whether or not `--quiet` was given; `--quiet` governs the gate's own lines, not a subprocess
+handed the terminal. Anything that wires `--full` to a hook — where stdout is the structured
+channel — has to answer that first. It is shown in
+[The-CLI](The-CLI.md#gate), and it is why the "nothing else on stdout" promise on that page is
+scoped to the fast gate.
 
 ## The merge gate
 
