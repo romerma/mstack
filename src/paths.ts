@@ -248,6 +248,24 @@ export function cliProvenance(store: Store, running: string = runningCliRoot()):
   };
 }
 
+/**
+ * The comparison clause both surfaces print for a same-repo sibling, in one
+ * place so they cannot drift by construction.
+ *
+ * Round three's gate distinguished "the trees differ" from "git gave no
+ * answer" while the CLI note said "differs" for both — a sentence asserting a
+ * comparison that never happened, on the one branch of the switch that had no
+ * test, which is this item's defect class printed by its own fix. `sameSrc` is
+ * false in both cases, so the honest words have to come from the tree ids,
+ * never from the boolean.
+ */
+export function describeSrcComparison(p: Extract<Provenance, { kind: "same-repo" }>): string {
+  if (p.runningSrc === null || p.storeSrc === null) {
+    return "whose committed src tree could not be compared (git gave no answer)";
+  }
+  return `at committed src tree ${p.runningSrc.slice(0, 8)}, not this store's ${p.storeSrc.slice(0, 8)}`;
+}
+
 /** An error whose message is meant for a human, not a stack trace. */
 export class UserError extends Error {
   readonly fix: string | undefined;

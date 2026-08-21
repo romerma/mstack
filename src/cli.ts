@@ -17,7 +17,7 @@ import {
   STATUSES,
 } from "./lifecycle.ts";
 import { lintPlugin } from "./lint.ts";
-import { cliProvenance, findStore, requireStore, runningCliRoot, UserError } from "./paths.ts";
+import { cliProvenance, describeSrcComparison, findStore, requireStore, runningCliRoot, UserError } from "./paths.ts";
 import { assertWritable, findItem, parseState, saveState, type Item } from "./state.ts";
 import { MIN_REPORT_BYTES } from "./roles.ts";
 import * as verification from "./verification.ts";
@@ -1035,8 +1035,13 @@ function warnForeignCli(command: string | undefined): void {
       return;
     }
     if (provenance.kind === "same-repo" && !provenance.sameSrc) {
+      // The clause comes from describeSrcComparison, shared with the gate's
+      // warning, so the two surfaces cannot drift. `sameSrc` alone is not
+      // enough to say "differs": it is false both when the trees differ and
+      // when git gave no answer, and this note once asserted a comparison
+      // that never happened on exactly that branch.
       console.error(
-        `mstack: note: this command ran a sibling copy from ${provenance.running} whose committed src tree differs from this store's; prefer ${join(store.root, "bin", "mstack")}`,
+        `mstack: note: this command ran a sibling copy from ${provenance.running} ${describeSrcComparison(provenance)}; prefer ${join(store.root, "bin", "mstack")}`,
       );
     }
   } catch {

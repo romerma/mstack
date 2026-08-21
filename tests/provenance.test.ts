@@ -260,7 +260,11 @@ test("a sibling at a different committed src tree is a named warning, not an ok 
     // Non-gate commands say it on stderr, result unchanged.
     const list = run(wt, join(root, "bin", "mstack"), ["state", "list"]);
     assert.equal(list.status, 0, list.stderr);
-    assert.match(list.stderr, /mstack: note: .*sibling copy .*committed src tree differs/, list.stderr);
+    assert.match(
+      list.stderr,
+      /mstack: note: .*sibling copy from .* at committed src tree [0-9a-f]{8}, not this store.s [0-9a-f]{8}/,
+      list.stderr,
+    );
 
     // The worktree's own copy is still simply its own.
     const own = run(wt, join(wt, "bin", "mstack"), ["gate"]);
@@ -303,6 +307,90 @@ test("a fifo at the manifest path is silence, not a hang", () => {
     assert.equal(gate.status, 0, `a fifo manifest broke the gate: ${gate.stdout}${gate.stderr}`);
     assert.ok(!gate.stdout.includes("checkout"), `a fifo manifest read as a checkout: ${gate.stdout}`);
   } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("when the trees cannot be compared, both surfaces say so instead of claiming a difference", () => {
+  // sameSrc is false both when the trees differ and when git gave no answer,
+  // and round three's CLI note branched on the boolean alone — so it printed
+  // "differs" over a comparison that never happened, while the gate on the
+  // same state said "could not be compared". The clause is hoisted into
+  // describeSrcComparison now precisely so the two surfaces cannot drift, and
+  // this test pins the one branch of the switch that had none.
+  const root = scratchCheckout();
+  const wt = join(root, "..", `${root.split("/").pop()}-nosrc`);
+  try {
+    execFileSync("git", ["worktree", "add", "-q", "-b", "no-src-committed", wt, "HEAD"], { cwd: root, stdio: "ignore" });
+    // src/ stays on disk (still a checkout) but leaves HEAD, so HEAD:src is
+    // unresolvable on this side and the tree ids cannot be compared.
+    execFileSync("sh", ["-c", "git rm -r -q --cached src && git commit -q -m 'src exists on disk, not in HEAD'"], {
+      cwd: wt,
+      stdio: "ignore",
+    });
+
+    const gate = run(wt, join(root, "bin", "mstack"), ["gate"]);
+    assert.equal(gate.status, 0, `the uncomparable case became a red gate: ${gate.stdout}${gate.stderr}`);
+    assert.match(gate.stdout, /\[warn\].*could not be compared \(git gave no answer\)/, gate.stdout);
+
+    const list = run(wt, join(root, "bin", "mstack"), ["state", "list"]);
+    assert.equal(list.status, 0, list.stderr);
+    assert.match(list.stderr, /mstack: note: .*could not be compared \(git gave no answer\)/, list.stderr);
+    assert.ok(
+      !list.stderr.includes("at committed src tree") && !list.stderr.includes("differs"),
+      `the note asserts a comparison that never happened: ${list.stderr}`,
+    );
+  } finally {
+    try {
+      execFileSync("git", ["worktree", "remove", "--force", wt], { cwd: root, stdio: "ignore" });
+    } catch {
+      // The rm below sweeps whatever git left.
+    }
+    rmSync(wt, { recursive: true, force: true });
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("uncommitted src edits are invisible to the committed-tree comparison, as decided", () => {
+  // The limit is stated in paths.ts, gate.ts and Gates-and-Hooks, and this is
+  // the test that keeps it a decision rather than prose: a worktree carrying
+  // an *uncommitted* src/ edit observably runs that edit under its own CLI,
+  // and still gets the full [ok] from a sibling, because HEAD:src is the
+  // committed tree on both sides. The adjacent "uncommitted change(s)"
+  // warning is what puts the missing fact one line away. If tightening the
+  // comparison to see the working tree is ever wanted, this test is the one
+  // to change — deliberately.
+  const root = scratchCheckout();
+  const wt = join(root, "..", `${root.split("/").pop()}-dirty`);
+  try {
+    execFileSync("git", ["worktree", "add", "-q", "--detach", wt, "HEAD"], { cwd: root, stdio: "ignore" });
+    // An uncommitted divergence the worktree's own CLI observably runs: cli.ts
+    // is the entry module and there is no build step, so a top-level line
+    // appended to it executes on every invocation of that copy — the marker on
+    // stderr below is the branch's own working tree speaking...
+    execFileSync("sh", ["-c", `printf '\\nconsole.error("UNCOMMITTED-ONLY-IN-WORKING-TREE");\\n' >> src/cli.ts`], {
+      cwd: wt,
+      stdio: "ignore",
+    });
+    const own = run(wt, join(wt, "bin", "mstack"), ["gate"]);
+    assert.equal(own.status, 0, own.stdout);
+    assert.match(own.stderr, /UNCOMMITTED-ONLY-IN-WORKING-TREE/, "the worktree's own copy runs the edited tree");
+
+    // ...while a sibling still reports the full agreeing [ok], exit 0, and
+    // never sees the divergence, because HEAD:src is the committed tree.
+    const sibling = run(wt, join(root, "bin", "mstack"), ["gate"]);
+    assert.equal(sibling.status, 0, `the limit tightened: ${sibling.stdout}${sibling.stderr}`);
+    assert.match(sibling.stdout, /within the same repository at the same committed src tree/, sibling.stdout);
+    assert.match(sibling.stdout, /uncommitted change/, "the adjacent warning that carries the missing fact");
+    const list = run(wt, join(root, "bin", "mstack"), ["state", "list"]);
+    assert.equal(list.stderr, "", `a note fired on a same-committed-tree sibling: ${list.stderr}`);
+  } finally {
+    try {
+      execFileSync("git", ["worktree", "remove", "--force", wt], { cwd: root, stdio: "ignore" });
+    } catch {
+      // The rm below sweeps whatever git left.
+    }
+    rmSync(wt, { recursive: true, force: true });
     rmSync(root, { recursive: true, force: true });
   }
 });
