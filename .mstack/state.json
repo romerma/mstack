@@ -268,7 +268,7 @@
         "Whatever mechanism is chosen is proven against a real mismatch, not only reasoned about: an old binary against a new store, shown reporting the wrong thing before the fix and the right thing after",
         "The stale copy is shown to govern agent and skill definitions too, not only the CLI: agents/reviewer.md in the cache lacks a section this checkout has, so a subagent launched in this session ran the 0.1.0 contract"
       ],
-      "status": "in_progress",
+      "status": "reviewing",
       "description": "which -a mstack resolves only to ~/.claude/plugins/cache/mstack/mstack/0.1.0/bin/bin/mstack. Its own help line is the pre-item-13 form, with no --clear and no --description, so the copy on PATH is older than main and there is no warning that it is. CONTRIBUTING.md tells a contributor to run the plugin from the checkout with 'claude --plugin-dir .' and says nothing about the CLI. Every wiki transcript is written as '$ mstack ...', so a contributor re-running them to satisfy the pasted-output-from-real-runs rule exercises 0.1.0 and gets a mismatch that has nothing to do with the transcript. The loud failure is the benign one: an unknown flag. The dangerous one is silent and inverted — a gate or hook change the cached copy does not implement, run against the new store, reporting green. That is the same defect class as the rest of this refinement round: a check that reports on something other than what the reader thinks it ran against. Found while verifying item 16; reproduced at rung 5 by two passes.",
       "source": "item 16 review, reproduced at rung 5 by two passes, 2026-08-21",
       "verification": "npm test && npm run typecheck && ./bin/mstack lint-plugin ."
