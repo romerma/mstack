@@ -187,7 +187,7 @@
         "The true positives keep denying: bare store name, nested path, and the glob spellings the current comment names",
         "Where the guard cannot see a deletion at all (an interpreter one-liner, fd -X rm), that limit is stated in the module comment rather than implied away"
       ],
-      "status": "pending",
+      "status": "in_progress",
       "description": "src/hooks.ts:240. The pattern is rm -r followed by [^\\n]* followed by the store name, and [^\\n]* crosses && ; and | freely. So any rm -r on a line that later mentions the store in ANY position is denied: a commit message, an --evidence flag value, a grep argument. Meanwhile the same deletion one indirection away is allowed. Reproduced against the shipped regex: 4 false positives, 2 bypasses. The practical harm is not the inconvenience; it is that a user who hits a false positive learns to route around the guard, which is the behaviour the guard exists to prevent.",
       "source": "sandbox dogfood session, 2026-08-20; blocked a legitimate scratchpad cleanup mid-session",
       "verification": "node --test 'tests/hooks.test.ts'"
