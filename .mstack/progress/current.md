@@ -124,6 +124,13 @@ on the implementer's row.
   whether a person sees it rendered is something this repo already declines to promise.
 - Item 21 filed for a suite that failed 273/1 once and was clean on nineteen later runs, name
   not captured. A one-in-twenty red suite is now a tracked fact rather than a line in a report.
+- Round 4 done: `describeSrcComparison` hoisted into paths.ts and consumed by both surfaces,
+  so the gate's warning and the CLI's note agree by construction; the uncomparable branch is
+  pinned by a process test (red vs the round-3 byte copy), the committed-tree limit is pinned
+  by a guard (a worktree's uncommitted src edit observably runs under its own CLI and stays
+  invisible to a sibling's [ok]); Gates-and-Hooks splits hook visibility three ways and names
+  the reason the severity call survives; annotating decision row recorded. Flake from item 21
+  not reproduced in four full-suite runs this round — said in the report, not settled.
 
 ## Verification
 
@@ -136,3 +143,6 @@ on the implementer's row.
 - Round 3: `npm test` 274/274 under bun and node, typecheck exit 0, `lint-plugin` PASSED,
   doc links 0 broken, gate PASSED — pasted in the impl report's round-3 section; fresh
   implementer row at the round-3 head.
+- Round 4: `npm test` 276/276 under bun and node, three further clean bun runs (flake hunt),
+  typecheck exit 0, `lint-plugin` PASSED, doc links 0 broken, gate PASSED — pasted in the
+  impl report's round-4 section; fresh implementer row at the round-4 head.
