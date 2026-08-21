@@ -65,7 +65,7 @@ test("inside a checkout, the checkout's own bin/mstack stays green and says whic
   try {
     const gate = run(root, join(root, "bin", "mstack"), ["gate"]);
     assert.equal(gate.status, 0, `own gate went red: ${gate.stdout}${gate.stderr}`);
-    assert.match(gate.stdout, /store root is an mstack checkout.*within the same repository/, gate.stdout);
+    assert.match(gate.stdout, /store root is an mstack checkout.*its own \.\/bin\/mstack/, gate.stdout);
     assert.equal(gate.stderr, "", "the agreeing case has nothing to say on stderr");
   } finally {
     rmSync(root, { recursive: true, force: true });
@@ -152,7 +152,9 @@ test("a git worktree of the repository is not foreign, at the same commit or any
   // contributor cannot redirect per worktree, and the orchestrate playbook
   // makes worktrees the unit of parallel work. Round one's path-only rule
   // turned that session red every turn on byte-identical code; the rule now is
-  // that foreign means outside the *repository*, told by the git common dir.
+  // that foreign means outside the *repository*, told by the git common dir,
+  // and green means the committed src tree also matches — the differing case
+  // is the warning pinned by the sibling test below.
   const root = scratchCheckout();
   const wt = join(root, "..", `${root.split("/").pop()}-wt`);
   try {
@@ -161,16 +163,17 @@ test("a git worktree of the repository is not foreign, at the same commit or any
     // Same commit: the main checkout's copy reports on the worktree's store.
     const same = run(wt, join(root, "bin", "mstack"), ["gate"]);
     assert.equal(same.status, 0, `worktree at the same commit went red: ${same.stdout}${same.stderr}`);
-    assert.match(same.stdout, /store root is an mstack checkout.*within the same repository/, same.stdout);
+    assert.match(same.stdout, /within the same repository at the same committed src tree/, same.stdout);
     assert.equal(same.stderr, "", `a note fired inside the repository: ${same.stderr}`);
 
-    // A different commit: still the same repository, still not foreign. This is
-    // the cost the decision row prices, pinned so it is a decision rather than
-    // an accident.
+    // A different commit whose src tree is unchanged: still the same
+    // repository, still the same code, still the full [ok]. Pinned so that
+    // "any other commit" means what it says for commits that do not touch
+    // src/ — the ones that do are the sibling warning below.
     execFileSync("git", ["commit", "-q", "--allow-empty", "-m", "worktree moved on"], { cwd: wt, stdio: "ignore" });
     const moved = run(wt, join(root, "bin", "mstack"), ["gate"]);
     assert.equal(moved.status, 0, `worktree at another commit went red: ${moved.stdout}${moved.stderr}`);
-    assert.match(moved.stdout, /store root is an mstack checkout.*within the same repository/, moved.stdout);
+    assert.match(moved.stdout, /within the same repository at the same committed src tree/, moved.stdout);
 
     // And the store's own worktree copy agrees with itself, trivially.
     const own = run(wt, join(wt, "bin", "mstack"), ["gate"]);
@@ -223,6 +226,82 @@ test("bin/mstack plus src/cli.ts without the mstack manifest is a user's repo: s
     const list = run(root, MSTACK, ["state", "list"]);
     assert.equal(list.status, 0, list.stderr);
     assert.equal(list.stderr, "", `a note reached a wrapper repo: ${list.stderr}`);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("a sibling at a different committed src tree is a named warning, not an ok and not a red gate", () => {
+  // Round two accepted this case silently, with an affirmative [ok] — the
+  // item's originating defect ("a gate change the cached copy does not
+  // implement, reporting green") printed by the fix itself. Round three: same
+  // repository stays necessary, and HEAD:src equality is the sufficiency
+  // test. The severity is warn, not fail, and that is a recorded decision:
+  // this is also the normal state for the life of any branch touching src/,
+  // and a gate that is red every turn there is a hook people switch off.
+  const root = scratchCheckout();
+  const wt = join(root, "..", `${root.split("/").pop()}-wtdiff`);
+  try {
+    execFileSync("git", ["worktree", "add", "-q", "-b", "feat/new-check", wt, "HEAD"], { cwd: root, stdio: "ignore" });
+    execFileSync("sh", ["-c", "printf '\\n// a change only this branch contains\\n' >> src/cli.ts && git add src/cli.ts && git commit -q -m 'diverge src'"], {
+      cwd: wt,
+      stdio: "ignore",
+    });
+
+    const gate = run(wt, join(root, "bin", "mstack"), ["gate"]);
+    assert.equal(gate.status, 0, `the sibling warning became a red gate: ${gate.stdout}${gate.stderr}`);
+    assert.match(gate.stdout, /\[warn\].*sibling of this repository at committed src tree [0-9a-f]{8}, not this store's [0-9a-f]{8}/, gate.stdout);
+    assert.match(gate.stdout, /its checks may not be this store's checks/, gate.stdout);
+    assert.ok(
+      !gate.stdout.includes("at the same committed src tree"),
+      `the affirmative ok printed over a genuine mismatch: ${gate.stdout}`,
+    );
+
+    // Non-gate commands say it on stderr, result unchanged.
+    const list = run(wt, join(root, "bin", "mstack"), ["state", "list"]);
+    assert.equal(list.status, 0, list.stderr);
+    assert.match(list.stderr, /mstack: note: .*sibling copy .*committed src tree differs/, list.stderr);
+
+    // The worktree's own copy is still simply its own.
+    const own = run(wt, join(wt, "bin", "mstack"), ["gate"]);
+    assert.equal(own.status, 0, own.stdout);
+    assert.match(own.stdout, /its own \.\/bin\/mstack/, own.stdout);
+  } finally {
+    try {
+      execFileSync("git", ["worktree", "remove", "--force", wt], { cwd: root, stdio: "ignore" });
+    } catch {
+      // The rm below sweeps whatever git left.
+    }
+    rmSync(wt, { recursive: true, force: true });
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("a fifo at the manifest path is silence, not a hang", () => {
+  // The catch in isMstackCheckout turns throws into silence, but a blocking
+  // read is not a throw: readFileSync on a fifo waits forever for a writer,
+  // and this code runs on the Stop hook every turn and, via warnForeignCli,
+  // on every subcommand. The spawn timeout below is the test's own guard —
+  // against the pre-fix code the gate simply never returns and the child is
+  // killed, which fails the exit-code assertion instead of hanging the suite.
+  const root = scratchRepo();
+  try {
+    const setup = run(root, MSTACK, ["setup"]);
+    assert.equal(setup.status, 0, setup.stderr);
+    execFileSync("sh", ["-c", "mkdir -p bin src .claude-plugin && printf '#!/bin/sh\\n' > bin/mstack && echo '// cli' > src/cli.ts && mkfifo .claude-plugin/plugin.json"], {
+      cwd: root,
+      stdio: "ignore",
+    });
+
+    const gate = spawnSync(MSTACK, ["gate"], {
+      cwd: root,
+      encoding: "utf8",
+      env: { ...process.env, NO_COLOR: "1" },
+      timeout: 10_000,
+    });
+    assert.equal(gate.signal, null, `the gate had to be killed: readFileSync blocked on the fifo`);
+    assert.equal(gate.status, 0, `a fifo manifest broke the gate: ${gate.stdout}${gate.stderr}`);
+    assert.ok(!gate.stdout.includes("checkout"), `a fifo manifest read as a checkout: ${gate.stdout}`);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

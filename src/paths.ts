@@ -1,7 +1,11 @@
-import { existsSync, readFileSync, realpathSync } from "node:fs";
+import { existsSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { dirname, isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+// The one runtime import that keeps this file from being a leaf module.
+// git.ts imports only `type Store` back, which both runtimes erase, so there
+// is no cycle at runtime — pinned by the suite running green under bun and
+// node rather than asserted.
 import { git } from "./git.ts";
 
 export const STORE_DIR = ".mstack";
@@ -106,10 +110,17 @@ export function runningCliRoot(): string {
 export function isMstackCheckout(root: string): boolean {
   if (!existsSync(join(root, "bin", "mstack")) || !existsSync(join(root, "src", "cli.ts"))) return false;
   try {
-    const manifest = JSON.parse(readFileSync(join(root, ".claude-plugin", "plugin.json"), "utf8")) as {
-      name?: unknown;
-    };
-    return manifest.name === "mstack";
+    const manifest = join(root, ".claude-plugin", "plugin.json");
+    // Only a regular file is read at all. The catch below turns throws into
+    // silence, but a blocking read is not a throw: `readFileSync` on a fifo —
+    // or a stalled network mount — hangs with no timeout, on paths that run
+    // every turn (`runGate` on the Stop hook) and on every Bash call
+    // (`warnForeignCli` via `hook pre-tool-use`). src/git.ts makes the same
+    // call for the same reason with its 5-second timeout: a hang has to
+    // become "no answer".
+    if (!statSync(manifest).isFile()) return false;
+    const parsed = JSON.parse(readFileSync(manifest, "utf8")) as { name?: unknown };
+    return parsed.name === "mstack";
   } catch {
     return false;
   }
@@ -131,27 +142,70 @@ function canonical(path: string): string {
 }
 
 /**
- * The repository behind `dir`: its canonical git common dir, or null when git
- * has no answer there.
+ * The repository behind `dir` and the src tree it has committed: the canonical
+ * git common dir plus the object id of `HEAD:src`, or nulls where git has no
+ * answer.
  *
  * `--git-common-dir` rather than `--git-dir`, because worktrees are the point:
  * every worktree of one repository answers with the same common dir, while
- * `--git-dir` answers with each worktree's private one. The output is relative
- * (`.git`) when asked from a main checkout's root, so it is absolutised before
- * canonicalising rather than trusting git's formatting — `--path-format` would
- * do that server-side but sets a git version floor this repository has not
- * needed to set.
+ * `--git-dir` answers with each worktree's private one. The common-dir output
+ * is relative (`.git`) when asked from a main checkout's root, so it is
+ * absolutised before canonicalising rather than trusting git's formatting.
+ *
+ * `HEAD:src` rides in the *same spawn*, which is what makes comparing code
+ * affordable at all: git returns its already-stored tree object id, nothing is
+ * hashed, and the reviewer's 20-run means put the combined form at 22.4ms
+ * against 19.8ms for the common dir alone. The round-2 decision row priced
+ * this as "a full src tree hash into the Stop hook" and was wrong; the
+ * superseding row says so. The fallback spawn exists because rev-parse fails
+ * the whole command when `HEAD:src` cannot resolve (no commits yet, or no
+ * committed src/), and losing the common-dir answer with it would turn "same
+ * repository, tree unknown" into "foreign".
+ *
+ * The limit that stays open: `HEAD:src` is the *committed* tree. Uncommitted
+ * edits to src/ are invisible to it, and src/ is dirty for most of a working
+ * session. Callers must not present tree equality as stronger than that.
  */
-function gitCommonDir(dir: string): string | null {
-  const out = git(storeAt(dir), ["rev-parse", "--git-common-dir"]);
-  if (out === null || out === "") return null;
-  return canonical(isAbsolute(out) ? out : join(dir, out));
+interface RepoIdentity {
+  readonly commonDir: string | null;
+  readonly srcTree: string | null;
+}
+
+function repoIdentity(dir: string): RepoIdentity {
+  const combined = git(storeAt(dir), ["rev-parse", "--git-common-dir", "HEAD:src"]);
+  if (combined !== null) {
+    const [commonDir, srcTree] = combined.split("\n");
+    if (commonDir !== undefined && commonDir !== "" && srcTree !== undefined && srcTree !== "") {
+      return { commonDir: canonical(isAbsolute(commonDir) ? commonDir : join(dir, commonDir)), srcTree };
+    }
+  }
+  const alone = git(storeAt(dir), ["rev-parse", "--git-common-dir"]);
+  if (alone === null || alone === "") return { commonDir: null, srcTree: null };
+  return { commonDir: canonical(isAbsolute(alone) ? alone : join(dir, alone)), srcTree: null };
 }
 
 /**
- * The root of the running CLI when it is foreign to a store whose own root is
- * an mstack checkout, and null everywhere else — including every user repo.
- *
+ * Where the running CLI stands relative to a store, answered once for every
+ * caller — the gate says it loudly, `warnForeignCli` quietly, and both must
+ * agree or the two surfaces drift.
+ */
+export type Provenance =
+  /** The store root is not an mstack checkout; in a user's repo the plugin CLI is supposed to be foreign, so there is nothing to say. */
+  | { readonly kind: "not-a-checkout" }
+  /** The running copy is the store root's own. */
+  | { readonly kind: "own" }
+  /** Same repository, different root: a worktree sibling. `sameSrc` is committed-tree equality, `null` tree ids mean git had no answer to compare. */
+  | {
+      readonly kind: "same-repo";
+      readonly running: string;
+      readonly sameSrc: boolean;
+      readonly storeSrc: string | null;
+      readonly runningSrc: string | null;
+    }
+  /** Outside the repository: the installed cache, a separate clone, any copy whose green is not this code's green. */
+  | { readonly kind: "foreign"; readonly running: string };
+
+/**
  * This exists because `which -a mstack` resolves to the installed plugin
  * cache, so inside the mstack checkout the habit-formed `mstack gate` runs a
  * copy that predates the code under review and reports on checks it does not
@@ -159,28 +213,39 @@ function gitCommonDir(dir: string): string | null {
  * silent one is a green gate over a store the checkout's own gate calls red,
  * reproduced before this function existed.
  *
- * Foreign means *outside this repository*, not merely at another path. A `git
- * worktree` of this repo shares its common dir, and the hooks run whatever
- * `${CLAUDE_PLUGIN_ROOT}/bin/mstack` the session was launched with — a path a
- * contributor cannot redirect per worktree — so round one's path-only rule
- * turned every orchestrate-style worktree session red on byte-identical code,
- * every turn, which is a hook people switch off. The cost of the common-dir
- * rule is stated in its decision row: a worktree at a *different* commit runs
- * different code and is accepted silently. That is bounded — worktrees are
- * created from, merged into and pruned by this same repository — while the
- * installed cache is not a git repository at all and a separate clone answers
- * with a different common dir, so both stay foreign, at any commit.
+ * The question this answers is "is the code producing this report the code
+ * this store expects?", and it takes two comparisons because one is not
+ * enough either way. Outside the repository — different or absent common dir
+ * — is unambiguously wrong: round one established that. Inside the
+ * repository, sameness of path was round one's rule (red for every worktree,
+ * on byte-identical code, every turn — a hook people switch off) and sameness
+ * of repository alone was round two's (a worktree branch that adds a gate
+ * check reported green through the main checkout's binary, with an
+ * affirmative ok line — the item's originating defect printed by the fix).
+ * So: same repository is necessary, and the committed src tree is the
+ * sufficiency test.
  *
- * The common dirs are only consulted after the cheap comparisons disagree, so
- * the two extra git spawns are paid exactly once per actually-foreign run and
- * never in a user's repo or on the agreeing path.
+ * Cost, stated precisely because round two's comment here was measurably
+ * wrong: the identity spawns run once per invocation where the two roots
+ * differ — which includes every worktree run, on every gate — and never in a
+ * user's repo or on the path-equal path. One spawn per root, `HEAD:src`
+ * riding along with the common dir.
  */
-export function foreignCliRoot(store: Store, running: string = runningCliRoot()): string | null {
-  if (!isMstackCheckout(store.root)) return null;
-  if (canonical(running) === canonical(store.root)) return null;
-  const own = gitCommonDir(store.root);
-  if (own !== null && own === gitCommonDir(running)) return null;
-  return running;
+export function cliProvenance(store: Store, running: string = runningCliRoot()): Provenance {
+  if (!isMstackCheckout(store.root)) return { kind: "not-a-checkout" };
+  if (canonical(running) === canonical(store.root)) return { kind: "own" };
+  const mine = repoIdentity(store.root);
+  const theirs = repoIdentity(running);
+  if (mine.commonDir === null || theirs.commonDir === null || mine.commonDir !== theirs.commonDir) {
+    return { kind: "foreign", running };
+  }
+  return {
+    kind: "same-repo",
+    running,
+    sameSrc: mine.srcTree !== null && mine.srcTree === theirs.srcTree,
+    storeSrc: mine.srcTree,
+    runningSrc: theirs.srcTree,
+  };
 }
 
 /** An error whose message is meant for a human, not a stack trace. */
