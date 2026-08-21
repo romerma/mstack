@@ -62,6 +62,19 @@ twice by two different passes, already carrying acceptance criteria.
   Ledger row `live-verified` at `0c0c24d`, verifier `implementer` — that is the implementer's
   own evidence, not an approval.
 
+- Reflect triage written to progress/reflect_refinement.md. The divergent pass dropped ten of
+  fourteen findings, most because the documentation already said the thing. Four accepted;
+  the user chose the full scope.
+- Items 13 editable-item-fields, 14 verification-never-runs and 15 reviewer-writes-the-verdict
+  filed as pending. The fifth accepted finding (rung 4 must say what it ran on) shipped
+  directly as one clause in evidence-ladder.md, per CONTRIBUTING's small-fix rule.
+- Item 12 review came back CHANGES_REQUESTED with a **real false allow**: a separator inside
+  `$(...)` or backticks splits one shell command in half, so 30 of 30 spellings regressed from
+  DENY to allow across all five guards. Proved at rung 5 by letting the allowed command delete
+  a real store. My own 9/9 check missed it because it never tested command substitution.
+- Sent back to the implementer for depth tracking, plus the false limit statement in the module
+  comment and the wiki page that now describes the pre-change behaviour.
+
 ## Next step
 
 - Hand item 12 to a reviewer that did not write it. Report at
