@@ -98,7 +98,43 @@ pass surfaced, because it makes the plugin's headline human gate unreachable.
   test. `npm test` 176 pass on both runtimes; typecheck and lint clean.
 - Commits: `7b81823` the depth fix and its tests, `5b8397f` the wiki.
 
+- Implementer pass started on item 13. Five design decisions recorded up front in
+  decisions.tsv: `--acceptance` replaces / `--add-acceptance` appends; `--clear <field>` is
+  the removal spelling and an empty value is refused; attaching a fork at or past
+  `spec_ready` is refused with `--force` as the loud override; rewriting the fork prose drops
+  a stale `decision_resolved`; `--title` yes, `--slug` refused, `--sdd` unguarded.
+- Order inside one `state set`: clears, then `--status`, then the value flags, with
+  `--decision-required` last so the attach gate judges the status the item ends up in. That
+  makes both "drop the fork and move on" and "move it back and attach the fork" single
+  commands.
+
+- Implementer pass done. `state set` now takes nine value flags plus `--clear <field>`;
+  the fork line `spec_ready..done` is guarded in both directions, with `--force` printing the
+  gate failure it creates; a rewritten or cleared fork drops `decision_resolved`.
+- 15 new tests. 14 go red against `main:src/cli.ts` (swapped in and restored from a byte
+  copy, sha256 checked). The 15th is the criterion-4 regression test, green by construction,
+  and its bite is shown by mutation M10 instead.
+- 12 targeted mutations of the new logic, all killed by a named test. M6 and M8 both keep
+  exit 2 and change only the reason printed, so a test asserting only the exit code would
+  have let them through.
+- One input changed that criterion 4 might be read to protect: `--closed-by ""` used to
+  store an empty string and now exits 2. Called out in the report for the reviewer to rule on.
+- `docs/wiki/The-CLI.md` gained two subsections, both transcripts from one real scratch-repo
+  run; `State-Files.md` and `README.md` each gained one clause.
+
+## Verification
+
+- Rung 5 for the CLI and the gate: the shipped `bin/mstack` driven as a process in real
+  scratch stores, with `mstack gate` exiting 0 and 1 exactly where the CLI said it would.
+- Rung 4: `npm test` 191 pass on bun and on node, `npm run typecheck` clean,
+  `./bin/mstack lint-plugin .` 0 failures 0 warnings.
+- Rung 2 and stated as such: the `--sdd` boundary. Setting `--sdd` on an item past
+  `specifying` can still leave the gate reporting missing spec artifacts. Read, not run,
+  deliberately out of scope, recorded as the `09:10:57.329Z` decision row.
+- Commits: `ceda13b` the CLI and its tests, `a426edc` the idempotence test, `0041e54` docs.
+
 ## Next step
 
-- If this dies: item 13 is in flight on feat/editable-item-fields. Its four acceptance
-  criteria are in state.json. Items 14 and 15 are still pending and untouched.
+- Item 13 is implemented and reported at `.mstack/progress/impl_editable-item-fields.md`.
+  It is **not** done: it needs a review pass that did not write this code, and the ledger row
+  on it is the implementer's own evidence, not an approval. Items 14 and 15 are untouched.
