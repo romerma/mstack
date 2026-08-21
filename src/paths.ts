@@ -1,6 +1,8 @@
-import { existsSync, realpathSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { existsSync, readFileSync, realpathSync } from "node:fs";
+import { dirname, isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+
+import { git } from "./git.ts";
 
 export const STORE_DIR = ".mstack";
 
@@ -85,14 +87,32 @@ export function runningCliRoot(): string {
 /**
  * Is `root` an mstack checkout — a clone or worktree of this plugin itself?
  *
- * Both markers, on purpose. In every ordinary project the plugin CLI is
- * *supposed* to be foreign to the store, so a check that fired there would be
- * noise about a situation that is correct; a repo has to carry the launcher
- * *and* the source it launches before running some other copy against it
- * becomes the trap worth naming.
+ * The identity is the plugin manifest: `.claude-plugin/plugin.json` parsing
+ * with `"name": "mstack"`. It is tracked, so every clone and every `git
+ * worktree` carries it, and no unrelated project does. Round one keyed on the
+ * two file markers alone, and that fired on an ordinary repository that
+ * happened to carry a `bin/mstack` wrapper and its own `src/cli.ts` — where
+ * the failure's `fix:` line named the very command that had just produced it,
+ * a loop with no flag or setting to break. In every ordinary project the
+ * plugin CLI is *supposed* to be foreign to the store, so the only safe
+ * failure direction here is silence: a manifest that is missing, unreadable,
+ * unparseable or differently named all read as "not a checkout". mstack's own
+ * manifest going bad is `lint-plugin`'s problem, not a stranger's.
+ *
+ * The launcher and source markers stay required on top, because the failure
+ * this function arms tells the reader to run `<root>/bin/mstack` — the remedy
+ * has to exist before the check may point at it.
  */
 export function isMstackCheckout(root: string): boolean {
-  return existsSync(join(root, "bin", "mstack")) && existsSync(join(root, "src", "cli.ts"));
+  if (!existsSync(join(root, "bin", "mstack")) || !existsSync(join(root, "src", "cli.ts"))) return false;
+  try {
+    const manifest = JSON.parse(readFileSync(join(root, ".claude-plugin", "plugin.json"), "utf8")) as {
+      name?: unknown;
+    };
+    return manifest.name === "mstack";
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -111,6 +131,24 @@ function canonical(path: string): string {
 }
 
 /**
+ * The repository behind `dir`: its canonical git common dir, or null when git
+ * has no answer there.
+ *
+ * `--git-common-dir` rather than `--git-dir`, because worktrees are the point:
+ * every worktree of one repository answers with the same common dir, while
+ * `--git-dir` answers with each worktree's private one. The output is relative
+ * (`.git`) when asked from a main checkout's root, so it is absolutised before
+ * canonicalising rather than trusting git's formatting — `--path-format` would
+ * do that server-side but sets a git version floor this repository has not
+ * needed to set.
+ */
+function gitCommonDir(dir: string): string | null {
+  const out = git(storeAt(dir), ["rev-parse", "--git-common-dir"]);
+  if (out === null || out === "") return null;
+  return canonical(isAbsolute(out) ? out : join(dir, out));
+}
+
+/**
  * The root of the running CLI when it is foreign to a store whose own root is
  * an mstack checkout, and null everywhere else — including every user repo.
  *
@@ -120,10 +158,28 @@ function canonical(path: string): string {
  * contain. The loud failure mode of that mismatch is an unknown flag; the
  * silent one is a green gate over a store the checkout's own gate calls red,
  * reproduced before this function existed.
+ *
+ * Foreign means *outside this repository*, not merely at another path. A `git
+ * worktree` of this repo shares its common dir, and the hooks run whatever
+ * `${CLAUDE_PLUGIN_ROOT}/bin/mstack` the session was launched with — a path a
+ * contributor cannot redirect per worktree — so round one's path-only rule
+ * turned every orchestrate-style worktree session red on byte-identical code,
+ * every turn, which is a hook people switch off. The cost of the common-dir
+ * rule is stated in its decision row: a worktree at a *different* commit runs
+ * different code and is accepted silently. That is bounded — worktrees are
+ * created from, merged into and pruned by this same repository — while the
+ * installed cache is not a git repository at all and a separate clone answers
+ * with a different common dir, so both stay foreign, at any commit.
+ *
+ * The common dirs are only consulted after the cheap comparisons disagree, so
+ * the two extra git spawns are paid exactly once per actually-foreign run and
+ * never in a user's repo or on the agreeing path.
  */
 export function foreignCliRoot(store: Store, running: string = runningCliRoot()): string | null {
   if (!isMstackCheckout(store.root)) return null;
   if (canonical(running) === canonical(store.root)) return null;
+  const own = gitCommonDir(store.root);
+  if (own !== null && own === gitCommonDir(running)) return null;
   return running;
 }
 
