@@ -1262,3 +1262,323 @@ $ node scripts/check-doc-links.mjs README.md docs/wiki/*.md
    here and every `gate --full` in this repository still runs the suite twice.
 5. **Finding D stands.** Every ledger row for this item is `--verifier implementer`, including
    the one recorded at this head.
+
+---
+
+# Round 4 — response to the third CHANGES_REQUESTED
+
+Reviewed at `1a05d83`. One finding, and it shipped fixed rather than measured away. Two more
+defects of the same shape turned up while fixing it, both found by me and neither reported.
+
+## What changed
+
+`git hash-object` **follows** symlinks and hashes the target's bytes; git's own index does not,
+recording a symlink blob as the *target string*. I verified that myself before touching anything
+— `git add` on a link to `/etc/passwd` recorded `3594e94c`, the hash of the eleven characters,
+not `1fcfce02`, the hash of the file. Every untracked path is now `lstat`-ed once, and only a
+regular file is ever opened; a symlink contributes `readlink`, which is exactly what git stores.
+That closes all four rows at once. While implementing it I found that `git ls-files` prints
+paths relative to the *current directory* while `hash-object --stdin-paths` resolves them
+relative to the *repository root*, so every store in a subdirectory had its tree half silently
+off — the same defect, reachable by nothing more exotic than where the store sits. And the
+reviewer's minor 1 turned out to be why the `/dev/zero` row cost 10.6s a gate rather than 5.25s:
+`treeId` was computed twice.
+
+## The four rows, measured before and after
+
+Each row is a separate scratch repository with one untracked symlink, run through the real
+`treeId`:
+
+```console
+                                      BEFORE                             AFTER
+symlink to a directory                unknown              27 ms         ca965fd4a97a4ba9   26 ms
+dangling symlink                      unknown              25 ms         e88a27944af2e01e   25 ms
+symlink to a file outside the repo    62937861a68336bf     25 ms         a5ef0ec27f0a0a1c   26 ms
+symlink to /dev/zero                  unknown            5253 ms         2edb34f3b82762b9   25 ms
+```
+
+Row three deserves its own note, because "it produced a hash" hid the problem rather than
+showing it: that hash was computed from the bytes of a file outside the repository. Proved by
+changing the target and the link, separately:
+
+```console
+link -> outside.txt (ORIGINAL) : d876f11c87e5370e
+target contents rewritten      : d876f11c87e5370e   SAME  <- not read through the link
+link repointed to other.txt    : 998a44a439882628   CHANGED  <- the link itself is in the key
+```
+
+That is git's model exactly.
+
+## The false green, before and after, through the shipped binary
+
+Before — two commands, and the item closes on a verification that exits 1:
+
+```console
+### an ordinary untracked symlink to a directory
+assets
+[ok]    sh check.sh
+PASSED - 0 failures, 1 warning
+receipt tree: unknown
+
+### the verification is now genuinely red: sh check.sh exits 1
+[warn]  git could not describe the working tree, so only the commit half of the verification key was checked; an uncommitted change since the run would not be noticed
+[ok]    verification ran and passed at 14a0bdd9: sh check.sh
+PASSED - 0 failures, 2 warnings
+
+1 probe (done)
+  status: "verifying" -> "done"
+EXIT=0
+```
+
+After — same store, same commands:
+
+```console
+### the same untracked symlink to a directory
+assets
+[ok]    sh check.sh
+PASSED - 0 failures, 1 warning
+receipt tree: ac7d2dbf2b27401b   <- a real fingerprint, not 'unknown'
+
+### the verification is now genuinely red: sh check.sh exits 1
+[fail]  1 probe (verifying) is one step from done, and `sh check.sh` last ran at 15096fb4, and an uncommitted file has changed since
+[warn]  2 uncommitted change(s); expected mid-session, not at close
+FAILED - 1 failure, 1 warning
+
+mstack: probe cannot close on a verification that has not run: `sh check.sh` last ran at 15096fb4, and an uncommitted file has changed since
+        run 'mstack gate --full' at this commit; closing is the one moment the run has to be real, and --force closes it unverified
+EXIT=2
+```
+
+The warning is gone because its cause is gone, which is the outcome the reviewer asked for: the
+`unknown` path is no longer reachable through an ordinary transient state, rather than being
+announced more loudly when it is.
+
+## Two more of the same shape, found while fixing this one
+
+**A store in a subdirectory had its tree half off, always.** Not reported, and worse than the
+symlink rows because it needs no unusual file at all:
+
+```console
+--- from repo root ---
+sub/untracked-in-sub.txt
+untracked-at-root.txt
+--- from sub/ (a nested store root) ---
+untracked-in-sub.txt
+../untracked-at-root.txt
+--- can hash-object resolve those from sub/? ---
+fatal: could not open 'untracked-in-sub.txt' for reading: No such file or directory
+```
+
+`ls-files` answered relative to cwd; `hash-object` resolves relative to the repository root. With
+`--full-name` both agree, and paths are stat-ed against `rev-parse --show-toplevel`.
+
+**`treeId` ran twice per fast gate** (the reviewer's minor 1), which is arithmetic on the
+`/dev/zero` row: 2 × 5.25s ≈ the 10.6s they measured. `status()` now takes the tree to judge
+against, and the gate computes it once.
+
+## A claim of my own that measurement contradicted
+
+I justified classifying by file kind like this: *"a fifo or a device node sitting in the worktree
+would block `hash-object` exactly the same way with no symlink involved"*. That is **false**, and
+a test I wrote against it failed because the case cannot occur:
+
+```console
+ls-files -o --exclude-standard:
+ordinary.txt
+--- git status --porcelain:
+?? ordinary.txt
+--- and a symlink to /dev/zero?
+ordinary.txt
+zero-link
+```
+
+Git lists **regular files and symlinks only**. A `mkfifo` in the worktree appears in neither
+`ls-files -o` nor `status --porcelain`, so it never reaches this code; the `/dev/zero` stall only
+ever arrived *through* a link. The four per-kind branches collapsed to one fallback, the decision
+row is superseded by `2026-08-21T14:17:52.875Z` rather than edited, and the failing test was
+replaced by one that pins what is actually true — that git offers only those two kinds. I would
+rather report this than leave a justification the code's own tests contradict.
+
+## Decisions
+
+| Row | Decision |
+|---|---|
+| `2026-08-21T14:11:51.813Z` | An untracked symlink is fingerprinted by its target string, the way git records it, and is never read through |
+| `2026-08-21T14:12:04.288Z` | Only regular files are read; every other kind contributes a token instead — **superseded below for its reasoning, not its behaviour** |
+| `2026-08-21T14:12:04.313Z` | A path that vanishes between the listing and the stat voids the receipt rather than disabling the tree half |
+| `2026-08-21T14:12:17.556Z` | `ls-files` gets `--full-name`, because a nested store already had its tree half silently off |
+| `2026-08-21T14:12:17.580Z` | `treeId` is computed once per gate and threaded through, rather than twice |
+| `2026-08-21T14:17:52.875Z` | Supersedes the file-kind row: git never lists a fifo or a device node, so only symlink, regular file and vanished are reachable |
+
+## Cost, which is the standing risk on criterion 3
+
+```console
+fast gate, in_progress (no treeId): 57 ms
+fast gate, verifying  (treeId once): 77 ms      <- was 88 ms, before minor 1
+
+treeId alone
+this repo                              21 ms -> 061a5738652d4812
+30k files, 500 dirty, 200 untracked   125 ms -> 3d087735530d5761
+```
+
+The coordinator's 0.07s is intact and the `verifying` window got *cheaper* this round, because
+halving the double computation more than paid for the per-path `lstat`. The `/dev/zero` row went
+from 5253ms to 25ms, and it was the only case above a second.
+
+## Mutations: 22, 20 killed, 2 unreachable, baseline green both sides
+
+Every earlier round's guarantees are re-run, because `treeId` changed again.
+
+```console
+=== BASELINE (must be green, or nothing below means anything) ===
+
+ 258 pass
+ 0 fail
+R4-1    src/verification.ts   symlinks are followed again, as hash-object does by default
+        killed (1 of 1 matching "an untracked symlink is fingerprinted" went red)   (restored ok, sha256 de3b8d17d162)
+R4-2    src/verification.ts   the same, seen end to end: the tree half switches off and a red verification passes
+        killed (1 of 1 matching "an untracked symlink does not switch the tree half off" went red)   (restored ok, sha256 de3b8d17d162)
+R4-3    src/verification.ts   a symlink is keyed by its own path rather than by its target
+        killed (1 of 1 matching "a symlink's target contents are not in the key" went red)   (restored ok, sha256 de3b8d17d162)
+R4-4    src/verification.ts   a symlink is keyed by a constant, so relinking is invisible
+        killed (1 of 1 matching "a symlink's target contents are not in the key" went red)   (restored ok, sha256 de3b8d17d162)
+R4-5    src/verification.ts   anything that is not a regular file is read anyway
+        SURVIVED   (restored ok, sha256 de3b8d17d162)
+R4-6    src/verification.ts   --full-name dropped, so a nested store's paths do not resolve
+        killed (1 of 1 matching "a store in a subdirectory fingerprints its repository" went red)   (restored ok, sha256 de3b8d17d162)
+R4-7    src/verification.ts   untracked paths are resolved against the store rather than the repository root
+        killed (1 of 1 matching "a store in a subdirectory fingerprints its repository" went red)   (restored ok, sha256 de3b8d17d162)
+R4-8    src/verification.ts   status ignores the tree it is handed and recomputes it
+        killed (1 of 1 matching "status judges against the tree it is handed" went red)   (restored ok, sha256 de3b8d17d162)
+R4-9    src/verification.ts   a symlink whose readlink throws is silently treated as a regular file
+        SURVIVED   (restored ok, sha256 de3b8d17d162)
+P1      src/verification.ts   R3: untracked hashing dropped, leaving only git diff HEAD
+        killed (1 of 1 matching "editing an already-dirty untracked file voids it too" went red)   (restored ok, sha256 de3b8d17d162)
+P2      src/verification.ts   R3: the fingerprint goes back to WHICH paths are dirty
+        killed (1 of 1 matching "editing an already-dirty tracked file voids the receipt" went red)   (restored ok, sha256 de3b8d17d162)
+P6      src/verification.ts   R3: untracked paths dropped from the key
+        killed (1 of 1 matching "which untracked files exist is part of the tree" went red)   (restored ok, sha256 de3b8d17d162)
+P6b     src/verification.ts   R3: the same for regular files
+        killed (1 of 1 matching "which untracked files exist is part of the tree" went red)   (restored ok, sha256 de3b8d17d162)
+P7      src/verification.ts   R2: the .mstack exclusion removed
+        killed (1 of 1 matching "edits inside .mstack/ do not void a run" went red)   (restored ok, sha256 de3b8d17d162)
+P9      src/verification.ts   R3: the CLEAN_TREE sentinel removed
+        killed (1 of 1 matching "the tree fingerprint ignores the store and nothing else" went red)   (restored ok, sha256 de3b8d17d162)
+N10     src/gate.ts           R2 finding B: the tree is sampled BEFORE the commands
+        killed (1 of 1 matching "does not void its own receipt" went red)   (restored ok, sha256 4653ecd8532f)
+P5      src/gate.ts           R2 finding C: the unknown-tree warning removed
+        killed (1 of 1 matching "a tree git cannot describe is said out loud" went red)   (restored ok, sha256 4653ecd8532f)
+N1      src/gate.ts           R2 finding 1: the fail-open catch removed
+        killed (1 of 1 matching "an unreadable receipt file is a failure" went red)   (restored ok, sha256 4653ecd8532f)
+R1-M1   src/gate.ts           R1: the fast-gate verification check never runs
+        killed (1 of 1 matching "whose verification never ran is red" went red)   (restored ok, sha256 4653ecd8532f)
+R1-M4   src/cli.ts            R1: the closing guard is consulted and its answer ignored
+        killed (1 of 1 matching "an item cannot be closed on a verification that never ran here" went red)   (restored ok, sha256 cdd440120fb3)
+R1-M7   src/lifecycle.ts      R1: the cost line widened past verifying
+        killed (1 of 1 matching "nothing before verifying is held to a run" went red)   (restored ok, sha256 649560f789f1)
+R3-CA   src/verification.ts   R3: BOTH the newline guard and the hash-count check removed
+        killed (1 of 1 matching "a newline in an untracked path" went red)   (restored ok, sha256 de3b8d17d162)
+
+=== SUMMARY ===
+22 mutations, 20 killed, 2 survived, 0 setup errors
+  R4-5: SURVIVED / restored ok
+  R4-9: SURVIVED / restored ok
+
+=== POST-RUN BASELINE (proves every restore landed) ===
+
+ 258 pass
+ 0 fail
+```
+
+**The first run was 15 of 22 with two setup errors, and three of the five survivors were my
+mutations being unfaithful rather than gaps.** Worth stating, because it is the third round
+running that my own harness has been the thing at fault:
+
+- `R4-1`/`R4-2` disabled the `isSymbolicLink()` branch, which does **not** restore the old
+  behaviour: a symlink then falls to the not-a-regular-file fallback and is still described
+  rather than followed. The faithful reproduction is `classify` returning `null` for a symlink,
+  and with that it kills.
+- `R4-6` survived, and that one *was* a real gap. My nested-store test asserted "not `unknown`"
+  and "the hash moves", and both hold even when every path resolves to nowhere — an unresolvable
+  path still contributes a `gone` token and still moves the hash. Only **contents** prove the
+  paths resolved, so the test now edits files above and beside the store and asserts the
+  fingerprint follows.
+- `P6` survived because my "which untracked files exist" fixture used two regular files, which
+  take the blob branch, not the token branch it was aimed at. Two symlinks to one target under
+  different names cover it.
+
+The two remaining survivors are unreachable rather than unpinned, and I am saying which:
+
+- `R4-5` makes the not-a-regular-file fallback read instead. Unreachable, and this is the
+  measurement above: git lists only regular files and symlinks, and a symlink never reaches that
+  line because the branch above it returns first.
+- `R4-9` makes the `readlink` catch return `null`. I could not construct a state where `lstat`
+  says symlink and `readlink` then throws; both need the same permission on the same parent. It
+  stays as a guard, at rung 2, and I am not claiming more.
+
+The `gone` branch is in the same category: I could not construct a deterministic race where a
+path is listed and then vanishes before its `lstat`. Written, typechecked, reasoned; **rung 2**,
+and not written up as more.
+
+## Final state
+
+```console
+$ npm test
+ 258 pass
+ 0 fail
+ℹ pass 258
+ℹ fail 0
+
+$ npm run typecheck
+> bunx --bun tsc --noEmit
+
+$ ./bin/mstack lint-plugin . | tail -2
+PASSED - 0 failures, 0 warnings
+
+$ node scripts/check-doc-links.mjs README.md docs/wiki/*.md
+60 relative links checked, 0 broken
+```
+
+## Round-4 requirement to test
+
+| Row / finding | Test | `file:line` | Mutation |
+|---|---|---|---|
+| All four symlink rows fingerprint, and none is read through | `an untracked symlink is fingerprinted, never followed and never opened` | `tests/verification.test.ts:361` | R4-1 |
+| ...and the `/dev/zero` row does not stall | the same test's elapsed assertion | `tests/verification.test.ts:361` | R4-1 |
+| The target's **contents** are not in the key; the target **is** | `a symlink's target contents are not in the key, but its target is` | `tests/verification.test.ts:393` | R4-3, R4-4 |
+| Two links to one target under different names are two trees | `which untracked files exist is part of the tree, not just what is in them` | `tests/verification.test.ts:290` | P6, P6b |
+| End to end: a red verification behind a symlink stays caught | `an untracked symlink does not switch the tree half off, so a red verification stays caught` | `tests/gate.test.ts:1004` | R4-2 |
+| A nested store fingerprints its repository, contents included | `a store in a subdirectory fingerprints its repository, rather than giving up` | `tests/verification.test.ts:433` | R4-6, R4-7 |
+| Git offers only files and symlinks | `git never offers a fifo as untracked, so only files and symlinks reach the fingerprint` | `tests/verification.test.ts:483` | (pins the measurement that corrected my own claim) |
+| The gate can compute the tree once and hand it over | `status judges against the tree it is handed, so the gate can compute it once` | `tests/verification.test.ts:504` | R4-8 |
+
+## Where each round-4 claim stopped on the ladder
+
+| Claim | Rung | What got it there |
+|---|---|---|
+| The false green was real: an untracked symlink closed an item on a verification exiting 1 | 5 | My own repro before any fix, through `./bin/mstack`, exit 0 |
+| `hash-object` follows links where git's index does not | 5 | Hashes compared against what `git add` recorded |
+| All four rows are fixed | 5 | Each row a separate repository, run through the real `treeId`, before and after |
+| The link is not read through, but is itself in the key | 5 | Target rewritten (fingerprint unchanged), link repointed (fingerprint changed) |
+| A nested store had its tree half off, and does not now | 5 | `ls-files` and `hash-object` disagreeing on the same paths from `sub/` |
+| Git never lists a fifo, so my file-kind reasoning was wrong | 5 | `mkfifo` beside an ordinary file; git lists only the ordinary one |
+| Cost is bounded and improved | 5 | 57ms/77ms fast gate here; `treeId` 21ms here and 125ms at 30k files |
+| Every round-1..3 guarantee still holds | 4 | Their mutations re-run at this head; all still killing |
+| `R4-5` and `R4-9` are unreachable rather than unpinned | 3 | Walked, plus the `mkfifo` measurement for `R4-5`; **no counterexample constructed for `R4-9`** |
+| The `gone` branch behaves as described | **2** | Written and typechecked. I could not construct the race deterministically, and I am not claiming I did |
+| A store on a filesystem that refuses the receipt **write** reports usefully | **2** | Unchanged across four rounds; still only read and typechecked |
+| Losing a receipt row under concurrent `gate --full` | **3** | Unchanged: the window is real, 8 of 8 concurrent runs lost nothing |
+
+## For the reviewer, round 4
+
+1. **Two defects this round were mine to find, not review's**: the nested store and, indirectly,
+   the double `treeId`. Both are the same shape as the reported one — a state where the tree half
+   switches off without saying so — which suggests the class is worth one more look rather than
+   my word that it is now empty.
+2. **`--full-index` is in** (minor 2) and is untestable by construction: it would take two binary
+   files whose abbreviated index hashes collide. It costs nothing and removes the question.
+3. **Minor 3 is documented, not changed**: untracked files are re-read every fast gate, and
+   `State-Files` now names the cost and the remedy.
+4. **Minors 4 and 5 stand where they were.** Every ledger row is still `--verifier implementer`,
+   including this round's; and `state.verify` still differs from item 14's `verification` by a
+   `./`, so `gate --full` here still runs the suite twice. Both are for the closing pass.
