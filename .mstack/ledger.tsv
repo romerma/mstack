@@ -17,3 +17,4 @@ panel-followup-prose	3a38bab65d26810efcbdfa0161a51df5e50febd5	test-verified	.mst
 sandbox-weather-dogfood	a369f8aa201f2980c2691dc428021de369f41e68	live-verified	sandbox/.mstack/progress/review_protocol-factcheck_r2.md	reviewer	2026-08-21T01:29:25.567Z
 rm-guard-command-boundary	0c0c24d6bd86d4d19ae5776ec347091b4a7eda1e	live-verified	.mstack/progress/impl_rm-guard-command-boundary.md	implementer	2026-08-21T07:33:40.410Z
 rm-guard-command-boundary	739870c451c8ab6f9d4429a53411276a9766ec8b	live-verified	.mstack/progress/impl_rm-guard-command-boundary.md	implementer	2026-08-21T08:49:37.341Z
+rm-guard-command-boundary	e362a0f41c7b11003e0a68513a7f8540a36c89a9	live-verified	.mstack/progress/review_rm-guard-command-boundary_r2.md	reviewer	2026-08-21T09:02:44.899Z
