@@ -203,7 +203,7 @@
         "The decision fork gate still refuses: adding --decision-required to an item already past in_progress is either refused or forces the item back, and the choice is recorded rather than implied",
         "Tests cover setting each field on an existing item, the interaction with the decision gate, and that --status and --closed-by keep working exactly as before"
       ],
-      "status": "in_progress",
+      "status": "reviewing",
       "description": "src/cli.ts:242 gives 'state set' only --status, --closed-by and --force. Every other field is write-once at 'state add': description, verification, source, acceptance, sdd, and decision_required. The last one is the serious case. README.md:116-129 leads with decision_required as the human gate, and skills/spec/SKILL.md:33-38 says product forks are found by interviewing the repository during 'specifying' — which is after intake. So the plugin's headline gate cannot be attached to an item at the moment its own workflow says the fork is discovered, without hand-editing state.json. The dogfood session produced two textbook forks (a default place, and the meaning of an acceptance criterion) and both were answered with a plain 'mstack decide' row; the gate never had an opinion, and 30 decision rows carry zero 'resolves' values.",
       "source": "sandbox dogfood session, divergent lens finding F6-A and Part 3 #1, 2026-08-21",
       "verification": "npm test && npm run typecheck && ./bin/mstack lint-plugin ."
