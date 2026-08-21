@@ -319,7 +319,7 @@ mstack: greet-flag cannot close on a verification that has not run: `run the uni
 ```
 
 Note what the second `Stop` costs: nothing is executed, and it still cannot go green. That is
-the whole design. The nine rules that make it hold:
+the whole design. The eleven rules that make it hold:
 
 | Rule | Why it is that and not something looser |
 |---|---|
@@ -328,16 +328,20 @@ the whole design. The nine rules that make it hold:
 | That tree key hashes **contents**, not the list of dirty paths | The first version hashed `git status --porcelain`, whose lines are two status characters and a path. It therefore keyed on *which* files were dirty — so if the tree was already dirty when `--full` ran, the ordinary mid-session state, every further edit inside those same paths moved nothing and the same green-gate-on-a-red-verification came back one layer in. It is `git diff HEAD` for tracked paths plus a content hash per untracked file, because a `git diff` alone never mentions untracked ones and that would be the hole a third time. Chosen with numbers: 58ms and 34ms against 638ms for a temp-index `write-tree`, which is equally complete but writes loose objects into `.git` as a side effect of a read-only check |
 | The tree is sampled **after** the commands run, not before | A verification that writes anything into the repository — a log, a coverage file, a snapshot — would otherwise void its own receipt the instant it ran, so a green `--full` would be followed immediately by a red gate. Not permanently: a second `--full` recovers, because by then the artifact exists and the tree stops moving. But "run it twice and it works" is the shape people stop running, which is the failure the cost boundary exists to bound |
 | A tree git cannot describe is said out loud | `unknown` is the one tree value that switches half the key off, because both sides compute it identically and therefore match. The gate used to print "verification ran and passed" over the top of that, which is the mechanism claiming a check it did not make |
+| A symlink is keyed by its target string, and nothing is read through one | `git hash-object` **follows** symlinks; git's own index does not, recording a symlink blob as the target string. Following it broke four ways at once, each an ordinary untracked link — made, not yet committed, not yet ignored. A link to a **directory** or a **dangling** one cannot be hashed at all, so the whole tree half switched off and an item closed green on a verification exiting 1. A link to a **file** hashed bytes from outside the repository. A link to **`/dev/zero`** read until the git timeout, 5.25s a call and twice a gate. Now each untracked path is `lstat`-ed and only a regular file is ever opened |
+| The fingerprint is computed once per gate, not twice | It was computed once for the `unknown` warning and again inside the check, doubling the content hashing on the path that runs at the end of every turn. It is also why the `/dev/zero` link cost ten seconds rather than five: two timeouts, not one |
 | The **last** run at a commit wins, not the best | A suite that passed and was then re-run red is red. "Best" is how a stale pass survives a broken build |
 | It is demanded from `verifying`, and nowhere earlier | This rides the `Stop` hook, which fires at the end of every turn. Held from `in_progress` it would go red after every commit for the whole phase where most commits happen, and a gate that is red for a normal mid-session state is a gate someone switches off. `verifying -> done` is the only legal transition into `done`, so `verifying` is the earliest status that is also sufficient (`src/lifecycle.ts`) |
 | `state set --status done` re-checks at the transition | Without it the requirement has a one-command way around it: `done` is not an active status, so relabelling the item makes the gate stop looking and a store that was red a second ago goes green. `--force` still closes it — and now only with `--closed-by`, whose reason is stored in `state.json` prefixed `closed unverified (forced):`, because an override that leaves nothing behind is the `closed_by` shape this plugin already had to fix once |
 | An unreadable receipt file is a failure, never a pass | `receipts` reads a file, a read throws, and the hook wrapper catches every throw and exits 0 by design — so an unreadable `verification.tsv` produced zero bytes and exit 0 from `mstack hook stop`, byte-identical to a green gate, and threw `mstack gate` out mid-run so the workspace section and the summary never happened. The trigger is not exotic: this is the one store file a clone never recreates and whose ownership is purely local |
 
-Five of those nine came from review, over two rounds, after the first version shipped its own
-instance of the defect it was built to close — and then shipped a narrower version of the same
-defect in the fix for it. Each is reproduced above, or in the store's history, from a real run.
-The pattern is worth naming rather than hiding: every one of those five was a place where this
-mechanism *asserted* a guarantee it had not been measured against.
+Seven of those eleven came from review, over three rounds. The first version shipped its own
+instance of the defect it was built to close; the fix for that shipped a narrower version of the
+same defect; and the fix for *that* one shipped a narrower version again. Each is reproduced
+above, or in the store's history, from a real run. The pattern is worth naming rather than
+hiding: every one of those seven was a place where this mechanism *asserted* a guarantee it had
+not been measured against, and the narrowing is what a reviewer re-running the previous round's
+transcript against the new code buys you.
 
 An item at `verifying` that nothing verifies at all is a **warning**, not a failure:
 
