@@ -486,9 +486,13 @@ function checkVerificationRuns(store: Store, state: State, report: Report): void
   // recreates and whose ownership is purely local, so one `mstack` run as root
   // in a container produces it. The gate reports; it does not become the
   // failure, and it never reads an I/O error as a pass.
+  // Computed once and handed to the check. It used to be computed here and
+  // again inside `status()`, which doubled the whole content-hashing cost on
+  // the one path that runs at the end of every turn.
+  const tree = treeId(store);
   let result: ReturnType<typeof verificationStatus>;
   try {
-    result = verificationStatus(store, state, active, sha);
+    result = verificationStatus(store, state, active, sha, tree);
   } catch (error) {
     report.fail(
       `${itemLabel(active)} is one step from done, and its verification runs could not be read: ${(error as Error).message}`,
@@ -501,7 +505,7 @@ function checkVerificationRuns(store: Store, state: State, report: Report): void
   // is satisfied by a check while git could not be asked, with nothing compared.
   // Saying so is the whole fix — the gate printed "verification ran and passed"
   // over the top of it, which is the mechanism claiming a check it did not make.
-  if (treeId(store) === UNKNOWN_TREE) {
+  if (tree === UNKNOWN_TREE) {
     report.warn(
       "git could not describe the working tree, so only the commit half of the verification key was checked; an uncommitted change since the run would not be noticed",
     );

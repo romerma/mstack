@@ -1,4 +1,6 @@
 import { createHash } from "node:crypto";
+import { lstatSync, readlinkSync, type Stats } from "node:fs";
+import { join } from "node:path";
 
 import { git } from "./git.ts";
 import type { Store } from "./paths.ts";
@@ -166,44 +168,141 @@ export function obligations(state: State, item: Item | undefined): Obligation[] 
  * `CLEAN_TREE` rather than a hash for the common case, because a human reading
  * `verification.tsv` should be able to see at a glance that a run happened
  * against committed state.
+ *
+ * ## Nothing here is read through a symlink, and nothing but a regular file is read
+ *
+ * `git hash-object` **follows** symlinks and hashes the target's bytes. Git's own
+ * index does not: it records a symlink blob as the *target string*. Measured side
+ * by side, `git add` on a link to `/etc/passwd` recorded `3594e94c`, the hash of
+ * the eleven characters, and not `1fcfce02`, the hash of the file. Following the
+ * link was wrong four ways at once, and all four were an ordinary untracked
+ * symlink — made, not yet committed, not yet ignored:
+ *
+ * - a link to a **directory** or a **dangling** link cannot be hashed at all, so
+ *   `hash-object` failed and the whole tree half switched itself off. That closed
+ *   a real item green on a verification exiting 1.
+ * - a link to a **file outside the repository** hashed bytes that are not part of
+ *   this project, on a code path that runs at the end of every turn.
+ * - a link to **`/dev/zero`** read until the five-second git timeout, twice per
+ *   gate.
+ *
+ * So each untracked path is `lstat`-ed once and classified, and only a regular
+ * file is ever opened. The `/dev/zero` row is the tell that this is not really
+ * about symlinks: a fifo or a device node sitting in the worktree blocks
+ * `hash-object` the same way with no link involved, so the classification is by
+ * file kind rather than by the one spelling review happened to find.
+ *
+ * A path that disappears between the listing and the stat gets its own marker
+ * rather than an `UNKNOWN_TREE`. The tree really did change, so changing the
+ * fingerprint — voiding the receipt and asking for a re-run — is the true answer;
+ * switching the key off over an ordinary transient is the answer this round is
+ * about removing.
  */
 export function treeId(store: Store): string {
-  const diff = git(store, ["diff", "HEAD", ...OUTSIDE_THE_STORE], { raw: true });
+  // `--full-index` because for a binary file the abbreviated `index` line is the
+  // *entire* content signal, and seven hex characters is a smaller space than
+  // anything else in this key. Free, and it removes the question rather than
+  // answering it.
+  const diff = git(store, ["diff", "HEAD", "--full-index", ...OUTSIDE_THE_STORE], { raw: true });
   if (diff === null) return UNKNOWN_TREE;
 
   // `-z` because this list is read, not displayed: without it git quotes any
   // path with a special character in it, and a quoted path is not the path.
-  const listed = git(store, ["ls-files", "-o", "--exclude-standard", "-z", ...OUTSIDE_THE_STORE], {
-    raw: true,
-  });
+  //
+  // `--full-name` because `ls-files` prints paths relative to the *current
+  // directory* while `hash-object --stdin-paths` resolves them relative to the
+  // *repository root*. For a store in a subdirectory those disagree,
+  // `hash-object` fails outright, and every run in that store fingerprinted as
+  // `unknown` — the same silent switch-off as the symlink rows, reachable by
+  // nothing more exotic than where the store sits.
+  const listed = git(
+    store,
+    ["ls-files", "-o", "--exclude-standard", "-z", "--full-name", ...OUTSIDE_THE_STORE],
+    { raw: true },
+  );
   if (listed === null) return UNKNOWN_TREE;
   const untracked = listed.split("\0").filter((path) => path !== "");
 
-  let hashes: string[] = [];
-  if (untracked.length > 0) {
-    // `git hash-object --stdin-paths` is newline-separated and has no `-z`
-    // form, so a filename containing a newline cannot be handed to it
-    // unambiguously. Hashing the rest and calling the result a tree fingerprint
-    // would be a partial answer wearing a complete answer's name, which is the
-    // defect this whole module exists to close.
-    if (untracked.some((path) => path.includes("\n"))) return UNKNOWN_TREE;
-    const out = git(store, ["hash-object", "--stdin-paths"], { stdin: `${untracked.join("\n")}\n` });
-    if (out === null) return UNKNOWN_TREE;
-    hashes = out.split("\n").filter((line) => line !== "");
-    // One hash per path or the pairing below is a lie. A file that vanished
-    // between the listing and the hashing lands here.
-    if (hashes.length !== untracked.length) return UNKNOWN_TREE;
-  }
-
   if (diff === "" && untracked.length === 0) return CLEAN_TREE;
 
-  // Paths as well as hashes: two empty untracked files hash identically, and
+  const parts: string[] = [];
+  if (untracked.length > 0) {
+    // Paths are repo-root-relative now, so they are resolved against the top
+    // level and not against the store, which may be a subdirectory of it.
+    const top = git(store, ["rev-parse", "--show-toplevel"]);
+    if (top === null) return UNKNOWN_TREE;
+
+    const readable: string[] = [];
+    for (const path of untracked) {
+      const token = classify(join(top, path));
+      if (token === null) readable.push(path);
+      else parts.push(`${path}\0${token}`);
+    }
+
+    if (readable.length > 0) {
+      // `git hash-object --stdin-paths` is newline-separated and has no `-z`
+      // form, so a filename containing a newline cannot be handed to it
+      // unambiguously. Hashing the rest and calling the result a tree
+      // fingerprint would be a partial answer wearing a complete answer's name,
+      // which is the defect this whole module exists to close.
+      if (readable.some((path) => path.includes("\n"))) return UNKNOWN_TREE;
+      const out = git(store, ["hash-object", "--stdin-paths"], { stdin: `${readable.join("\n")}\n` });
+      if (out === null) return UNKNOWN_TREE;
+      const hashes = out.split("\n").filter((line) => line !== "");
+      // One hash per path or the pairing below is a lie.
+      if (hashes.length !== readable.length) return UNKNOWN_TREE;
+      readable.forEach((path, i) => parts.push(`${path}\0blob:${hashes[i]}`));
+    }
+  }
+
+  // Paths as well as contents: two empty untracked files hash identically, and
   // which of them exists is part of the state a verification runs against.
-  const pairs = untracked.map((path, i) => `${path}\0${hashes[i]}`).sort();
   return createHash("sha256")
-    .update(`${diff}\0${pairs.join("\0")}`)
+    .update(`${diff}\0${parts.sort().join("\0")}`)
     .digest("hex")
     .slice(0, 16);
+}
+
+/**
+ * What this entry contributes to the fingerprint, or `null` to read its bytes.
+ *
+ * Only a regular file returns `null`; everything else describes itself without
+ * being opened. That is the invariant, and it is stated as one because the
+ * reasoning I first wrote for it was wrong and measurement said so.
+ *
+ * I justified this as closing a class — "a fifo or a device node in the worktree
+ * would block `hash-object` the same way with no symlink involved". It would
+ * not, because git never offers one: `git ls-files -o` lists **regular files and
+ * symlinks only**, and silently passes over a fifo, a socket or a device node.
+ * A `mkfifo` in the worktree appears in neither `ls-files -o` nor
+ * `status --porcelain`. The five-second `/dev/zero` stall only ever reached
+ * `hash-object` *through* a symlink.
+ *
+ * So the final branch is unreachable through today's `ls-files`, and it stays
+ * anyway — as one line rather than four. It costs nothing and it makes the safe
+ * behaviour the *default* for anything that is not a regular file, instead of
+ * something each new entry kind would have to be remembered for.
+ */
+function classify(absolute: string): string | null {
+  let stat: Stats;
+  try {
+    stat = lstatSync(absolute);
+  } catch {
+    // Listed a moment ago and not there now. A distinct token rather than
+    // `UNKNOWN_TREE`: the tree changed, so the honest result is a different
+    // fingerprint that voids the receipt, not a key that stops checking.
+    return "gone";
+  }
+  if (stat.isSymbolicLink()) {
+    try {
+      // The target *string*, which is exactly what git stores for a symlink —
+      // never the target's contents, and never a read through the link.
+      return `symlink:${readlinkSync(absolute)}`;
+    } catch {
+      return "symlink:unreadable";
+    }
+  }
+  return stat.isFile() ? null : "not-a-regular-file";
 }
 
 /**
@@ -273,12 +372,26 @@ export interface RunStatus {
   readonly problems: readonly string[];
 }
 
-export function status(store: Store, state: State, item: Item | undefined, sha: string): RunStatus {
+/**
+ * @param tree the fingerprint to judge against, when the caller already has one.
+ *
+ * Threaded rather than recomputed, because the fast gate needs it twice — once
+ * to warn that it is `unknown`, once to match receipts — and computing it twice
+ * doubled the whole content-hashing cost on the path that runs at the end of
+ * every turn. It is also why a `/dev/zero` link cost ten seconds a gate rather
+ * than five: two timeouts, not one.
+ */
+export function status(
+  store: Store,
+  state: State,
+  item: Item | undefined,
+  sha: string,
+  tree: string = treeId(store),
+): RunStatus {
   const required = obligations(state, item);
   if (required.length === 0) return { required, satisfied: true, problems: [] };
 
   const rows = receipts(store);
-  const tree = treeId(store);
   const problems: string[] = [];
   for (const { command } of required) {
     const here = lastRun(rows, command, sha, tree);
