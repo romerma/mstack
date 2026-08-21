@@ -235,10 +235,11 @@
         "Whether a reviewer with no Write tool can record at all is established by evidence rather than assumed, and if it cannot, the item says what does close the gap instead",
         "lint-plugin still passes and the agent frontmatter contract is unchanged"
       ],
-      "status": "reviewing",
+      "status": "done",
       "description": "agents/implementer.md:45 is the only agent file that instructs 'mstack ledger record', and it hardcodes --verifier implementer. agents/reviewer.md:30 and skills/review/SKILL.md:35 tell the reviewer to run 'ledger check' and never to record. So the row that closes an item is always typed by somebody other than the reviewer, and src/roles.ts:96-99 already concedes the verifier column is free text and only a floor. The dogfood ledger is the proof: ten rows, eight verifier=implementer, one orchestrator, one reviewer — and the reviewer row was typed by the coordinating pass on the reviewer's behalf. The reports carried the separation the README leads with; the ledger did not.",
       "source": "sandbox dogfood session, divergent lens Part 3 #3, 2026-08-21",
-      "verification": "npm test && npm run typecheck && ./bin/mstack lint-plugin ."
+      "verification": "npm test && npm run typecheck && ./bin/mstack lint-plugin .",
+      "closed_by": "APPROVED at round 3, reviewer row live-verified at 112ffc3c"
     },
     {
       "id": 16,
