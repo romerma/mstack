@@ -221,3 +221,51 @@ guarantee that stopped holding.
 **Closed on:** 203 tests on both runtimes; typecheck, lint and doc links clean; four cases
 verified by the coordinating pass with streams captured separately; 4/4 round-2 mutations
 killed with a green baseline confirmed first, byte copies restored to pristine sha256.
+
+## 2026-08-21 — item 14 verification-never-runs, closed
+
+The Stop hook ran the fast gate, which never touched `state.verify` or `item.verification`.
+Only a human typing `gate --full` executed them. `CLAUDE.md` and `skills/setup/SKILL.md` both
+say the gate must be green before a session closes; for the verification half of that sentence
+nothing enforced it, and in a real session an item's verification was a non-executable string
+that stayed red for 230 minutes across four agent passes. `sh -n` accepts that string, so
+validation would not have caught it. Only running it does.
+
+**What shipped: a verification receipt.** `verification.tsv`, machine-local and gitignored,
+recording that a command ran, at which commit, against which working tree, and with what
+result. The fast gate demands a fresh receipt only from `verifying`; `state set --status done`
+demands one at the closing SHA. A receipt is keyed to the exact command text, so changing the
+command voids it — which is precisely the incident that started this.
+
+**Four review rounds, and every one found something real.**
+
+1. The new check **failed open**: an unreadable `verification.tsv` threw through a hook handler
+   that catches everything and returns 0, producing empty output and exit 0 — byte-identical to
+   a green gate. The guarded sibling twenty lines above already wraps that read, and its comment
+   names exactly this bug. **The seventh instance of this defect class in this programme, and
+   the first created by the fix for the sixth.**
+2. The receipt certified a **commit, not a tree**: an uncommitted edit after a green run was
+   invisible. Offered three answers including "document the limitation"; the implementer took
+   the strongest and keyed the receipt to the tree.
+3. The tree fingerprint hashed the **paths** of dirty files rather than their contents, so
+   editing an already-modified file did not move it. Round 1's transcript reproduced verbatim
+   with one extra precondition. Fixed by hashing contents, chosen over `git write-tree` on a
+   measurement — 92 ms against 638 ms — rather than on an argument.
+4. `git hash-object --stdin-paths` **follows symlinks**, which is not git's model; git records a
+   symlink as its target string. An untracked symlink to a directory switched the tree half off
+   entirely, restoring the false green, and one to `/dev/zero` cost 10.6 s per fast gate. Fixed
+   by keying symlinks to their target string, closing all four failure rows at once.
+
+**Cost, which is criterion 3 and the thing that decides whether anyone leaves the hook on:**
+the fast gate is 0.07 s in this repository and the `verifying` gate 77 ms — *lower* than before
+round 4, because fixing the symlinks also surfaced two more instances of the same class the
+implementer found against itself: a nested store had its tree half off unconditionally, and
+`treeId` was being computed twice per gate.
+
+**Closed on:** 258 tests on both runtimes, typecheck and lint clean, the four symlink rows and
+the tree-drift and fail-open cases verified by the coordinating pass through the shipped
+binary, and mutation runs with a green baseline confirmed on both sides.
+
+The lesson worth carrying: this item spent four rounds because each fix for a "reports green
+when it should not" defect introduced a narrower version of the same thing. A pass hunting a
+pattern is entirely capable of reintroducing it twenty lines below the comment describing it.
