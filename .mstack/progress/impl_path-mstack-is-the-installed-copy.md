@@ -388,3 +388,197 @@ after, through real `bin/mstack` processes against a real worktree of this repos
 real false-positive repo; every behaviour-change test shown red against the round-1 byte
 copy; full suite (272 × 2 runtimes), typecheck, lint-plugin, doc links and the gate green at
 this head.
+
+---
+
+# Round 3
+
+Review verdict CHANGES_REQUESTED at `da57a20`
+(`.mstack/progress/review_path-mstack-is-the-installed-copy_r2.md`): one blocker (round 2
+inverted the failure direction — a loud false positive became a silent false negative) and
+three located findings. All addressed. Base for this round: `79bb74a` (round-2 review
+artifacts committed). The pre-fix byte copy is round 2's code (`scratchpad/r2-src`, verified
+identical to `src/` before any edit); every swap and restore was `rm -rf src && cp -R`,
+never `git checkout` or `git reset`.
+
+## The blocker: same repository is necessary, the committed src tree is sufficiency
+
+**Fix.** `foreignCliRoot` is replaced by `cliProvenance`, one classification consumed by
+both surfaces (which also removes the doubled manifest read per gate run, the first minor
+note). Four answers: a user's repo is silence; the store's own path is the plain `[ok] ...
+its own ./bin/mstack`; outside the repository stays the failure; and a same-repository
+sibling is judged by `HEAD:src` — git's already-stored tree object, fetched **in the same
+`rev-parse` spawn as the common dir**, at zero extra spawns. Equal trees get
+`[ok] ... within the same repository at the same committed src tree (<sha8>)`; unequal trees
+get a warning naming both tree ids, the sibling's path, and the store's own launcher, echoed
+as one stderr note by non-gate commands.
+
+**Two superseding decision rows, recorded before the code:**
+
+- The round-2 cost/bound row is superseded: its "full src tree hash into the Stop hook"
+  figure was wrong (the reviewer measured the combined spawn at 22.4ms against 19.8ms, means
+  of 20, and nothing is hashed — git returns a stored object id), and its "bounded by
+  worktree lifecycle" claim asserted a bound the mechanism never provided.
+- The severity fork is decided and owned: **warn, not fail**, for a differing sibling. What
+  fail would have bought: the Stop hook would inject the mismatch. What it would have cost:
+  a red gate every turn for the entire life of any branch touching `src/` — items 18–20 in
+  this queue touch `src/gate.ts` — through hooks wired to a `${CLAUDE_PLUGIN_ROOT}` no
+  session can redirect per worktree, which is the switch-off failure that produced round 2's
+  silence in the first place. What warn gives up is stated in the row and below.
+
+**Live before/after, real runs** — the reviewer's exact shape rebuilt from byte copies
+(`scratchpad/r3-before` from `r2-src`, `scratchpad/r3-after` from `r3-src`): a scratch main,
+a `git worktree` on `feat/new-check`, one gate check added only on that branch.
+
+```
+=== BEFORE (round-2 code) — the worktree's OWN CLI ===
+[ok]    store root is an mstack checkout, and this report came from within the same repository
+[fail]  a check only this branch contains
+FAILED - 1 failure, 0 warnings          exit=1
+
+=== BEFORE — the MAIN checkout's CLI, same store: the silent false negative ===
+[ok]    store root is an mstack checkout, and this report came from within the same repository
+PASSED - 0 failures, 0 warnings         exit=0
+
+=== BEFORE — hook stop, main's CLI ===
+[exit=0]                                # no additionalContext at all
+
+=== AFTER (round-3 code) — the worktree's OWN CLI ===
+[ok]    store root is an mstack checkout, and this report came from its own ./bin/mstack
+[fail]  a check only this branch contains
+FAILED - 1 failure, 0 warnings          exit=1
+
+=== AFTER — the MAIN checkout's CLI, same store ===
+[warn]  this report was produced by a sibling of this repository at committed src tree bcd59a44, not this store's 10c7e8ef: .../r3-after/main — its checks may not be this store's checks; run .../r3-after/wt/bin/mstack for a report this store's code stands behind
+PASSED - 0 failures, 1 warning          exit=0
+
+=== AFTER — a non-gate command from main's CLI ===
+mstack: note: this command ran a sibling copy from .../r3-after/main whose committed src tree differs from this store's; prefer .../r3-after/wt/bin/mstack
+
+=== AFTER — hook stop, main's CLI ===
+mstack: note: this command ran a sibling copy from .../r3-after/main whose committed src tree differs ...   (stderr)
+[exit=0]                                # still no additionalContext — the stated limit
+
+=== AFTER — hook stop, the worktree's own CLI ===
+{"hookSpecificOutput":{"hookEventName":"Stop","additionalContext":"The mstack gate is red. Fix these before closing:\n- a check only this branch contains -> demo of item-17 round-3"}}
+```
+
+**Limits, stated rather than implied.** (a) `HEAD:src` is the *committed* tree: uncommitted
+edits to `src/` are invisible to the comparison, and `src/` is dirty for most of a working
+session. Nothing here closes that, and the ok line says "committed" for exactly that reason.
+(b) `src/hooks.ts:176` composes `additionalContext` from `report.failures` only, so the
+sibling warning reaches a shell `mstack gate` and the hook process's stderr (the
+`warnForeignCli` note, visible above), but not the context injected back into the model.
+Closing that would mean either failing (the fatigue this row refuses) or changing quiet-mode
+semantics, which is `Report`'s contract, not this item's. Both limits are in the decision
+row, the code comments, and `docs/wiki/Gates-and-Hooks.md`.
+
+## Finding B: the cost comment was measurably wrong
+
+Rewritten at the `cliProvenance` doc comment, saying what the reviewer measured: the
+identity spawns run once per invocation where the two roots differ — **which includes every
+worktree run, on every gate** — and never in a user's repo or on the path-equal path.
+
+## Finding C: the manifest-shape test now covers the promised contract
+
+`tests/gate.test.ts:1297` is rewritten over four shapes — someone else's name, unparseable,
+JSON `null`, and a directory at the manifest path (the unreadable case, `EISDIR` out of
+`readFileSync`) — with "missing" covered by the wrapper-repo test and the blocking-read
+shape delegated to the fifo process test. These are guards: round-2 code already handled
+all four (the reviewer verified six shapes by hand), so they pin coverage rather than prove
+the fix; the report says so instead of counting them as red-provers.
+
+## Finding D: a fifo manifest no longer hangs the gate
+
+`isMstackCheckout` now runs `statSync(manifest).isFile()` inside the same `try` before
+`readFileSync` — a blocking read is not a throw, and the precedent is this repo's own
+`src/git.ts` timeout rationale, which the code comment cites. Pinned by
+`tests/provenance.test.ts:280` as a real process with a 10s spawn timeout, so the pre-fix
+red is a killed child rather than a hung suite.
+
+## Minor notes from the review
+
+- Doubled manifest read: gone (single `cliProvenance` call).
+- `paths.ts` no longer a leaf module: noted at the `git.ts` import, with the type-only
+  back-edge and the both-runtimes pin.
+- `warnForeignCli` cwd vs hook `input.cwd`: a comment at the function now states the
+  divergence and when it is visible.
+- README "produced and re-run by" ambiguity: rephrased as the rule it is ("The rule for
+  every transcript here and in the wiki: ...").
+
+## Files (round 3)
+
+- `src/paths.ts` — `statSync` guard, `repoIdentity` (combined spawn + fallback),
+  `Provenance` type, `cliProvenance`; `foreignCliRoot` and `gitCommonDir` removed
+- `src/gate.ts` — `checkCliProvenance` over the four answers; severity ladder comment
+- `src/cli.ts` — `warnForeignCli` over `cliProvenance`, sibling note, cwd comment
+- `tests/provenance.test.ts` — sibling warning test (`:234`, red on r2), fifo test (`:280`,
+  red on r2), wording assertions updated (`:68` back to "its own", `:164`/`:173` to "same
+  committed src tree" — both red on r2)
+- `tests/gate.test.ts` — manifest shapes rewrite (`:1297`, guards), ok-line assertion
+  (`:1229`, red on r2)
+- `README.md`, `docs/wiki/Gates-and-Hooks.md` — mechanism, severity, both limits
+- `.mstack/decisions.tsv` — two superseding rows
+
+## Commands (round 3)
+
+```
+$ npm test
+ 274 pass
+ 0 fail
+Ran 274 tests across 15 files. [37.00s]
+ℹ tests 274
+ℹ pass 274
+ℹ fail 0
+
+$ npm run typecheck
+> bunx --bun tsc --noEmit
+(exit 0)
+
+$ ./bin/mstack lint-plugin .
+PASSED - 0 failures, 0 warnings
+
+$ node scripts/check-doc-links.mjs README.md docs/wiki/*.md
+61 relative links checked, 0 broken
+
+$ ./bin/mstack gate
+[ok]    store root is an mstack checkout, and this report came from its own ./bin/mstack
+PASSED - 0 failures, 1 warning     # the warning is this session's uncommitted store files
+```
+
+Red against the round-2 byte copy (`rm -rf src && cp -R scratchpad/r2-src src`, restored
+from `scratchpad/r3-src` and re-verified green):
+
+```
+$ node --test tests/provenance.test.ts
+✖ inside a checkout, the checkout's own bin/mstack stays green and says which copy ran
+✖ a git worktree of the repository is not foreign, at the same commit or any other
+✖ a sibling at a different committed src tree is a named warning, not an ok and not a red gate
+✖ a fifo at the manifest path is silence, not a hang   (10.1s — the killed child)
+ℹ tests 10  pass 6  fail 4
+
+$ bun test tests/gate.test.ts
+(fail) the store's own CLI in its own checkout is an [ok] line, not silence
+ 61 pass
+ 1 fail
+```
+
+The two wording reds track the deliberate message split (own vs same-src sibling); the
+sibling and fifo reds are the behaviour changes. The manifest-shape guards pass on both
+rounds by design, as stated above.
+
+## Finding → evidence (round 3)
+
+| Finding | Fix | Test | Rung |
+|---|---|---|---|
+| Blocker: silent false negative on a differing sibling | `HEAD:src` sufficiency + warn | `tests/provenance.test.ts:234` (red on r2); before/after transcripts above; superseding decision rows | 5 |
+| B: wrong cost comment | rewritten with the measured truth | comment; the zero-extra-spawn claim is the reviewer's own rung-5 measurement, adopted | 2 for the wording, 5 for the underlying numbers (reviewer's, cited not re-derived) |
+| C: manifest shapes under-covered | four-shape rewrite | `tests/gate.test.ts:1297` (guards, pass both rounds — said, not hidden) | 4 |
+| D: fifo hang | `statSync().isFile()` guard | `tests/provenance.test.ts:280` (red on r2 as a killed child) | 5 |
+
+## Verdict (round 3)
+
+`live-verified` — the blocker reproduced live on a byte-copy pair before the fix and shown
+warned after, through real `bin/mstack` processes including the hook path; every
+behaviour-change test shown red against the round-2 byte copy; full suite (274 × 2
+runtimes), typecheck, lint-plugin, doc links and the gate green at this head.

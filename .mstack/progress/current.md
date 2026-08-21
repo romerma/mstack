@@ -86,6 +86,31 @@ on the implementer's row.
   Worktree fixture removed from `git worktree list` after capture; the reviewer's
   `review17-wt-probe` branch left alone as instructed.
 
+- Round 2 fixed both round-1 findings at the root: the manifest is the checkout identity, and
+  foreign means outside this git repository rather than at another path. 272 tests.
+- Round 2 review: CHANGES_REQUESTED, and the finding is that the fix inverted the failure
+  direction. Round 1 was a loud false positive; round 2 is a silent false negative. Built the
+  case myself as well: a worktree on a feature branch whose `src` tree genuinely differs
+  (83cc286 vs 60d60f7), where the worktree's own CLI reports FAILED exit 1 and the main
+  checkout's CLI prints `[ok] ... came from within the same repository`, PASSED exit 0. That
+  is the item's own description in state.json, now with an affirmative [ok] over it.
+- The decision row's cost argument is refuted at rung 5 and I measured it: `git rev-parse
+  --git-common-dir HEAD HEAD:src` returns all three in one spawn, 19.7ms against 21.4ms for
+  the common dir alone. The tree comparison is free.
+- Round 3 has to make same-repository necessary but not sufficient, and owns the severity fork:
+  `fail` for a copy outside the repository, and its own call on a worktree whose src differs,
+  where `warn` is the option round 2 never considered.
+- Round 3 done: `cliProvenance` classifies four ways; `HEAD:src` rides the same rev-parse
+  spawn as the common dir (zero extra spawns — the round-2 cost figure is superseded by a
+  new decision row that says it was wrong); a differing sibling is a `warn` naming both tree
+  ids plus a stderr note on non-gate commands (severity fork recorded); fifo manifest guarded
+  by `statSync().isFile()`; manifest-shape unit test covers the full promised contract; the
+  doubled manifest read and the wrong cost comment are gone. Limits stated, not implied:
+  `HEAD:src` cannot see uncommitted src/ edits, and the Stop hook's `additionalContext`
+  carries failures only, so the sibling warning reaches the shell gate and the hook's stderr
+  but not the injected context. Before/after transcripts of the reviewer's exact worktree
+  case (a branch with a check main lacks) are in the impl report's round-3 section.
+
 ## Verification
 
 - Round 1: `npm test` 267/267 under bun and node, typecheck exit 0, `lint-plugin` PASSED,
@@ -94,3 +119,6 @@ on the implementer's row.
 - Round 2: `npm test` 272/272 under bun and node, typecheck exit 0, `lint-plugin` PASSED,
   doc links 0 broken, gate PASSED — pasted in the impl report's round-2 section; fresh
   implementer row at the round-2 head.
+- Round 3: `npm test` 274/274 under bun and node, typecheck exit 0, `lint-plugin` PASSED,
+  doc links 0 broken, gate PASSED — pasted in the impl report's round-3 section; fresh
+  implementer row at the round-3 head.
