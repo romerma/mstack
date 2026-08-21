@@ -9,7 +9,7 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { all } from "../src/decisions.ts";
 import { ensureHeader } from "../src/tsv.ts";
 import { parseState } from "../src/state.ts";
-import { sandbox, state, item } from "./helpers.ts";
+import { sandbox, state, item, trackCurrent } from "./helpers.ts";
 
 const MSTACK = join(dirname(fileURLToPath(import.meta.url)), "..", "bin", "mstack");
 
@@ -155,6 +155,175 @@ test("--force still moves it, because the gate is the authority and this is the 
     const gate = mstack(sb.store.root, ["gate"]);
     assert.notEqual(gate.status, 0);
     assert.match(gate.stdout + gate.stderr, /decision unanswered/);
+  } finally {
+    sb.dispose();
+  }
+});
+
+/**
+ * Attaching a fork, which is the direction that had no CLI at all.
+ *
+ * `decision_required` could only be set at `state add`, and the spec skill says
+ * product forks are found by interviewing the repository during `specifying` —
+ * after intake. So the plugin's headline gate could not be attached at the
+ * moment its own workflow says the fork appears, short of editing state.json by
+ * hand, which is how a dogfood run produced two textbook forks, answered both
+ * with a plain decision row, and left the gate with no opinion.
+ */
+test("a fork can be attached during specifying, which is where the workflow says it is found", () => {
+  const sb = sandbox();
+  try {
+    sb.writeState(state([item({ status: "specifying" })]));
+    trackCurrent(sb);
+
+    const attached = mstack(sb.store.root, ["state", "set", "storage-layer", "--decision-required", FORK]);
+    assert.equal(attached.status, 0, attached.stderr);
+    assert.equal(parseState(sb.store.state).items[0]!.decision_required, FORK);
+
+    // Below the line, so the gate is still green...
+    assert.equal(mstack(sb.store.root, ["gate"]).status, 0);
+    // ...and the fork now has the opinion the field exists to have.
+    const refused = mstack(sb.store.root, ["state", "set", "storage-layer", "--status", "spec_ready"]);
+    assert.equal(refused.status, 2);
+    assert.match(refused.stderr, /unanswered decision/);
+  } finally {
+    sb.dispose();
+  }
+});
+
+test("attaching a fork to an item already past the line is refused, and names both routes", () => {
+  const sb = sandbox();
+  try {
+    sb.writeState(state([item({ status: "in_progress" })]));
+
+    const refused = mstack(sb.store.root, ["state", "set", "storage-layer", "--decision-required", FORK]);
+    assert.equal(refused.status, 2);
+    assert.match(refused.stderr, /at or past the point where a fork must already be answered/);
+    assert.match(refused.stderr, /--status blocked/, "the refusal has to name the way to park it");
+    assert.match(refused.stderr, /--force/, "and the way to insist");
+    assert.equal(
+      parseState(sb.store.state).items[0]!.decision_required,
+      undefined,
+      "a refused attach must not have written the fork",
+    );
+
+    // The whole point of refusing: the CLI must not create a state its own gate
+    // reports. Parking the item and attaching the fork is one command, and it
+    // leaves the store green.
+    const parked = mstack(sb.store.root, [
+      "state",
+      "set",
+      "storage-layer",
+      "--status",
+      "blocked",
+      "--decision-required",
+      FORK,
+    ]);
+    assert.equal(parked.status, 0, parked.stderr);
+    assert.equal(parseState(sb.store.state).items[0]!.decision_required, FORK);
+    trackCurrent(sb);
+    assert.equal(mstack(sb.store.root, ["gate"]).status, 0);
+  } finally {
+    sb.dispose();
+  }
+});
+
+test("--force attaches it where it stands and says the gate will now fail", () => {
+  const sb = sandbox();
+  try {
+    sb.writeState(state([item({ status: "reviewing" })]));
+    trackCurrent(sb);
+
+    const forced = mstack(sb.store.root, ["state", "set", "1", "--decision-required", FORK, "--force"]);
+    assert.equal(forced.status, 0, forced.stderr);
+    assert.match(forced.stdout, /forced: storage-layer is reviewing and now carries an unanswered fork/);
+    assert.match(forced.stdout, /mstack decide --resolves storage-layer/, "and what would clear it");
+
+    // The choice is recorded rather than implied: the command said what it was
+    // creating, and the gate reports exactly that.
+    const gate = mstack(sb.store.root, ["gate"]);
+    assert.notEqual(gate.status, 0);
+    assert.match(gate.stdout + gate.stderr, /decision unanswered/);
+  } finally {
+    sb.dispose();
+  }
+});
+
+test("rewriting the fork drops the answer to the question it replaced", () => {
+  const sb = sandbox();
+  try {
+    sb.writeState(state([item({ status: "specifying", decision_required: FORK })]));
+    trackCurrent(sb);
+    mstack(sb.store.root, [
+      "decide",
+      "--resolves",
+      "storage-layer",
+      "--decision",
+      "versioned envelope with a version field",
+      "--why",
+      "a consumer has to be able to detect a breaking change without asking anyone",
+      "--evidence",
+      "acceptance bullet 2 of the item, quoted in state.json",
+      "--result",
+      "version field required; adding a field is compatible, changing one is a bump",
+    ]);
+    assert.notEqual(parseState(sb.store.state).items[0]!.decision_resolved, undefined);
+
+    const rewritten = mstack(sb.store.root, [
+      "state",
+      "set",
+      "storage-layer",
+      "--decision-required",
+      "Does the envelope carry a schema URL as well, or only a number?",
+    ]);
+    assert.equal(rewritten.status, 0, rewritten.stderr);
+    // The row said which fork it answered. Left in place, it would answer this
+    // one too: the gate matches a row on its timestamp and the slug it
+    // resolves, never on the question, so a new fork would be born answered.
+    assert.equal(parseState(sb.store.state).items[0]!.decision_resolved, undefined);
+    const refused = mstack(sb.store.root, ["state", "set", "storage-layer", "--status", "spec_ready"]);
+    assert.equal(refused.status, 2, "the new fork is unanswered, and nothing may build on it");
+    assert.match(refused.stderr, /schema URL/);
+
+    // Restating the same fork is a no-op, so an answered fork stays answered.
+    const again = mstack(sb.store.root, [
+      "state",
+      "set",
+      "storage-layer",
+      "--decision-required",
+      "Does the envelope carry a schema URL as well, or only a number?",
+    ]);
+    assert.equal(again.status, 0, again.stderr);
+  } finally {
+    sb.dispose();
+  }
+});
+
+test("--clear decision-required drops the pointer along with the question", () => {
+  const sb = sandbox();
+  try {
+    sb.writeState(state([item({ status: "specifying", decision_required: FORK })]));
+    trackCurrent(sb);
+    mstack(sb.store.root, [
+      "decide",
+      "--resolves",
+      "storage-layer",
+      "--decision",
+      "versioned envelope with a version field",
+      "--why",
+      "a consumer has to be able to detect a breaking change without asking anyone",
+      "--evidence",
+      "acceptance bullet 2 of the item, quoted in state.json",
+      "--result",
+      "version field required; adding a field is compatible, changing one is a bump",
+    ]);
+
+    const cleared = mstack(sb.store.root, ["state", "set", "storage-layer", "--clear", "decision-required"]);
+    assert.equal(cleared.status, 0, cleared.stderr);
+    const after = parseState(sb.store.state).items[0]!;
+    assert.equal(after.decision_required, undefined);
+    assert.equal(after.decision_resolved, undefined, "a pointer to the answer of a question nobody is asking");
+    assert.equal(mstack(sb.store.root, ["state", "set", "storage-layer", "--status", "spec_ready"]).status, 0);
   } finally {
     sb.dispose();
   }

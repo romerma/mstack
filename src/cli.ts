@@ -24,7 +24,8 @@ const USAGE = `mstack - durable state and gates for the mstack Claude Code plugi
   gate [--full] [--quiet]             fast session gate; --full also runs verification
   state list | active                 show work items
   state add --slug S --title T [...]  add an item
-  state set <ref> --status S [...]    move an item
+  state set <ref> [--status S] [...]  move or correct an item
+  state set <ref> --clear <field>     remove a field an item carries
   ledger record <target> <sha> <verdict> --evidence E [--verifier V]
   ledger check <target> [sha] [--min V]
   ledger summary
@@ -168,6 +169,83 @@ function cmdGate(argv: readonly string[]): number {
   return report.failed ? 1 : 0;
 }
 
+/** Fields `state set` can remove, spelled as the flag that sets them. */
+const CLEARABLE = {
+  description: "description",
+  source: "source",
+  verification: "verification",
+  "decision-required": "decision_required",
+  sdd: "sdd",
+  "closed-by": "closed_by",
+} as const satisfies Readonly<Record<string, keyof Item>>;
+
+/** Fields every item always has, with the reason each one cannot be removed. */
+const UNCLEARABLE: Readonly<Record<string, string>> = {
+  acceptance: "the gate fails an item with an empty acceptance list; replace them with --acceptance instead",
+  title: "an item needs a title; replace it with --title instead",
+  status: "an item is always in some status; move it with --status instead",
+  slug: "the slug names the branch, the spec directory and the progress files",
+};
+
+/** How much of a long field to echo back when reporting what changed. */
+const PREVIEW = 48;
+
+function preview(value: string | boolean | undefined): string {
+  if (value === undefined) return "(unset)";
+  if (typeof value === "boolean") return String(value);
+  const flat = value.replace(/\s+/g, " ").trim();
+  return `"${flat.length > PREVIEW ? `${flat.slice(0, PREVIEW - 3)}...` : flat}"`;
+}
+
+/**
+ * One line per field the command touched.
+ *
+ * `state set` printed the item label and nothing else, which was enough while
+ * the only field it could change was the status, because the label carries
+ * that. It is not enough for a flag that replaces a list of quoted acceptance
+ * criteria: a write nobody sees is indistinguishable from a no-op, and what it
+ * overwrote is gone.
+ */
+function fieldChange(field: string, from: string | boolean | undefined, to: string | boolean | undefined): string {
+  return `  ${field}: ${preview(from)} -> ${preview(to)}`;
+}
+
+/**
+ * An empty string is not a value.
+ *
+ * `--description ""` reads as "set it to nothing", which is the same intent as
+ * removing the field and a different result: a key whose value is `""` survives
+ * the round trip through state.json and reads back as present-but-blank. That
+ * is a third state nobody asked for, and the two files already disagree about
+ * it — `src/gate.ts` treats a `decision_required` of `""` as no fork at all.
+ * One spelling for removal, and it says the word.
+ */
+function required(flag: string, value: string, fix: string): string {
+  if (value.trim() === "") throw new UserError(`an empty ${flag} is not a value`, fix);
+  return value;
+}
+
+function clearField(item: Item, name: string): string[] {
+  const blocked = UNCLEARABLE[name];
+  if (blocked !== undefined) throw new UserError(`${name} cannot be cleared`, blocked);
+  const key = (CLEARABLE as Readonly<Record<string, keyof Item>>)[name];
+  if (key === undefined) {
+    throw new UserError(`'${name}' is not a field 'state set' can clear`, `one of: ${Object.keys(CLEARABLE).join(", ")}`);
+  }
+  const before = item[key];
+  if (before === undefined) return [`  ${key}: already unset`];
+  const lines = [fieldChange(key, before as string | boolean, undefined)];
+  // The answer named the question. With the question gone the pointer leads to
+  // a row about a fork this item no longer carries, and a different fork
+  // attached later would find that pointer and be born answered.
+  if (key === "decision_required" && item.decision_resolved !== undefined) {
+    lines.push(fieldChange("decision_resolved", item.decision_resolved, undefined));
+    delete item.decision_resolved;
+  }
+  delete item[key];
+  return lines;
+}
+
 function cmdState(argv: readonly string[]): number {
   const store = requireStore();
   const [sub, ...rest] = argv;
@@ -239,12 +317,92 @@ function cmdState(argv: readonly string[]): number {
     if (ref === undefined) throw new UserError("state set needs an item id or slug");
     const { values } = parseArgs({
       args: [...flags],
-      options: { status: { type: "string" }, "closed-by": { type: "string" }, force: { type: "boolean" } },
+      options: {
+        status: { type: "string" },
+        "closed-by": { type: "string" },
+        title: { type: "string" },
+        description: { type: "string" },
+        acceptance: { type: "string", multiple: true },
+        "add-acceptance": { type: "string", multiple: true },
+        sdd: { type: "boolean" },
+        source: { type: "string" },
+        verification: { type: "string" },
+        "decision-required": { type: "string" },
+        clear: { type: "string", multiple: true },
+        slug: { type: "string" },
+        force: { type: "boolean" },
+      },
       strict: true,
     });
     const state = parseState(store.state);
     const item = findItem(state, ref);
     if (item === undefined) throw new UserError(`no item matches '${ref}'`);
+
+    // Every other field is a value in this file and nowhere else. The slug is
+    // the branch, the spec directory, the progress filenames, every ledger
+    // target and every `resolves` value already written, and none of those move
+    // when this one does — so renaming it here would orphan them all silently.
+    if (values.slug !== undefined) {
+      throw new UserError(
+        "state set cannot rename a slug",
+        "it names the branch, the spec directory, the progress files and every ledger and decision row already written for this item; none of those move with it",
+      );
+    }
+
+    const clears = values.clear ?? [];
+    const instructions =
+      clears.length +
+      [
+        values.status,
+        values["closed-by"],
+        values.title,
+        values.description,
+        values.acceptance,
+        values["add-acceptance"],
+        values.sdd,
+        values.source,
+        values.verification,
+        values["decision-required"],
+      ].filter((v) => v !== undefined).length;
+    // `state set 3` used to rewrite the file unchanged and print the label,
+    // which is the shape `takesNothing` exists to stop elsewhere: a command that
+    // did nothing is indistinguishable from a flag that worked.
+    if (instructions === 0) {
+      throw new UserError(
+        `state set ${ref} was given nothing to set`,
+        `pass --status, --clear <field>, or a value flag: ${Object.keys(CLEARABLE).join(", ")}, title, acceptance, add-acceptance`,
+      );
+    }
+    for (const [flag, given] of [
+      ["description", values.description !== undefined],
+      ["source", values.source !== undefined],
+      ["verification", values.verification !== undefined],
+      ["decision-required", values["decision-required"] !== undefined],
+      ["closed-by", values["closed-by"] !== undefined],
+      ["sdd", values.sdd === true],
+    ] as const) {
+      if (given && clears.includes(flag)) {
+        throw new UserError(
+          `--${flag} and --clear ${flag} in one command contradict each other`,
+          "run one or the other; which one won would depend on an order this CLI does not promise",
+        );
+      }
+    }
+    if (values.acceptance !== undefined && values["add-acceptance"] !== undefined) {
+      throw new UserError(
+        "--acceptance replaces the list and --add-acceptance appends to it, so one command cannot do both",
+        "pass every criterion you want to --acceptance, or only the new ones to --add-acceptance",
+      );
+    }
+
+    const changes: string[] = [];
+
+    // Clears first, then the status move, then the values. The order is what
+    // makes both single-command shapes work: dropping a fork and moving on, and
+    // moving an item back before attaching one. `--decision-required` is applied
+    // last for the same reason — its gate has to judge the status the item ends
+    // up in, not the one it started from.
+    for (const name of clears) changes.push(...clearField(item, name));
 
     if (values.status !== undefined) {
       if (!isStatus(values.status)) {
@@ -269,11 +427,89 @@ function cmdState(argv: readonly string[]): number {
           "pass --force if you mean to skip a phase, and say why in decisions.tsv",
         );
       }
+      if (item.status !== values.status) changes.push(fieldChange("status", item.status, values.status));
       item.status = values.status;
     }
-    if (values["closed-by"] !== undefined) item.closed_by = values["closed-by"];
+
+    for (const [flag, key, given] of [
+      ["--title", "title", values.title],
+      ["--description", "description", values.description],
+      ["--source", "source", values.source],
+      ["--verification", "verification", values.verification],
+      ["--closed-by", "closed_by", values["closed-by"]],
+    ] as const) {
+      if (given === undefined) continue;
+      const next = required(
+        flag,
+        given,
+        key === "title"
+          ? "an item needs a title, and it is the one field 'state set' cannot remove"
+          : `to remove a field, say so: 'mstack state set ${item.slug} --clear ${flag.slice(2)}'`,
+      );
+      if (item[key] !== next) changes.push(fieldChange(key, item[key], next));
+      item[key] = next;
+    }
+
+    if (values.acceptance !== undefined) {
+      const next = values.acceptance.map((a) =>
+        required("--acceptance", a, "a criterion has to say something; quote it from the source"),
+      );
+      changes.push(`  acceptance: ${item.acceptance.length} criterion(s) replaced with ${next.length}`);
+      for (const dropped of item.acceptance) changes.push(`    - dropped ${preview(dropped)}`);
+      item.acceptance = next;
+    }
+    if (values["add-acceptance"] !== undefined) {
+      const added = values["add-acceptance"].map((a) =>
+        required("--add-acceptance", a, "a criterion has to say something; quote it from the source"),
+      );
+      item.acceptance = [...item.acceptance, ...added];
+      changes.push(`  acceptance: ${added.length} added, now ${item.acceptance.length}`);
+    }
+    if (values.sdd === true && item.sdd !== true) {
+      changes.push(fieldChange("sdd", item.sdd, true));
+      item.sdd = true;
+    }
+
+    if (values["decision-required"] !== undefined) {
+      const fork = required(
+        "--decision-required",
+        values["decision-required"],
+        `to remove a fork, say so: 'mstack state set ${item.slug} --clear decision-required'`,
+      );
+      // Identical prose is left alone, so re-stating a fork stays idempotent.
+      if (fork !== item.decision_required) {
+        // The same line the status move is refused across, guarded in the other
+        // direction. Attaching a fork to an item already sitting past it would
+        // put the item past a gate it never passed, and `mstack gate` would then
+        // report a state this command had just created.
+        if (requiresDecision(item.status) && values.force !== true) {
+          throw new UserError(
+            `${item.slug} is ${item.status}, at or past the point where a fork must already be answered`,
+            `park it first ('mstack state set ${item.slug} --status blocked --decision-required ...'), or pass --force to attach it where it stands and let the gate report it`,
+          );
+        }
+        changes.push(fieldChange("decision_required", item.decision_required, fork));
+        // The answer named the question it answered. Left in place across a
+        // rewrite, the pointer would make the new fork read as already answered:
+        // the gate matches a row on its timestamp and the slug it resolves, and
+        // never on the question.
+        if (item.decision_resolved !== undefined) {
+          changes.push(fieldChange("decision_resolved", item.decision_resolved, undefined));
+          delete item.decision_resolved;
+        }
+        item.decision_required = fork;
+        if (requiresDecision(item.status)) {
+          changes.push(
+            `  forced: ${item.slug} is ${item.status} and now carries an unanswered fork, so 'mstack gate' fails until 'mstack decide --resolves ${item.slug} ...' answers it`,
+          );
+        }
+      }
+    }
+
+    assertWritable(item, state);
     saveState(store.state, state);
     console.log(itemLabel(item));
+    for (const line of changes) console.log(line);
     return 0;
   }
 
