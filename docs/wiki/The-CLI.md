@@ -168,15 +168,19 @@ $ mstack state set export-json --status specifying
 3 export-json (specifying)
   status: "pending" -> "specifying"
 
-$ mstack state set export-json --decision-required "Is this a stable public contract other tools \
-may depend on, or a convenience dump we are free to change?"
+$ mstack state set export-json --decision-required "Is this a stable public contract other tools may \
+depend on, or a convenience dump we are free to change? The two answers produce different work: \
+one needs a version field and a compatibility rule, the other does not."
 3 export-json (specifying)
   decision_required: (unset) -> "Is this a stable public contract other tools ..."
 
 $ mstack state set export-json --status spec_ready
-mstack: export-json has an unanswered decision: "Is this a stable public contract other tools may depend on, or a convenience dump we are free to change?"
+mstack: export-json has an unanswered decision: "Is this a stable public contract other tools may depend on, or a convenience dump we are free to change? The two answers produce different work: one needs a version field and a compatibility rule, the other does not."
         answer it with 'mstack decide --resolves export-json ...' first
 ```
+
+The question in that block is the one `examples/notes-cli` ships, character for character, which
+is what the promise at the top of this page is worth: same item, same id, same fork.
 
 `spec_ready` and beyond is now guarded in **both** directions. Moving an item across that line
 with a fork unanswered was already refused; attaching a fork to an item already sitting past it

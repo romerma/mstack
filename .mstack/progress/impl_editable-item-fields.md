@@ -385,3 +385,349 @@ than quietly widened into this item.
 - Whether refusing the attach past the line is the right half of criterion 3's "either/or".
   The argument is in the `09:10:40.786Z` decision row; the alternative is a bigger behaviour
   change and would have to force transitions `src/lifecycle.ts:63-73` forbids.
+
+---
+
+# Round 2 — answering the review
+
+Input: `.mstack/progress/review_editable-item-fields.md`, verdict CHANGES_REQUESTED, six required
+findings and six minors. The reviewer confirmed all four acceptance criteria are met and every
+recorded decision defensible; everything below is an edge. All six required findings are fixed,
+all six minors applied. Two decision rows were superseded rather than edited, because
+`decisions.tsv` is append-only and `CONTRIBUTING.md` says a reversal gets the row that
+supersedes it.
+
+## What changed
+
+The two findings that mattered were both about a claim the code was making that was not true.
+`fieldChange` printed an identical before and after whenever two values shared a 45-character
+prefix, on the one field where the same command silently drops `decision_resolved` — the exact
+failure that function's own docstring says it exists to prevent. It now detects the collision
+(every caller has already established the values differ, so equal previews mean the
+abbreviation is hiding the change) and prints both values in full with their character counts,
+which also makes a whitespace-only difference visible. `required()` validated with `.trim()` and
+stored the raw string, so `"$FORK "` was a different fork from `"$FORK"`: a trailing space
+re-opened an answered fork and printed two lines a reader cannot tell apart. It now stores
+trimmed, which turns that case into a no-op.
+
+`--sdd` took a green gate to red at exit 0 in silence. The reviewer's rebuttal of my recorded
+reason is correct and I accepted it: the "guarding it would duplicate the gate" argument is
+contradicted three functions up in the same file, where the status move duplicates the gate's
+decision check on purpose and says so. The real objection was narrower — an unconditional claim
+of failure would sometimes be false — and reading whether the spec directory exists costs one
+line and makes both branches true. `--sdd` past `specifying` now prints the same shape of
+`forced:` line the fork path prints, and only says "fails" when it created a failure. The
+decision row is superseded with the corrected reasoning.
+
+`state add` was still writing every empty-string shape `state set` refuses, including the
+`decision_required: ""` that `src/gate.ts:190` reads as no fork at all. Both writers now share
+`required()`. The remaining findings were coverage: all six clearable fields, clearing an absent
+one, the truncation itself, and `--closed-by ""` — the one input this item changed that the test
+named "exactly as before" did not touch.
+
+## Files, round 2
+
+- `src/cli.ts` — `detail()` new at 194-204; `fieldChange` returns `string[]` and handles the
+  collision, 206-239; `required()` trims, 241-258; `state add` routed through it, 296-336;
+  `--sdd` announcement, 519-538; three comments (idempotence-and-trim, `assertWritable` is a
+  belt not load-bearing, the `--sdd` reasoning).
+- `tests/cli.test.ts` — five new tests at 321, 351, 390, 414, 453, plus the `--closed-by ""`
+  assertions at 291-300 inside the existing "exactly as before" test.
+- `README.md`, `docs/wiki/Getting-Started.md`, `docs/wiki/The-CLI.md` — six re-run transcripts,
+  two commands replaced by the ones that actually ran, one new block for the collision.
+- `docs/wiki/How-A-Work-Item-Flows.md` — a `src/cli.ts` line range this branch had moved.
+- `.mstack/decisions.tsv` — two superseding rows, `2026-08-21T10:01:59.983Z` and
+  `2026-08-21T10:02:08.247Z`.
+
+Commits: `9a4dc59` (code + tests), `d62e32b` (docs).
+
+## Finding by finding
+
+| # | Finding | What I did | Test | Mutation that proves it |
+|---|---|---|---|---|
+| 1 | Six doc transcripts no longer reproduce | Re-ran all six in one scratch store on this branch's binary and pasted what they printed | none (docs) | n/a — pasted runs below |
+| 2 | Two blocks pair an elided command with un-elided output | Replaced both with the wrapped command that actually ran, verified by reading the stored question back out of `state.json` | none (docs) | n/a — pasted runs below |
+| 3 | The change line can print an identical before and after | Collision branch prints both values in full with lengths; `required()` stores trimmed | `tests/cli.test.ts:351`, `:390` | `R2-1`, `R2-2`, `R2-3`, `R2-4` |
+| 4 | Four of six clearable fields untested | Table-driven test over all six, plus clearing each a second time | `tests/cli.test.ts:321` | `R2-11`…`R2-15` |
+| 5 | `state add` and `state set` write the same fields under different rules | `state add` routed through `required()`; decision row extended | `tests/cli.test.ts:453` | `R2-5`, `R2-6`, `R2-7` |
+| 6 | `--sdd` takes a green gate to red at exit 0 | Announcement line, disk read so it names a failure only when it made one; decision row superseded | `tests/cli.test.ts:414` | `R2-8`, `R2-9`, `R2-10` |
+| m1 | `required()` does not trim | It does now | `tests/cli.test.ts:390` | `R2-4` |
+| m2 | `--closed-by ""` untested | Asserted inside the test named for it | `tests/cli.test.ts:270` (assertions at `:299-306`) | `R2-16` |
+| m3 | README says "refused in both directions" unqualified | Sentence now names `--force` and what it prints | none (docs) | n/a |
+| m4 | The-CLI shows `(pending)` for an item the page moved to `in_progress` | Re-run at `in_progress`; the whole page is now one continuous session | none (docs) | n/a |
+| m5 | Clearing an absent field untested | Second pass in the table-driven test | `tests/cli.test.ts:321` | `R2-15` |
+| m6 | `assertWritable` in `set` is killed by no mutation | Comment saying it is a belt for whatever makes the slug editable next, not load-bearing today | none | n/a — the comment is the fix |
+
+On finding 6 I did not use the word `forced:` blindly: the line says `forced:` to match the fork
+path's shape, but the two branches say different things, because whether the gate actually fails
+depends on the disk and a line claiming a failure that did not happen would be the confidently
+wrong output this gate exists to catch. Both branches are asserted.
+
+## Commands
+
+### Round-2 mutations: every new test red against the state before its fix
+
+Driver `scratchpad/mutate-r2.mjs`. Each mutation reverts one round-2 fix to its round-1
+behaviour, so "killed" means the new test fails against the branch as the reviewer read it. Byte
+copy first, restore with `copyFileSync` from that copy, sha256 re-checked after every restore,
+and a pattern that does not appear exactly once is a `SETUP-ERROR` rather than a silent pass.
+
+```console
+$ SCRATCH=.../scratchpad node $SCRATCH/mutate-r2.mjs
+byte copy of src/cli.ts at .../scratchpad/cli.ts.r2-bytes, sha256 5aecb2e28e643c4b
+killed   R2-1  collision branch removed (round-1 behaviour)
+         killed by: the change line never prints an identical before and after
+killed   R2-2  preview stops truncating, so nothing ever collides
+         killed by: the change line never prints an identical before and after
+killed   R2-3  detail() drops the character count
+         killed by: the change line never prints an identical before and after
+killed   R2-4  required() stores untrimmed again (round-1 behaviour)
+         killed by: a value is stored trimmed, so a trailing space is not a different value
+killed   R2-5  state add takes --description raw again
+         killed by: state add refuses the empty values state set refuses
+killed   R2-6  state add takes --acceptance raw again
+         killed by: state add refuses the empty values state set refuses
+killed   R2-7  state add takes --decision-required raw again
+         killed by: state add refuses the empty values state set refuses
+killed   R2-8  --sdd says nothing again (round-1 behaviour)
+         killed by: --sdd past specifying announces what it does to the gate
+killed   R2-9  --sdd claims a failure even when the spec is there
+         killed by: --sdd past specifying announces what it does to the gate
+killed   R2-10 --sdd announces below the line too
+         killed by: --sdd past specifying announces what it does to the gate
+killed   R2-11 --clear source drops off CLEARABLE
+         killed by: every field the wiki says is clearable clears, and clearing it again says so
+killed   R2-12 --clear verification drops off CLEARABLE
+         killed by: every field the wiki says is clearable clears, and clearing it again says so
+killed   R2-13 --clear sdd drops off CLEARABLE
+         killed by: every field the wiki says is clearable clears, and clearing it again says so
+killed   R2-14 --clear closed-by drops off CLEARABLE
+         killed by: every field the wiki says is clearable clears, and clearing it again says so
+killed   R2-15 clearing an absent field stops saying so
+         killed by: every field the wiki says is clearable clears, and clearing it again says so
+killed   R2-16 --closed-by exempt from the empty-value rule, as on main
+         killed by: --status and --closed-by keep working exactly as before
+
+restored, sha256 5aecb2e28e643c4b matches the byte copy
+all mutations killed
+```
+
+The first run of this driver reported `R2-16 SURVIVED`, and the survivor was my mutation, not
+the test: it substituted `" "` for `""`, which `required()` trims to `""` and refuses either
+way, so the file changed and the behaviour did not. Replaced with `main`'s actual behaviour for
+that flag — store whatever was given, `""` included — which the test kills. Recording it because
+a mutation that cannot change behaviour is the same false negative as a test that cannot fail.
+
+### The three behaviours, in the running system
+
+First the defect itself, on `9a4dc59^` — the state the reviewer read — with that revision of
+`src/cli.ts` swapped in by byte copy and restored from the same copy:
+
+```console
+=== 9a4dc59^ : the state review read ===
+$ mstack state set p-item --decision-required "$B"
+1 p-item (specifying)
+  decision_required: "Should the export be a stable public contract..." -> "Should the export be a stable public contract..."
+  decision_resolved: "2026-08-21T10:05:13.449Z" -> (unset)
+=== and the trailing-space case on the same binary ===
+$ mstack state set p-item --decision-required "$B "
+1 p-item (specifying)
+  decision_required: "Should the export be a stable public contract..." -> "Should the export be a stable public contract..."
+$ node -e "...decision_required.slice(-20)"
+stored: "to reshape at will? "
+restore: sha256 5aecb2e28e643c4b matches the byte copy
+```
+
+Two lines a reader cannot tell apart, an answer dropped underneath them, and the second command
+storing a question that differs from the first by one invisible character. The same two commands
+on the fix:
+
+```console
+$ mstack state set p-item --decision-required "Should the export be a stable public contract we are free to reshape at will?"
+1 p-item (specifying)
+  decision_required: changed, and the short forms match, so both in full
+    was (72 chars) "Should the export be a stable public contract other tools may depend on?"
+    now (77 chars) "Should the export be a stable public contract we are free to reshape at will?"
+  decision_resolved: "2026-08-21T09:51:57.210Z" -> (unset)
+   exit 0
+```
+
+Trailing space, which used to be a rewrite:
+
+```console
+$ node -e "...items[0].decision_resolved"
+resolved before: 2026-08-21T09:52:08.071Z
+$ mstack state set p-item --decision-required "$B "
+1 p-item (specifying)
+   exit 0
+$ node -e "...items[0].decision_resolved"
+resolved after : 2026-08-21T09:52:08.071Z
+```
+
+Nothing printed, nothing changed, the answer still stands. And `--sdd`, both branches:
+
+```console
+$ mstack state set s-item --sdd                      # in_progress, no spec directory
+2 s-item (in_progress)
+  sdd: (unset) -> true
+  forced: s-item is in_progress with no spec at /private/tmp/.../r2/.mstack/specs/s-item, so 'mstack gate' fails until one is written or the item moves back to specifying
+   exit 0
+
+$ mstack state set t-item --sdd                      # spec_ready, spec directory present
+3 t-item (spec_ready)
+  sdd: (unset) -> true
+  forced: t-item is spec_ready, so 'mstack gate' now holds it to a complete spec at /private/tmp/.../r2/.mstack/specs/t-item
+   exit 0
+```
+
+### Both doors now refuse the same shapes
+
+```console
+$ mstack state add --slug empty-fields --title "Empty everywhere" --acceptance "" --description ""
+mstack: an empty --acceptance is not a value
+        a criterion has to say something; quote it from the source
+   exit 2
+
+$ mstack state add --slug empty-fork --title "Empty fork" --acceptance "one" --decision-required ""
+mstack: an empty --decision-required is not a value
+        leave the flag off instead; an empty fork is not a fork, and the gate would read it as none
+   exit 2
+```
+
+### The six stale transcripts, re-run
+
+One scratch store, this branch's binary, the same `state add` the pages show:
+
+```console
+$ mstack state add --slug greet-flag --title "greet --shout uppercases the greeting" \
+    --acceptance '`python3 greet.py --shout world` prints HELLO, WORLD' \
+    --acceptance "test_greet.py covers the flag and the default"
+added 1 greet-flag (pending)
+
+$ mstack state set greet-flag --status in_progress
+1 greet-flag (in_progress)
+  status: "pending" -> "in_progress"
+
+$ mstack state set greet-flag --status done
+mstack: in_progress -> done is not a legal transition
+        pass --force if you mean to skip a phase, and say why in decisions.tsv
+
+$ mstack state set greet-flag --status reviewing
+1 greet-flag (reviewing)
+  status: "in_progress" -> "reviewing"
+
+$ mstack state set greet-flag --status verifying
+1 greet-flag (verifying)
+  status: "reviewing" -> "verifying"
+
+$ mstack state set greet-flag --status done --closed-by "demo walkthrough"
+1 greet-flag (done)
+  status: "verifying" -> "done"
+  closed_by: (unset) -> "demo walkthrough"
+```
+
+The two refusal blocks (`README.md:83-86`, `Getting-Started.md:188-191`, and both blocks in
+`How-A-Work-Item-Flows.md`) print no change line, because nothing changed — those were not
+stale and are unedited.
+
+### Finding 2: the command shown is now the command that ran
+
+The wrapped form was verified by reading the stored question back out of the store, because
+bash removes backslash-newline inside double quotes and any indentation on the continuation line
+would land inside the question:
+
+```console
+$ mstack state set export-json --decision-required "Is this a stable public contract other tools \
+may depend on, or a convenience dump we are free to change?"
+3 export-json (specifying)
+  decision_required: (unset) -> "Is this a stable public contract other tools ..."
+
+$ node -e "...decision_required"
+"export-json" "Is this a stable public contract other tools may depend on, or a convenience dump we are free to change?"
+```
+
+I wrote "byte-identical to the shipped example" into this report before checking it, and it was
+false: the page carried the first sentence of a two-sentence fork. The page's own promise at the
+top — "same item, same id, same question you will meet in the shipped example" — was therefore
+not quite true either, and had not been since before this branch. Rather than soften the report,
+I made the claim true: the block now passes the whole question, and
+
+```console
+$ node -e "here === example"
+identical: true
+```
+
+against `examples/notes-cli/.mstack/state.json`.
+
+### `npm test`, both runtimes
+
+```console
+$ npm test
+
+> mstack@0.1.0 test
+> bun test tests/ && node --test 'tests/*.test.ts'
+
+bun test v1.3.11 (af24e281)
+ 196 pass
+ 0 fail
+Ran 196 tests across 13 files. [14.79s]
+```
+
+The five new tests under node, in place:
+
+```console
+✔ --status and --closed-by keep working exactly as before (221.241458ms)
+✔ every field the wiki says is clearable clears, and clearing it again says so (375.005416ms)
+✔ the change line never prints an identical before and after (128.192291ms)
+✔ a value is stored trimmed, so a trailing space is not a different value (120.436541ms)
+✔ --sdd past specifying announces what it does to the gate (307.896625ms)
+✔ state add refuses the empty values state set refuses (256.370208ms)
+ℹ tests 196
+ℹ suites 0
+ℹ pass 196
+ℹ fail 0
+```
+
+196, up from 191: five new tests, and the sixth line above is the existing test that grew the
+`--closed-by ""` assertions.
+
+### typecheck and lint
+
+```console
+$ npm run typecheck
+
+> mstack@0.1.0 typecheck
+> bunx --bun tsc --noEmit
+
+$ echo $?
+0
+
+$ ./bin/mstack lint-plugin . | tail -3
+[ok]    the lifecycle enum appears only in src/lifecycle.ts
+
+PASSED - 0 failures, 0 warnings
+```
+
+## Where round 2 stopped on the ladder
+
+| Claim | Rung | What backs it |
+|---|---|---|
+| The collision printed an identical before and after, and no longer does | 5 | Reproduced in a real store against `9a4dc59^`'s own `src/cli.ts`, swapped in and restored by byte copy with the sha re-checked, then the same command on the fix; plus rung 4 via `tests/cli.test.ts:351`, killed by `R2-1`, `R2-2`, `R2-3` |
+| A trailing space no longer re-opens an answered fork | 5 | Real store, `decision_resolved` read before and after; rung 4 via `:390`, killed by `R2-4` |
+| `--sdd` announces the consequence, and claims a failure only when it made one | 5 | Real store, both branches, gate exit 0 then 1; rung 4 via `:414`, killed by `R2-8`, `R2-9`, `R2-10` |
+| `state add` and `state set` now refuse the same shapes | 5 | Both commands run against a real store; rung 4 via `:453`, killed by `R2-5`, `R2-6`, `R2-7` |
+| All six clearable fields work and are covered | 4 | `tests/cli.test.ts:321`, killed by `R2-11` through `R2-15` |
+| The six doc transcripts now reproduce | 5 | Re-run in one scratch store on this branch's binary, output pasted as printed |
+| The two fork blocks show the command that ran | 5 | Ran the wrapped text literally and read the stored question back out of `state.json`; the export-json fork is now character-identical to the example's, checked by comparing the two files |
+| Both runtimes green, types clean, plugin lint clean | 4 | 196/196 on bun and node, `tsc --noEmit` exit 0, `lint-plugin` 0/0 |
+
+Nothing in round 2 stopped below rung 4.
+
+## Still open, and deliberately not mine
+
+- `mstack gate --quiet` prints nothing on failure while `docs/wiki/The-CLI.md:60` says it
+  "prints failures only". The reviewer found it, reproduced it on `main`, and filed it as out of
+  scope; I agree — it predates this branch and belongs in its own item.
+- The item's status is unchanged at `in_progress`. I did not close it and did not record a
+  second verdict: the round-1 ledger row is the implementer's own evidence, and the pass that
+  wrote this code does not get to approve it.
