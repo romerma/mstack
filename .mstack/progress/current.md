@@ -270,8 +270,12 @@ programme 230 minutes of a red gate nobody saw.
   killed, baseline confirmed green before and after, restores byte-verified by sha256.
 - Rung 2 and stated as such: whether a store on a filesystem that refuses the receipt write
   reports usefully. The failure path is written and typechecked; it is not exercised by a test.
+- Caught one false claim of my own before the reviewer had to: `STORE_GITIGNORE` ignored a
+  `verification.tsv.lock` that nothing writes, and the test comment asserted when it appears.
+  `withLock` is used by decisions.ts alone. Line removed, assertion replaced with "exactly one
+  ignored path", called out in the report rather than fixed quietly.
 - Commits: `ddac8e3` the module, `fd1b27a` the gate, `ae40ab2` the closing guard, `f2e9308` the
-  boundary test, `db00832` docs, plus the changelog.
+  boundary test, `db00832` docs, `028e3bd` changelog, `db80b45` the correction.
 
 ## Next step
 
