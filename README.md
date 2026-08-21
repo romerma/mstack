@@ -66,10 +66,10 @@ The step-by-step version, with the output of every command, is
 ## Your first item, in five commands
 
 The output below is from a real run. Both refusals are the product behaving as designed.
-(Every transcript here and in the wiki is produced and re-run by the mstack repository's own
-`./bin/mstack` at the commit that edits it, and spelled `$ mstack` because for you, with the
-plugin installed, that is the right command — the distinction matters only inside the mstack
-repo itself; see [Development](#development).)
+(The rule for every transcript here and in the wiki: it is produced and re-run by the mstack
+repository's own `./bin/mstack` at the commit that edits it, and spelled `$ mstack` because
+for you, with the plugin installed, that is the right command — the distinction matters only
+inside the mstack repo itself; see [Development](#development).)
 
 ```bash
 $ mstack state add --slug greet-flag --title "greet --shout uppercases the greeting" \
