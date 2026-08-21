@@ -253,6 +253,21 @@
       "description": "docs/wiki/The-CLI.md:60 says '--quiet prints failures only'. It printed nothing: reproduced at rung 5 against a store with two real failures, empty output on both streams and exit 1, while the same gate without --quiet prints both failures and their fixes. CORRECTION made after the fix landed, verified against main's binary: an earlier version of this description claimed a red gate at session close was silent by construction and the exit code was the only signal. That was wrong. src/hooks.ts already composed the failures into the Stop hook's additionalContext on stdout, so the model always received them; what nobody received was human-visible output on a stream. The finding stands, a documented flag printed nothing, but its severity was overstated by the pass that filed it.",
       "source": "item 13 implementation pass, reproduced on main by three passes, 2026-08-21",
       "verification": "npm test && npm run typecheck && ./bin/mstack lint-plugin ."
+    },
+    {
+      "id": 17,
+      "slug": "path-mstack-is-the-installed-copy",
+      "title": "The mstack on PATH is the installed plugin, so a contributor validates changes against the old CLI",
+      "acceptance": [
+        "A contributor is told, where they will actually read it, how to run this checkout's CLI rather than the installed one",
+        "Running the wrong one against a store is either impossible, or it says so; a version mismatch between the CLI and the checkout is surfaced rather than silent",
+        "The wiki and README transcripts state which binary produced them, so re-running them to satisfy the docs rule is unambiguous",
+        "Whatever mechanism is chosen is proven against a real mismatch, not only reasoned about: an old binary against a new store, shown reporting the wrong thing before the fix and the right thing after"
+      ],
+      "status": "pending",
+      "description": "which -a mstack resolves only to ~/.claude/plugins/cache/mstack/mstack/0.1.0/bin/bin/mstack. Its own help line is the pre-item-13 form, with no --clear and no --description, so the copy on PATH is older than main and there is no warning that it is. CONTRIBUTING.md tells a contributor to run the plugin from the checkout with 'claude --plugin-dir .' and says nothing about the CLI. Every wiki transcript is written as '$ mstack ...', so a contributor re-running them to satisfy the pasted-output-from-real-runs rule exercises 0.1.0 and gets a mismatch that has nothing to do with the transcript. The loud failure is the benign one: an unknown flag. The dangerous one is silent and inverted — a gate or hook change the cached copy does not implement, run against the new store, reporting green. That is the same defect class as the rest of this refinement round: a check that reports on something other than what the reader thinks it ran against. Found while verifying item 16; reproduced at rung 5 by two passes.",
+      "source": "item 16 review, reproduced at rung 5 by two passes, 2026-08-21",
+      "verification": "npm test && npm run typecheck && ./bin/mstack lint-plugin ."
     }
   ]
 }
