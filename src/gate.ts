@@ -26,7 +26,7 @@ const TERMINAL_IGNORED = new Set<string>(["cancelled"]);
 
 /** An answer has to be words. A row of spaces is a boolean with extra steps. */
 const SUBSTANTIAL = /[a-z0-9]/i;
-import { UserError, type Store } from "./paths.ts";
+import { foreignCliRoot, isMstackCheckout, runningCliRoot, UserError, type Store } from "./paths.ts";
 import { Report } from "./report.ts";
 import { canCloseAnItem, MIN_REPORT_BYTES } from "./roles.ts";
 import { EMPTY_ITEM_LINE, EMPTY_NEXT_STEP } from "./setup.ts";
@@ -78,6 +78,7 @@ export function runGate(store: Store, options: GateOptions = {}): Report {
   }
 
   report.section("workspace");
+  checkCliProvenance(store, report);
   checkWorkspace(store, report);
 
   if (options.full === true && state !== null) {
@@ -398,6 +399,45 @@ function checkClosedItems(store: Store, state: State, report: Report): void {
   if (missing.length === 0 && failed.length === 0 && selfClosed.length === 0) {
     report.ok(`${closed.length} closed item(s) carry a ledger verdict`);
   }
+}
+
+/**
+ * Did this report come from the store's own CLI?
+ *
+ * Only asked where the store root is itself an mstack checkout. There, `which
+ * mstack` resolves to the installed plugin cache, and the habit-formed `mstack
+ * gate` runs a copy that predates the code under review. The loud version of
+ * that mismatch is an unknown flag; the silent one was reproduced at rung 5
+ * before this check existed — same store, same commit, an item whose
+ * verification exits 1 and had never run, and the cached 0.1.0 gate printed
+ * PASSED exit 0 where this checkout's gate printed FAILED exit 1, because the
+ * stale copy did not implement the check it was being trusted to run.
+ *
+ * A failure, not a warning: a green summary produced by a foreign copy is
+ * exactly the confidently-wrong output the mismatch generates, so the wrong
+ * copy must not be able to produce one here.
+ *
+ * The honest limit: this line ships with the code that is being missed, so a
+ * copy installed *before* it existed still says nothing. What it closes is
+ * every future round of the same trap; what closes the current one is the
+ * contributor habit CONTRIBUTING.md now names.
+ *
+ * In an ordinary project — no `bin/mstack` of its own — the check says
+ * nothing at all, because the plugin CLI is supposed to be foreign there.
+ * `running` is injectable so tests can exercise the branch where the two
+ * roots agree, which in-process runs otherwise cannot reach.
+ */
+export function checkCliProvenance(store: Store, report: Report, running: string = runningCliRoot()): void {
+  if (!isMstackCheckout(store.root)) return;
+  const foreign = foreignCliRoot(store, running);
+  if (foreign === null) {
+    report.ok("store root is an mstack checkout, and this report came from its own ./bin/mstack");
+    return;
+  }
+  report.fail(
+    `this store's root is an mstack checkout, but the CLI producing this report runs from ${foreign}`,
+    `run ${join(store.root, "bin", "mstack")} instead; a copy installed elsewhere can predate the checks this store's code expects, and 'mstack version' prints which copy is running`,
+  );
 }
 
 function checkWorkspace(store: Store, report: Report): void {

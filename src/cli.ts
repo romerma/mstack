@@ -1,4 +1,4 @@
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
 
@@ -17,7 +17,7 @@ import {
   STATUSES,
 } from "./lifecycle.ts";
 import { lintPlugin } from "./lint.ts";
-import { requireStore, UserError } from "./paths.ts";
+import { findStore, foreignCliRoot, requireStore, runningCliRoot, UserError } from "./paths.ts";
 import { assertWritable, findItem, parseState, saveState, type Item } from "./state.ts";
 import { MIN_REPORT_BYTES } from "./roles.ts";
 import * as verification from "./verification.ts";
@@ -49,6 +49,7 @@ const USAGE = `mstack - durable state and gates for the mstack Claude Code plugi
   fanout plan --kind K --worker W...  allocate one report path per parallel worker
   fanout check --kind K --worker W... name the workers that did not report back
   statusline [--subagent]             render status rows from the JSON on stdin
+  version                             which copy is running: manifest version and resolved root
   lint-plugin [dir]
 
 Exit codes: 0 pass, 1 gate failure or wait, 2 usage error or stop.
@@ -57,6 +58,7 @@ Statuses: ${STATUSES.join(" | ")}`;
 
 async function main(argv: readonly string[]): Promise<number> {
   const [command, ...rest] = argv;
+  warnForeignCli(command);
   switch (command) {
     case undefined:
     case "-h":
@@ -84,6 +86,8 @@ async function main(argv: readonly string[]): Promise<number> {
       return cmdFanout(rest);
     case "statusline":
       return cmdStatusline(rest);
+    case "version":
+      return cmdVersion(rest);
     case "lint-plugin":
       return cmdLint(rest);
     default:
@@ -958,6 +962,69 @@ function handleHook(event: string | undefined, input: ReturnType<typeof hooks.re
 function cmdLint(argv: readonly string[]): number {
   const [dir] = argv;
   return lintPlugin(dir ?? process.cwd()).failed ? 1 : 0;
+}
+
+/**
+ * One line: `mstack <version> at <root>`.
+ *
+ * The path is the load-bearing half. Two copies of this plugin have already
+ * been observed declaring the same "0.1.0" while ten of their twelve src/
+ * files differed and their gates disagreed on an exit code, so the version
+ * string alone is a comparison that cannot fail; the resolved root is what
+ * actually tells the copies apart (the `item-17` rows in .mstack/decisions.tsv
+ * hold the record). The version is still worth printing — it is what a release
+ * reader knows the copy by — but it is read from the running copy's own
+ * manifest rather than hardcoded, so it cannot drift from it.
+ *
+ * Needs no store and never exits non-zero over a missing manifest: the one job
+ * here is identifying the copy, and the path does that on its own.
+ */
+function cmdVersion(argv: readonly string[]): number {
+  takesNothing("version", argv);
+  const root = runningCliRoot();
+  let version = "(version unknown)";
+  try {
+    const manifest = JSON.parse(readFileSync(join(root, ".claude-plugin", "plugin.json"), "utf8")) as {
+      version?: unknown;
+    };
+    if (typeof manifest.version === "string" && manifest.version.trim() !== "") version = manifest.version;
+  } catch {
+    // The path still identifies the copy; an unreadable manifest is not worth an exit 2.
+  }
+  console.log(`mstack ${version} at ${root}`);
+  return 0;
+}
+
+/**
+ * One stderr line when a foreign copy of this CLI runs inside an mstack
+ * checkout, on every subcommand except `gate`.
+ *
+ * The gate is excluded because it reports the same fact itself, as a failure
+ * with the full story (`checkCliProvenance` in src/gate.ts); a second spelling
+ * on stderr would say it twice on the one command where it is already loudest.
+ * Everywhere else the command still runs — `state set` from an old copy writes
+ * old semantics, and refusing outright would also refuse the legitimate cases —
+ * but it no longer runs *silently*, which is the half of acceptance bullet 2
+ * a note can honestly deliver. stderr so that stdout stays machine-consumable,
+ * the same choice `state active` and quiet-mode failures make.
+ *
+ * In an ordinary project this prints nothing: `foreignCliRoot` is null
+ * wherever the store root is not itself an mstack checkout, because there the
+ * plugin CLI is supposed to be foreign.
+ */
+function warnForeignCli(command: string | undefined): void {
+  if (command === "gate") return;
+  try {
+    const store = findStore();
+    if (store === null) return;
+    const foreign = foreignCliRoot(store);
+    if (foreign === null) return;
+    console.error(
+      `mstack: note: this store's root is an mstack checkout, and this command ran a different copy from ${foreign}; prefer ${join(store.root, "bin", "mstack")}`,
+    );
+  } catch {
+    // A provenance note must never be the thing that breaks a command.
+  }
 }
 
 async function readStdin(): Promise<string> {

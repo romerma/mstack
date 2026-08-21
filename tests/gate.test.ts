@@ -5,8 +5,9 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSyn
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { runGate, SPEC_ARTIFACTS } from "../src/gate.ts";
+import { checkCliProvenance, runGate, SPEC_ARTIFACTS } from "../src/gate.ts";
 import { record } from "../src/ledger.ts";
+import { Report } from "../src/report.ts";
 import { receipts, record as recordRaw } from "../src/verification.ts";
 import { add as addDecision } from "../src/decisions.ts";
 import { EMPTY_NEXT_STEP } from "../src/setup.ts";
@@ -1179,5 +1180,91 @@ test("an unnamed verifier does not close an item either", () => {
     expectFail(gate(sb), /from the pass that wrote the code/, "unnamed verifier");
   } finally {
     sb.dispose();
+  }
+});
+
+/**
+ * CLI provenance: a foreign copy of this CLI must not produce a green report
+ * inside an mstack checkout.
+ *
+ * These run in-process, so "the running CLI" is this repository — the code the
+ * test suite executes — and a sandbox in tmpdir is always foreign to it. The
+ * agreeing-roots branch is unreachable that way, which is what the injectable
+ * `running` parameter and the process-level tests in provenance.test.ts are
+ * for.
+ */
+function checkoutMarkers(sb: ReturnType<typeof sandbox>): void {
+  mkdirSync(join(sb.store.root, "bin"), { recursive: true });
+  mkdirSync(join(sb.store.root, "src"), { recursive: true });
+  writeFileSync(join(sb.store.root, "bin", "mstack"), "#!/bin/sh\n", "utf8");
+  writeFileSync(join(sb.store.root, "src", "cli.ts"), "// marker\n", "utf8");
+}
+
+test("a foreign CLI against a store rooted in an mstack checkout is a red gate that names both paths", () => {
+  const sb = sandbox();
+  try {
+    checkoutMarkers(sb);
+    sb.writeState(state([item()]));
+    const report = gate(sb);
+    expectFail(report, /store's root is an mstack checkout/, "foreign CLI in a checkout");
+    // Both halves of the fix: which copy actually ran, and which one to run.
+    const line = report.failures.find((f) => /mstack checkout/.test(f)) ?? "";
+    assert.ok(line.includes(join(sb.store.root, "bin", "mstack")), `the fix names the store's own launcher: ${line}`);
+  } finally {
+    sb.dispose();
+  }
+});
+
+test("the store's own CLI in its own checkout is an [ok] line, not silence", () => {
+  const sb = sandbox();
+  try {
+    checkoutMarkers(sb);
+    const report = new Report();
+    const { out } = captured(() => checkCliProvenance(sb.store, report, sb.store.root));
+    assert.equal(report.failed, false, `own copy reported: ${JSON.stringify(report.failures)}`);
+    assert.match(out, /mstack checkout.*its own \.\/bin\/mstack/, "the agreeing case says so out loud");
+  } finally {
+    sb.dispose();
+  }
+});
+
+test("an ordinary repository never sees the provenance check, even from a foreign CLI", () => {
+  // The plugin CLI is *supposed* to be foreign in a user's repo. A check that
+  // fired there would train every user to ignore it.
+  const sb = sandbox();
+  try {
+    sb.writeState(state([item()]));
+    const report = gate(sb);
+    expectPass(report, "ordinary repo");
+    assert.deepEqual(
+      report.failures.filter((f) => /checkout/.test(f)),
+      [],
+      "no provenance line in a repo with no bin/mstack of its own",
+    );
+  } finally {
+    sb.dispose();
+  }
+});
+
+test("one marker alone is not a checkout: both bin/mstack and src/cli.ts are required", () => {
+  // A repo that vendors a launcher script, or one with an unrelated src/cli.ts,
+  // is still a user's repo. Firing on half the evidence is how a check becomes
+  // noise, and noise is how it gets switched off.
+  for (const marker of ["bin/mstack", "src/cli.ts"]) {
+    const sb = sandbox();
+    try {
+      sb.writeState(state([item()]));
+      mkdirSync(join(sb.store.root, marker.split("/")[0]!), { recursive: true });
+      writeFileSync(join(sb.store.root, marker), "content\n", "utf8");
+      const report = gate(sb);
+      expectPass(report, `only ${marker} present`);
+      assert.deepEqual(
+        report.failures.filter((f) => /checkout/.test(f)),
+        [],
+        `${marker} alone must not fire the check`,
+      );
+    } finally {
+      sb.dispose();
+    }
   }
 });
