@@ -1,4 +1,3 @@
-import { requiresVerification } from "./lifecycle.ts";
 import type { Store } from "./paths.ts";
 import { append, cell, readRecords } from "./tsv.ts";
 import type { Item, State } from "./state.ts";
@@ -135,16 +134,6 @@ export function status(store: Store, state: State, item: Item | undefined, sha: 
     );
   }
   return { required, satisfied: problems.length === 0, problems };
-}
-
-/**
- * Does this item owe a verification run right now?
- *
- * `verifying` and nothing earlier — the reasoning is in `requiresVerification`,
- * and the cost of moving that line is the reason it is written down.
- */
-export function isDue(item: Item | undefined): item is Item {
-  return item !== undefined && requiresVerification(item.status);
 }
 
 function short(sha: string): string {

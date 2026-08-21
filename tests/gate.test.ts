@@ -5,6 +5,7 @@ import { join } from "node:path";
 
 import { runGate, SPEC_ARTIFACTS } from "../src/gate.ts";
 import { record } from "../src/ledger.ts";
+import { receipts, record as recordRun } from "../src/verification.ts";
 import { add as addDecision } from "../src/decisions.ts";
 import { EMPTY_NEXT_STEP } from "../src/setup.ts";
 import { captured, expectFail, expectPass, item, quiesce, sandbox, state, trackCurrent } from "./helpers.ts";
@@ -567,6 +568,241 @@ test("a plugin-qualified role is the same role", () => {
       verifier: "mstack:implementer",
     });
     expectFail(gate(sb), /from the pass that wrote the code/, "qualified role");
+  } finally {
+    sb.dispose();
+  }
+});
+
+/**
+ * The gap these cover, stated once.
+ *
+ * `src/hooks.ts` wires the `Stop` hook to the fast gate, which never touched
+ * `state.verify` or `item.verification`. Only a human typing `mstack gate
+ * --full` executed them. In one real session an item's `verification` was a
+ * non-executable string from intake and it stayed red for 230 minutes across
+ * four agent passes, because nothing ran it and `sh -n` accepts it. The only
+ * thing that catches a non-executable verification is running it, so `--full`
+ * now writes down what it ran and the fast gate refuses to call an item green
+ * on a run that never happened.
+ */
+test("an item one step from done whose verification never ran is red, and the command is named", () => {
+  const sb = sandbox();
+  try {
+    sb.writeState(state([item({ status: "verifying", verification: "pytest -q" })]));
+    trackCurrent(sb);
+    expectFail(gate(sb), /`pytest -q` has never been executed/, "never executed");
+    // The failure has to name the way out, and the way out is the only thing
+    // that executes it.
+    assert.ok(
+      gate(sb).failures.some((f) => /run 'mstack gate --full'/.test(f)),
+      `the fix must name the command that runs it: ${JSON.stringify(gate(sb).failures)}`,
+    );
+  } finally {
+    sb.dispose();
+  }
+});
+
+test("a recorded passing run at this commit turns it green", () => {
+  const sb = sandbox();
+  try {
+    sb.writeState(state([item({ status: "verifying", verification: "pytest -q" })]));
+    trackCurrent(sb);
+    recordRun(sb.store, { target: "storage-layer", sha: sb.sha, command: "pytest -q", outcome: "passed" });
+    expectPass(gate(sb), "recorded green run");
+  } finally {
+    sb.dispose();
+  }
+});
+
+test("a recorded failing run keeps the gate red, which is the 230-minute case", () => {
+  const sb = sandbox();
+  try {
+    sb.writeState(state([item({ status: "verifying", verification: "pytest -q" })]));
+    trackCurrent(sb);
+    recordRun(sb.store, { target: "storage-layer", sha: sb.sha, command: "pytest -q", outcome: "failed" });
+    // "Ran and failed" and "never ran" are different facts. Collapsing them
+    // would send the reader to run something that has already told them.
+    expectFail(gate(sb), new RegExp(`\`pytest -q\` ran at ${sb.sha.slice(0, 8)} and failed`), "recorded red run");
+  } finally {
+    sb.dispose();
+  }
+});
+
+test("a run recorded at an older commit does not carry over", () => {
+  const sb = sandbox();
+  try {
+    sb.writeState(state([item({ status: "verifying", verification: "pytest -q" })]));
+    trackCurrent(sb);
+    recordRun(sb.store, { target: "storage-layer", sha: sb.sha, command: "pytest -q", outcome: "passed" });
+    expectPass(gate(sb), "green at this commit");
+
+    // The ledger's rule, applied to a run. Unlike a closed item's verdict, this
+    // one is still load-bearing: the item has not closed yet, and the commit it
+    // would close on is not the commit anything was proven at.
+    sb.commit();
+    expectFail(gate(sb), /1 earlier run\(s\) exist at other commits/, "moved on");
+  } finally {
+    sb.dispose();
+  }
+});
+
+/**
+ * The cost boundary, asserted rather than described.
+ *
+ * This check rides the `Stop` hook, which fires at the end of every turn. Held
+ * from `in_progress`, it would go red after every commit for the whole phase
+ * where most commits happen, and a gate that is red for a normal mid-session
+ * state is a gate someone switches off — which costs more than the gap it
+ * closes. `verifying -> done` is the only legal path to `done`, so `verifying`
+ * is the earliest status that is also sufficient.
+ */
+test("nothing before verifying is held to a run, however loudly it is configured", () => {
+  const sb = sandbox();
+  try {
+    for (const status of ["specifying", "spec_ready", "in_progress", "reviewing"] as const) {
+      sb.writeState(state([item({ status, verification: "pytest -q" })], { verify: "make check" }));
+      trackCurrent(sb);
+      const report = gate(sb);
+      assert.ok(
+        !report.failures.some((f) => /gate --full/.test(f)),
+        `${status} must not owe a verification run: ${JSON.stringify(report.failures)}`,
+      );
+    }
+
+    sb.writeState(state([item({ status: "verifying", verification: "pytest -q" })], { verify: "make check" }));
+    trackCurrent(sb);
+    expectFail(gate(sb), /gate --full/, "verifying is where the line falls");
+  } finally {
+    sb.dispose();
+  }
+});
+
+test("an item at verifying with nothing configured warns rather than wedging", () => {
+  const sb = sandbox();
+  try {
+    // The empty `verify` every `mstack setup` store starts with. Failing here
+    // would make a fresh project's first item unclosable; what governs closing
+    // with no proof is require_verdict_to_close, whose typed answer for "no
+    // check could be run" is the verifier-blocked verdict.
+    sb.writeState(state([item({ status: "verifying" })], { verify: "" }));
+    trackCurrent(sb);
+    const report = gate(sb);
+    expectPass(report, "nothing configured");
+    assert.ok(
+      report.warnings.some((w) => /nothing verifies it/.test(w)),
+      `it still has to be said out loud: ${JSON.stringify(report.warnings)}`,
+    );
+  } finally {
+    sb.dispose();
+  }
+});
+
+test("both configured commands have to have run, not just one", () => {
+  const sb = sandbox();
+  try {
+    sb.writeState(
+      state([item({ status: "verifying", verification: "pytest -q" })], { verify: "make check" }),
+    );
+    trackCurrent(sb);
+    recordRun(sb.store, { target: "(project)", sha: sb.sha, command: "make check", outcome: "passed" });
+    expectFail(gate(sb), /`pytest -q` has never been executed/, "one green does not carry the other");
+
+    recordRun(sb.store, { target: "storage-layer", sha: sb.sha, command: "pytest -q", outcome: "passed" });
+    expectPass(gate(sb), "both green");
+  } finally {
+    sb.dispose();
+  }
+});
+
+test("with no active item the check says so instead of staying silent", () => {
+  const sb = sandbox();
+  try {
+    sb.writeState(state([item({ status: "pending", verification: "pytest -q" })]));
+    const printed = captured(() => runGate(sb.store)).out;
+    assert.match(printed, /no active item, so no verification run is due/);
+  } finally {
+    sb.dispose();
+  }
+});
+
+/**
+ * `--full` closes the loop it opened: it runs the commands and records what
+ * happened, so the fast gate that fires on the next `Stop` can see a run it did
+ * not itself perform. That split is what keeps a `Stop` hook from becoming a
+ * test suite run.
+ */
+test("--full records what it ran, and the fast gate afterwards is green", () => {
+  const sb = sandbox();
+  try {
+    sb.writeState(state([item({ status: "verifying", verification: "true" })]));
+    trackCurrent(sb);
+    expectFail(gate(sb), /`true` has never been executed/, "before");
+
+    expectPass(captured(() => runGate(sb.store, { full: true, quiet: true })).value, "--full itself");
+    const rows = receipts(sb.store);
+    assert.equal(rows.length, 1, `one run, one row: ${JSON.stringify(rows)}`);
+    assert.equal(rows[0]?.outcome, "passed");
+    assert.equal(rows[0]?.sha, sb.sha);
+    assert.equal(rows[0]?.target, "storage-layer");
+
+    expectPass(gate(sb), "after");
+  } finally {
+    sb.dispose();
+  }
+});
+
+test("--full records a failure too, and the fast gate keeps saying it", () => {
+  const sb = sandbox();
+  try {
+    // A command that is not a command. This is the shape of the string that
+    // cost 230 minutes: `sh -n` accepts plenty that `sh` cannot run, so only
+    // running it tells you anything.
+    sb.writeState(state([item({ status: "verifying", verification: "false" })]));
+    trackCurrent(sb);
+    const full = captured(() => runGate(sb.store, { full: true, quiet: true })).value;
+    expectFail(full, /`?false`? failed/, "--full itself");
+    assert.equal(receipts(sb.store)[0]?.outcome, "failed");
+
+    // The point of writing it down: the next turn's Stop hook does not run the
+    // command, and still cannot call this green.
+    expectFail(gate(sb), /ran at .* and failed/, "the turn after");
+  } finally {
+    sb.dispose();
+  }
+});
+
+/**
+ * Criterion 2. `--full` with nothing to run used to warn and exit 0, so asking
+ * for the full gate and getting no verification at all was indistinguishable
+ * from asking for it and passing.
+ */
+test("--full that ran nothing fails instead of reporting a pass", () => {
+  const sb = sandbox();
+  try {
+    sb.writeState(state([item({ status: "in_progress" })], { verify: "" }));
+    trackCurrent(sb);
+    const report = captured(() => runGate(sb.store, { full: true, quiet: true })).value;
+    expectFail(report, /--full ran no verification/, "nothing configured");
+    assert.match(
+      report.failures.join("\n"),
+      /storage-layer has no 'verification' command/,
+      "it has to name which of the two places is empty",
+    );
+    assert.deepEqual(receipts(sb.store), [], "nothing ran, so nothing is recorded");
+  } finally {
+    sb.dispose();
+  }
+});
+
+test("--full does not ask for a receipt of the run it is about to perform", () => {
+  const sb = sandbox();
+  try {
+    // The fast check would fail this store; --full must not report a failure
+    // that the same process disproves three lines later.
+    sb.writeState(state([item({ status: "verifying", verification: "true" })]));
+    trackCurrent(sb);
+    const report = captured(() => runGate(sb.store, { full: true, quiet: true })).value;
+    expectPass(report, "--full on a store with no prior run");
   } finally {
     sb.dispose();
   }

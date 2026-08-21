@@ -4,7 +4,19 @@ import { join } from "node:path";
 
 import { all as decisionsFor } from "./decisions.ts";
 import { entries as ledgerEntries } from "./ledger.ts";
-import { isActive, requiresDecision, requiresSpecArtifacts } from "./lifecycle.ts";
+import {
+  isActive,
+  requiresDecision,
+  requiresSpecArtifacts,
+  requiresVerification,
+  VERIFICATION_REQUIRED_FROM,
+} from "./lifecycle.ts";
+import {
+  obligations,
+  record as recordRun,
+  status as verificationStatus,
+  type Outcome,
+} from "./verification.ts";
 
 /** A cancelled item's fork does not need answering; nobody is building on it. */
 const TERMINAL_IGNORED = new Set<string>(["cancelled"]);
@@ -25,6 +37,13 @@ import { parseState, type Item, type State } from "./state.ts";
  * to the Stop hook: a gate nobody waits for is a gate nobody runs. `--full`
  * runs the project's own verification and is the *reviewer's* obligation, not
  * the implementer's.
+ *
+ * The two halves are joined by a receipt rather than by making the fast pass
+ * slow. `--full` writes down which command it ran, at which commit, and how it
+ * went (`src/verification.ts`); the fast pass reads that back, and from
+ * `verifying` on it refuses to call an item green on a verification nothing has
+ * executed here. Nothing runs a test suite on a `Stop` hook, and nothing needs
+ * to: the expensive half still only happens when somebody asks for it.
  */
 
 export interface GateOptions {
@@ -49,6 +68,10 @@ export function runGate(store: Store, options: GateOptions = {}): Report {
   if (state !== null) {
     report.section("state");
     checkInvariants(store, state, report);
+    // Skipped under `--full`, which is about to run the thing for real. Asking
+    // for a receipt of a past run and then producing a fresh one in the same
+    // process would report a failure the same run disproves three lines later.
+    if (options.full !== true) checkVerificationRuns(store, state, report);
   }
 
   report.section("workspace");
@@ -375,21 +398,107 @@ function checkWorkspace(store: Store, report: Report): void {
   }
 }
 
-function runVerification(store: Store, state: State, report: Report): void {
+/**
+ * Has this item's verification actually been executed, here, at this commit?
+ *
+ * The check that closes the gap, and it costs one small TSV read. Nothing in
+ * this function runs a command; `--full` does that, and writes down what
+ * happened. See `VERIFICATION_REQUIRED_FROM` for why the line falls at
+ * `verifying` and not earlier — that choice is the whole cost of the mechanism.
+ */
+function checkVerificationRuns(store: Store, state: State, report: Report): void {
+  // Said out loud even when nothing is due, for the same reason the decision
+  // check says so: silence reads as "this ran and found nothing" when it may
+  // equally mean the check never ran.
   const active = state.items.find((i) => isActive(i.status));
-  const commands = [state.verify, active?.verification].filter(
-    (c): c is string => typeof c === "string" && c.trim() !== "",
-  );
-  if (commands.length === 0) {
-    report.warn("no verify command is configured; --full checked nothing beyond the fast gate");
+  if (active === undefined) {
+    report.ok("no active item, so no verification run is due");
     return;
   }
-  for (const command of commands) {
+  if (!requiresVerification(active.status)) {
+    report.ok(
+      `${active.slug} is ${active.status}; a verification run is due at ${VERIFICATION_REQUIRED_FROM.join(", ")}`,
+    );
+    return;
+  }
+
+  const required = obligations(state, active);
+  if (required.length === 0) {
+    // A warning rather than a failure, and the boundary is deliberate. This
+    // check is about an item *whose* verification never ran; whether one has to
+    // exist at all is `require_verdict_to_close`'s question, and its answer for
+    // "no check could be run" is the typed `verifier-blocked` verdict. Failing
+    // here would wedge every store still carrying the empty `verify` that
+    // `mstack setup` seeds.
+    report.warn(
+      `${active.slug} is ${active.status} and nothing verifies it: state.json has no 'verify' command and the item has no 'verification' command`,
+    );
+    return;
+  }
+
+  const sha = headSha(store);
+  if (sha === null) {
+    report.warn(
+      "no commit to check a verification run against; run 'mstack gate --full' and read the result yourself",
+    );
+    return;
+  }
+
+  const result = verificationStatus(store, state, active, sha);
+  if (result.satisfied) {
+    report.ok(`verification ran and passed at ${sha.slice(0, 8)}: ${required.map((r) => r.command).join(", ")}`);
+    return;
+  }
+  for (const problem of result.problems) {
+    report.fail(
+      `${itemLabel(active)} is one step from done, and ${problem}`,
+      "run 'mstack gate --full'; nothing else executes it, and a verification nobody runs is not a check",
+    );
+  }
+}
+
+function runVerification(store: Store, state: State, report: Report): void {
+  const active = state.items.find((i) => isActive(i.status));
+  const required = obligations(state, active);
+  if (required.length === 0) {
+    // A warning and exit 0, which is what this was, is indistinguishable from
+    // having run and passed: you ask for the full gate, get no verification at
+    // all, and the summary says PASSED. A check that cannot fail is the shape
+    // this whole gate exists to catch.
+    report.fail(
+      active === undefined
+        ? "--full ran no verification: state.json has no 'verify' command and no item is active"
+        : `--full ran no verification: state.json has no 'verify' command and ${active.slug} has no 'verification' command`,
+      "set one with 'mstack state set <slug> --verification \"<command>\"', or put a project-wide 'verify' in state.json",
+    );
+    return;
+  }
+
+  const sha = headSha(store);
+  if (sha === null) {
+    report.warn("not a commit, so these runs cannot be recorded; the fast gate will not see them");
+  }
+  for (const { command, target } of required) {
+    let outcome: Outcome;
     try {
       execFileSync("/bin/sh", ["-c", command], { cwd: store.root, stdio: "inherit" });
+      outcome = "passed";
       report.ok(`${command}`);
     } catch {
+      outcome = "failed";
       report.fail(`${command} failed`, "fix it; a red verification is not a partial pass");
+    }
+    if (sha === null) continue;
+    try {
+      recordRun(store, { target, sha, command, outcome });
+    } catch (error) {
+      // The run is the fact; being unable to write it down is a separate
+      // failure and gets said as one. Swallowing it would leave the fast gate
+      // asking for a run that keeps happening, with nothing naming why.
+      report.fail(
+        `${command} ran, but the result could not be recorded: ${(error as Error).message}`,
+        "fix the write; until it lands, the fast gate cannot tell this run from one that never happened",
+      );
     }
   }
 }
