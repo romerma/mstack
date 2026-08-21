@@ -17,7 +17,7 @@ import {
   STATUSES,
 } from "./lifecycle.ts";
 import { lintPlugin } from "./lint.ts";
-import { findStore, foreignCliRoot, requireStore, runningCliRoot, UserError } from "./paths.ts";
+import { cliProvenance, findStore, requireStore, runningCliRoot, UserError } from "./paths.ts";
 import { assertWritable, findItem, parseState, saveState, type Item } from "./state.ts";
 import { MIN_REPORT_BYTES } from "./roles.ts";
 import * as verification from "./verification.ts";
@@ -1008,20 +1008,37 @@ function cmdVersion(argv: readonly string[]): number {
  * a note can honestly deliver. stderr so that stdout stays machine-consumable,
  * the same choice `state active` and quiet-mode failures make.
  *
- * In an ordinary project this prints nothing: `foreignCliRoot` is null
- * wherever the store root is not itself an mstack checkout, because there the
- * plugin CLI is supposed to be foreign.
+ * In an ordinary project this prints nothing: `cliProvenance` answers
+ * `not-a-checkout` wherever the store root is not itself an mstack checkout,
+ * because there the plugin CLI is supposed to be foreign. A same-repository
+ * sibling at the same committed src tree is also silent — that is the hooks'
+ * own nominal shape — while a sibling whose committed src differs gets the
+ * note, because the command that just ran may not implement what this store's
+ * code expects.
+ *
+ * The store here resolves from `process.cwd()`, while `hook stop` resolves
+ * its gate's store from the hook input's `cwd`. On a hook invocation those
+ * are the same directory in practice; when driven by hand with a different
+ * `cwd` in the JSON they can name different stores, and then this note and
+ * that gate are talking about the two different stores they each looked at.
  */
 function warnForeignCli(command: string | undefined): void {
   if (command === "gate") return;
   try {
     const store = findStore();
     if (store === null) return;
-    const foreign = foreignCliRoot(store);
-    if (foreign === null) return;
-    console.error(
-      `mstack: note: this store's root is an mstack checkout, and this command ran a different copy from ${foreign}; prefer ${join(store.root, "bin", "mstack")}`,
-    );
+    const provenance = cliProvenance(store);
+    if (provenance.kind === "foreign") {
+      console.error(
+        `mstack: note: this store's root is an mstack checkout, and this command ran a different copy from ${provenance.running}; prefer ${join(store.root, "bin", "mstack")}`,
+      );
+      return;
+    }
+    if (provenance.kind === "same-repo" && !provenance.sameSrc) {
+      console.error(
+        `mstack: note: this command ran a sibling copy from ${provenance.running} whose committed src tree differs from this store's; prefer ${join(store.root, "bin", "mstack")}`,
+      );
+    }
   } catch {
     // A provenance note must never be the thing that breaks a command.
   }

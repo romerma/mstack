@@ -1226,7 +1226,7 @@ test("the store's own CLI in its own checkout is an [ok] line, not silence", () 
     const report = new Report();
     const { out } = captured(() => checkCliProvenance(sb.store, report, sb.store.root));
     assert.equal(report.failed, false, `own copy reported: ${JSON.stringify(report.failures)}`);
-    assert.match(out, /mstack checkout.*within the same repository/, "the agreeing case says so out loud");
+    assert.match(out, /mstack checkout.*its own \.\/bin\/mstack/, "the agreeing case says so out loud");
   } finally {
     sb.dispose();
   }
@@ -1294,21 +1294,34 @@ test("both file markers without the plugin manifest are a user's repo, and the c
   }
 });
 
-test("a manifest that is someone else's, or unparseable, does not make a checkout either", () => {
+test("every manifest failure shape isMstackCheckout promises reads as not-a-checkout", () => {
   // Silence is the only safe failure direction in a stranger's repo. mstack's
   // own manifest going bad is lint-plugin's problem, not a gate failure in
-  // somebody else's project.
-  for (const manifest of ['{ "name": "their-plugin" }\n', "{ not json\n"]) {
+  // somebody else's project. The shapes here are the contract the function's
+  // own comment states — differently named, unparseable, parsed-but-not-an-
+  // object, and unreadable (a directory at the manifest path, which throws
+  // EISDIR out of readFileSync) — plus "missing", covered by the wrapper-repo
+  // test above. The one shape a catch cannot cover, a read that blocks rather
+  // than throws, is the fifo process test in provenance.test.ts.
+  const shapes: [string, (manifestPath: string) => void][] = [
+    ["someone else's name", (p) => writeFileSync(p, '{ "name": "their-plugin" }\n', "utf8")],
+    ["unparseable", (p) => writeFileSync(p, "{ not json\n", "utf8")],
+    ["JSON null", (p) => writeFileSync(p, "null\n", "utf8")],
+    ["a directory", (p) => mkdirSync(p)],
+  ];
+  for (const [label, install] of shapes) {
     const sb = sandbox();
     try {
-      checkoutMarkers(sb, manifest);
+      checkoutMarkers(sb, null);
+      mkdirSync(join(sb.store.root, ".claude-plugin"), { recursive: true });
+      install(join(sb.store.root, ".claude-plugin", "plugin.json"));
       sb.writeState(state([item()]));
       const report = gate(sb);
-      expectPass(report, `manifest ${JSON.stringify(manifest.slice(0, 12))}`);
+      expectPass(report, `manifest shape: ${label}`);
       assert.deepEqual(
         report.failures.filter((f) => /checkout/.test(f)),
         [],
-        `manifest ${JSON.stringify(manifest.slice(0, 12))} must not fire the check`,
+        `manifest shape "${label}" must not fire the check`,
       );
     } finally {
       sb.dispose();

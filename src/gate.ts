@@ -26,7 +26,7 @@ const TERMINAL_IGNORED = new Set<string>(["cancelled"]);
 
 /** An answer has to be words. A row of spaces is a boolean with extra steps. */
 const SUBSTANTIAL = /[a-z0-9]/i;
-import { foreignCliRoot, isMstackCheckout, runningCliRoot, UserError, type Store } from "./paths.ts";
+import { cliProvenance, runningCliRoot, UserError, type Store } from "./paths.ts";
 import { Report } from "./report.ts";
 import { canCloseAnItem, MIN_REPORT_BYTES } from "./roles.ts";
 import { EMPTY_ITEM_LINE, EMPTY_NEXT_STEP } from "./setup.ts";
@@ -413,9 +413,14 @@ function checkClosedItems(store: Store, state: State, report: Report): void {
  * PASSED exit 0 where this checkout's gate printed FAILED exit 1, because the
  * stale copy did not implement the check it was being trusted to run.
  *
- * A failure, not a warning: a green summary produced by a foreign copy is
+ * The severity ladder, one rung per answer `cliProvenance` can give. Outside
+ * the repository is a failure: a green summary produced by a foreign copy is
  * exactly the confidently-wrong output the mismatch generates, so the wrong
- * copy must not be able to produce one here.
+ * copy must not be able to produce one here. A sibling inside the repository
+ * at a different committed src tree is a warning — see the decision row and
+ * the comment at the warn below. The agreeing cases say so out loud, naming
+ * exactly what agreed: the store's own path, or the same repository *and*
+ * the same committed src tree.
  *
  * The honest limit: this line ships with the code that is being missed, so a
  * copy installed *before* it existed still says nothing. What it closes is
@@ -424,31 +429,52 @@ function checkClosedItems(store: Store, state: State, report: Report): void {
  *
  * In an ordinary project — one that is not a checkout of this plugin — the
  * check says nothing at all, because the plugin CLI is supposed to be foreign
- * there. `running` is injectable so tests can exercise the branch where the
- * two roots agree, which in-process runs otherwise cannot reach.
- *
- * `isMstackCheckout` is asked here and again inside `foreignCliRoot`, and the
- * repetition is the point rather than an oversight: `foreignCliRoot` folds
- * "not a checkout" and "own copy" into one null because its other caller
- * (`warnForeignCli`) treats both as silence, while this check must split them
- * — silence for a user's repo, a said-out-loud `[ok]` for the agreeing case.
+ * there. `running` is injectable so tests can exercise the branches where the
+ * roots agree, which in-process runs otherwise cannot reach.
  */
 export function checkCliProvenance(store: Store, report: Report, running: string = runningCliRoot()): void {
-  if (!isMstackCheckout(store.root)) return;
-  const foreign = foreignCliRoot(store, running);
-  if (foreign === null) {
-    // "Within the same repository", not "its own ./bin/mstack": a worktree's
-    // store is legitimately reported on by the main checkout's copy (that is
-    // what the hooks run), and an ok line claiming the store's own launcher
-    // ran would be this item's defect — a message asserting more than what
-    // happened — printed by the fix itself.
-    report.ok("store root is an mstack checkout, and this report came from within the same repository");
-    return;
+  const provenance = cliProvenance(store, running);
+  switch (provenance.kind) {
+    case "not-a-checkout":
+      return;
+    case "own":
+      report.ok("store root is an mstack checkout, and this report came from its own ./bin/mstack");
+      return;
+    case "same-repo": {
+      if (provenance.sameSrc) {
+        // "Committed src tree", said exactly: this is `HEAD:src` on both
+        // sides, so uncommitted edits to src/ are invisible to it, and src/
+        // is dirty for most of a working session. The line claims what was
+        // compared and no more.
+        report.ok(
+          `store root is an mstack checkout, and this report came from within the same repository at the same committed src tree (${provenance.storeSrc?.slice(0, 8)})`,
+        );
+        return;
+      }
+      // A warning, not a failure, and the severity is a recorded decision:
+      // the mismatch is genuine — this report's checks may not be the store's
+      // checks, which is the item's originating defect — but it is also the
+      // normal state for the whole life of a branch touching src/, with hooks
+      // wired to a plugin root no session can redirect per worktree. A hard
+      // fail here is red every turn for days, which is the switch-off failure
+      // that produced round two's silence. What warn gives up is stated in
+      // the same row: the Stop hook composes its context from failures only,
+      // so this line reaches a shell gate and not the hook.
+      const compared =
+        provenance.runningSrc === null || provenance.storeSrc === null
+          ? "whose committed src tree could not be compared (git gave no answer)"
+          : `at committed src tree ${provenance.runningSrc.slice(0, 8)}, not this store's ${provenance.storeSrc.slice(0, 8)}`;
+      report.warn(
+        `this report was produced by a sibling of this repository ${compared}: ${provenance.running} — its checks may not be this store's checks; run ${join(store.root, "bin", "mstack")} for a report this store's code stands behind`,
+      );
+      return;
+    }
+    case "foreign":
+      report.fail(
+        `this store's root is an mstack checkout, but the CLI producing this report runs from ${provenance.running}`,
+        `run ${join(store.root, "bin", "mstack")} instead; a copy installed elsewhere can predate the checks this store's code expects, and 'mstack version' prints which copy is running`,
+      );
   }
-  report.fail(
-    `this store's root is an mstack checkout, but the CLI producing this report runs from ${foreign}`,
-    `run ${join(store.root, "bin", "mstack")} instead; a copy installed elsewhere can predate the checks this store's code expects, and 'mstack version' prints which copy is running`,
-  );
 }
 
 function checkWorkspace(store: Store, report: Report): void {
