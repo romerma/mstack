@@ -422,16 +422,27 @@ function checkClosedItems(store: Store, state: State, report: Report): void {
  * every future round of the same trap; what closes the current one is the
  * contributor habit CONTRIBUTING.md now names.
  *
- * In an ordinary project — no `bin/mstack` of its own — the check says
- * nothing at all, because the plugin CLI is supposed to be foreign there.
- * `running` is injectable so tests can exercise the branch where the two
- * roots agree, which in-process runs otherwise cannot reach.
+ * In an ordinary project — one that is not a checkout of this plugin — the
+ * check says nothing at all, because the plugin CLI is supposed to be foreign
+ * there. `running` is injectable so tests can exercise the branch where the
+ * two roots agree, which in-process runs otherwise cannot reach.
+ *
+ * `isMstackCheckout` is asked here and again inside `foreignCliRoot`, and the
+ * repetition is the point rather than an oversight: `foreignCliRoot` folds
+ * "not a checkout" and "own copy" into one null because its other caller
+ * (`warnForeignCli`) treats both as silence, while this check must split them
+ * — silence for a user's repo, a said-out-loud `[ok]` for the agreeing case.
  */
 export function checkCliProvenance(store: Store, report: Report, running: string = runningCliRoot()): void {
   if (!isMstackCheckout(store.root)) return;
   const foreign = foreignCliRoot(store, running);
   if (foreign === null) {
-    report.ok("store root is an mstack checkout, and this report came from its own ./bin/mstack");
+    // "Within the same repository", not "its own ./bin/mstack": a worktree's
+    // store is legitimately reported on by the main checkout's copy (that is
+    // what the hooks run), and an ok line claiming the store's own launcher
+    // ran would be this item's defect — a message asserting more than what
+    // happened — printed by the fix itself.
+    report.ok("store root is an mstack checkout, and this report came from within the same repository");
     return;
   }
   report.fail(

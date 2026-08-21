@@ -1193,11 +1193,15 @@ test("an unnamed verifier does not close an item either", () => {
  * `running` parameter and the process-level tests in provenance.test.ts are
  * for.
  */
-function checkoutMarkers(sb: ReturnType<typeof sandbox>): void {
+function checkoutMarkers(sb: ReturnType<typeof sandbox>, manifest: string | null = '{ "name": "mstack" }\n'): void {
   mkdirSync(join(sb.store.root, "bin"), { recursive: true });
   mkdirSync(join(sb.store.root, "src"), { recursive: true });
   writeFileSync(join(sb.store.root, "bin", "mstack"), "#!/bin/sh\n", "utf8");
   writeFileSync(join(sb.store.root, "src", "cli.ts"), "// marker\n", "utf8");
+  if (manifest !== null) {
+    mkdirSync(join(sb.store.root, ".claude-plugin"), { recursive: true });
+    writeFileSync(join(sb.store.root, ".claude-plugin", "plugin.json"), manifest, "utf8");
+  }
 }
 
 test("a foreign CLI against a store rooted in an mstack checkout is a red gate that names both paths", () => {
@@ -1222,7 +1226,7 @@ test("the store's own CLI in its own checkout is an [ok] line, not silence", () 
     const report = new Report();
     const { out } = captured(() => checkCliProvenance(sb.store, report, sb.store.root));
     assert.equal(report.failed, false, `own copy reported: ${JSON.stringify(report.failures)}`);
-    assert.match(out, /mstack checkout.*its own \.\/bin\/mstack/, "the agreeing case says so out loud");
+    assert.match(out, /mstack checkout.*within the same repository/, "the agreeing case says so out loud");
   } finally {
     sb.dispose();
   }
@@ -1262,6 +1266,49 @@ test("one marker alone is not a checkout: both bin/mstack and src/cli.ts are req
         report.failures.filter((f) => /checkout/.test(f)),
         [],
         `${marker} alone must not fire the check`,
+      );
+    } finally {
+      sb.dispose();
+    }
+  }
+});
+
+test("both file markers without the plugin manifest are a user's repo, and the check stays silent", () => {
+  // Round one fired here, and its fix: line named the very command that had
+  // just produced the failure — a wrapper at bin/mstack plus an unremarkable
+  // src/cli.ts, in a project that has nothing to do with this plugin. The
+  // manifest is the identity; without it there is nothing to say.
+  const sb = sandbox();
+  try {
+    checkoutMarkers(sb, null);
+    sb.writeState(state([item()]));
+    const report = gate(sb);
+    expectPass(report, "wrapper repo without a manifest");
+    assert.deepEqual(
+      report.failures.filter((f) => /checkout/.test(f)),
+      [],
+      "no provenance line without the mstack manifest",
+    );
+  } finally {
+    sb.dispose();
+  }
+});
+
+test("a manifest that is someone else's, or unparseable, does not make a checkout either", () => {
+  // Silence is the only safe failure direction in a stranger's repo. mstack's
+  // own manifest going bad is lint-plugin's problem, not a gate failure in
+  // somebody else's project.
+  for (const manifest of ['{ "name": "their-plugin" }\n', "{ not json\n"]) {
+    const sb = sandbox();
+    try {
+      checkoutMarkers(sb, manifest);
+      sb.writeState(state([item()]));
+      const report = gate(sb);
+      expectPass(report, `manifest ${JSON.stringify(manifest.slice(0, 12))}`);
+      assert.deepEqual(
+        report.failures.filter((f) => /checkout/.test(f)),
+        [],
+        `manifest ${JSON.stringify(manifest.slice(0, 12))} must not fire the check`,
       );
     } finally {
       sb.dispose();

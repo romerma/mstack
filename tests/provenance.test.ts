@@ -36,17 +36,27 @@ function scratchRepo(): string {
 }
 
 /**
- * A store whose root is an mstack checkout: this repository's own launcher and
- * source, byte-copied into a scratch repo. Copied rather than symlinked on
- * purpose — the launcher resolves symlinks, so a symlinked copy would resolve
- * back here and stop being a *different* copy.
+ * A store whose root is an mstack checkout: this repository's own launcher,
+ * source and plugin manifest, byte-copied into a scratch repo. Copied rather
+ * than symlinked on purpose — the launcher resolves symlinks, so a symlinked
+ * copy would resolve back here and stop being a *different* copy. The manifest
+ * is what makes it a checkout at all: `isMstackCheckout` keys on
+ * `.claude-plugin/plugin.json` naming mstack, because the file markers alone
+ * false-positived on an ordinary project (see the wrapper-repo test below).
+ *
+ * Everything is committed, because the worktree and clone tests below need a
+ * tree that `git worktree add` and `git clone` can reproduce.
  */
 function scratchCheckout(): string {
   const root = scratchRepo();
   cpSync(join(ROOT, "bin"), join(root, "bin"), { recursive: true });
   cpSync(join(ROOT, "src"), join(root, "src"), { recursive: true });
+  cpSync(join(ROOT, ".claude-plugin"), join(root, ".claude-plugin"), { recursive: true });
   const setup = run(root, join(root, "bin", "mstack"), ["setup"]);
   assert.equal(setup.status, 0, `setup failed: ${setup.stderr}`);
+  const git = (args: string[]) => execFileSync("git", args, { cwd: root, stdio: "ignore" });
+  git(["add", "-A"]);
+  git(["commit", "-q", "-m", "checkout tree"]);
   return root;
 }
 
@@ -55,7 +65,7 @@ test("inside a checkout, the checkout's own bin/mstack stays green and says whic
   try {
     const gate = run(root, join(root, "bin", "mstack"), ["gate"]);
     assert.equal(gate.status, 0, `own gate went red: ${gate.stdout}${gate.stderr}`);
-    assert.match(gate.stdout, /store root is an mstack checkout.*its own \.\/bin\/mstack/, gate.stdout);
+    assert.match(gate.stdout, /store root is an mstack checkout.*within the same repository/, gate.stdout);
     assert.equal(gate.stderr, "", "the agreeing case has nothing to say on stderr");
   } finally {
     rmSync(root, { recursive: true, force: true });
@@ -134,5 +144,86 @@ test("version prints the running copy's manifest version and its resolved root, 
     assert.notEqual(flagged.status, 0, "version takes no arguments");
   } finally {
     rmSync(bare, { recursive: true, force: true });
+  }
+});
+
+test("a git worktree of the repository is not foreign, at the same commit or any other", () => {
+  // hooks.json wires every hook to ${CLAUDE_PLUGIN_ROOT}/bin/mstack, which a
+  // contributor cannot redirect per worktree, and the orchestrate playbook
+  // makes worktrees the unit of parallel work. Round one's path-only rule
+  // turned that session red every turn on byte-identical code; the rule now is
+  // that foreign means outside the *repository*, told by the git common dir.
+  const root = scratchCheckout();
+  const wt = join(root, "..", `${root.split("/").pop()}-wt`);
+  try {
+    execFileSync("git", ["worktree", "add", "-q", "--detach", wt, "HEAD"], { cwd: root, stdio: "ignore" });
+
+    // Same commit: the main checkout's copy reports on the worktree's store.
+    const same = run(wt, join(root, "bin", "mstack"), ["gate"]);
+    assert.equal(same.status, 0, `worktree at the same commit went red: ${same.stdout}${same.stderr}`);
+    assert.match(same.stdout, /store root is an mstack checkout.*within the same repository/, same.stdout);
+    assert.equal(same.stderr, "", `a note fired inside the repository: ${same.stderr}`);
+
+    // A different commit: still the same repository, still not foreign. This is
+    // the cost the decision row prices, pinned so it is a decision rather than
+    // an accident.
+    execFileSync("git", ["commit", "-q", "--allow-empty", "-m", "worktree moved on"], { cwd: wt, stdio: "ignore" });
+    const moved = run(wt, join(root, "bin", "mstack"), ["gate"]);
+    assert.equal(moved.status, 0, `worktree at another commit went red: ${moved.stdout}${moved.stderr}`);
+    assert.match(moved.stdout, /store root is an mstack checkout.*within the same repository/, moved.stdout);
+
+    // And the store's own worktree copy agrees with itself, trivially.
+    const own = run(wt, join(wt, "bin", "mstack"), ["gate"]);
+    assert.equal(own.status, 0, own.stdout);
+  } finally {
+    try {
+      execFileSync("git", ["worktree", "remove", "--force", wt], { cwd: root, stdio: "ignore" });
+    } catch {
+      // The rm below sweeps whatever git left.
+    }
+    rmSync(wt, { recursive: true, force: true });
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("a separate clone stays foreign even at the same commit", () => {
+  // The boundary the worktree rule must not erase: same bytes, same commit,
+  // different repository. A clone is exactly the installed-cache shape with
+  // git history attached, and it must keep failing.
+  const root = scratchCheckout();
+  const clone = join(root, "..", `${root.split("/").pop()}-clone`);
+  try {
+    execFileSync("git", ["clone", "-q", root, clone], { stdio: "ignore" });
+    const gate = run(clone, join(root, "bin", "mstack"), ["gate"]);
+    assert.equal(gate.status, 1, `a clone read as not-foreign: ${gate.stdout}`);
+    assert.match(gate.stdout, /store's root is an mstack checkout/, gate.stdout);
+  } finally {
+    rmSync(clone, { recursive: true, force: true });
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("bin/mstack plus src/cli.ts without the mstack manifest is a user's repo: silent, exit 0", () => {
+  // Round one fired here and told the user to run their own wrapper — the
+  // command that had just produced the failure. The manifest is the identity;
+  // an ordinary project that happens to carry both file markers gets silence.
+  const root = scratchRepo();
+  try {
+    const setup = run(root, MSTACK, ["setup"]);
+    assert.equal(setup.status, 0, setup.stderr);
+    execFileSync("sh", ["-c", `mkdir -p bin src && printf '#!/bin/sh\\necho my own tool\\n' > bin/mstack && echo '// my project cli' > src/cli.ts`], {
+      cwd: root,
+      stdio: "ignore",
+    });
+
+    const gate = run(root, MSTACK, ["gate"]);
+    assert.equal(gate.status, 0, `false positive: ${gate.stdout}`);
+    assert.ok(!gate.stdout.includes("checkout"), `provenance fired without the manifest: ${gate.stdout}`);
+
+    const list = run(root, MSTACK, ["state", "list"]);
+    assert.equal(list.status, 0, list.stderr);
+    assert.equal(list.stderr, "", `a note reached a wrapper repo: ${list.stderr}`);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
   }
 });
