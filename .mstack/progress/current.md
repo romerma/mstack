@@ -319,13 +319,40 @@ programme 230 minutes of a red gate nobody saw.
 - Commits: `db80ca9` the round-2 code (one commit, which is worse than round 1's five and is
   called out in the report), `2c61061` the docs.
 
+- **Round 3.** Review came back CHANGES_REQUESTED again: A blocking, B and C required. A was
+  the tree key hashing *which paths are dirty* rather than their contents, so an edit inside an
+  already-dirty path was invisible — round 1 finding 2 in a third hat. Reproduced by me at rung
+  5 before any fix, and fixed rather than deferred.
+- treeId now hashes `git diff HEAD` plus a content hash per untracked file. Chosen with
+  numbers, not argument: 58ms + 34ms against 638ms for a temp-index write-tree on a 30k-file
+  repo. `git diff HEAD` alone was not enough — it never mentions untracked files, which would
+  have been the same hole a fourth time.
+- B: the sampling order is now pinned by a verification that really writes into the repo.
+  C: an `unknown` tree warns that only the commit half was checked. Nitpicks 1, 2 and 3 done.
+- All three places that asserted the old guarantee are corrected: the module docstring, the
+  runtime message a user reads, and State-Files. The wiki rules table goes from six rows to nine.
+- 35 mutations, 32 killed, 3 measured-equivalent. The first run was 29/34 and **two gaps were
+  mine again** — my B1 mutation did not reproduce finding B at all, and two others were pointed
+  at a test that could not distinguish them, which is how two missing fixtures got found.
+- Corrected a claim of my own: I wrote that `raw` was load-bearing for `ls-files -z`. Measured,
+  and it is not — JS trim() stops at the NUL. The comment now says so at rung 4.
+
+## Verification
+
+- Round 3, rung 5: finding A reproduced before and after through `./bin/mstack`, in both the
+  tracked and untracked variants; finding C via an unreadable `.git/index`; cost measured at
+  57ms against 88ms on this repo, and 109ms for treeId at 30k files.
+- Round 3, rung 4: `npm test` 252 pass on bun and node; typecheck clean; lint-plugin 0/0;
+  check-doc-links 60/0. Mutation baseline green before and after, restores byte-verified.
+- Still rung 2: the receipt **write** failure path. Still rung 3: losing a row under concurrency.
+- Commits: `8771939` the code, `c82cf57` the docs.
 ## Next step
 
-- If this dies: round 2 of item 14 is complete on feat/verification-never-runs; the round-2
-  section is at the end of `.mstack/progress/impl_verification-never-runs.md`, and the reviewer's
-  findings are in `.mstack/progress/review_verification-never-runs.md`. It is **not** approved —
+- If this dies: round 3 of item 14 is complete on feat/verification-never-runs. The round-3
+  section is at the end of `.mstack/progress/impl_verification-never-runs.md`; the two review
+  reports are `review_verification-never-runs.md` and `..._r2.md`. It is **not** approved —
   a reviewer that did not write it decides that, and the item stays `in_progress`.
-  Two things for the closing pass, both named in the report: finding 6 (this item needs a verdict
-  at the SHA it closes on, from a pass that did not write the code — every existing row is
-  `--verifier implementer`), and the one-character `state.json` edit that would let the new
-  dedupe stop running this repo's suite twice per `gate --full`. Items 15 and 17 still pending.
+  For the closing pass: finding D (a verdict at the closing SHA from a pass that did not write
+  the code — every row so far is `--verifier implementer`), and the one-character `state.json`
+  edit that would let the dedupe stop running this suite twice per `gate --full`.
+  Items 15 and 17 still pending.

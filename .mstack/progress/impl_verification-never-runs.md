@@ -949,3 +949,316 @@ file in place, live, in this store. The old row is voided rather than trusted, a
    command rather than trusting what I had typed: the third receipt row's target is
    `verification-never-runs`, not `(project)`. Recording it because a pasted-output rule that
    only holds when nobody slips is not a rule.
+
+---
+
+# Round 3 — response to the second CHANGES_REQUESTED
+
+Reviewed at `85c2311`. Three items left: A blocking, B and C required, D carried. All three
+addressed; **A was reproduced by me first, at rung 5, before any fix**, and the coordinator's
+invitation to answer with a measurement instead of a change was taken up for one sub-question
+and declined for the main one, with numbers either way.
+
+## What changed
+
+The tree key now hashes **contents**. The first version hashed `git status --porcelain`, whose
+lines are two status characters and a path, so it keyed on *which* files were dirty — and if the
+tree was already dirty when `--full` ran, which is the ordinary mid-session state, every further
+edit inside those same paths moved nothing. `treeId` now hashes `git diff HEAD` for tracked
+paths plus a content hash per untracked file, both scoped by a pathspec that removes every
+`.mstack/` in the repository. `git diff HEAD` alone would not have been enough: it never
+mentions untracked files, so an untracked `check.sh` edited after a green run would have been
+the same hole a fourth time. Alongside that, the sampling order is pinned by a test whose
+verification really does write into the repository (finding B), an `unknown` tree now warns that
+only the commit half of the key was checked (finding C), and the three statements that asserted
+the guarantee the old key did not provide — the module docstring, the runtime message, and
+`State-Files` — now say what is actually compared.
+
+## The measurement, since it decided the design
+
+Three candidates, timed on a synthetic 30k-file repository with 500 modified and 200 untracked
+files, three runs each, matching the reviewer's methodology so the numbers are comparable:
+
+```console
+$ tracked files: 30000   dirty: 500   untracked: 200
+status --porcelain            : 50 ms      <- what the old version paid
+diff HEAD                     : 58 ms
+ls-files -o | hash-object     : 34 ms
+temp-index write-tree         : 638 ms
+```
+
+And each one against the reproduced case — an edit inside an already-dirty path:
+
+```console
+A: porcelain=ff9c205520ad  diffHEAD=b8cdfcfcef03  writeTree=28c6ec89f3f5dca5
+B: porcelain=ff9c205520ad  diffHEAD=7641246219f1  writeTree=d4c33f825a95d0d8
+```
+
+`write-tree` is equally complete and **twelve times** the cost, and it writes loose objects into
+`.git` as a side effect of a read-only check. `diff HEAD` plus untracked hashing is complete for
+the same set of files at 92ms, the same order as the `git status` that was already being paid.
+That is the trade, decision `2026-08-21T13:24:06.143Z`.
+
+The end cost, measured on both repositories after the change:
+
+```console
+$ fast gate, this repository
+in_progress (as it stands): 57 ms      <- treeId does not run
+verifying   (treeId runs): 88 ms
+
+$ treeId alone
+this repo (clean)                      20 ms   -> clean
+30k files, 500 dirty, 200 untracked   109 ms   -> 48cac967c5d5ff91
+```
+
+31ms extra on this repository, about 110ms on a 30k-file one, and only inside the `verifying`
+window. Criterion 3 holds with numbers rather than with an argument.
+
+## Finding by finding
+
+| # | Verdict | What landed |
+|---|---|---|
+| A BLOCKING | fixed, not deferred | `treeId` hashes content (`src/verification.ts:118-206`). Four tests, five mutations. The three statements that overclaimed are corrected in all three places |
+| B REQUIRED | fixed | `tests/gate.test.ts:976` runs a verification that appends to `build.log` and asserts the next fast gate is green. Kills the corrected N10 (`R3-B1`). The "permanently red" overstatement in the comment is fixed too — a second `--full` recovers, and the comment now says so |
+| C REQUIRED | fixed, warn not refuse | `src/gate.ts:499-511` warns whenever the computed tree is `unknown`. `tests/gate.test.ts:1001`, mutation `R3-C1`. Decision `2026-08-21T13:24:19.151Z` records why warn rather than refuse |
+| D CARRIED | still the closing pass's | A fresh implementer row is recorded at the round-3 head; it cannot close the item, which is the point |
+| nit 1 | fixed | A later `--closed-by` no longer erases the forced-close marker (`src/cli.ts:583-586`), pinned both ways: the marker survives, and an ordinary note is **not** marked |
+| nit 2 | fixed | One `closed_by` change line on a forced close, not two |
+| nit 3 | resolved as a side effect | `treeId` no longer runs `git status --porcelain` at all, so the duplicate read the nit named is gone. The fast gate at `verifying` now runs `status` once (in `checkWorkspace`) plus `diff` and `ls-files` |
+| nit 4 | nothing to change | The concurrency rung stays recorded as rung 3 |
+| nit 5 | agreed, still store data | `state.verify` and item 14's `verification` still differ by a `./`. Named again below for the closing pass |
+
+## Where I answered with a measurement instead of a change
+
+The coordinator offered that route explicitly. I used it once, and it is the honest outcome
+rather than a dodge.
+
+**Three mutations survive, and all three are equivalent mutants — measured, not asserted.**
+
+`R3-C2` (drop the newline guard) and `R3-A4` (drop the hash-count check) each survive *alone*,
+because each masks the other. I built the fixture that separates them — an untracked path
+`two<newline>lines.js` in a store where `two` and `lines.js` also exist, so
+`hash-object --stdin-paths` **succeeds**, returning two hashes for one listed path — and ran the
+three variants through the real `treeId`:
+
+```console
+shipped        -> unknown
+R3-C2 alone    -> unknown            (newline guard removed; count check still there)
+C2 + A4 both   -> b93263a7d6dcf356   (both removed: a real-looking fingerprint that quietly ignores a file)
+```
+
+So the pair is load-bearing and each half is redundant given the other. `R3-CA` removes both and
+**is** killed, by `tests/verification.test.ts:329`, which now uses that exact fixture.
+
+`R3-C3` (drop the `raw` option) survives, and my own comment justifying `raw` was wrong. I
+claimed it was load-bearing for `ls-files -z` because trimming would eat the trailing NUL and a
+trailing space with it. Measured:
+
+```console
+ls-files raw : "trailing space  "
+ls-files trim: "trailing space  "
+ls-files differ? false
+diff differ? true | raw ends "+b\n" trim ends "\n+b"
+JS trim treats NUL as whitespace? false
+```
+
+JS `trim()` stops at the NUL, so it never reaches the space. The diff *does* differ, but both
+sides of every comparison call the same function, so nothing observable changes. `raw` is kept —
+hashing content that has been silently trimmed is wrong in principle and free to avoid — and the
+comment now says at rung 4 that no current behaviour distinguishes it, instead of claiming it is
+load-bearing. `-z` on `ls-files` genuinely is load-bearing, for the different reason that without
+it git quotes special paths and a quoted path is not the path.
+
+## Commands
+
+### Baseline, before any round-3 change
+
+```console
+$ npm test 2>&1 | rg "^\s*(\d+ pass|\d+ fail)|ℹ (tests|pass|fail)"
+27: 243 pass
+28: 0 fail
+291:ℹ tests 243
+293:ℹ pass 243
+294:ℹ fail 0
+```
+
+### Finding A, reproduced by me before the fix
+
+```console
+### precondition: the tree is ALREADY dirty when --full runs
+ M check.sh
+[ok]    sh check.sh
+PASSED - 0 failures, 1 warning
+receipt: e5ab4f4c9929cb0b
+
+### the verification is now RED (sh check.sh exits 1), same porcelain line:
+ M check.sh
+[ok]    verification ran and passed at 53204f38: sh check.sh
+PASSED - 0 failures, 1 warning
+
+1 probe (done)
+  status: "verifying" -> "done"
+EXIT=0
+```
+
+### Finding A, after the fix — the same three commands
+
+```console
+### tree ALREADY dirty when --full runs
+ M check.sh
+[ok]    sh check.sh
+PASSED - 0 failures, 1 warning
+receipt tree: d4f2a660d12bcfb2
+
+### verification now RED; porcelain line is IDENTICAL:
+ M check.sh
+[fail]  1 probe (verifying) is one step from done, and `sh check.sh` last ran at dffbcbb9, and an uncommitted file has changed since
+FAILED - 1 failure, 1 warning
+
+mstack: probe cannot close on a verification that has not run: `sh check.sh` last ran at dffbcbb9, and an uncommitted file has changed since
+        run 'mstack gate --full' at this commit; closing is the one moment the run has to be real, and --force closes it unverified
+EXIT=2
+```
+
+### The untracked variant, which `git diff HEAD` alone would have missed
+
+```console
+[ok]    sh helper.sh
+PASSED - 0 failures, 1 warning
+porcelain:  M .mstack/state.json;?? helper.sh;
+porcelain after:  M .mstack/state.json;?? helper.sh;  <- identical
+git diff HEAD bytes: 301  <- untracked never appears in it
+[fail]  1 probe (verifying) is one step from done, and `sh helper.sh` last ran at dffbcbb9, and an uncommitted file has changed since
+FAILED - 1 failure, 1 warning
+```
+
+### Finding C, live
+
+```console
+### finding C: an index git cannot read
+rev-parse still works: dffbcbb9
+[warn]  git could not describe the working tree, so only the commit half of the verification key was checked; an uncommitted change since the run would not be noticed
+FAILED - 1 failure, 2 warnings
+```
+
+### Mutations: 35, 32 killed, 3 measured-equivalent, baseline green both sides
+
+Round 1 and round 2 guarantees are re-run here as well, because `treeId` was rewritten wholesale
+and "I did not break what was already pinned" is a claim that needs measuring.
+
+```console
+=== BASELINE (must be green, or nothing below means anything) ===
+
+ 252 pass
+ 0 fail
+...
+R3-A1   src/verification.ts   A: the fingerprint goes back to WHICH paths are dirty, not what is in them
+        killed (1 of 1 matching "editing an already-dirty tracked file voids the receipt" went red)   (restored ok, sha256 734324435544)
+R3-A2   src/verification.ts   A: untracked contents drop out, leaving only their paths
+        killed (1 of 1 matching "editing an already-dirty untracked file voids it too" went red)   (restored ok, sha256 734324435544)
+R3-A3   src/verification.ts   A: untracked paths drop out of the pairing, so two empty files are one state
+        killed (1 of 1 matching "which untracked files exist is part of the tree" went red)   (restored ok, sha256 734324435544)
+R3-A4   src/verification.ts   A: a mismatched hash count is paired up anyway
+        SURVIVED   (restored ok, sha256 734324435544)
+R3-B1   src/gate.ts           B: the tree is sampled BEFORE the commands, so a run voids its own receipt
+        killed (1 of 1 matching "does not void its own receipt" went red)   (restored ok, sha256 6f993c0c4749)
+R3-C1   src/gate.ts           C: an unknown tree is passed over in silence again
+        killed (1 of 1 matching "a tree git cannot describe is said out loud" went red)   (restored ok, sha256 6f993c0c4749)
+R3-C2   src/verification.ts   C: a newline in an untracked path is hashed partially instead of refused
+        SURVIVED   (restored ok, sha256 734324435544)
+R3-C3   src/git.ts            C: raw dropped, so ls-files -z loses its trailing NUL and diff loses whitespace
+        SURVIVED   (restored ok, sha256 d3ce7acf59f9)
+R3-CA   src/verification.ts   C+A: BOTH the newline guard and the hash-count check removed - the pair, which is not equivalent
+        killed (1 of 1 matching "a newline in an untracked path" went red)   (restored ok, sha256 734324435544)
+
+=== SUMMARY ===
+35 mutations, 32 killed, 3 survived, 0 setup errors
+  R3-A4: SURVIVED / restored ok
+  R3-C2: SURVIVED / restored ok
+  R3-C3: SURVIVED / restored ok
+
+=== POST-RUN BASELINE (proves every restore landed) ===
+
+ 252 pass
+ 0 fail
+Per-mutation sha256 above is the restore proof; the diff below is this round's uncommitted work.
+(clean)
+```
+
+**The first run of this driver was 29 of 34, and two of the five gaps were mine again.** The one
+that mattered: my `R3-B1` moved `treeId` into the *recording* loop, which still runs after every
+command — so it did not reproduce finding B at all and its survival meant nothing. Corrected to
+sample before the execution loop, it is killed by the new test. `R3-A3` and `R3-C3` were pointed
+at a test that could not distinguish them, which is how the two missing fixtures above were
+found: two untracked files with **identical** contents under different names, and a filename
+ending in a space. Both are now real tests rather than re-pointings.
+
+### Final state
+
+```console
+$ npm test
+ 252 pass
+ 0 fail
+ℹ pass 252
+ℹ fail 0
+
+$ npm run typecheck
+> bunx --bun tsc --noEmit
+
+$ ./bin/mstack lint-plugin . | tail -2
+PASSED - 0 failures, 0 warnings
+
+$ node scripts/check-doc-links.mjs README.md docs/wiki/*.md
+60 relative links checked, 0 broken
+```
+
+## Round-3 requirement to test
+
+| Finding | Test | `file:line` | Mutation |
+|---|---|---|---|
+| A — a content edit inside an already-dirty **tracked** path voids the receipt | `editing an already-dirty tracked file voids the receipt, though its status line does not move` | `tests/gate.test.ts:920` | R3-A1 |
+| A — the same for an **untracked** path, which `git diff` never mentions | `editing an already-dirty untracked file voids it too, which git diff alone would miss` | `tests/gate.test.ts:944` | R3-A2, R3-A4 |
+| A — *which* untracked files exist is part of the tree, not only their bytes | `which untracked files exist is part of the tree, not just what is in them` | `tests/verification.test.ts:287` | R3-A3 |
+| A — an awkward filename does not silently disable the key | `an untracked filename ending in a space is still fingerprinted` | `tests/verification.test.ts:314` | (equivalent; `-z` is what earns it) |
+| A/C — a path that cannot be hashed unambiguously is refused, not partly hashed | `a newline in an untracked path yields an unknown tree, not a partial one` | `tests/verification.test.ts:329` | R3-CA |
+| B — the sampling order | `a verification that writes into the repository does not void its own receipt` | `tests/gate.test.ts:976` | R3-B1 |
+| C — the disabled half is named | `a tree git cannot describe is said out loud, not passed over in silence` | `tests/gate.test.ts:1001` | R3-C1 |
+| nit 1 — the marker survives a later note | `a later note cannot quietly erase the forced-close marker` | `tests/cli.test.ts:723` | R3-N1, R3-N3 |
+| nit 1 — and an ordinary note is not marked | `an ordinary note is not marked, so the marker keeps meaning something` | `tests/cli.test.ts:753` | R3-N2 |
+
+## Where each round-3 claim stopped on the ladder
+
+| Claim | Rung | What got it there |
+|---|---|---|
+| Finding A was real: a content edit inside an already-dirty path left the gate green and the item closed | 5 | My own repro before any fix, through `./bin/mstack`, exit 0 throughout |
+| Finding A is fixed, for tracked **and** untracked paths | 5 | The same three commands after the fix: `[fail]` and a refused close, in both variants |
+| `git diff HEAD` does not cover untracked contents | 5 | 301 bytes of diff that never mention `helper.sh`, in the transcript above |
+| Content hashing costs 92ms where `write-tree` costs 638ms | 5 | Synthetic 30k-file repo, three runs each, both distinguishing the repro |
+| The cost stays bounded, and only inside the `verifying` window | 5 | 57ms against 88ms on this repository; `treeId` alone 20ms here and 109ms at 30k files |
+| Finding C's warning fires, and stays silent when git answers | 5 | Unreadable `.git/index` with `rev-parse` still working |
+| Finding B's ordering is now pinned | 4 | A verification that appends to `build.log`; R3-B1 kills it |
+| The three surviving mutants are equivalent, not gaps | 4 | Each variant run through the real `treeId` on a fixture built to separate them; the pair `R3-CA` is killed |
+| Nothing round 1 or round 2 pinned was weakened by rewriting `treeId` | 4 | Their mutations re-run against this head, all still killing |
+| `raw` is not load-bearing today | 4 | Measured on both calls; my own comment claiming otherwise is corrected |
+| Losing a receipt row under concurrent `gate --full` | **3** | Unchanged: the `ensureHeader` window is real, 8 of 8 concurrent runs lost nothing |
+| A store on a filesystem that refuses the receipt **write** reports usefully | **2** | Still only read and typechecked. Not claimed as more |
+| Ignored files are correctly outside the fingerprint | **2-3** | `--exclude-standard` and the pathspec, read and reasoned; a `.gitignore`d edit not voiding a receipt was mapped live by the reviewer in round 2, not re-run by me |
+
+## For the reviewer, round 3
+
+1. **Commits are three this round** — code, docs, and the report — rather than round 2's one.
+   Better than round 2, still not round 1's five; the code commit is one because the content
+   hashing, the warning and the sampling comment all sit inside the same two functions.
+2. **Three mutants survive and I am calling them equivalent rather than fixing them.** The
+   evidence is above and it is rung 4, not an argument. If you disagree with the equivalence for
+   `R3-C3` specifically, the honest alternative is to delete the `raw` option rather than keep an
+   option nothing can distinguish.
+3. **Untracked *directories*.** `git ls-files -o` lists files, not directories, so an empty
+   untracked directory is not in the fingerprint. Nothing a verification can execute lives in an
+   empty directory, so I left it; recording it because it is the kind of gap this item keeps
+   finding one layer in.
+4. **Still store data, still not mine to edit**: `state.verify` says `bin/mstack lint-plugin .`
+   and item 14's `verification` says `./bin/mstack lint-plugin .`, so the dedupe does not fire
+   here and every `gate --full` in this repository still runs the suite twice.
+5. **Finding D stands.** Every ledger row for this item is `--verifier implementer`, including
+   the one recorded at this head.
