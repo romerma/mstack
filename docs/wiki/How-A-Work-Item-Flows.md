@@ -53,7 +53,7 @@ stateDiagram-v2
     end note
 ```
 
-The legal transitions, from `TRANSITIONS` (`src/lifecycle.ts:63-73`):
+The legal transitions, from `TRANSITIONS` (`src/lifecycle.ts:85-95`):
 
 | From | To |
 |---|---|
@@ -113,7 +113,7 @@ the merge gate. The route changes how work is planned. It never changes what cou
 An item can carry `decision_required`: prose naming a product fork whose two answers produce
 different work. While the item is `pending` or `specifying`, the fork is allowed to be open;
 investigating it is the work. From `spec_ready` onward the CLI and the gate both refuse to move
-the item until the fork is answered (`src/lifecycle.ts:49-55`, `src/cli.ts:479-489`), and
+the item until the fork is answered (`src/lifecycle.ts:49-55`, `src/cli.ts:497-507`), and
 `state set --decision-required` refuses to attach one to an item already sitting there:
 
 ```console

@@ -33,17 +33,25 @@ One request, end to end:
 
 ```mermaid
 flowchart TD
-    you(["You: /mstack, in plain words"]) --> router["Router matches a playbook"]
+    you(["You: /mstack, in plain words"]) --> router["Router matches a playbook, or a skill directly"]
     router --> steps["Playbook steps land in the todo list, verbatim"]
-    steps -->|"spec path"| spec["spec-author writes it, spec-reviewer grills it"]
-    steps -->|"direct path"| impl["implementer builds it, tests included"]
-    spec --> impl
-    impl --> review["reviewer judges it, and did not write it"]
-    review -->|"CHANGES_REQUESTED"| impl
+    steps -->|"spec path"| spec
+    steps -->|"direct path"| impl
+    subgraph orch["dispatched, pass by pass, by the orchestrator"]
+        spec["spec-author writes it, spec-reviewer grills it"]
+        impl["implementer builds it, tests included"]
+        review["reviewer judges it, and did not write it"]
+        spec --> impl
+        impl --> review
+        review -->|"CHANGES_REQUESTED"| impl
+    end
     review -->|"APPROVED"| ledger["Verdict in the ledger, keyed to this commit"]
-    ledger --> gate["mstack gate green"]
-    gate --> merged(["Merged, item done"])
+    ledger --> merge["mstack merge-gate decides landing"]
+    merge --> merged(["Merged, item done"])
 ```
+
+One box is deliberately missing: the session gate, `mstack gate`, is not a step in this flow.
+It runs at the start and end of every session and can go red at any point in the picture.
 
 ## Where this comes from
 

@@ -1,8 +1,8 @@
 # Getting started
 
-Start here the first time you use mstack. You need Claude Code and a repository you can
-experiment in; by the end the plugin is installed and one work item has gone from filed to
-closed. If you would rather meet the moving parts before running anything, read
+Start here the first time you use mstack. You need Claude Code, `bun` or `node` 22.6 or
+newer, and a repository you can experiment in; by the end the plugin is installed and one
+work item has gone from filed to closed. If you would rather meet the moving parts before running anything, read
 [The-Agents](The-Agents.md) and [Skills-and-Playbooks](Skills-and-Playbooks.md) first and
 come back.
 
