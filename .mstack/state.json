@@ -187,10 +187,11 @@
         "The true positives keep denying: bare store name, nested path, and the glob spellings the current comment names",
         "Where the guard cannot see a deletion at all (an interpreter one-liner, fd -X rm), that limit is stated in the module comment rather than implied away"
       ],
-      "status": "reviewing",
+      "status": "done",
       "description": "src/hooks.ts:240. The pattern is rm -r followed by [^\\n]* followed by the store name, and [^\\n]* crosses && ; and | freely. So any rm -r on a line that later mentions the store in ANY position is denied: a commit message, an --evidence flag value, a grep argument. Meanwhile the same deletion one indirection away is allowed. Reproduced against the shipped regex: 4 false positives, 2 bypasses. The practical harm is not the inconvenience; it is that a user who hits a false positive learns to route around the guard, which is the behaviour the guard exists to prevent.",
       "source": "sandbox dogfood session, 2026-08-20; blocked a legitimate scratchpad cleanup mid-session",
-      "verification": "node --test 'tests/hooks.test.ts'"
+      "verification": "node --test 'tests/hooks.test.ts'",
+      "closed_by": "Reviewer APPROVED at round 2 after finding a real false allow in round 1; shipped wider than the title says, and the widening closes three bypasses main shipped with"
     },
     {
       "id": 13,
@@ -202,7 +203,7 @@
         "The decision fork gate still refuses: adding --decision-required to an item already past in_progress is either refused or forces the item back, and the choice is recorded rather than implied",
         "Tests cover setting each field on an existing item, the interaction with the decision gate, and that --status and --closed-by keep working exactly as before"
       ],
-      "status": "pending",
+      "status": "in_progress",
       "description": "src/cli.ts:242 gives 'state set' only --status, --closed-by and --force. Every other field is write-once at 'state add': description, verification, source, acceptance, sdd, and decision_required. The last one is the serious case. README.md:116-129 leads with decision_required as the human gate, and skills/spec/SKILL.md:33-38 says product forks are found by interviewing the repository during 'specifying' — which is after intake. So the plugin's headline gate cannot be attached to an item at the moment its own workflow says the fork is discovered, without hand-editing state.json. The dogfood session produced two textbook forks (a default place, and the meaning of an acceptance criterion) and both were answered with a plain 'mstack decide' row; the gate never had an opinion, and 30 decision rows carry zero 'resolves' values.",
       "source": "sandbox dogfood session, divergent lens finding F6-A and Part 3 #1, 2026-08-21",
       "verification": "npm test && npm run typecheck && ./bin/mstack lint-plugin ."
