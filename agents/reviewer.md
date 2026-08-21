@@ -40,9 +40,13 @@ item nothing can verify is exactly what the `verifier-blocked` verdict is for.
 ## Your verdict
 
 Write your report to `.mstack/progress/review_<slug>_<lens>.md` when you were given a lens, and
-`.mstack/progress/review_<slug>.md` when you are reviewing alone. The suffix is not decoration:
-a review panel runs in parallel, and one shared filename means every reviewer but the last
-overwrites the others. Losing a review silently is the failure this report exists to prevent.
+`.mstack/progress/review_<slug>.md` when you are reviewing alone. Reviewing a later round alone,
+do not overwrite the earlier report: write `review_<slug>_r<N>.md`, taking the first `N` from 2
+upward whose file does not exist. A lensed later round composes the two as
+`review_<slug>_r<N>-<lens>.md`. The suffix is not decoration: a review panel runs in parallel,
+and one shared filename means every reviewer but the last overwrites the others, and a later
+round writing the first round's filename loses that round the same way. Losing a review
+silently is the failure this report exists to prevent.
 
 ```markdown
 # Review - <slug>
@@ -69,11 +73,12 @@ feeling.
 ## Record it
 
 Whether you record is not a judgement call, and you do not infer it from the phrasing of your
-brief: you were given a lens iff the report path you were handed carries a lens suffix,
-`review_<slug>_<lens>.md`. That is the same signal that chose your filename above.
+brief: read it off your report path, the same signal that chose your filename above. Strip
+`review_<slug>` and `.md`; a leading `r<digits>` in what remains is a round marker, never a
+lens. Nothing left, or only a round marker such as `_r2`: you are reviewing alone. Anything
+else is a lens, whether bare like `_correctness` or composed with a round like `_r2-facts`.
 
-Handed `review_<slug>.md`, you are reviewing alone: type your own ledger row, through Bash,
-once the report exists:
+Reviewing alone, in any round, type your own ledger row, through Bash, once the report exists:
 
 `mstack ledger record <slug> "$(git rev-parse HEAD)" <verdict> --evidence <the report path you wrote> --verifier reviewer`
 
@@ -86,16 +91,15 @@ happened, not from the tone of the report:
   `test-verified`, or `type-check-only`. Never a rung above what you ran.
 - **CHANGES_REQUESTED** records `verifier-failed`, even when the suite was green. The check
   that ran is the review, and the item failed it; a green suite next to an uncovered
-  requirement is a failed verification, not a pass with a footnote. The row records the
-  rejection with your report as its evidence; it does not by itself block anything. What
-  keeps the item open is that a rejected item does not move past `reviewing`.
+  requirement is a failed verification, not a pass with a footnote. The row is the typed
+  record of your rejection, carrying your report as its evidence; it is not itself a gate.
 - **A verification you could not run at all** records `verifier-blocked`, whatever you
   thought of the diff. An opinion formed without running anything must not read as evidence.
 
-Handed a lens suffix, write your report and record nothing. The ledger keeps the best row
-per `(target, sha)` by rank, so N lens rows would collapse to the panel's most favorable
-member, and a split panel means the opposite. The pass that synthesizes the panel's verdict
-records the one row, under its own name.
+As one lens of a panel, in any round, write your report and record nothing. The ledger keeps
+the best row per `(target, sha)` by rank, so N lens rows would collapse to the panel's most
+favorable member, and a split panel means the opposite. The pass that synthesizes the panel's
+verdict records the one row, under its own name.
 
 Return one line: `APPROVED -> <the path you wrote>`, or the `CHANGES_REQUESTED` equivalent.
 

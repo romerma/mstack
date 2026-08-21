@@ -32,13 +32,13 @@ happened.
 
 ## The ladder maps onto the ledger
 
-| Rung reached | Verdict to record |
+| What happened | Verdict to record |
 |---|---|
-| 5 | `live-verified` |
-| 4 | `test-verified` |
-| 2-3 only, or a type check | `type-check-only` |
+| The claim held at rung 5 | `live-verified` |
+| The claim held at rung 4 | `test-verified` |
+| Rungs 2-3 only, or a type check | `type-check-only` |
 | Could not run the check at all | `verifier-blocked` |
-| Ran it and it failed | `verifier-failed` |
+| Ran it and the claim failed | `verifier-failed` |
 
 The check in the last two rows is the whole claim you were asked to judge, not the suite that
 ran inside it. A reviewer whose suite was green but whose review found a blocking defect ran

@@ -66,9 +66,47 @@ The last of the three enforcement gaps. The check already exists; the instructio
   the round-2 section of the impl report, the fresh implementer row at the committed head,
   and the commit(s).
 
+- Round 1 review: CHANGES_REQUESTED, three blocking findings. The wording promised that
+  `verifier-failed` "clears nothing and blocks a close". Reproduced at rung 5 in two
+  independent stores: adding that row to a done item that had only an implementer row flips
+  the gate from FAILED exit 1 to PASSED exit 0, because `src/gate.ts:371` needs `rows.every`
+  and `:373` needs only `rows.some`. The reviewer's rejection is what satisfies the
+  no-self-approval audit.
+- The implementer's own decisions row stated it correctly, with the qualifier "whose only
+  verdict". The qualifier was dropped on the way into the agent file.
+- Out-of-scope findings routed rather than widened: item 17 gained the bullet that the stale
+  cache governs agent files too, item 18 gained the bullet that makes verifier-failed
+  actually refuse a close, and item 19 was filed for a row going stale on its own commit.
+- Round 2 landed at `cbe680b`. 258/0 both runtimes, typecheck 0, lint 0/0, gate green.
+- Checked round 2's replacement myself before the reviewer reported: "what keeps the item
+  open is that a rejected item does not move past `reviewing`" is also false.
+  `src/lifecycle.ts:90` allows `reviewing -> verifying -> done`, and a rejected item walked
+  it with no `--force`, ending PASSED exit 0. Second false promise in the same item.
+- The unaided-instruction test I thought had passed had not: the reviewer subagent loaded
+  `agents/reviewer.md` from the plugin cache, which has no `Record it` section. It recorded
+  because the brief pointed at the agent file. The new wording is untested end to end until
+  the plugin is reloaded from this checkout.
+
+- Round 3: review of round 2 came back CHANGES_REQUESTED
+  (`review_reviewer-writes-the-verdict_r2.md`). Both blocking findings were in the round-2
+  rewrite. Fixes: (1) the trailing causal clause is struck in both documents, no third
+  causal sentence written; the bullet now says the row is the typed record of the rejection
+  and is not itself a gate, full stop. `src/gate.ts` and `src/lifecycle.ts` untouched;
+  making a gate exist is item 18 bullet 4. (2) lens-or-solo is now a path grammar that
+  reserves `_r<digits>` as a round marker: solo in any round records, a lens (bare or
+  composed `_r<N>-<lens>`) records nothing. Rule executed over all 23 existing `review_*`
+  names, every one classifies correctly, table in the impl report. The filename rule gained
+  the same round case so a solo round-2 reviewer no longer overwrites round 1. Decision
+  recorded (shape over fanout-membership; membership is unobservable from the handed path
+  and undefined outside the review skill). Non-blocking residue fixed too: the ladder table
+  first column is outcomes throughout, "The claim held at rung 4" etc.
+- If this session stops right now: round-3 fixes and verification are done; what remains is
+  the round-3 section of the impl report, the fresh implementer row at the committed head,
+  and the commit(s).
+
 ## Verification
 
-Round 2, at the head carrying the four fixes:
+Round 3, at the head carrying the fixes:
 
 - `npm test`: bun 258 pass 0 fail, node 258 pass 0 fail, exit 0.
 - `npm run typecheck`: exit 0.

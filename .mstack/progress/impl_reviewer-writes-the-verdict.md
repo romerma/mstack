@@ -223,3 +223,149 @@ are prose: rung 3 by read-back (a reviewer now decides lensing from the path it 
 records the mapped verdict, and no document promises the row blocks anything), rung 4 for
 `lint-plugin`, both suites, and the gate at this head. As in round 1, no test can fail on
 this wording and none was invented.
+
+---
+
+# Round 3
+
+Review verdict on round 2: CHANGES_REQUESTED
+(`.mstack/progress/review_reviewer-writes-the-verdict_r2.md`). Round-1 findings 2 and 4 are
+done; both round-3 findings are in the paragraph round 2 rewrote. `src/gate.ts` and
+`src/lifecycle.ts` untouched: making a rejection mechanically hold is item 18 bullet 4,
+recorded as this round's `item-15` decision row by the coordinator.
+
+## Finding 1: the replacement clause was a second false promise
+
+"What keeps the item open is that a rejected item does not move past `reviewing`" named a
+mechanism that does not exist: `src/lifecycle.ts:90` allows `reviewing -> verifying`
+unconditionally and `canTransition` never reads the ledger, proven live by two independent
+passes. The fix strikes the causal clause and writes no third one. What remains is only what
+both passes verified: the row is the typed record of the rejection, carrying the report as
+its evidence, and it is not itself a gate. The same clause is struck from
+`skills/review/SKILL.md` so the two documents move together, per round-1 finding 2.
+
+`agents/reviewer.md:92-95`, verbatim:
+
+> - **CHANGES_REQUESTED** records `verifier-failed`, even when the suite was green. The check
+>   that ran is the review, and the item failed it; a green suite next to an uncovered
+>   requirement is a failed verification, not a pass with a footnote. The row is the typed
+>   record of your rejection, carrying your report as its evidence; it is not itself a gate.
+
+`skills/review/SKILL.md:50-53`, verbatim (the reworked tail of the mapping paragraph):
+
+>    records `verifier-blocked`. A `verifier-failed` row is the typed record of the rejection,
+>    carrying the report as its evidence; it is not itself a gate.
+
+## Finding 2: the path-suffix rule misread rounds as lenses
+
+Round 2's rule made any suffix mean "lens", which would have suppressed
+`review_verification-never-runs_r4.md`'s row, the only reviewer-typed closing row in this
+repo's history, and looped a solo round-2 reviewer against the review skill's re-run remedy.
+
+**Rule chosen: shape, with `_r<digits>` reserved as a round marker.** Strip `review_<slug>`
+and `.md` from the handed path; a leading `r<digits>` in the remainder is a round marker,
+never a lens. Empty remainder or a bare round marker: solo, records. Anything else, bare
+(`_correctness`) or composed (`_r2-facts`): a panel lens, records nothing.
+
+Why this one: it keeps the property that made the round-2 fix right, the signal is observable
+from artifacts the reviewer already holds, its handed path and the slug it is reviewing. The
+failure mode of the other candidate, "record unless your brief named you one of several
+fanout workers", is that membership is not observable from the handed path at all: it has to
+be restated in the brief and trusted, which is the brief-tone inference round-1 finding 3
+removed, and it is undefined for a solo reviewer launched by the orchestrator's dispatch
+table, which is exactly the path that must record. Residual of the chosen rule, stated in the
+decision row: a lens deliberately named `r<digits>` or `r<digits>-x` would misparse, so that
+shape is reserved and lenses are named with words.
+
+The rule, executed over every `review_*` name in `.mstack/progress` (23 files, script in the
+session transcript, regenerated for this table):
+
+| File | Suffix | Classification | Ledger row |
+|---|---|---|---|
+| `review_decision-required-gate_adversarial.md` | `_adversarial` | lens adversarial | records nothing |
+| `review_decision-required-gate_correctness.md` | `_correctness` | lens correctness | records nothing |
+| `review_editable-item-fields.md` | `(none)` | solo, round 1 | records |
+| `review_editable-item-fields_r2.md` | `_r2` | solo, round 2 | records |
+| `review_panel-followup-prose_facts.md` | `_facts` | lens facts | records nothing |
+| `review_quiet-gate-prints-nothing.md` | `(none)` | solo, round 1 | records |
+| `review_quiet-gate-prints-nothing_r2.md` | `_r2` | solo, round 2 | records |
+| `review_readme-and-wiki_facts.md` | `_facts` | lens facts | records nothing |
+| `review_readme-and-wiki_r2-facts.md` | `_r2-facts` | round 2, lens facts | records nothing |
+| `review_readme-and-wiki_reader.md` | `_reader` | lens reader | records nothing |
+| `review_reviewer-writes-the-verdict.md` | `(none)` | solo, round 1 | records |
+| `review_reviewer-writes-the-verdict_r2.md` | `_r2` | solo, round 2 | records |
+| `review_rm-guard-command-boundary.md` | `(none)` | solo, round 1 | records |
+| `review_rm-guard-command-boundary_r2.md` | `_r2` | solo, round 2 | records |
+| `review_session_thesis.md` | `_thesis` | lens thesis | records nothing |
+| `review_statusline_correctness.md` | `_correctness` | lens correctness | records nothing |
+| `review_statusline_robustness.md` | `_robustness` | lens robustness | records nothing |
+| `review_statusline_tests.md` | `_tests` | lens tests | records nothing |
+| `review_verification-never-runs.md` | `(none)` | solo, round 1 | records |
+| `review_verification-never-runs_r2.md` | `_r2` | solo, round 2 | records |
+| `review_verification-never-runs_r3.md` | `_r3` | solo, round 3 | records |
+| `review_verification-never-runs_r4.md` | `_r4` | solo, round 4 | records |
+| `review_why-source-playbooks_facts.md` | `_facts` | lens facts | records nothing |
+
+Every row matches ground truth, including the two decisive cases:
+`review_verification-never-runs_r4.md` is solo and records (it is the row that closed item
+14), and `review_readme-and-wiki_r2-facts.md` is round 2, lens `facts`, and records nothing.
+
+The filename rule at `agents/reviewer.md:42-49` gained the same grammar, fixing the real bug
+found on the way: a solo later round writes `review_<slug>_r<N>.md`, first free `N` from 2
+upward, instead of overwriting round 1. Verbatim:
+
+> Write your report to `.mstack/progress/review_<slug>_<lens>.md` when you were given a lens, and
+> `.mstack/progress/review_<slug>.md` when you are reviewing alone. Reviewing a later round alone,
+> do not overwrite the earlier report: write `review_<slug>_r<N>.md`, taking the first `N` from 2
+> upward whose file does not exist. A lensed later round composes the two as
+> `review_<slug>_r<N>-<lens>.md`. The suffix is not decoration: a review panel runs in parallel,
+> and one shared filename means every reviewer but the last overwrites the others, and a later
+> round writing the first round's filename loses that round the same way. Losing a review
+> silently is the failure this report exists to prevent.
+
+And the record rule at `agents/reviewer.md:75-81`, verbatim:
+
+> Whether you record is not a judgement call, and you do not infer it from the phrasing of your
+> brief: read it off your report path, the same signal that chose your filename above. Strip
+> `review_<slug>` and `.md`; a leading `r<digits>` in what remains is a round marker, never a
+> lens. Nothing left, or only a round marker such as `_r2`: you are reviewing alone. Anything
+> else is a lens, whether bare like `_correctness` or composed with a round like `_r2-facts`.
+>
+> Reviewing alone, in any round, type your own ledger row, through Bash, once the report exists:
+
+With the closing paragraph at `:99-102` now opening "As one lens of a panel, in any round,
+write your report and record nothing." The re-run remedy in `skills/review/SKILL.md:41-43` is
+unchanged and no longer loops: a re-run solo round-N reviewer classifies itself solo and
+records.
+
+## Non-blocking residue, fixed
+
+The ladder's mapping table first column now reads as outcomes throughout
+(`skills/router/references/evidence-ladder.md:35-41`): "The claim held at rung 5 / at rung
+4", and the last row is "Ran it and the claim failed". Row 4 no longer reads unconditionally,
+which also reinforces the round-2 finding-4 reconciliation: a green suite inside a rejecting
+review is not "the claim held".
+
+## Commands, round 3
+
+```
+$ npm test
+(bun)  258 pass, 0 fail
+(node) tests 258 / pass 258 / fail 0
+npm test exit=0
+
+$ npm run typecheck
+typecheck exit=0
+
+$ ./bin/mstack lint-plugin .
+PASSED - 0 failures, 0 warnings
+```
+
+## Where round 3 stopped on the ladder
+
+The lifecycle walk behind finding 1 was established at rung 5 by two independent passes; not
+re-derived, and the fix deliberately asserts nothing in its place. The classification rule is
+rung 4: executed as a script over all 23 real filenames, output pasted above, and it would
+fail loudly on a name it misparses. The prose itself remains rung 3 by read-back, as in every
+round: a solo round-N reviewer now reaches "record" without reasoning past a rule, which is
+the specimen failure of round 2. No test was invented that cannot fail.
