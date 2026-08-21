@@ -277,6 +277,11 @@ programme 230 minutes of a red gate nobody saw.
 - Commits: `ddac8e3` the module, `fd1b27a` the gate, `ae40ab2` the closing guard, `f2e9308` the
   boundary test, `db00832` docs, `028e3bd` changelog, `db80b45` the correction.
 
+- Ledger: `live-verified` at `90b6e88`, verifier `implementer`. That is the implementer's own
+  evidence, not an approval. `ledger check` reports it stale, and necessarily so: committing the
+  row is itself a commit, so a row can never name the HEAD that carries it. The reviewer records
+  their own row against whatever HEAD they verify at, which is the point of the rule.
+
 ## Next step
 
 - If this dies: item 14's implementation is complete on feat/verification-never-runs and the
