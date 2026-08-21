@@ -100,11 +100,19 @@ hand them a `verifier` column the gate accepts, so running `gate --full` would c
 it was meant to prove — the self-closing shape `require_verdict_to_close` exists to refuse.
 
 `target` is the item's slug, or `(project)` for the `verify` command from `state.json`; a slug
-is kebab-case, so the parentheses cannot collide with one. `tree` is `clean` when nothing
-outside `.mstack/` was uncommitted, and otherwise a hash of what was — so an edit to code after
-a green run voids the run exactly as an edit to the command does, while writing your own
-progress notes does not. The fast gate reads these back and, from `verifying` on, refuses to
-call an item green on a command that never ran here; the rules and the reasoning are in
+is kebab-case, so the parentheses cannot collide with one.
+
+`tree` is `clean` when nothing outside `.mstack/` was uncommitted, `unknown` when git could not
+be asked, and otherwise a hash of the **contents** of everything uncommitted — `git diff HEAD`
+for tracked paths, plus a content hash per untracked file. Contents and not the list of dirty
+paths, and the difference is a defect this shipped once: hashing `git status --porcelain` keys
+on *which* files are dirty, so if the tree was already dirty when the run happened, a further
+edit inside those same paths moved nothing and the gate called a red verification green. So an
+edit to code after a green run voids the run exactly as an edit to the command does, while
+writing your own progress notes does not.
+
+The fast gate reads these back and, from `verifying` on, refuses to call an item green on a
+command that never ran here; the rules and the reasoning are in
 [Gates-and-Hooks](Gates-and-Hooks.md#verification-that-actually-ran).
 
 **This is the one file in the store that is not committed**, and `mstack setup` writes a
