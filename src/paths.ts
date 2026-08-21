@@ -10,6 +10,16 @@ export interface Store {
   readonly state: string;
   readonly ledger: string;
   readonly decisions: string;
+  /**
+   * Which verification command ran here, at which commit, and how it went.
+   *
+   * Machine-local and gitignored (see `setup`), unlike every other file in the
+   * store. Committing it would loop — a receipt is keyed to HEAD, and committing
+   * one moves HEAD and voids what was just written — and it would let one
+   * worktree's run vouch for another's, when the whole point is that somebody
+   * here executed the command.
+   */
+  readonly verification: string;
   readonly progress: string;
   readonly current: string;
   readonly history: string;
@@ -25,6 +35,7 @@ export function storeAt(root: string): Store {
     state: join(dir, "state.json"),
     ledger: join(dir, "ledger.tsv"),
     decisions: join(dir, "decisions.tsv"),
+    verification: join(dir, "verification.tsv"),
     progress,
     current: join(progress, "current.md"),
     history: join(progress, "history.md"),

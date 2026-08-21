@@ -54,6 +54,28 @@ export const DECISION_REQUIRED_FROM = [
   "done",
 ] as const satisfies readonly Status[];
 
+/**
+ * Statuses at which an item's verification must have been *executed* at the
+ * current commit, not merely configured.
+ *
+ * This one line is where the cost of the whole receipt mechanism is set, so the
+ * reasoning lives here rather than in a decision row nobody re-reads.
+ *
+ * `verifying` is the minimal status that makes "a session cannot close green on
+ * an unverified item" true: `TRANSITIONS` below lets `done` be reached from
+ * `verifying` and from nowhere else. Everything earlier would buy a little more
+ * safety at a cost that is not bounded — the fast gate runs on the `Stop` hook
+ * at the end of every turn, and an item held to a fresh run from `in_progress`
+ * would go red after every single commit, for the whole phase where most
+ * commits happen. A gate that is red for a normal mid-session state is a gate
+ * someone switches off, and that costs more than the gap it closes.
+ *
+ * The other half of the rule is not here, because it is not a status: `state set
+ * --status done` re-checks at the transition, so flipping the item past
+ * `verifying` cannot be the way to make the gate stop looking.
+ */
+export const VERIFICATION_REQUIRED_FROM = ["verifying"] as const satisfies readonly Status[];
+
 export const TERMINAL_STATUSES = ["done", "cancelled"] as const satisfies readonly Status[];
 
 /**
@@ -86,6 +108,10 @@ export function requiresSpecArtifacts(status: Status): boolean {
 
 export function requiresDecision(status: Status): boolean {
   return (DECISION_REQUIRED_FROM as readonly Status[]).includes(status);
+}
+
+export function requiresVerification(status: Status): boolean {
+  return (VERIFICATION_REQUIRED_FROM as readonly Status[]).includes(status);
 }
 
 export function canTransition(from: Status, to: Status): boolean {

@@ -223,7 +223,27 @@ programme 230 minutes of a red gate nobody saw.
 - Still unverified and stated as such: whether Claude Code displays a hook's stderr at exit 0.
 - Commits: `2ee2fda` finding 1 + the new test + minors, `878e92b` findings 2 and 4.
 
+- Item 14 implementer pass started. Baseline confirmed green **before** anything was touched:
+  `npm test` 203 pass on bun and 203 on node, typecheck clean, `lint-plugin` 0 failures 0
+  warnings.
+- Six design decisions recorded in decisions.tsv before any code, the first of them the stdio
+  question item 16 left behind.
+- **The stdio answer**: `--full` stays out of every hook. `stdio: "inherit"` is unchanged, the
+  characterization test at `tests/cli.test.ts:552` stays green untouched, and criterion 1 is
+  enforced by the *fast* gate reading a **receipt** of a past run instead of running anything.
+- The receipt is a new store file, `.mstack/verification.tsv` (`target/sha/command/outcome/ts`),
+  written by `gate --full` and read by the fast gate. Not the ledger: a ledger row is a verdict
+  by a pass, and a gate-written row would satisfy `canCloseAnItem` and close the item itself.
+- **Where the cost line falls** (criterion 3): the fast gate demands a fresh receipt only from
+  `verifying`, because `verifying -> done` is the only legal path to `done`. The whole
+  `in_progress` phase costs one file read. `state set --status done` re-checks at the
+  transition so flipping the status cannot be the way out.
+- Criterion 2: `gate --full` with nothing to run becomes a `[fail]` and exit 1 instead of a
+  warn and exit 0.
+
 ## Next step
 
 - If this dies: item 14 is in flight on feat/verification-never-runs, four acceptance criteria
-  in state.json. Items 15 and 17 still pending. Items 12, 13 and 16 closed and merged.
+  in state.json, six decisions already recorded. Next is `src/verification.ts` plus the store
+  path, then the gate wiring, then the `state set --status done` guard, each with its tests.
+  Items 15 and 17 still pending. Items 12, 13 and 16 closed and merged.
