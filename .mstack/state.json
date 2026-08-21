@@ -175,6 +175,21 @@
       "status": "in_progress",
       "description": "Build an Apple-Weather-style web app from scratch inside a gitignored sandbox, driving every mstack phase for real, and keep a command-by-command protocol of how easy or hard each step was. The protocol feeds a later refinement round on mstack itself.",
       "source": "user request, 2026-08-20"
+    },
+    {
+      "id": 12,
+      "slug": "rm-guard-command-boundary",
+      "title": "The rm guard denies unrelated deletions and misses the real one",
+      "acceptance": [
+        "The guard evaluates only the shell segment containing the rm, so a store name in a later && ; or | segment does not deny it",
+        "The four reproduced false positives are covered by tests that fail against the current pattern",
+        "The true positives keep denying: bare store name, nested path, and the glob spellings the current comment names",
+        "Where the guard cannot see a deletion at all (an interpreter one-liner, fd -X rm), that limit is stated in the module comment rather than implied away"
+      ],
+      "status": "pending",
+      "description": "src/hooks.ts:240. The pattern is rm -r followed by [^\\n]* followed by the store name, and [^\\n]* crosses && ; and | freely. So any rm -r on a line that later mentions the store in ANY position is denied: a commit message, an --evidence flag value, a grep argument. Meanwhile the same deletion one indirection away is allowed. Reproduced against the shipped regex: 4 false positives, 2 bypasses. The practical harm is not the inconvenience; it is that a user who hits a false positive learns to route around the guard, which is the behaviour the guard exists to prevent.",
+      "source": "sandbox dogfood session, 2026-08-20; blocked a legitimate scratchpad cleanup mid-session",
+      "verification": "node --test 'tests/hooks.test.ts'"
     }
   ]
 }
