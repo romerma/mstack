@@ -3,7 +3,15 @@ import assert from "node:assert/strict";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { postEdit, preToolUse, readInput, sessionStart, stop, subagentStop } from "../src/hooks.ts";
+import {
+  postEdit,
+  preToolUse,
+  readInput,
+  sessionStart,
+  shellSegments,
+  stop,
+  subagentStop,
+} from "../src/hooks.ts";
 import { item, sandbox, state } from "./helpers.ts";
 
 const decisionOf = (json: string | null) =>
@@ -252,4 +260,93 @@ test("the safe forms are not denied, including the one the guard recommends", ()
   for (const [command, why] of ALLOW) {
     assert.ok(!denied(command), `should be allowed (${why}): ${command}`);
   }
+});
+
+/**
+ * A separator ends a command. Nothing after `&&`, `||`, `;`, `&`, `|` or a
+ * newline can be an argument to what came before it, so a guard that matches
+ * across one is reading a different command than the one it is judging.
+ *
+ * Every row below was denied by the pre-segmentation guards, and each denial
+ * was wrong in the way that costs most: the author sees the guard fire on a
+ * command that does nothing it warns about, and learns to route around it.
+ */
+const CROSS_SEGMENT_ALLOW: readonly [string, string][] = [
+  [
+    'rm -rf /tmp/x && mstack decide --evidence ".mstack/evidence/x.md"',
+    "the store named in a later command's flag value",
+  ],
+  ["rm -rf build; echo see .mstack/state.json", "the store named after a semicolon"],
+  ["rm -rf dist | grep .mstack", "the store named after a pipe"],
+  [
+    'rm -rf node_modules && git commit -m "docs: .mstack notes"',
+    "the store named only inside a commit message",
+  ],
+  ["rm -rf /tmp/x || echo .mstack survived", "the store named after ||"],
+  ["rm -rf /tmp/x &\necho .mstack", "the store named on the next line"],
+  ["rm -rf /tmp/scratch & mstack gate .mstack", "the store named after a backgrounding &"],
+  ["rm -rf /tmp/x 2>&1 | grep .mstack", "a redirection before the pipe does not glue the two together"],
+  // The same defect lived in the sibling guards, and one evaluator change fixed
+  // all of them. These rows exist so that fix cannot silently regress.
+  ["git push origin main && echo 'use --force only after asking'", "--force named in a later echo"],
+  ["git push origin main && echo 'the +main spelling forces too'", "a + refspec named in a later echo"],
+  ["gh pr merge 3 --squash && echo skipped --admin", "--admin named in a later echo"],
+  ["git branch -a && echo remember -D deletes unmerged work", "-D named in a later echo"],
+];
+
+/**
+ * Segmenting must not buy its accuracy by letting a real deletion through. The
+ * rm can sit in any segment, and a separator inside quotes is a literal
+ * character, not the end of a command.
+ */
+const CROSS_SEGMENT_DENY: readonly [string, string][] = [
+  ["rm -rf .mstack", "the bare store name"],
+  ["rm -rf /repo/.mstack/progress", "a nested path inside the store"],
+  ["rm -rf .mstack*", "the glob the guard's comment names"],
+  ["rm -rf ./.mstac?", "the single-character wildcard the same comment names"],
+  ["rm -rf .msta*", "the shorter glob that still reaches the store"],
+  ["cd /repo && rm -rf .mstack", "the rm sitting in the second segment"],
+  ["rm -rf build; rm -rf .mstack", "an innocent rm first and the real one second"],
+  ["echo cleaning | rm -rf .mstack", "the rm on the far side of a pipe"],
+  ['rm -rf "a;b/.mstack"', "a semicolon inside quotes is a filename character, not a separator"],
+  ["rm -rf .mstack && echo done", "the store named before the separator"],
+  ["cd /repo && rm -rf .mstack && git status", "the rm in the middle of a chain"],
+  ["rm -rf .mstack 2>&1", "a redirection is not a separator, so it cannot cut the target off"],
+  // Same point on a sibling guard, where getting it wrong would be a false
+  // allow rather than a false deny: bash strips `2>&1` wherever it appears, so
+  // this is a force push however it reads.
+  ["git push origin main 2>&1 --force", "the & of a redirection does not end the command"],
+];
+
+test("a store name in a later command does not deny the rm in an earlier one", () => {
+  for (const [command, why] of CROSS_SEGMENT_ALLOW) {
+    assert.ok(!denied(command), `should be allowed (${why}): ${JSON.stringify(command)}`);
+  }
+});
+
+test("segmenting the command does not let a real deletion of the store through", () => {
+  for (const [command, why] of CROSS_SEGMENT_DENY) {
+    assert.ok(denied(command), `should be denied (${why}): ${JSON.stringify(command)}`);
+  }
+});
+
+test("shellSegments cuts where the shell would and nowhere else", () => {
+  assert.deepEqual(shellSegments("rm -rf build; echo x"), ["rm -rf build", "echo x"]);
+  assert.deepEqual(shellSegments("a && b || c"), ["a", "b", "c"]);
+  assert.deepEqual(shellSegments("a | b & c\nd"), ["a", "b", "c", "d"]);
+
+  // Quoted and escaped separators are filename characters. Splitting on them
+  // would hand each guard half a command and hide the other half.
+  assert.deepEqual(shellSegments(`rm -rf "a;b"`), [`rm -rf "a;b"`]);
+  assert.deepEqual(shellSegments("rm -rf 'a && b'"), ["rm -rf 'a && b'"]);
+  assert.deepEqual(shellSegments("rm -rf a\\;b"), ["rm -rf a\\;b"]);
+
+  // A quote nobody closed swallows the rest of the line rather than splitting
+  // it, which keeps the whole tail in front of the guards.
+  assert.deepEqual(shellSegments(`rm -rf "a && echo b`), [`rm -rf "a && echo b`]);
+
+  // The `&` of `2>&1` and the `&` of `&>` belong to a redirection, not to a
+  // separator. Cutting there would hide whatever followed it from every guard.
+  assert.deepEqual(shellSegments("git push --force 2>&1"), ["git push --force 2>&1"]);
+  assert.deepEqual(shellSegments("cmd &> log && other"), ["cmd &> log", "other"]);
 });
