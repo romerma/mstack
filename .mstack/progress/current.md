@@ -241,9 +241,42 @@ programme 230 minutes of a red gate nobody saw.
 - Criterion 2: `gate --full` with nothing to run becomes a `[fail]` and exit 1 instead of a
   warn and exit 0.
 
+- Implementer pass done. `src/verification.ts` (new) owns `.mstack/verification.tsv`; `--full`
+  records every command it ran; the fast gate reads it back and refuses a green gate from
+  `verifying` on; `state set --status done` re-checks at the transition so relabelling is not
+  the way out.
+- 25 new tests. 10 of the 12 new gate tests go red against `fd1b27a~1:src/gate.ts`, and 2 of
+  the 5 new CLI tests against each of the two pre-change files; the rest are preservation
+  requirements and their bite is shown by mutation instead.
+- 20 mutations, 20 killed by a named test. The first round had 19/20: the survivor let the
+  closing guard fire on every status move, which would have demanded a full run just to
+  advance an item. That is a real gap in my tests, not a bad mutation, and it is now pinned.
+- The bypass the CLI guard closes was reproduced first, at rung 5 against the shipped binary:
+  an item at `verifying` with a red gate went green the instant its status became `done`.
+- `--full` with nothing to run is now `[fail]` and exit 1 rather than a warn and exit 0.
+- Four wiki pages, the README and the changelog updated; every block is pasted from a real run.
+
+## Verification
+
+- Rung 5 for the whole loop: the shipped `bin/mstack` and `bin/mstack hook stop` driven as real
+  processes in scratch stores. A non-executable `verification` (accepted by `sh -n`, exit 0)
+  goes: Stop red -> `gate --full` executes it and records `failed` -> the next Stop is still red
+  without running anything -> `state set --status done` exits 2 -> fixed command, `gate --full`
+  green -> Stop silent -> the close is allowed.
+- Rung 5 for this repository too: `./bin/mstack gate --full` at `028e3bd` recorded two `passed`
+  rows, and `git status --porcelain` stays clean because `.mstack/.gitignore` covers them.
+- Rung 4: `npm test` 230 pass on bun and on node, `npm run typecheck` clean, `./bin/mstack
+  lint-plugin .` 0 failures 0 warnings, `check-doc-links` 60 links 0 broken. 20/20 mutations
+  killed, baseline confirmed green before and after, restores byte-verified by sha256.
+- Rung 2 and stated as such: whether a store on a filesystem that refuses the receipt write
+  reports usefully. The failure path is written and typechecked; it is not exercised by a test.
+- Commits: `ddac8e3` the module, `fd1b27a` the gate, `ae40ab2` the closing guard, `f2e9308` the
+  boundary test, `db00832` docs, plus the changelog.
+
 ## Next step
 
-- If this dies: item 14 is in flight on feat/verification-never-runs, four acceptance criteria
-  in state.json, six decisions already recorded. Next is `src/verification.ts` plus the store
-  path, then the gate wiring, then the `state set --status done` guard, each with its tests.
-  Items 15 and 17 still pending. Items 12, 13 and 16 closed and merged.
+- If this dies: item 14's implementation is complete on feat/verification-never-runs and the
+  report is at `.mstack/progress/impl_verification-never-runs.md`. It is **not** approved —
+  a reviewer that did not write it decides that, and the item stays `in_progress` until then.
+  Note for whoever moves it to `verifying`: the gate will then demand a `gate --full` run at
+  that commit, which is this feature verifying itself. Items 15 and 17 still pending.
