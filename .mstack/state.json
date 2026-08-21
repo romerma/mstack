@@ -235,7 +235,7 @@
         "Whether a reviewer with no Write tool can record at all is established by evidence rather than assumed, and if it cannot, the item says what does close the gap instead",
         "lint-plugin still passes and the agent frontmatter contract is unchanged"
       ],
-      "status": "in_progress",
+      "status": "reviewing",
       "description": "agents/implementer.md:45 is the only agent file that instructs 'mstack ledger record', and it hardcodes --verifier implementer. agents/reviewer.md:30 and skills/review/SKILL.md:35 tell the reviewer to run 'ledger check' and never to record. So the row that closes an item is always typed by somebody other than the reviewer, and src/roles.ts:96-99 already concedes the verifier column is free text and only a floor. The dogfood ledger is the proof: ten rows, eight verifier=implementer, one orchestrator, one reviewer — and the reviewer row was typed by the coordinating pass on the reviewer's behalf. The reports carried the separation the README leads with; the ledger did not.",
       "source": "sandbox dogfood session, divergent lens Part 3 #3, 2026-08-21",
       "verification": "npm test && npm run typecheck && ./bin/mstack lint-plugin ."
@@ -298,6 +298,19 @@
       "status": "pending",
       "description": "mstack ledger record keys a row to HEAD. Committing that row moves HEAD, so the row is immediately at a superseded sha. Right now 'mstack ledger check reviewer-writes-the-verdict' reports FAIL best verdict at 3b4e1315 is verifier-failed for rows recorded seconds earlier. skills/review/SKILL.md step 7 already had this shape and item 15 step 9 makes it load-bearing in a second place by telling the coordinator to confirm the row with ledger check. Found as observation 5 of the item 15 review.",
       "source": "item 15 review, observation 5, 2026-08-21",
+      "verification": "npm test && npm run typecheck && ./bin/mstack lint-plugin ."
+    },
+    {
+      "id": 20,
+      "slug": "fanout-worker-can-forge-a-round-marker",
+      "title": "fanout plan will allocate a lens the shape that means 'solo, record'",
+      "acceptance": [
+        "A worker name that would produce a round-marker path is refused or renamed at allocation time, not left to the reviewer to notice",
+        "Proven by running fanout plan with such a worker and showing what it does before and after"
+      ],
+      "status": "pending",
+      "description": "Item 15 reserved _r<digits> as a round marker in agents/reviewer.md, the file that parses report names, but not in skills/review/SKILL.md step 2, the file that hands them out. 'mstack fanout plan --kind review --worker r2' allocates review_<slug>_r2.md to a lens, which then reads its own path as solo and records a row a panel member must not record. Zero real occurrences today; found as a non-blocking note in the item 15 round-3 review, which judged one clause in step 2 sufficient.",
+      "source": "item 15 round-3 review, non-blocking note, 2026-08-21",
       "verification": "npm test && npm run typecheck && ./bin/mstack lint-plugin ."
     }
   ]

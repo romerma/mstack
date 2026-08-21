@@ -104,6 +104,19 @@ The last of the three enforcement gaps. The check already exists; the instructio
   the round-3 section of the impl report, the fresh implementer row at the committed head,
   and the commit(s).
 
+- Round 2 review: CHANGES_REQUESTED. Both passes reproduced the second false promise
+  independently before either saw the other's result. The reviewer also found the one I
+  missed: the round-2 path-suffix rule treats every suffix as a lens, and
+  `review_verification-never-runs_r4.md` is the evidence on the row that closed item 14 - the
+  only reviewer-typed closing row in this repo's history. The rule would have suppressed it.
+- Round 3 landed at `392b79e`. Causal clause struck in both documents, no third guess put in
+  its place. `_r<digits>` reserved as a round marker, lenses are words, composed as
+  `_r<N>-<lens>`. The filename rule gained the same grammar so a solo later round stops
+  overwriting round 1.
+- Ran the new rule as code over all 23 real `review_*` names: 12 record, 10 lens, 1
+  unclassified (`review_session_thesis.md`, whose target was never an item). The decisive case
+  classifies as solo-records, matching the ledger.
+
 ## Verification
 
 Round 3, at the head carrying the fixes:
