@@ -12,7 +12,7 @@ import {
   stop,
   subagentStop,
 } from "../src/hooks.ts";
-import { item, sandbox, state } from "./helpers.ts";
+import { captured, item, sandbox, state } from "./helpers.ts";
 
 const decisionOf = (json: string | null) =>
   json === null ? null : (JSON.parse(json).hookSpecificOutput.permissionDecision as string);
@@ -110,9 +110,40 @@ test("Stop reports a red gate as feedback rather than a block", () => {
   const sb = sandbox();
   try {
     sb.writeState({ version: 1, project: "sandbox", rules: {}, items: {} });
-    const out = stop({ cwd: sb.store.root });
+    const out = captured(() => stop({ cwd: sb.store.root })).value;
     assert.match(contextOf(out) ?? "", /gate is red/);
     assert.equal(JSON.parse(out ?? "{}").decision, undefined, "must not use decision:block");
+  } finally {
+    sb.dispose();
+  }
+});
+
+/**
+ * The gate the `Stop` hook runs is the quiet one, so this is where "quiet
+ * prints nothing" actually cost something: the hook's return value carried the
+ * failures into the model's context and nobody watching the session saw a word.
+ *
+ * The two streams do different jobs and must not mix. The JSON is the hook's
+ * structured output and goes to stdout untouched by `src/cli.ts`; the failure
+ * lines are for the human reading the transcript.
+ */
+test("Stop puts the gate's failures on stderr while its JSON stays clean", () => {
+  const sb = sandbox();
+  try {
+    sb.writeState(state([item({ status: "in_progress" })]));
+    const { value, out, err } = captured(() => stop({ cwd: sb.store.root }));
+
+    assert.equal(out, "", "nothing may precede the hook's JSON on stdout");
+    assert.deepEqual(err.split("\n").filter((line) => line !== ""), [
+      "[fail]  1 storage-layer (in_progress) is active but progress/current.md is not: the Item line still says _none_; Next step is still the empty template -> if this session dies now, nothing tells the next one where to start",
+    ]);
+    // Same bytes on both channels: what the reader sees and what the model is
+    // told cannot drift apart.
+    const context = contextOf(value) ?? "";
+    assert.match(context, /gate is red/);
+    for (const line of err.trimEnd().split("\n")) {
+      assert.ok(context.includes(line.replace("[fail]  ", "")), `context is missing the stderr line: ${line}`);
+    }
   } finally {
     sb.dispose();
   }
@@ -132,7 +163,11 @@ test("Stop is silent when the gate is green", () => {
   const sb = sandbox();
   try {
     sb.writeState(state([item()]));
-    assert.equal(stop({ cwd: sb.store.root }), null);
+    const { value, out, err } = captured(() => stop({ cwd: sb.store.root }));
+    assert.equal(value, null);
+    // Silent means silent. This hook fires at the end of every turn, warnings
+    // and all, and a line per turn is what gets a hook switched off.
+    assert.equal(out + err, "", `a green Stop printed ${JSON.stringify(out + err)}`);
   } finally {
     sb.dispose();
   }

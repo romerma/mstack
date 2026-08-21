@@ -7,9 +7,21 @@ import { runGate, SPEC_ARTIFACTS } from "../src/gate.ts";
 import { record } from "../src/ledger.ts";
 import { add as addDecision } from "../src/decisions.ts";
 import { EMPTY_NEXT_STEP } from "../src/setup.ts";
-import { expectFail, expectPass, item, sandbox, state, trackCurrent } from "./helpers.ts";
+import { captured, expectFail, expectPass, item, quiesce, sandbox, state, trackCurrent } from "./helpers.ts";
 
-const gate = (sb: ReturnType<typeof sandbox>) => runGate(sb.store, { quiet: true });
+/**
+ * The fast gate, quiet, with both streams captured.
+ *
+ * Quiet writes its failures to stderr now. Most fixtures below are red on
+ * purpose, so letting that through would bury a real failure in a page of
+ * expected ones.
+ */
+function quietGate(sb: ReturnType<typeof sandbox>): { report: ReturnType<typeof runGate>; out: string; err: string } {
+  const { value, out, err } = captured(() => runGate(sb.store, { quiet: true }));
+  return { report: value, out, err };
+}
+
+const gate = (sb: ReturnType<typeof sandbox>) => quietGate(sb).report;
 
 test("a well-formed store passes", () => {
   const sb = sandbox();
@@ -272,6 +284,80 @@ test("every failure carries a message, so a red gate is never silent", () => {
   }
 });
 
+/**
+ * The three tests below are the whole of `--quiet`.
+ *
+ * `docs/wiki/The-CLI.md` said "--quiet prints failures only" and it printed
+ * nothing at all, on the mode `src/hooks.ts` wires to the `Stop` hook — so a
+ * red gate at session close had an exit code and no words. Each one asserts the
+ * concrete bytes rather than that something was printed: "quiet printed
+ * something" passes on any non-empty string, which is how a check that cannot
+ * fail gets written.
+ */
+test("quiet prints every failure with its fix, on stderr, and nothing else", () => {
+  const sb = sandbox();
+  try {
+    // Two failures, and two warnings alongside them: a fresh sandbox is always
+    // on its default branch with .mstack/ untracked. The warnings are what make
+    // "and nothing else" mean something here.
+    sb.writeState(state([item({ status: "in_progress", sdd: true })]));
+    const { report, out, err } = quietGate(sb);
+
+    assert.equal(report.failed, true);
+    assert.ok(report.warnings.length > 0, "fixture must warn, or the silence below proves nothing");
+    assert.deepEqual(
+      err.split("\n").filter((line) => line !== ""),
+      [
+        "[fail]  1 storage-layer (in_progress) is active but progress/current.md is not: the Item line still says _none_; Next step is still the empty template -> if this session dies now, nothing tells the next one where to start",
+        `[fail]  sdd item storage-layer is in_progress but has no spec at ${join(sb.store.specs, "storage-layer")} -> run '/mstack:spec' or move the item back to specifying`,
+      ],
+      "quiet is exactly one line per failure: the fix stays, the [ok] lines, section headers, warnings and summary do not",
+    );
+    // The stream is not a detail. `mstack hook stop` writes its structured JSON
+    // to stdout, and failure text in front of it stops that JSON parsing.
+    assert.equal(out, "", "stdout belongs to the hook's JSON");
+    assert.equal(err.trimEnd().split("\n").length, report.failures.length, "one line per failure, no extras");
+  } finally {
+    sb.dispose();
+  }
+});
+
+test("a green gate in quiet mode prints exactly nothing, on either stream", () => {
+  const sb = sandbox();
+  try {
+    sb.writeState(state([item()]));
+    quiesce(sb);
+    const { report, out, err } = quietGate(sb);
+    assert.equal(report.failed, false);
+    assert.equal(report.warnings.length, 0, "this fixture is the nothing-at-all case");
+    // Wiring the gate to a hook that fires every turn is only cheap if a pass
+    // costs zero lines.
+    assert.equal(out, "", `green gate wrote to stdout: ${JSON.stringify(out)}`);
+    assert.equal(err, "", `green gate wrote to stderr: ${JSON.stringify(err)}`);
+  } finally {
+    sb.dispose();
+  }
+});
+
+test("warnings alone print nothing in quiet mode, and do not turn the gate red", () => {
+  const sb = sandbox();
+  try {
+    // A fresh sandbox warns twice: on the default branch, with an untracked
+    // .mstack/. Both are normal mid-session states, and a Stop hook that
+    // repeated them every turn is a hook someone switches off.
+    sb.writeState(state([item()]));
+    const { report, out, err } = quietGate(sb);
+    assert.equal(report.failed, false);
+    assert.ok(
+      report.warnings.some((w) => /uncommitted change/.test(w)),
+      `expected the fixture to warn, got ${JSON.stringify(report.warnings)}`,
+    );
+    assert.equal(out + err, "", `a warning-only gate printed ${JSON.stringify(out + err)}`);
+  } finally {
+    sb.dispose();
+  }
+});
+
 test("an active item with an untouched current.md is red, because that file is the whole recovery plan", () => {
   const sb = sandbox();
   try {
@@ -281,7 +367,7 @@ test("an active item with an untouched current.md is red, because that file is t
     // end-to-end run ended correctly, on a decision_required fork, and left
     // exactly this — the question in one session's head and nothing on disk.
     expectFail(
-      runGate(sb.store, { quiet: true }),
+      gate(sb),
       /is active but progress\/current\.md is not: the Item line still says _none_; Next step is still the empty template/,
       "untouched current.md",
     );
@@ -299,7 +385,7 @@ test("current.md filled in for the active item passes", () => {
       "# Current session\n\n- **Item:** 1 storage-layer\n\n## Next step\n\nAnswer the export shape question.\n",
       "utf8",
     );
-    expectPass(runGate(sb.store, { quiet: true }), "filled current.md");
+    expectPass(gate(sb), "filled current.md");
   } finally {
     sb.dispose();
   }
@@ -316,7 +402,7 @@ test("a half-filled current.md names which half is missing", () => {
       `# Current session\n\n- **Item:** 1 storage-layer\n\n## Next step\n\n${EMPTY_NEXT_STEP}\n`,
       "utf8",
     );
-    const report = runGate(sb.store, { quiet: true });
+    const report = gate(sb);
     expectFail(report, /Next step is still the empty template/, "half-filled");
     assert.ok(
       !report.failures.some((f) => /Item line still says/.test(f)),
@@ -331,7 +417,7 @@ test("with no active item, current.md is not judged", () => {
   const sb = sandbox();
   try {
     sb.writeState(state([item({ status: "pending" })]));
-    expectPass(runGate(sb.store, { quiet: true }), "no active item");
+    expectPass(gate(sb), "no active item");
   } finally {
     sb.dispose();
   }
@@ -346,7 +432,7 @@ test("an unanswered product fork blocks the phases that build on the answer", ()
     // and it is the phase where the answer gets found.
     sb.writeState(state([item({ status: "specifying", sdd: true, decision_required: fork })]));
     trackCurrent(sb);
-    const early = runGate(sb.store, { quiet: true });
+    const early = gate(sb);
     assert.ok(
       !early.failures.some((f) => /decision unanswered/.test(f)),
       `specifying must be allowed to carry an open fork: ${JSON.stringify(early.failures)}`,
@@ -355,7 +441,7 @@ test("an unanswered product fork blocks the phases that build on the answer", ()
     for (const status of ["in_progress", "reviewing", "verifying", "done"] as const) {
       sb.writeState(state([item({ status, decision_required: fork })]));
       trackCurrent(sb);
-      expectFail(runGate(sb.store, { quiet: true }), /decision unanswered/, `open fork at ${status}`);
+      expectFail(gate(sb), /decision unanswered/, `open fork at ${status}`);
     }
   } finally {
     sb.dispose();
@@ -370,7 +456,7 @@ test("the failure quotes the question, so the reader does not go looking for it"
     );
     trackCurrent(sb);
     expectFail(
-      runGate(sb.store, { quiet: true }),
+      gate(sb),
       /"Versioned envelope, or a bare array\?"/,
       "quoted question",
     );
@@ -396,7 +482,7 @@ test("a fork answered by a real decisions row clears the item", () => {
       ]),
     );
     trackCurrent(sb);
-    expectPass(runGate(sb.store, { quiet: true }), "answered fork");
+    expectPass(gate(sb), "answered fork");
   } finally {
     sb.dispose();
   }
@@ -413,7 +499,7 @@ test("a pointer to a decision that does not exist is worse than no pointer", () 
       ]),
     );
     trackCurrent(sb);
-    expectFail(runGate(sb.store, { quiet: true }), /no row with that timestamp resolves storage-layer/, "dangling pointer");
+    expectFail(gate(sb), /no row with that timestamp resolves storage-layer/, "dangling pointer");
   } finally {
     sb.dispose();
   }
@@ -430,7 +516,7 @@ test("an item with no fork is untouched by any of this", () => {
       evidence: "the suite ran green",
       verifier: "t",
     });
-    expectPass(runGate(sb.store, { quiet: true }), "no fork");
+    expectPass(gate(sb), "no fork");
   } finally {
     sb.dispose();
   }
@@ -450,7 +536,7 @@ test("the pass that wrote the code does not get to close the item", () => {
       evidence: "the suite ran green",
       verifier: "implementer",
     });
-    expectFail(runGate(sb.store, { quiet: true }), /from the pass that wrote the code/, "self-closed");
+    expectFail(gate(sb), /from the pass that wrote the code/, "self-closed");
 
     record(sb.store, {
       target: "storage-layer",
@@ -459,7 +545,7 @@ test("the pass that wrote the code does not get to close the item", () => {
       evidence: "ran the suite myself rather than reading the report",
       verifier: "reviewer",
     });
-    expectPass(runGate(sb.store, { quiet: true }), "closed by a second pass");
+    expectPass(gate(sb), "closed by a second pass");
   } finally {
     sb.dispose();
   }
@@ -476,7 +562,7 @@ test("a plugin-qualified role is the same role", () => {
       evidence: "the suite ran green",
       verifier: "mstack:implementer",
     });
-    expectFail(runGate(sb.store, { quiet: true }), /from the pass that wrote the code/, "qualified role");
+    expectFail(gate(sb), /from the pass that wrote the code/, "qualified role");
   } finally {
     sb.dispose();
   }
@@ -493,7 +579,7 @@ test("an unnamed verifier does not close an item either", () => {
       evidence: "the suite ran green",
       verifier: "",
     });
-    expectFail(runGate(sb.store, { quiet: true }), /from the pass that wrote the code/, "unnamed verifier");
+    expectFail(gate(sb), /from the pass that wrote the code/, "unnamed verifier");
   } finally {
     sb.dispose();
   }
