@@ -53,12 +53,47 @@ Never overwrites an existing file unless you pass `--force`.
 
 ```console
 $ mstack gate --quiet; echo $?
-0
+[fail]  1 greet-flag (in_progress) is active but progress/current.md is not: the Item line still says _none_; Next step is still the empty template -> if this session dies now, nothing tells the next one where to start
+1
 ```
 
 Fast, milliseconds, safe as a `Stop` hook. `--full` also runs the project's `verify` command
-and the active item's `verification` command. `--quiet` prints failures only. The full
-walkthrough of every check is in [Gates-and-Hooks](Gates-and-Hooks.md).
+and the active item's `verification` command.
+
+`--quiet` prints one line per failure and nothing else: no `[ok]` lines, no section headers,
+no warnings, no summary count. The fix stays on the line, because a failure that does not name
+the next action sends the reader to the source, and this is the mode where they are least able
+to ask. It is also the exact text the `Stop` hook hands the model, so the transcript and the
+context cannot drift apart.
+
+The stream is deliberate. Failures go to **stderr**, which leaves stdout free for a hook's
+structured output — `mstack hook stop` writes JSON there, and failure text in front of it would
+stop that JSON parsing:
+
+```console
+$ mstack gate --quiet 2>/dev/null | wc -c
+       0
+```
+
+A gate with warnings but no failures prints nothing at all and exits 0. That is what keeps it
+cheap to fire on every turn: "uncommitted changes" and "on main" are normal mid-session states,
+and a hook that repeats them every turn is a hook someone switches off. The same run without
+`--quiet` shows what it held back:
+
+```console
+$ mstack gate --quiet; echo $?
+0
+
+$ mstack gate | tail -6
+
+-- workspace
+[ok]    on branch feat/greet-flag
+[warn]  3 uncommitted change(s); expected mid-session, not at close
+
+PASSED - 0 failures, 1 warning
+```
+
+The full walkthrough of every check is in [Gates-and-Hooks](Gates-and-Hooks.md).
 
 ## state add / list / set / active
 

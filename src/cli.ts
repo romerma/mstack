@@ -31,6 +31,7 @@ const USAGE = `mstack - durable state and gates for the mstack Claude Code plugi
 
   setup [--force]                     create .mstack/ in the current repository
   gate [--full] [--quiet]             fast session gate; --full also runs verification
+                                      --quiet: failures only, one line each, on stderr
   state list | active                 show work items
   state add --slug S --title T [...]  add an item
   state set <ref> [--status S] [...]  move or correct an item
