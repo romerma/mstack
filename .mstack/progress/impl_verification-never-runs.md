@@ -47,7 +47,19 @@ switch off.
 | `.mstack/.gitignore` | **New.** Byte-identical to what `setup` writes |
 
 Commits, each building: `ddac8e3` module, `fd1b27a` gate, `ae40ab2` closing guard, `f2e9308`
-the boundary test the first mutation round demanded, `db00832` docs, `028e3bd` changelog.
+the boundary test the first mutation round demanded, `db00832` docs, `028e3bd` changelog,
+`db80b45` one correction of my own (below).
+
+### A false claim of mine, caught before the reviewer had to
+
+`STORE_GITIGNORE` first carried a second line, `verification.tsv.lock`, and the test asserting
+it said the lock "appears exactly when two mstack processes overlap". That is not true.
+`withLock` is used by `src/decisions.ts` alone, because `decisions.add` reads before it appends;
+`verification.record` appends directly and takes no lock, so the file never exists. `db80b45`
+removes the line and replaces the assertion with the opposite and more useful one — **exactly**
+one ignored path, so an over-broad rule here could not silently stop committing a ledger row.
+Noted rather than quietly fixed, because a false sentence in a test comment is how a check that
+cannot fail gets written.
 
 ## Design decisions
 
@@ -497,7 +509,11 @@ reachable only under `options.full`. M11 and M15 pin the two ways that could reg
 Supporting module tests not tied to one criterion: `tests/verification.test.ts:17` (the
 obligation list is what `--full` runs — one function, two callers, so the check cannot demand a
 command `--full` never runs), `:38` (round trip), `:53` (never-run message), `:142` (one green
-does not carry the other), `:171` (the store `.gitignore`).
+does not carry the other), `:171` (the store `.gitignore` ignores exactly one path).
+
+The mutation run above predates `db80b45`, which touched `src/setup.ts` and one assertion and
+no logic in `src/verification.ts`, `src/gate.ts` or `src/cli.ts` — the three files every
+mutation targets. The suite is 230 pass on both runtimes at that commit and at this one.
 
 ## Where each claim stopped on the ladder
 
