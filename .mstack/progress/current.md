@@ -6,25 +6,24 @@
 > On close: append the summary to `history.md` and reset this file to the
 > empty template below.
 
-- **Item:** 13 editable-item-fields
+- **Item:** 16 quiet-gate-prints-nothing
 - **Status:** in_progress
-- **Branch:** feat/editable-item-fields
+- **Branch:** fix/quiet-gate-prints-nothing
 - **Base:** main
 - **Worktree:** none
 
 ## Plan
 
-Item 13 of the refinement round. The most serious of the three enforcement gaps the divergent
-pass surfaced, because it makes the plugin's headline human gate unreachable.
+Third item of the refinement round. Taken before item 14 because it is 14's prerequisite: if
+the Stop hook starts running an item's verification while `--quiet` still prints nothing on
+failure, the failure stays invisible and 14 buys nothing.
 
-- `state set` accepts only `--status`, `--closed-by` and `--force` (`src/cli.ts:242`). Every
-  other field is write-once at intake, including `decision_required`.
-- `README.md:116-129` leads with `decision_required` as the human gate, and
-  `skills/spec/SKILL.md:33-38` says forks are found during `specifying` — after intake. So the
-  gate cannot be attached at the moment the workflow says the fork appears.
-- The dogfood run produced two textbook forks and answered both with a plain `mstack decide`;
-  30 decision rows, zero with a `resolves` value. The gate never had an opinion.
-- Delegate the implementation, review with a pass that did not write it, close.
+- `docs/wiki/The-CLI.md:60` says "`--quiet` prints failures only". Reproduced at rung 5 against
+  a store with two real failures: empty output, exit 1.
+- `src/hooks.ts:172` wires the Stop hook to `runGate(store, { quiet: true })`, so a red gate at
+  session close is silent by construction and the exit code is the only signal.
+- Found by item 13's implementer, reproduced independently on main by its reviewer and by me.
+- Delegate, review with a pass that did not write it, close. Then item 14, then item 15.
 
 ## Log
 
@@ -162,8 +161,5 @@ pass surfaced, because it makes the plugin's headline human gate unreachable.
 
 ## Next step
 
-- Item 13 round 2 is reported at `.mstack/progress/impl_editable-item-fields.md`. It is
-  **not** done: it needs a re-review by a pass that did not write this code. The ledger row on
-  it is still the implementer's own round-1 evidence, not an approval. Items 14 and 15 are
-  untouched, and the reviewer filed one out-of-scope find worth its own item: `gate --quiet`
-  prints nothing on failure while The-CLI says it "prints failures only".
+- If this dies: item 16 is in flight on fix/quiet-gate-prints-nothing, four acceptance criteria
+  in state.json. Items 14 and 15 still pending. Items 12 and 13 are closed and merged to main.
