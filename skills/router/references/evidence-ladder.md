@@ -13,6 +13,13 @@ and **say where it stopped**.
 
 Any safety fact you cannot get to rung 4, say so out loud. Do not write it up as settled.
 
+Rungs 4 and 5 carry an obligation the other three do not: **say what you ran it on.** A run
+answers a question about the thing it ran against, and nothing else. A probe of a 264-byte
+script was cited as rung 4 for a project whose real module graph was a hundred times that, and
+three later passes inherited the conclusion without asking what had been measured. The claim
+was true about the probe and false about the project. "I ran it" and "I ran it on your case"
+are different rungs wearing the same number.
+
 ## Why this matters more than it looks
 
 A write-up that sounds right is worthless. It reads as convincing whether or not it is true,

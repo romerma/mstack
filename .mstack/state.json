@@ -191,6 +191,51 @@
       "description": "src/hooks.ts:240. The pattern is rm -r followed by [^\\n]* followed by the store name, and [^\\n]* crosses && ; and | freely. So any rm -r on a line that later mentions the store in ANY position is denied: a commit message, an --evidence flag value, a grep argument. Meanwhile the same deletion one indirection away is allowed. Reproduced against the shipped regex: 4 false positives, 2 bypasses. The practical harm is not the inconvenience; it is that a user who hits a false positive learns to route around the guard, which is the behaviour the guard exists to prevent.",
       "source": "sandbox dogfood session, 2026-08-20; blocked a legitimate scratchpad cleanup mid-session",
       "verification": "node --test 'tests/hooks.test.ts'"
+    },
+    {
+      "id": 13,
+      "slug": "editable-item-fields",
+      "title": "An item's fields cannot be corrected after intake, and decision_required is unreachable because of it",
+      "acceptance": [
+        "'mstack state set <ref>' can correct every field 'state add' can set, including --decision-required, --verification, --description, --source and --acceptance",
+        "Correcting a field an item does not have yet adds it; clearing one is possible and has a stated spelling",
+        "The decision fork gate still refuses: adding --decision-required to an item already past in_progress is either refused or forces the item back, and the choice is recorded rather than implied",
+        "Tests cover setting each field on an existing item, the interaction with the decision gate, and that --status and --closed-by keep working exactly as before"
+      ],
+      "status": "pending",
+      "description": "src/cli.ts:242 gives 'state set' only --status, --closed-by and --force. Every other field is write-once at 'state add': description, verification, source, acceptance, sdd, and decision_required. The last one is the serious case. README.md:116-129 leads with decision_required as the human gate, and skills/spec/SKILL.md:33-38 says product forks are found by interviewing the repository during 'specifying' — which is after intake. So the plugin's headline gate cannot be attached to an item at the moment its own workflow says the fork is discovered, without hand-editing state.json. The dogfood session produced two textbook forks (a default place, and the meaning of an acceptance criterion) and both were answered with a plain 'mstack decide' row; the gate never had an opinion, and 30 decision rows carry zero 'resolves' values.",
+      "source": "sandbox dogfood session, divergent lens finding F6-A and Part 3 #1, 2026-08-21",
+      "verification": "npm test && npm run typecheck && ./bin/mstack lint-plugin ."
+    },
+    {
+      "id": 14,
+      "slug": "verification-never-runs",
+      "title": "Nothing automatic ever executes an item's verification, so a red one is invisible",
+      "acceptance": [
+        "A session cannot close green on an item whose verification has never been executed at its current state; the mechanism is a check or a hook, not prose",
+        "'gate --full' that ran no verification is distinguishable in its summary and its exit code from one that ran and passed",
+        "The cost is bounded: whatever runs the verification does not turn every Stop hook into a full test suite run, and the reasoning for where the line falls is recorded",
+        "Tests cover a red verification being caught, a green one passing, and the no-verification-configured case"
+      ],
+      "status": "pending",
+      "description": "src/hooks.ts:172 wires the Stop hook to runGate(store, { quiet: true }) — the fast gate, which touches only the store and the workspace and never runs state.verify or item.verification. Only a human typing 'mstack gate --full' executes them. CLAUDE.md and skills/setup/SKILL.md:64-71 both say the gate must be green before a session closes, and for the verification half of that sentence nothing enforces it. In the dogfood session the item's verification field was a non-executable string from intake and stayed red for 230 minutes across four agent passes; no hook, no gate and no agent noticed, because nothing ran it. Separately, 'gate --full' with nothing configured warns that it checked nothing and still exits 0, so asking for the full gate and getting no verification at all is indistinguishable from passing it.",
+      "source": "sandbox dogfood session, divergent lens finding F6-B, F10, O6 and Part 3 #2, 2026-08-21",
+      "verification": "npm test && npm run typecheck && ./bin/mstack lint-plugin ."
+    },
+    {
+      "id": 15,
+      "slug": "reviewer-writes-the-verdict",
+      "title": "The reviewer is never told to write the ledger row, so the separation is honour-system",
+      "acceptance": [
+        "agents/reviewer.md instructs the reviewer to record its own verdict row, with the verifier column set from its own role",
+        "The change is consistent with skills/review/SKILL.md and with the ship and verify skills, so no two documents give conflicting instructions about who records",
+        "Whether a reviewer with no Write tool can record at all is established by evidence rather than assumed, and if it cannot, the item says what does close the gap instead",
+        "lint-plugin still passes and the agent frontmatter contract is unchanged"
+      ],
+      "status": "pending",
+      "description": "agents/implementer.md:45 is the only agent file that instructs 'mstack ledger record', and it hardcodes --verifier implementer. agents/reviewer.md:30 and skills/review/SKILL.md:35 tell the reviewer to run 'ledger check' and never to record. So the row that closes an item is always typed by somebody other than the reviewer, and src/roles.ts:96-99 already concedes the verifier column is free text and only a floor. The dogfood ledger is the proof: ten rows, eight verifier=implementer, one orchestrator, one reviewer — and the reviewer row was typed by the coordinating pass on the reviewer's behalf. The reports carried the separation the README leads with; the ledger did not.",
+      "source": "sandbox dogfood session, divergent lens Part 3 #3, 2026-08-21",
+      "verification": "npm test && npm run typecheck && ./bin/mstack lint-plugin ."
     }
   ]
 }
