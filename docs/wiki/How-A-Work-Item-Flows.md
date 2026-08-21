@@ -72,7 +72,8 @@ the merge gate. The route changes how work is planned. It never changes what cou
 An item can carry `decision_required`: prose naming a product fork whose two answers produce
 different work. While the item is `pending` or `specifying`, the fork is allowed to be open;
 investigating it is the work. From `spec_ready` onward the CLI and the gate both refuse to move
-the item until the fork is answered (`src/lifecycle.ts:49-55`, `src/cli.ts:255-265`):
+the item until the fork is answered (`src/lifecycle.ts:49-55`, `src/cli.ts:479-489`), and
+`state set --decision-required` refuses to attach one to an item already sitting there:
 
 ```console
 $ mstack state set export-json --status spec_ready

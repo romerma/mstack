@@ -75,6 +75,7 @@ added 1 greet-flag (pending)
 
 $ mstack state set greet-flag --status in_progress
 1 greet-flag (in_progress)
+  status: "pending" -> "in_progress"
 ```
 
 Do the work, then try to close it directly:
@@ -121,9 +122,9 @@ means `mstack decide --resolves <slug>`: the reasoning goes to `decisions.tsv` i
 or one whose result is still `open`, is refused by the CLI and rejected by the gate.
 
 Forks are usually found while `specifying`, which is after intake, so `mstack state set <ref>
---decision-required "<the question>"` attaches one there. Past that line it is refused in both
+--decision-required "<the question>"` attaches one there. Past that line the CLI refuses in both
 directions: an item already building cannot have a fork bolted on, because it would be past a
-gate it never passed.
+gate it never passed. `--force` still does it, and prints the gate failure it just created.
 
 ```bash
 $ mstack state set export-json --status spec_ready
