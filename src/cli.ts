@@ -20,6 +20,7 @@ import { lintPlugin } from "./lint.ts";
 import { requireStore, UserError } from "./paths.ts";
 import { assertWritable, findItem, parseState, saveState, type Item } from "./state.ts";
 import { MIN_REPORT_BYTES } from "./roles.ts";
+import * as verification from "./verification.ts";
 
 /** A few words. Enough that "x" is out and "versioned envelope" is in. */
 const MIN_PHRASE = 12;
@@ -493,6 +494,28 @@ function cmdState(argv: readonly string[]): number {
           `${item.status} -> ${values.status} is not a legal transition`,
           "pass --force if you mean to skip a phase, and say why in decisions.tsv",
         );
+      }
+      // Closing is the other half of the gate's verification check, and without
+      // it that check has a one-command way around it. The gate holds an item at
+      // `verifying` to a verification that actually ran here; moving the item to
+      // `done` takes it out of the active set, so the gate stops looking and a
+      // store that was red a second ago goes green with nothing having run. That
+      // is the requirement-with-an-escape-hatch shape, and it was reproduced
+      // before this guard existed.
+      if (values.status === "done" && item.status !== "done") {
+        const sha = headSha(store);
+        const proof = sha === null ? undefined : verification.status(store, state, item, sha);
+        if (proof !== undefined && !proof.satisfied) {
+          if (values.force !== true) {
+            throw new UserError(
+              `${item.slug} cannot close on a verification that has not run: ${proof.problems.join("; ")}`,
+              "run 'mstack gate --full' at this commit; closing is the one moment the run has to be real, and --force closes it unverified",
+            );
+          }
+          changes.push(
+            `  forced: closed on a verification that did not run here - ${proof.problems.join("; ")}`,
+          );
+        }
       }
       if (item.status !== values.status) changes.push(...fieldChange("status", item.status, values.status));
       item.status = values.status;

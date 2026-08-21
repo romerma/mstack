@@ -7,7 +7,7 @@ import { dirname, join } from "node:path";
 import { mkdirSync } from "node:fs";
 
 import { parseState } from "../src/state.ts";
-import { item, sandbox, state, trackCurrent } from "./helpers.ts";
+import { item, quiesce, sandbox, state, trackCurrent } from "./helpers.ts";
 
 const BIN = join(dirname(fileURLToPath(import.meta.url)), "..", "bin", "mstack");
 
@@ -37,6 +37,14 @@ function run(
   // pointing at the wrong thing. `execFileSync` threw here; keep that.
   if (result.error !== undefined) throw result.error;
   return { stdout: result.stdout ?? "", stderr: result.stderr ?? "", code: result.status ?? 1 };
+}
+
+/** Stage and commit everything, so the workspace section has nothing to warn about. */
+function commitAll(cwd: string): void {
+  for (const args of [["add", "-A"], ["commit", "-q", "-m", "fixture"]]) {
+    const result = spawnSync("git", args, { cwd, encoding: "utf8" });
+    if (result.status !== 0) throw new Error(`git ${args.join(" ")}: ${result.stderr}`);
+  }
 }
 
 test("`state active` prints the slug alone, so command substitution works", () => {
@@ -569,6 +577,105 @@ test("--full lets the verify command's output onto stdout, quiet or not", () => 
     // the docs now draw.
     const fast = run(sb.store.root, ["gate", "--quiet"]);
     assert.equal(fast.stdout, "", "the fast gate keeps the promise --full cannot");
+  } finally {
+    sb.dispose();
+  }
+});
+
+/**
+ * Criterion 2 through the shipped binary, where the exit code is the half a
+ * `Report` object cannot show. `--full` with nothing to run used to warn and
+ * exit 0: the summary said PASSED and the shell agreed, so asking for the full
+ * gate and getting no verification at all looked exactly like passing it.
+ */
+test("gate --full is distinguishable, in summary and exit code, from one that verified nothing", () => {
+  const sb = sandbox();
+  try {
+    // Quiesced first so the only warning either run can carry is the edit to
+    // state.json itself, which both runs make. The two summaries then differ in
+    // exactly the thing under test.
+    sb.writeState(state([item({ status: "in_progress" })], { verify: "" }));
+    trackCurrent(sb);
+    quiesce(sb);
+
+    sb.writeState(state([item({ status: "in_progress" })], { verify: "" }));
+    const nothing = run(sb.store.root, ["gate", "--full"]);
+    assert.equal(nothing.code, 1, `--full that ran nothing exited ${nothing.code}`);
+    assert.match(nothing.stdout, /\[fail\] {2}--full ran no verification/);
+    assert.match(nothing.stdout, /^FAILED - 1 failure, 0 warnings$/m);
+
+    sb.writeState(state([item({ status: "in_progress" })], { verify: "true" }));
+    commitAll(sb.store.root);
+    const ran = run(sb.store.root, ["gate", "--full"]);
+    assert.equal(ran.code, 0, ran.stdout);
+    assert.match(ran.stdout, /^\[ok\] {4}true$/m);
+    assert.match(ran.stdout, /^PASSED - 0 failures, 0 warnings$/m);
+  } finally {
+    sb.dispose();
+  }
+});
+
+/**
+ * The bypass this closes was reproduced against the shipped binary before the
+ * guard existed: an item at `verifying` with a red gate went green the instant
+ * its status became `done`, because `done` is not active and the gate stops
+ * looking. A requirement you can step out of by relabelling the thing is the
+ * escape-hatch shape this project refuses everywhere else.
+ */
+test("an item cannot be closed on a verification that never ran here", () => {
+  const sb = sandbox();
+  try {
+    sb.writeState(state([item({ status: "verifying", verification: "pytest -q" })]));
+    trackCurrent(sb);
+    const refused = run(sb.store.root, ["state", "set", "storage-layer", "--status", "done"]);
+    assert.equal(refused.code, 2, refused.stdout);
+    assert.match(refused.stderr, /cannot close on a verification that has not run/);
+    assert.match(refused.stderr, /`pytest -q` has never been executed/);
+    assert.match(refused.stderr, /run 'mstack gate --full' at this commit/);
+    assert.equal(parseState(sb.store.state).items[0]?.status, "verifying", "a refused close wrote nothing");
+
+    // ...and it closes once the run is real. `gate --full` is the only thing
+    // that records one, which is why the refusal names it.
+    assert.equal(run(sb.store.root, ["gate", "--full"]).code, 1, "pytest is not installed here; the run is red");
+    sb.writeState(state([item({ status: "verifying", verification: "true" })]));
+    assert.equal(run(sb.store.root, ["gate", "--full"]).code, 0);
+    const closed = run(sb.store.root, ["state", "set", "storage-layer", "--status", "done"]);
+    assert.equal(closed.code, 0, closed.stderr);
+    assert.equal(parseState(sb.store.state).items[0]?.status, "done");
+  } finally {
+    sb.dispose();
+  }
+});
+
+test("--force closes it anyway, and says on the record that it did", () => {
+  const sb = sandbox();
+  try {
+    sb.writeState(state([item({ status: "verifying", verification: "pytest -q" })]));
+    trackCurrent(sb);
+    const forced = run(sb.store.root, ["state", "set", "storage-layer", "--status", "done", "--force"]);
+    assert.equal(forced.code, 0, forced.stderr);
+    // Loud, the way --sdd is loud. A silent override is the same hole with
+    // better manners.
+    assert.match(forced.stdout, /forced: closed on a verification that did not run here/);
+    assert.match(forced.stdout, /`pytest -q` has never been executed/);
+    assert.equal(parseState(sb.store.state).items[0]?.status, "done");
+  } finally {
+    sb.dispose();
+  }
+});
+
+test("closing an item nothing verifies is not blocked by this guard", () => {
+  const sb = sandbox();
+  try {
+    // The seeded-empty case. require_verdict_to_close is what governs closing
+    // with no proof, and its typed answer for "no check could be run" is the
+    // verifier-blocked verdict; this guard is about a verification that exists
+    // and never ran.
+    sb.writeState(state([item({ status: "verifying" })], { verify: "" }));
+    trackCurrent(sb);
+    const closed = run(sb.store.root, ["state", "set", "storage-layer", "--status", "done"]);
+    assert.equal(closed.code, 0, closed.stderr);
+    assert.equal(parseState(sb.store.state).items[0]?.status, "done");
   } finally {
     sb.dispose();
   }
