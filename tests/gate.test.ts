@@ -288,11 +288,15 @@ test("every failure carries a message, so a red gate is never silent", () => {
  * The three tests below are the whole of `--quiet`.
  *
  * `docs/wiki/The-CLI.md` said "--quiet prints failures only" and it printed
- * nothing at all, on the mode `src/hooks.ts` wires to the `Stop` hook — so a
- * red gate at session close had an exit code and no words. Each one asserts the
- * concrete bytes rather than that something was printed: "quiet printed
- * something" passes on any non-empty string, which is how a check that cannot
- * fail gets written.
+ * nothing at all, on the mode `src/hooks.ts` wires to the `Stop` hook. What
+ * that cost is narrower than it first reads, and the narrow version is the true
+ * one: the `Stop` hook already put the failures in `additionalContext`, so the
+ * model always had them. What produced nothing was every stream — `mstack gate
+ * --quiet` in a terminal or a script gave back an exit code and no bytes.
+ *
+ * Each test asserts the concrete bytes rather than that something was printed:
+ * "quiet printed something" passes on any non-empty string, which is how a
+ * check that cannot fail gets written.
  */
 test("quiet prints every failure with its fix, on stderr, and nothing else", () => {
   const sb = sandbox();

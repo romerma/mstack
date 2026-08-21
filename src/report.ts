@@ -66,8 +66,12 @@ export class Report {
    * the same bytes.
    *
    * It used to print nothing at all, while `docs/wiki/The-CLI.md` said
-   * "--quiet prints failures only" — a red gate at session close whose only
-   * signal was an exit code nobody displays.
+   * "--quiet prints failures only". Stated precisely, because the loose version
+   * of this sentence was wrong twice in review: the failures always reached the
+   * *model*, because `stop()` composes `report.failures` into
+   * `additionalContext` and did so before this change too. What nobody got was
+   * output on a stream — `mstack gate --quiet` in a terminal or a script
+   * produced zero bytes and an exit code.
    */
   fail(message: string, fix?: string): void {
     const line = fix ? `${message} -> ${fix}` : message;

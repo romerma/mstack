@@ -31,6 +31,11 @@ function run(
     encoding: "utf8",
     ...(options.input !== undefined ? { input: options.input } : {}),
   });
+  // `spawnSync` reports a failure to spawn at all — a moved or unexecutable
+  // bin/mstack — on `error` rather than by throwing. Swallowed, that reads as
+  // exit 1 with two empty streams, which is a plausible-looking test failure
+  // pointing at the wrong thing. `execFileSync` threw here; keep that.
+  if (result.error !== undefined) throw result.error;
   return { stdout: result.stdout ?? "", stderr: result.stderr ?? "", code: result.status ?? 1 };
 }
 
@@ -520,7 +525,7 @@ test("hook stop keeps its JSON on stdout and the gate's failures on stderr", () 
     assert.equal(
       hook.stderr,
       "[fail]  1 storage-layer (in_progress) is active but progress/current.md is not: the Item line still says _none_; Next step is still the empty template -> if this session dies now, nothing tells the next one where to start\n",
-      "the human watching the session sees the failure, not just an exit code",
+      "the failure reaches fd 2 of the hook process; what the client renders is the client's business",
     );
 
     trackCurrent(sb);
@@ -528,6 +533,42 @@ test("hook stop keeps its JSON on stdout and the gate's failures on stderr", () 
       input: JSON.stringify({ hook_event_name: "Stop", cwd: sb.store.root }),
     });
     assert.equal(green.stdout + green.stderr, "", "a green Stop says nothing on either stream");
+  } finally {
+    sb.dispose();
+  }
+});
+
+/**
+ * Characterization, not endorsement: this pins what `--full` does **today** so
+ * the scoping in `docs/wiki/The-CLI.md` is executable rather than prose.
+ *
+ * `--quiet` governs the gate's own lines. The verify command runs with its
+ * stdio inherited, so its output reaches stdout whatever the flag says, and the
+ * page's "nothing else on stdout" promise is therefore about the fast gate
+ * only. Anything that wires `--full` to a hook — where stdout is the structured
+ * channel — has to change this deliberately, and this test is what makes that
+ * a decision instead of an accident.
+ */
+test("--full lets the verify command's output onto stdout, quiet or not", () => {
+  const sb = sandbox();
+  try {
+    sb.writeState(
+      state([item({ status: "in_progress" })], { verify: "printf 'VERIFY-STDOUT-CANARY\\n'" }),
+    );
+    const full = run(sb.store.root, ["gate", "--full", "--quiet"]);
+
+    assert.match(full.stdout, /VERIFY-STDOUT-CANARY/, "the subprocess writes to stdout through --quiet");
+    // The gate's own quiet output is still on stderr and still failures-only,
+    // so the exception is the subprocess and nothing wider.
+    assert.match(full.stderr, /^\[fail\] {2}1 storage-layer \(in_progress\) is active but progress\/current\.md is not:/);
+    assert.ok(!full.stderr.includes("VERIFY-STDOUT-CANARY"), "the canary belongs to stdout, not stderr");
+    assert.ok(!full.stdout.includes("[fail]"), "the gate's own lines never move to stdout");
+    assert.equal(full.code, 1);
+
+    // Without --full the same store's stdout is empty, which is the contrast
+    // the docs now draw.
+    const fast = run(sb.store.root, ["gate", "--quiet"]);
+    assert.equal(fast.stdout, "", "the fast gate keeps the promise --full cannot");
   } finally {
     sb.dispose();
   }

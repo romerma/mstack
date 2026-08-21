@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { format } from "node:util";
 import assert from "node:assert/strict";
 
 import { storeAt, type Store } from "../src/paths.ts";
@@ -100,16 +101,25 @@ export function quiesce(box: Sandbox): void {
  * patching one of the pair captures nothing at all on one of the two runtimes
  * this suite runs on — and a capture that sees nothing turns every "printed
  * exactly this" assertion into a test that cannot fail.
+ *
+ * The originals are saved unbound and put back unchanged. Saving a `.bind()`
+ * copy restores a *different function object*, so after one call the property is
+ * no longer what it was — harmless here, and exactly the kind of "restored" that
+ * is not a restore.
+ *
+ * `format` rather than `args.join(" ")`, because `console.log("%s", x)` is a
+ * different string under the two, and a capture that renders it wrong reads as a
+ * product bug in whatever is being asserted.
  */
 export function captured<T>(fn: () => T): { value: T; out: string; err: string } {
   const out: string[] = [];
   const err: string[] = [];
   const realLog = console.log;
   const realError = console.error;
-  const realOut = process.stdout.write.bind(process.stdout);
-  const realErr = process.stderr.write.bind(process.stderr);
-  console.log = (...args: unknown[]) => void out.push(`${args.join(" ")}\n`);
-  console.error = (...args: unknown[]) => void err.push(`${args.join(" ")}\n`);
+  const realOut = process.stdout.write;
+  const realErr = process.stderr.write;
+  console.log = (...args: unknown[]) => void out.push(`${format(...args)}\n`);
+  console.error = (...args: unknown[]) => void err.push(`${format(...args)}\n`);
   process.stdout.write = ((chunk: unknown) => {
     out.push(String(chunk));
     return true;
