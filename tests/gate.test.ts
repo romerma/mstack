@@ -1,14 +1,14 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { runGate, SPEC_ARTIFACTS } from "../src/gate.ts";
 import { record } from "../src/ledger.ts";
-import { receipts, record as recordRun } from "../src/verification.ts";
+import { receipts, record as recordRaw } from "../src/verification.ts";
 import { add as addDecision } from "../src/decisions.ts";
 import { EMPTY_NEXT_STEP } from "../src/setup.ts";
-import { captured, expectFail, expectPass, item, quiesce, sandbox, state, trackCurrent } from "./helpers.ts";
+import { captured, expectFail, expectPass, item, quiesce, recordReceipt, sandbox, state, trackCurrent } from "./helpers.ts";
 
 /**
  * The fast gate, quiet, with both streams captured.
@@ -607,7 +607,7 @@ test("a recorded passing run at this commit turns it green", () => {
   try {
     sb.writeState(state([item({ status: "verifying", verification: "pytest -q" })]));
     trackCurrent(sb);
-    recordRun(sb.store, { target: "storage-layer", sha: sb.sha, command: "pytest -q", outcome: "passed" });
+    recordReceipt(sb, { target: "storage-layer", sha: sb.sha, command: "pytest -q", outcome: "passed" });
     expectPass(gate(sb), "recorded green run");
   } finally {
     sb.dispose();
@@ -619,7 +619,7 @@ test("a recorded failing run keeps the gate red, which is the 230-minute case", 
   try {
     sb.writeState(state([item({ status: "verifying", verification: "pytest -q" })]));
     trackCurrent(sb);
-    recordRun(sb.store, { target: "storage-layer", sha: sb.sha, command: "pytest -q", outcome: "failed" });
+    recordReceipt(sb, { target: "storage-layer", sha: sb.sha, command: "pytest -q", outcome: "failed" });
     // "Ran and failed" and "never ran" are different facts. Collapsing them
     // would send the reader to run something that has already told them.
     expectFail(gate(sb), new RegExp(`\`pytest -q\` ran at ${sb.sha.slice(0, 8)} and failed`), "recorded red run");
@@ -633,7 +633,7 @@ test("a run recorded at an older commit does not carry over", () => {
   try {
     sb.writeState(state([item({ status: "verifying", verification: "pytest -q" })]));
     trackCurrent(sb);
-    recordRun(sb.store, { target: "storage-layer", sha: sb.sha, command: "pytest -q", outcome: "passed" });
+    recordReceipt(sb, { target: "storage-layer", sha: sb.sha, command: "pytest -q", outcome: "passed" });
     expectPass(gate(sb), "green at this commit");
 
     // The ledger's rule, applied to a run. Unlike a closed item's verdict, this
@@ -704,10 +704,10 @@ test("both configured commands have to have run, not just one", () => {
       state([item({ status: "verifying", verification: "pytest -q" })], { verify: "make check" }),
     );
     trackCurrent(sb);
-    recordRun(sb.store, { target: "(project)", sha: sb.sha, command: "make check", outcome: "passed" });
+    recordReceipt(sb, { target: "(project)", sha: sb.sha, command: "make check", outcome: "passed" });
     expectFail(gate(sb), /`pytest -q` has never been executed/, "one green does not carry the other");
 
-    recordRun(sb.store, { target: "storage-layer", sha: sb.sha, command: "pytest -q", outcome: "passed" });
+    recordReceipt(sb, { target: "storage-layer", sha: sb.sha, command: "pytest -q", outcome: "passed" });
     expectPass(gate(sb), "both green");
   } finally {
     sb.dispose();
@@ -803,6 +803,197 @@ test("--full does not ask for a receipt of the run it is about to perform", () =
     trackCurrent(sb);
     const report = captured(() => runGate(sb.store, { full: true, quiet: true })).value;
     expectPass(report, "--full on a store with no prior run");
+  } finally {
+    sb.dispose();
+  }
+});
+
+/**
+ * Round 2, finding 1. The check that closes a fail-open gap shipped with one of
+ * its own.
+ *
+ * `receipts` reads a file, a read throws, and `cmdHook` catches every throw and
+ * returns 0 by design — so an unreadable receipt file made `mstack hook stop`
+ * emit zero bytes and exit 0, which is byte-identical to a green gate, and made
+ * `mstack gate` throw out of the middle so the workspace section and the summary
+ * never ran. Its sibling twenty lines up has wrapped this same read since the
+ * day an unreadable `decisions.tsv` did exactly this.
+ */
+test("an unreadable receipt file is a failure, not a green gate", () => {
+  const sb = sandbox();
+  try {
+    sb.writeState(state([item({ status: "verifying", verification: "pytest -q" })]));
+    trackCurrent(sb);
+    recordReceipt(sb, { target: "storage-layer", sha: sb.sha, command: "pytest -q", outcome: "passed" });
+    expectPass(gate(sb), "readable and green");
+
+    // A directory where the file should be. `chmod 000` is the other trigger
+    // and cannot be used here: this suite has to behave the same when it runs
+    // as root, where the mode bits are ignored and the read would succeed.
+    rmSync(sb.store.verification);
+    mkdirSync(sb.store.verification);
+
+    const report = gate(sb);
+    expectFail(report, /verification runs could not be read/, "unreadable receipt file");
+    assert.ok(
+      report.failures.some((f) => /EISDIR|illegal operation on a directory/i.test(f)),
+      `the underlying reason has to survive into the message: ${JSON.stringify(report.failures)}`,
+    );
+  } finally {
+    sb.dispose();
+  }
+});
+
+test("an unreadable receipt file does not stop the checks below it either", () => {
+  const sb = sandbox();
+  try {
+    sb.writeState(state([item({ status: "verifying", verification: "pytest -q" })]));
+    trackCurrent(sb);
+    mkdirSync(sb.store.verification);
+
+    // The half that is easy to miss: the throw escaped mid-run, so the
+    // workspace section never executed and no summary was printed. The gate
+    // reports; it does not become the failure.
+    const { report, err } = quietGate(sb);
+    assert.equal(report.failed, true);
+    assert.ok(
+      report.warnings.some((w) => /uncommitted change/.test(w)),
+      `the workspace section must still run: ${JSON.stringify(report.warnings)}`,
+    );
+    assert.ok(err.includes("[fail]"), `quiet mode still has to say something: ${JSON.stringify(err)}`);
+  } finally {
+    sb.dispose();
+  }
+});
+
+/**
+ * Round 2, finding 2. A receipt used to certify a commit, not a tree.
+ *
+ * A green `gate --full`, then an uncommitted edit that breaks the very command,
+ * then a close: all at exit 0 with the verification red the whole time. This is
+ * the item's own defect wearing a different hat, and the dirty-tree warning is a
+ * uniquely weak backstop against it, because `state set --status done` writes
+ * `state.json` itself, so the tree is dirty at close by construction.
+ */
+test("an uncommitted edit after the run voids the receipt", () => {
+  const sb = sandbox();
+  try {
+    sb.writeState(state([item({ status: "verifying", verification: "pytest -q" })]));
+    trackCurrent(sb);
+    const head = quiesce(sb);
+    recordReceipt(sb, { target: "storage-layer", sha: head, command: "pytest -q", outcome: "passed" });
+    expectPass(gate(sb), "green against the tree it ran on");
+
+    writeFileSync(join(sb.store.root, "app.js"), "throw new Error('broken');\n", "utf8");
+    expectFail(gate(sb), /against a different working tree/, "edited after the run");
+
+    // ...and reverting the edit brings the receipt back, because the tree is
+    // byte-identical to the one it ran against. A timestamp could not do that.
+    rmSync(join(sb.store.root, "app.js"));
+    expectPass(gate(sb), "the edit reverted");
+  } finally {
+    sb.dispose();
+  }
+});
+
+/**
+ * The same rule against a *tracked* file, which is a different porcelain line
+ * and was a real bug for one commit.
+ *
+ * An untracked file is `?? path`; a modified tracked one is ` M path`, whose
+ * first status character is a space. `git()` trims its whole output, so that
+ * leading space was eaten off the first line only and the path parse returned
+ * `rc/app.js` for `src/app.js`. Every fixture with two dirty files passed and
+ * this one did not, which is exactly the shape that ships.
+ */
+test("a modified tracked file voids the receipt too, leading space and all", () => {
+  const sb = sandbox();
+  try {
+    writeFileSync(join(sb.store.root, "app.js"), "module.exports = 1;\n", "utf8");
+    sb.writeState(state([item({ status: "verifying", verification: "pytest -q" })]));
+    trackCurrent(sb);
+    const head = quiesce(sb);
+    recordReceipt(sb, { target: "storage-layer", sha: head, command: "pytest -q", outcome: "passed" });
+    expectPass(gate(sb), "committed and green");
+
+    writeFileSync(join(sb.store.root, "app.js"), "module.exports = 2;\n", "utf8");
+    expectFail(gate(sb), /against a different working tree/, "one modified tracked file");
+  } finally {
+    sb.dispose();
+  }
+});
+
+test("edits inside .mstack/ do not void a run, or the gate would be red every turn", () => {
+  const sb = sandbox();
+  try {
+    sb.writeState(state([item({ status: "verifying", verification: "pytest -q" })]));
+    trackCurrent(sb);
+    const head = quiesce(sb);
+    recordReceipt(sb, { target: "storage-layer", sha: head, command: "pytest -q", outcome: "passed" });
+
+    // Exactly what every session does while an item is open. A fingerprint over
+    // the whole porcelain output would go red because someone wrote a line of
+    // their own progress notes.
+    writeFileSync(sb.store.current, "# Current session\n\n- **Item:** 1 storage-layer\n\n## Next step\n\nkeep going\n", "utf8");
+    sb.writeState(state([item({ status: "verifying", verification: "pytest -q", description: "a note" })]));
+    expectPass(gate(sb), "store churn is not code churn");
+  } finally {
+    sb.dispose();
+  }
+});
+
+test("a run recorded before the tree column existed says so rather than blaming a tree", () => {
+  const sb = sandbox();
+  try {
+    sb.writeState(state([item({ status: "verifying", verification: "pytest -q" })]));
+    trackCurrent(sb);
+    // What `ensureHeader` leaves behind when it widens a store written by the
+    // previous version: the row is at this commit, and its tree is unknown.
+    recordRaw(sb.store, { target: "storage-layer", sha: sb.sha, command: "pytest -q", outcome: "passed", tree: "" });
+    expectFail(gate(sb), /before receipts recorded the working tree/, "pre-migration row");
+  } finally {
+    sb.dispose();
+  }
+});
+
+/**
+ * Round 2, finding 3. A store created before this change commits its receipts,
+ * and a committed receipt cannot vouch for the commit that carries it.
+ */
+test("a receipt file that git would commit is called out by name", () => {
+  const sb = sandbox();
+  try {
+    sb.writeState(state([item({ status: "in_progress" })]));
+    trackCurrent(sb);
+    rmSync(join(sb.store.dir, ".gitignore"));
+    recordReceipt(sb, { target: "storage-layer", sha: sb.sha, command: "pytest -q", outcome: "passed" });
+
+    const report = gate(sb);
+    assert.ok(
+      report.warnings.some((w) => /verification\.tsv is not gitignored/.test(w)),
+      `an unignored receipt file has to be named: ${JSON.stringify(report.warnings)}`,
+    );
+    // Naming the cause is the point; both commands the recovery needs are in it.
+    const warning = report.warnings.find((w) => /not gitignored/.test(w)) ?? "";
+    assert.match(warning, /mstack setup/);
+    assert.match(warning, /git rm --cached/);
+  } finally {
+    sb.dispose();
+  }
+});
+
+test("the ignored case says nothing at all, on the path that runs every turn", () => {
+  const sb = sandbox();
+  try {
+    sb.writeState(state([item({ status: "in_progress" })]));
+    trackCurrent(sb);
+    recordReceipt(sb, { target: "storage-layer", sha: sb.sha, command: "pytest -q", outcome: "passed" });
+    const report = gate(sb);
+    assert.deepEqual(
+      report.warnings.filter((w) => /gitignored/.test(w)),
+      [],
+      "setup already wrote the .gitignore, so there is nothing to say",
+    );
   } finally {
     sb.dispose();
   }

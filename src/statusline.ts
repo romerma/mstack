@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { findStore, type Store } from "./paths.ts";
 import { activeItem, parseState } from "./state.ts";
 import { check } from "./ledger.ts";
-import { git } from "./gate.ts";
+import { git } from "./git.ts";
 import { isActive } from "./lifecycle.ts";
 import { reportKind, roleOf, substantialReports } from "./roles.ts";
 

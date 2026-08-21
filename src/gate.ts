@@ -3,6 +3,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 import { all as decisionsFor } from "./decisions.ts";
+import { git } from "./git.ts";
 import { entries as ledgerEntries } from "./ledger.ts";
 import {
   isActive,
@@ -15,6 +16,7 @@ import {
   obligations,
   record as recordRun,
   status as verificationStatus,
+  treeId,
   type Outcome,
 } from "./verification.ts";
 
@@ -109,6 +111,33 @@ function checkStoreFiles(store: Store, report: Report): void {
     if (existsSync(path)) report.ok(`${label} exists`);
     else report.fail(`${label} is missing`, "run 'mstack setup'");
   }
+  checkReceiptIsIgnored(store, report);
+}
+
+/**
+ * A store that predates `.mstack/.gitignore` commits its receipts, and a
+ * committed receipt cannot vouch for the commit that carries it.
+ *
+ * There is no migration and there cannot really be one: `mstack setup` installs
+ * the file, but nothing tells an existing user to re-run it, and once the
+ * receipt is already tracked `setup` is not enough — `git rm --cached` is also
+ * required. Left alone the result is a permanent red-gate-and-dirty-tree loop
+ * with nothing naming the cause, which is fail-closed but useless.
+ *
+ * So the gate names it. A warning rather than a failure: nothing here is unsafe,
+ * it is the store's hygiene, and the actual red gate that follows is produced by
+ * the check below with its own message.
+ */
+function checkReceiptIsIgnored(store: Store, report: Report): void {
+  if (!existsSync(store.verification)) return;
+  // `check-ignore -q` exits 0 when the path is ignored and 1 when it is not, so
+  // a null answer here is "not ignored" (or no git at all, which the workspace
+  // section reports on its own terms).
+  if (git(store, ["check-ignore", "-q", store.verification]) !== null) return;
+  if (git(store, ["rev-parse", "--git-dir"]) === null) return;
+  report.warn(
+    ".mstack/verification.tsv is not gitignored, and committing it voids the runs it records: run 'mstack setup' to install .mstack/.gitignore, then 'git rm --cached .mstack/verification.tsv' if it is already tracked",
+  );
 }
 
 /**
@@ -444,7 +473,28 @@ function checkVerificationRuns(store: Store, state: State, report: Report): void
     return;
   }
 
-  const result = verificationStatus(store, state, active, sha);
+  // Wrapped for the reason its sibling twenty lines up is wrapped, and the
+  // comment there names this exact bug. `receipts` reads a file, a read throws,
+  // and `cmdHook` catches every throw and returns 0 by design — so an
+  // unreadable receipt file made `mstack hook stop` emit zero bytes and exit 0,
+  // which is byte-identical to "the gate is green, close away", and made
+  // `mstack gate` throw out of the middle so the workspace section and the
+  // summary never ran. Reproduced one `chmod` apart.
+  //
+  // The trigger is not exotic: this is the one store file a clone never
+  // recreates and whose ownership is purely local, so one `mstack` run as root
+  // in a container produces it. The gate reports; it does not become the
+  // failure, and it never reads an I/O error as a pass.
+  let result: ReturnType<typeof verificationStatus>;
+  try {
+    result = verificationStatus(store, state, active, sha);
+  } catch (error) {
+    report.fail(
+      `${itemLabel(active)} is one step from done, and its verification runs could not be read: ${(error as Error).message}`,
+      "fix the file or delete it and re-run 'mstack gate --full'; an unreadable record of what ran is not a record that anything did",
+    );
+    return;
+  }
   if (result.satisfied) {
     report.ok(`verification ran and passed at ${sha.slice(0, 8)}: ${required.map((r) => r.command).join(", ")}`);
     return;
@@ -478,6 +528,7 @@ function runVerification(store: Store, state: State, report: Report): void {
   if (sha === null) {
     report.warn("not a commit, so these runs cannot be recorded; the fast gate will not see them");
   }
+  const outcomes: { command: string; target: string; outcome: Outcome }[] = [];
   for (const { command, target } of required) {
     let outcome: Outcome;
     try {
@@ -488,9 +539,20 @@ function runVerification(store: Store, state: State, report: Report): void {
       outcome = "failed";
       report.fail(`${command} failed`, "fix it; a red verification is not a partial pass");
     }
-    if (sha === null) continue;
+    outcomes.push({ command, target, outcome });
+  }
+  if (sha === null) return;
+
+  // Sampled once, *after* every command, and shared by every row. Sampling it
+  // first would let a suite that writes a log or a coverage file into the
+  // repository void its own receipt the instant it wrote one, leaving the gate
+  // permanently red; sampling per command would leave every row but the last
+  // recording a tree that no longer exists. What a receipt claims is "these
+  // commands passed, and the tree looked like this when they finished".
+  const tree = treeId(store);
+  for (const { command, target, outcome } of outcomes) {
     try {
-      recordRun(store, { target, sha, command, outcome });
+      recordRun(store, { target, sha, command, outcome, tree });
     } catch (error) {
       // The run is the fact; being unable to write it down is a separate
       // failure and gets said as one. Swallowing it would leave the fast gate
@@ -514,29 +576,6 @@ export function defaultBranch(store: Store): string {
     if (git(store, ["rev-parse", "--verify", "--quiet", candidate]) !== null) return candidate;
   }
   return "main";
-}
-
-/**
- * Every caller treats a git failure as "no answer", so a hang has to become one
- * too. Without a timeout a slow or prompting git blocked the status line
- * indefinitely, on the one path that runs on every assistant message. Five
- * seconds is far past any local plumbing command and still finite.
- */
-const GIT_TIMEOUT_MS = 5_000;
-
-export function git(store: Store, args: readonly string[]): string | null {
-  try {
-    return execFileSync("git", args, {
-      cwd: store.root,
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "ignore"],
-      timeout: GIT_TIMEOUT_MS,
-      // A git that stops to ask for credentials never returns on its own.
-      env: { ...process.env, GIT_TERMINAL_PROMPT: "0", GIT_OPTIONAL_LOCKS: "0" },
-    }).trim();
-  } catch {
-    return null;
-  }
 }
 
 export function itemLabel(item: Item): string {

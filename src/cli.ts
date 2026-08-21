@@ -464,6 +464,8 @@ function cmdState(argv: readonly string[]): number {
     }
 
     const changes: string[] = [];
+    /** Set when `--force` carried a close past an unverified verification. */
+    let forcedUnverified: string | undefined;
 
     // Clears first, then the status move, then the values. The order is what
     // makes both single-command shapes work: dropping a fork and moving on, and
@@ -504,7 +506,18 @@ function cmdState(argv: readonly string[]): number {
       // before this guard existed.
       if (values.status === "done" && item.status !== "done") {
         const sha = headSha(store);
-        const proof = sha === null ? undefined : verification.status(store, state, item, sha);
+        let proof: verification.RunStatus | undefined;
+        try {
+          proof = sha === null ? undefined : verification.status(store, state, item, sha);
+        } catch (error) {
+          // Fails closed either way — the raw error would reach the top-level
+          // handler and exit 2 — but "EACCES: permission denied" tells the
+          // reader nothing about what it is stopping or how to get past it.
+          throw new UserError(
+            `${item.slug}'s verification runs could not be read, so nothing here can say whether it was verified: ${(error as Error).message}`,
+            "fix the file or delete it and re-run 'mstack gate --full'; an unreadable record of what ran is not a record that anything did",
+          );
+        }
         if (proof !== undefined && !proof.satisfied) {
           if (values.force !== true) {
             throw new UserError(
@@ -512,9 +525,25 @@ function cmdState(argv: readonly string[]): number {
               "run 'mstack gate --full' at this commit; closing is the one moment the run has to be real, and --force closes it unverified",
             );
           }
-          changes.push(
-            `  forced: closed on a verification that did not run here - ${proof.problems.join("; ")}`,
-          );
+          // The forced line used to be pushed into `changes` and nothing else,
+          // and `changes` is only ever printed. So an override of the one check
+          // standing between an unverified item and `done` left nothing behind
+          // in state.json, ledger.tsv or decisions.tsv, and no later reader
+          // could tell a forced close from a real one. That is the `closed_by`
+          // shape this plugin already had to fix once, rebuilt inside the guard
+          // meant to prevent it.
+          //
+          // `closed_by` is the right home: committed, already typed as a note
+          // rather than a verdict, and this is exactly a note. The reason is
+          // required rather than optional, because an override nobody has to
+          // justify is the escape hatch with better manners.
+          if (values["closed-by"] === undefined) {
+            throw new UserError(
+              `--force would close ${item.slug} on a verification that has not run, and that has to be on the record`,
+              `add --closed-by "<why closing unverified is right here>"; it is stored in state.json, where the next reader will find it`,
+            );
+          }
+          forcedUnverified = proof.problems.join("; ");
         }
       }
       if (item.status !== values.status) changes.push(...fieldChange("status", item.status, values.status));
@@ -538,6 +567,17 @@ function cmdState(argv: readonly string[]): number {
       );
       if (item[key] !== next) changes.push(...fieldChange(key, item[key], next));
       item[key] = next;
+    }
+
+    // After the loop, so it prefixes the value the loop just stored rather than
+    // being overwritten by it. A reader opening state.json has to be able to
+    // tell a forced unverified close from an ordinary note, and the reason they
+    // gave is kept verbatim after the marker.
+    if (forcedUnverified !== undefined) {
+      const note = `closed unverified (forced): ${item.closed_by ?? ""}`;
+      changes.push(...fieldChange("closed_by", item.closed_by, note));
+      item.closed_by = note;
+      changes.push(`  forced: closed on a verification that did not run here - ${forcedUnverified}`);
     }
 
     if (values.acceptance !== undefined) {

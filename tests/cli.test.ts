@@ -647,18 +647,57 @@ test("an item cannot be closed on a verification that never ran here", () => {
   }
 });
 
-test("--force closes it anyway, and says on the record that it did", () => {
+/**
+ * `--force` stays; the silence does not.
+ *
+ * The forced line used to be pushed into `changes` and nothing else, and
+ * `changes` is only ever printed — so an override of the one check standing
+ * between an unverified item and `done` left nothing in `state.json`,
+ * `ledger.tsv` or `decisions.tsv`, and no later reader could tell a forced
+ * close from a real one. That is the `closed_by` shape this plugin already had
+ * to fix once, rebuilt inside the guard meant to prevent it. A ledger row cannot
+ * carry the distinction, and `verification.tsv` is gitignored by design, so the
+ * note goes where notes go.
+ */
+test("--force on an unverified close is refused without a reason on the record", () => {
   const sb = sandbox();
   try {
     sb.writeState(state([item({ status: "verifying", verification: "pytest -q" })]));
     trackCurrent(sb);
-    const forced = run(sb.store.root, ["state", "set", "storage-layer", "--status", "done", "--force"]);
+    const bare = run(sb.store.root, ["state", "set", "storage-layer", "--status", "done", "--force"]);
+    assert.equal(bare.code, 2, `--force alone must not close it: ${bare.stdout}`);
+    assert.match(bare.stderr, /has to be on the record/);
+    assert.match(bare.stderr, /--closed-by/);
+    assert.equal(parseState(sb.store.state).items[0]?.status, "verifying", "a refused force wrote nothing");
+  } finally {
+    sb.dispose();
+  }
+});
+
+test("--force with a reason closes it, and the reason is durable and marked", () => {
+  const sb = sandbox();
+  try {
+    sb.writeState(state([item({ status: "verifying", verification: "pytest -q" })]));
+    trackCurrent(sb);
+    const forced = run(sb.store.root, [
+      "state", "set", "storage-layer", "--status", "done", "--force",
+      "--closed-by", "the test host has no python; verified by hand against the staging box",
+    ]);
     assert.equal(forced.code, 0, forced.stderr);
     // Loud, the way --sdd is loud. A silent override is the same hole with
     // better manners.
     assert.match(forced.stdout, /forced: closed on a verification that did not run here/);
     assert.match(forced.stdout, /`pytest -q` has never been executed/);
-    assert.equal(parseState(sb.store.state).items[0]?.status, "done");
+
+    const closed = parseState(sb.store.state).items[0];
+    assert.equal(closed?.status, "done");
+    // Durable is the whole point: printed output is gone the moment the scroll
+    // buffer is, and state.json is committed.
+    assert.equal(
+      closed?.closed_by,
+      "closed unverified (forced): the test host has no python; verified by hand against the staging box",
+      "a reader opening state.json has to be able to tell this from an ordinary note",
+    );
   } finally {
     sb.dispose();
   }
@@ -687,6 +726,35 @@ test("only the move into done is guarded; every other move and a re-close are no
     sb.writeState(state([item({ status: "done", verification: "pytest -q" })]));
     const again = run(sb.store.root, ["state", "set", "storage-layer", "--status", "done"]);
     assert.equal(again.code, 0, `an already-closed item must not be re-judged: ${again.stderr}`);
+  } finally {
+    sb.dispose();
+  }
+});
+
+/**
+ * The closing guard's half of round-2 finding 1.
+ *
+ * It failed closed already — the raw error reached the top-level handler and
+ * exited 2 — but "EACCES: permission denied" tells a reader nothing about what
+ * is being stopped or how to get past it, and an exit 2 whose message is an
+ * errno is indistinguishable from the CLI being broken.
+ */
+test("an unreadable receipt file refuses the close, and says what it is refusing", () => {
+  const sb = sandbox();
+  try {
+    sb.writeState(state([item({ status: "verifying", verification: "pytest -q" })]));
+    trackCurrent(sb);
+    // A directory where the file should be, rather than `chmod 000`: the mode
+    // bits are ignored when this suite runs as root, and a test that cannot
+    // fail there is worse than no test.
+    mkdirSync(sb.store.verification);
+
+    const refused = run(sb.store.root, ["state", "set", "storage-layer", "--status", "done"]);
+    assert.equal(refused.code, 2, refused.stdout);
+    assert.match(refused.stderr, /verification runs could not be read/);
+    assert.match(refused.stderr, /EISDIR|illegal operation on a directory/i);
+    assert.match(refused.stderr, /gate --full/);
+    assert.equal(parseState(sb.store.state).items[0]?.status, "verifying", "a refused close wrote nothing");
   } finally {
     sb.dispose();
   }

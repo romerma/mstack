@@ -1,12 +1,20 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { STORE_GITIGNORE } from "../src/setup.ts";
-import { obligations, PROJECT_TARGET, receipts, record, status } from "../src/verification.ts";
+import {
+  CLEAN_TREE,
+  obligations,
+  PROJECT_TARGET,
+  receipts,
+  record,
+  status,
+  treeId,
+} from "../src/verification.ts";
 import { parseState } from "../src/state.ts";
-import { item, sandbox, state } from "./helpers.ts";
+import { item, quiesce, recordReceipt, sandbox, state } from "./helpers.ts";
 
 /** The parsed State the module's functions take, built from the helpers' shape. */
 function parsed(sb: ReturnType<typeof sandbox>, value: unknown) {
@@ -38,7 +46,7 @@ test("the obligation list is exactly what --full would run, project command firs
 test("a receipt round-trips through the store file", () => {
   const sb = sandbox();
   try {
-    record(sb.store, { target: "storage-layer", sha: sb.sha, command: "pytest -q", outcome: "passed" });
+    recordReceipt(sb, { target: "storage-layer", sha: sb.sha, command: "pytest -q", outcome: "passed" });
     const rows = receipts(sb.store);
     assert.equal(rows.length, 1);
     assert.equal(rows[0]?.command, "pytest -q");
@@ -66,7 +74,7 @@ test("a passing run at this commit satisfies the command, and only at this commi
   const sb = sandbox();
   try {
     const st = parsed(sb, state([item({ status: "verifying", verification: "pytest -q" })]));
-    record(sb.store, { target: "storage-layer", sha: sb.sha, command: "pytest -q", outcome: "passed" });
+    recordReceipt(sb, { target: "storage-layer", sha: sb.sha, command: "pytest -q", outcome: "passed" });
     assert.equal(status(sb.store, st, st.items[0], sb.sha).satisfied, true);
 
     // The ledger's rule, applied to a run: a new head SHA voids the row. The
@@ -88,7 +96,7 @@ test("a run that failed here is a different fact from one that never ran", () =>
   const sb = sandbox();
   try {
     const st = parsed(sb, state([item({ status: "verifying", verification: "pytest -q" })]));
-    record(sb.store, { target: "storage-layer", sha: sb.sha, command: "pytest -q", outcome: "failed" });
+    recordReceipt(sb, { target: "storage-layer", sha: sb.sha, command: "pytest -q", outcome: "failed" });
     const result = status(sb.store, st, st.items[0], sb.sha);
     assert.equal(result.satisfied, false);
     assert.deepEqual(result.problems, [`\`pytest -q\` ran at ${sb.sha.slice(0, 8)} and failed`]);
@@ -102,7 +110,7 @@ test("the last run at a commit wins, in both directions", () => {
   try {
     const st = parsed(sb, state([item({ status: "verifying", verification: "pytest -q" })]));
     const row = (outcome: "passed" | "failed", ts: string) =>
-      record(sb.store, { target: "storage-layer", sha: sb.sha, command: "pytest -q", outcome, ts });
+      recordReceipt(sb, { target: "storage-layer", sha: sb.sha, command: "pytest -q", outcome, ts });
 
     // Red, then fixed in the working tree and re-run green: green.
     row("failed", "2026-01-01T00:00:00.000Z");
@@ -124,7 +132,7 @@ test("editing the verification string voids the receipt that vouched for the old
   const sb = sandbox();
   try {
     const before = parsed(sb, state([item({ status: "verifying", verification: "pytest -q" })]));
-    record(sb.store, { target: "storage-layer", sha: sb.sha, command: "pytest -q", outcome: "passed" });
+    recordReceipt(sb, { target: "storage-layer", sha: sb.sha, command: "pytest -q", outcome: "passed" });
     assert.equal(status(sb.store, before, before.items[0], sb.sha).satisfied, true);
 
     // The incident this whole file exists for was a `verification` that did not
@@ -146,10 +154,114 @@ test("both commands have to be green, and the failing one is named", () => {
       sb,
       state([item({ status: "verifying", verification: "pytest -q" })], { verify: "make check" }),
     );
-    record(sb.store, { target: PROJECT_TARGET, sha: sb.sha, command: "make check", outcome: "passed" });
+    recordReceipt(sb, { target: PROJECT_TARGET, sha: sb.sha, command: "make check", outcome: "passed" });
     const result = status(sb.store, st, st.items[0], sb.sha);
     assert.equal(result.satisfied, false);
     assert.deepEqual(result.problems, ["`pytest -q` has never been executed"], "one green does not carry the other");
+  } finally {
+    sb.dispose();
+  }
+});
+
+/**
+ * Round 2, finding 4. Where the command match lands, pinned rather than
+ * emergent.
+ *
+ * The tolerant half came out of `.trim()` in `obligations` plus `cell`'s
+ * collapse of `[\t\r\n]+`, and nothing asserted it: a mutation that stopped
+ * normalising the stored text left the whole suite green while a trailing
+ * newline in a `verification` field would have voided every receipt. This item's
+ * own history is a `verification` typed by hand at intake, so a stray newline in
+ * one is not exotic.
+ *
+ * The strict half is the more important direction and it fails closed: anything
+ * this cannot prove is the same command, it demands a re-run of.
+ */
+test("surrounding whitespace is the same command; internal whitespace is not", () => {
+  const sb = sandbox();
+  try {
+    recordReceipt(sb, { target: "storage-layer", sha: sb.sha, command: "pytest -q", outcome: "passed" });
+
+    for (const [spelling, why] of [
+      ["pytest -q", "the command itself"],
+      ["  pytest -q", "leading spaces"],
+      ["pytest -q  ", "trailing spaces"],
+      ["pytest -q\n", "a trailing newline, which is what a hand-typed field carries"],
+      ["\tpytest -q\t", "tabs on both ends"],
+    ] as const) {
+      const st = parsed(sb, state([item({ status: "verifying", verification: spelling })]));
+      assert.equal(
+        status(sb.store, st, st.items[0], sb.sha).satisfied,
+        true,
+        `${why}: ${JSON.stringify(spelling)} should be satisfied by the recorded run`,
+      );
+    }
+
+    // Strict past the edges, and deliberately so. These may well be the same
+    // command to a shell; this module is not a shell, and demanding a re-run is
+    // the safe direction.
+    for (const [spelling, why] of [
+      ["pytest  -q", "doubled internal space"],
+      ["/usr/bin/pytest -q", "semantically identical, textually not"],
+      ["pytest -q --strict", "a real change"],
+    ] as const) {
+      const st = parsed(sb, state([item({ status: "verifying", verification: spelling })]));
+      assert.equal(
+        status(sb.store, st, st.items[0], sb.sha).satisfied,
+        false,
+        `${why}: ${JSON.stringify(spelling)} must not be satisfied by a run of "pytest -q"`,
+      );
+    }
+  } finally {
+    sb.dispose();
+  }
+});
+
+test("identical project and item commands are one obligation, not two runs", () => {
+  const sb = sandbox();
+  try {
+    // Two obligations resolving to one receipt meant running the suite twice
+    // per `gate --full`, which this repository's own store pays for.
+    const st = parsed(
+      sb,
+      state([item({ status: "verifying", verification: "npm test" })], { verify: "npm test" }),
+    );
+    assert.deepEqual(obligations(st, st.items[0]), [{ command: "npm test", target: PROJECT_TARGET }]);
+
+    // ...and a command that only looks similar is still its own obligation.
+    const apart = parsed(
+      sb,
+      state([item({ status: "verifying", verification: "npm test -- --bail" })], { verify: "npm test" }),
+    );
+    assert.equal(obligations(apart, apart.items[0]).length, 2);
+  } finally {
+    sb.dispose();
+  }
+});
+
+test("the tree fingerprint ignores the store and nothing else", () => {
+  const sb = sandbox();
+  try {
+    quiesce(sb);
+    const clean = treeId(sb.store);
+    assert.equal(clean, CLEAN_TREE, "a committed tree should read as clean, not as a hash");
+
+    // Store churn: every session does this while an item is open.
+    writeFileSync(sb.store.current, "# Current session\n\n- **Item:** 1 x\n\n## Next step\n\ngo\n", "utf8");
+    sb.writeState(state([item({ status: "verifying" })]));
+    assert.equal(treeId(sb.store), clean, "writing progress notes must not change the tree identity");
+
+    // Code churn: it must.
+    writeFileSync(join(sb.store.root, "app.js"), "1\n", "utf8");
+    const dirty = treeId(sb.store);
+    assert.notEqual(dirty, clean);
+    assert.match(dirty, /^[0-9a-f]{16}$/, "a dirty tree is identified by a hash of what is dirty");
+
+    // The same edit twice is the same tree; a different edit is not.
+    writeFileSync(join(sb.store.root, "app.js"), "1\n", "utf8");
+    assert.equal(treeId(sb.store), dirty, "an identical tree must produce an identical id");
+    writeFileSync(join(sb.store.root, "other.js"), "2\n", "utf8");
+    assert.notEqual(treeId(sb.store), dirty);
   } finally {
     sb.dispose();
   }

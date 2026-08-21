@@ -2,7 +2,8 @@ import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 
-import { defaultBranch, git } from "./gate.ts";
+import { defaultBranch } from "./gate.ts";
+import { git } from "./git.ts";
 import { UserError, type Store } from "./paths.ts";
 
 /**
