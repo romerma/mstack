@@ -318,16 +318,25 @@ const CROSS_SEGMENT_DENY: readonly [string, string][] = [
   ["git push origin main 2>&1 --force", "the & of a redirection does not end the command"],
 ];
 
+// Reported as a list rather than row by row on purpose. `assert.ok` in a loop
+// stops at the first bad row, which is the least useful thing to know when a
+// change moves the boundary: the question is always how far it moved.
+const label = ([command, why]: readonly [string, string]) => `${why}: ${JSON.stringify(command)}`;
+
 test("a store name in a later command does not deny the rm in an earlier one", () => {
-  for (const [command, why] of CROSS_SEGMENT_ALLOW) {
-    assert.ok(!denied(command), `should be allowed (${why}): ${JSON.stringify(command)}`);
-  }
+  assert.deepEqual(
+    CROSS_SEGMENT_ALLOW.filter(([command]) => denied(command)).map(label),
+    [],
+    "denied, though none of these deletes or rewrites anything the guards are about",
+  );
 });
 
 test("segmenting the command does not let a real deletion of the store through", () => {
-  for (const [command, why] of CROSS_SEGMENT_DENY) {
-    assert.ok(denied(command), `should be denied (${why}): ${JSON.stringify(command)}`);
-  }
+  assert.deepEqual(
+    CROSS_SEGMENT_DENY.filter(([command]) => !denied(command)).map(label),
+    [],
+    "allowed, though each one really does reach the thing its guard protects",
+  );
 });
 
 test("shellSegments cuts where the shell would and nowhere else", () => {
