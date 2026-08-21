@@ -664,6 +664,34 @@ test("--force closes it anyway, and says on the record that it did", () => {
   }
 });
 
+/**
+ * The cost boundary again, this time on the writer. The guard belongs to one
+ * transition — into `done` — and a mutation that let it fire on every status
+ * move survived the first mutation round, which is exactly the shape it would
+ * have shipped in: advancing an item would have demanded a full run every time,
+ * and that is the version of this feature people turn off.
+ *
+ * The `done -> done` half protects the other end. Re-issuing the command on an
+ * item that closed long ago must not hold it to today's commit, for the same
+ * reason `checkClosedItems` does not.
+ */
+test("only the move into done is guarded; every other move and a re-close are not", () => {
+  const sb = sandbox();
+  try {
+    sb.writeState(state([item({ status: "in_progress", verification: "pytest -q" })]));
+    trackCurrent(sb);
+    const advanced = run(sb.store.root, ["state", "set", "storage-layer", "--status", "reviewing"]);
+    assert.equal(advanced.code, 0, `advancing must not demand a run: ${advanced.stderr}`);
+    assert.equal(parseState(sb.store.state).items[0]?.status, "reviewing");
+
+    sb.writeState(state([item({ status: "done", verification: "pytest -q" })]));
+    const again = run(sb.store.root, ["state", "set", "storage-layer", "--status", "done"]);
+    assert.equal(again.code, 0, `an already-closed item must not be re-judged: ${again.stderr}`);
+  } finally {
+    sb.dispose();
+  }
+});
+
 test("closing an item nothing verifies is not blocked by this guard", () => {
   const sb = sandbox();
   try {
