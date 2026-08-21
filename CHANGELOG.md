@@ -26,7 +26,28 @@ The docs round, before publication.
 - `mstack gate --full` that ran no verification at all now fails and exits 1. It warned and
   exited 0, which made "you asked for the full gate and got nothing" indistinguishable from
   "you asked for it and it passed" — the same check-that-cannot-fail shape as `{"items": {}}`
-  passing a gate that then enforces nothing.
+  passing a gate that then enforces nothing. A reviewer who meets that failure is meeting a
+  store-configuration problem, not a defect in the item under review, and
+  `agents/reviewer.md` now says so.
+- A receipt records the **working tree** as well as the commit, because the first version of
+  it certified a commit and not a tree: a green `gate --full`, then an uncommitted edit that
+  broke the very command, then a close, all at exit 0 with the verification red the whole
+  time. Paths under `.mstack/` are excluded from that fingerprint, so writing your own progress
+  notes does not void a run and editing code does.
+- An unreadable `.mstack/verification.tsv` is a gate failure rather than an exception that
+  escapes the run. It made `mstack hook stop` emit zero bytes and exit 0 — byte-identical to a
+  green gate — and threw `mstack gate` out mid-run so the workspace section and the summary
+  never happened. That is the same defect an unreadable `decisions.tsv` once had, reintroduced
+  by the change built to close a sibling of it, and found by review rather than by us.
+- Forcing an unverified close now requires `--closed-by`, and the reason is stored prefixed
+  `closed unverified (forced):`. The override used to leave nothing behind but a printed line,
+  so no later reader could tell a forced close from a real one.
+
+**Upgrading an existing store.** `mstack setup` is safe to re-run and installs the new
+`.mstack/.gitignore`; do that once per store. If a `.mstack/verification.tsv` was already
+committed, also run `git rm --cached .mstack/verification.tsv` — `.gitignore` does not apply to
+a path git is already tracking, and a committed receipt cannot vouch for the commit that
+carries it. `mstack gate` warns with both commands when it finds the file unignored.
 
 - README rewritten around the story and the on-ramp: where mstack comes from on the first
   screen, a quickstart, and a first item walked in five commands whose output — refusals

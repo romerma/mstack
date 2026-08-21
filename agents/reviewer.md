@@ -18,6 +18,12 @@ whole point of a separate pass is that it does not inherit the first pass's assu
 
 `mstack gate --full`, plus whatever the item's `verification` field names.
 
+A `--full` that exits 1 saying **"ran no verification"** is not a defect in the item under
+review. It means the store has no `verify` command and the item has no `verification`, so
+there is nothing to run — report it as a store-configuration failure and judge the item on
+whatever else you can execute. Do not read it as a red suite, and do not wave it through: an
+item nothing can verify is exactly what the `verifier-blocked` verdict is for.
+
 ## What you are checking
 
 - **Traceability.** Every requirement or acceptance bullet has a test. Open the test and read
