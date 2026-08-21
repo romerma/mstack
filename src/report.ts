@@ -16,11 +16,12 @@ const paint = (code: string, s: string) => (useColor ? `${ESC}[${code}m${s}${ESC
  * built for a hook would break the hook. stderr is the same choice `state
  * active` makes for the same reason: stdout stays machine-consumable.
  *
- * Written through `process.stderr.write` rather than `console.error` because
- * that is the only spelling a test can intercept in both runtimes. Under bun a
- * patched `process.stderr.write` does not see `console.error` at all, so the
- * assertions that pin this output would silently measure nothing on one of the
- * two runtimes this project promises.
+ * Written through `process.stderr.write` rather than `console.error`: one call,
+ * the exact bytes, no `util.format` layer between the string and the stream.
+ * The two are not interchangeable under bun either — a patched
+ * `process.stderr.write` there does not see `console.error` at all — which is
+ * why `tests/helpers.ts` intercepts both spellings rather than assuming they
+ * are one channel.
  */
 function emit(line: string): void {
   process.stderr.write(`${line}\n`);
