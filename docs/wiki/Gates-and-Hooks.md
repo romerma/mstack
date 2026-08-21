@@ -216,18 +216,25 @@ Walking the lines that carry the weight:
   and the `bin/mstack` to run instead, and every other subcommand adds one stderr line
   saying the same; `mstack version` prints which copy is running either way.
 
-  Foreign means outside the *repository*, not merely at another path. A `git worktree` of
-  the checkout shares its git common dir and is not foreign — deliberately, at any commit,
-  because the hooks run `${CLAUDE_PLUGIN_ROOT}/bin/mstack`, a path a session cannot redirect
-  per worktree, and the orchestrate flow makes worktrees the unit of parallel work; a gate
-  that is red every turn on byte-identical code is a hook people switch off. What that
-  trades away is recorded in the decision row: a worktree at a different commit runs
-  different code and is accepted, bounded by the fact that worktrees are created from,
-  merged into and pruned by the same repository. A separate clone answers with a different
-  common dir and stays foreign, as does the installed cache, which is not a git repository
-  at all. The honest limit: the check ships with the code that is being missed, so a copy
-  installed *before* it existed still reports nothing — it closes every future round of
-  this trap, not the one already on disk.
+  Foreign means outside the *repository*, not merely at another path, and same repository
+  is necessary but not sufficient. A `git worktree` of the checkout shares its git common
+  dir, so it is never a *failure* — the hooks run `${CLAUDE_PLUGIN_ROOT}/bin/mstack`, a path
+  a session cannot redirect per worktree, the orchestrate flow makes worktrees the unit of
+  parallel work, and a gate that is red every turn on byte-identical code is a hook people
+  switch off. But identical is checked, not assumed: the same git spawn that fetches the
+  common dir also fetches `HEAD:src`, git's already-stored tree object, and a sibling whose
+  committed `src` tree differs gets a **warning** naming both tree ids and the launcher to
+  run instead. That severity is a recorded decision — the mismatch is genuine (the sibling's
+  checks may not be this store's checks), and it is also the normal state for the whole life
+  of a branch that touches `src/`. Two limits, stated rather than implied: `HEAD:src` is the
+  *committed* tree, so uncommitted edits to `src/` are invisible to the comparison, and the
+  Stop hook composes its `additionalContext` from failures only, so the warning reaches a
+  shell `mstack gate` (and a stderr note on every other subcommand) but not the hook's
+  injected context. A separate clone answers with a different common dir and stays a
+  failure, as does the installed cache, which is not a git repository at all. And the oldest
+  limit still holds: the check ships with the code that is being missed, so a copy installed
+  *before* it existed still reports nothing — it closes every future round of this trap, not
+  the one already on disk.
 
 ### `gate --full`
 
