@@ -123,3 +123,54 @@ against unmodified code. It caught that itself, re-ran after committing, and rep
 mutation suite that silently tests nothing is the fourth instance of the same shape this
 programme has caught: a spec predicate that could not fail, a drill disjunct that was always
 false, an accessibility audit that cannot fail over gradients, and now this.
+
+## 2026-08-21 — item 13 editable-item-fields, closed
+
+`mstack state set` accepted only `--status`, `--closed-by` and `--force`, so every other item
+field was write-once at intake. The serious consequence was not ergonomic: `README.md:116-129`
+leads with `decision_required` as the plugin's human gate and shows it stopping a status move,
+while `skills/spec/SKILL.md:33-38` says product forks are found during `specifying` — after
+intake. **The README's own narrative was unexecutable.** The dogfood run proved it: two textbook
+product forks arrived, both were answered with plain `mstack decide` rows, and
+`sandbox/.mstack/decisions.tsv` carries 30 rows with zero `resolves` values. The gate never had
+an opinion because the field was unreachable, and two rounds of fact-check did not notice.
+
+**Closed on:** the README's narrative driven end to end in a scratch store — intake with no
+fork, attach it during `specifying`, the gate refusing `spec_ready` with the message the README
+prints, `mstack decide --resolves` answering it, the move succeeding, and the item carrying a
+pointer back to the row. 196 tests on both runtimes; typecheck and lint clean; sixteen `R2-*`
+mutations each killed by a named test; the six formerly stale doc transcripts and two formerly
+elided commands reproduce byte for byte against the shipped binary.
+
+**Four design decisions were the implementer's to make and are recorded**, one of them
+superseded during review: clearing is `--clear <field>` and an empty string is refused;
+attaching a fork at or past `spec_ready` is refused unless `--force`; rewriting a fork's prose
+drops its `decision_resolved` pointer, because the answer names the question; and `state set`
+takes `--title` but refuses `--slug`.
+
+**Two rounds. Round 1's own change line was the bug.** The implementer added a per-field change
+line precisely so that "a write nobody sees is indistinguishable from a no-op" — its docstring
+says so — and then truncated it at 48 characters, so two different forks sharing a prefix
+printed identically **while the command silently dropped the answer to one of them**. A trailing
+space did the same, because `required()` validated with `.trim()` and stored untrimmed. The
+function's own stated purpose, defeated on the one field where it mattered most.
+
+Round 2's fix on `--sdd` is worth keeping as a pattern: asked for a line announcing the gate
+failure the command had just created, the implementer made it **read the disk first** so it
+names a failure only when it made one, on the grounds that a line claiming a failure that did
+not happen is the confidently wrong output the gate exists to catch. Both branches asserted.
+
+**Turned up and filed separately:** item 16, `gate --quiet` prints nothing on failure while the
+wiki says it prints failures only — and it is the mode `src/hooks.ts:172` wires to the Stop
+hook, so a red gate at session close is silent by construction. Reproduced independently by
+three passes.
+
+**Left open, non-blocking:** `detail()`'s escaping is untested — replacing `JSON.stringify(value)`
+with a bare template leaves all 196 tests green, and in the tab-versus-space case the escaping is
+the only thing distinguishing two values whose character counts match. One extra case closes it.
+
+**And one on the orchestrating pass.** Its first check of the trailing-space case reported the
+fork had been re-opened. That was false: its own `mstack decide` had failed silently, so
+`decision_resolved` never existed and it was measuring the absence of a value nobody deleted.
+Caught by asking whether the test measured anything. Fifth instance in this programme of a check
+that could not fail, and the first one caught in flight rather than by a later pass.
