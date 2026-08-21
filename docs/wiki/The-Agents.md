@@ -2,7 +2,8 @@
 
 mstack splits work across five agents so that whoever writes a change is never the one who
 approves it. Each agent is a role with its own instructions and its own tool list, launched to
-do one job and hand the result to the next pass. This page introduces each one: what it is
+do one job and hand the result to the next pass. A pass is one launch of one agent: it starts
+clean, does its one job, and only what it wrote to disk survives it. This page introduces each one: what it is
 for, when it runs, what it writes, and what it is built to refuse. The one thing to take away
 is that the separation is enforced by which tools an agent is given and by a gate that is
 code, not by asking anyone to behave.
@@ -16,11 +17,11 @@ and are spelled `$ mstack` per the convention in [The-CLI](The-CLI.md).
 
 | Agent | One job | Writes | Must never |
 |---|---|---|---|
-| `orchestrator` | Owns one item from intake to close and picks who runs next | State moves, decision rows | Write application code, or approve its own work |
+| `orchestrator` | Owns one item from intake to close and picks who runs next | State moves, [decision rows](State-Files.md) | Write application code, or approve its own work |
 | `spec-author` | Writes the spec for one item on the spec path | `.mstack/specs/<slug>/`, `spec_<slug>.md` | Review its own spec |
 | `spec-reviewer` | Grills a spec before any code exists | `spec_review_<slug>.md` | Edit the spec, or review a spec it wrote |
-| `implementer` | Implements one item with the tests that prove it | The code, `impl_<slug>.md`, its own ledger row | Mark its own work approved or done |
-| `reviewer` | Judges an implementation it did not write | `review_<slug>.md`, its own ledger row | Edit the code, or approve on a red gate |
+| `implementer` | Implements one item with the tests that prove it | The code, `impl_<slug>.md`, its own [ledger](State-Files.md) row | Mark its own work approved or done |
+| `reviewer` | Judges an implementation it did not write | `review_<slug>.md`, its own ledger row when reviewing alone | Edit the code, or approve on a red gate |
 
 Report files live under `.mstack/progress/`. Every agent writes its result to disk and
 returns one line naming the path, because a subagent's working context vanishes when it
@@ -53,7 +54,8 @@ shell commands rather than as edits that look like ordinary work. That makes the
 speed bump with an audit trail, not a sandbox, and that is the honest strength of the claim.
 
 The other half is enforced by the gate. An item may only close on a ledger verdict from a
-pass that did not write the code. Here is a scratch-repository run where the implementer
+pass that did not write the code. A verdict is one of five typed values, `test-verified`
+below among them; the enum lives on [The-CLI](The-CLI.md). Here is a scratch-repository run where the implementer
 records its own honest verdict, the close is forced past review anyway, and the gate catches
 it (output trimmed to the lines that matter):
 
@@ -73,7 +75,8 @@ $ mstack gate
 ```
 
 The implementer's row is not worthless; it is evidence the code works, recorded at the rung
-the implementer honestly reached. It is just not sufficient to close. A reviewer re-runs the
+of [the evidence ladder](Skills-and-Playbooks.md#the-evidence-ladder) the implementer
+honestly reached. It is just not sufficient to close. A reviewer re-runs the
 verification and records its own row at the same SHA, and the same gate goes green:
 
 ```console
@@ -103,7 +106,9 @@ Writes the spec for one item into `.mstack/specs/<slug>/`: `proposal.md`, `desig
 `tasks.md`, `spec.md`, all four required before the item may leave `specifying`. Before
 writing, it re-verifies every `file:line` the item's source references, because an issue
 written weeks ago names code that has moved. Requirements get stable ids (`R1`, `R2`, ...)
-and EARS statements, every requirement gets a WHEN/THEN scenario, `design.md` records at
+and EARS statements (Easy Approach to Requirements Syntax, a small kit of fixed sentence
+forms; the kit is `skills/spec/references/ears.md`), every requirement gets a WHEN/THEN
+scenario, `design.md` records at
 least one rejected alternative, and every task names the R-ids it covers. It hands off with
 `.mstack/progress/spec_<slug>.md` and does not review its own spec; a different pass will
 reject a spec whose author reviewed it.
@@ -140,8 +145,10 @@ individually with evidence, reads the diff, compares the tests against the previ
 for weakening, and runs `mstack ledger check <slug>` at the current head SHA, because a
 rebase silently invalidates every verdict without touching a single check.
 
-Its report name carries a small grammar, and the grammar is load-bearing: reviewing alone it
-writes `review_<slug>.md`; as one lens of a panel, `review_<slug>_<lens>.md`; a later round
+Its report name carries a small grammar, and the grammar is load-bearing. A panel is several
+reviewers run in parallel over the same diff, each with a lens, one assigned focus such as
+correctness or security. Reviewing alone the reviewer writes `review_<slug>.md`; as one lens
+of a panel, `review_<slug>_<lens>.md`; a later round
 alone, `review_<slug>_r<N>.md`; a lensed later round, `review_<slug>_r<N>-<lens>.md`. Panels
 run in parallel, so one shared filename would mean every reviewer but the last overwrites the
 others, and losing a review silently is the failure the report exists to prevent.
@@ -155,7 +162,7 @@ The ledger is the typed record of who verified what (columns in
 |---|---|
 | implementer | Its own row, `--verifier implementer`, at the rung it honestly reached |
 | reviewer, alone | Its own row, `--verifier reviewer`, typed through Bash once the report exists. APPROVED records the rung its run reached; CHANGES_REQUESTED records `verifier-failed` even when the suite was green, because the check that ran is the review and the item failed it; a verification it could not run at all records `verifier-blocked` |
-| reviewer, as one lens of a panel | Nothing. The ledger keeps the best row per `(target, sha)` by rank, so several lens rows would collapse to the panel's most favorable member. The pass that synthesizes the panel's verdict records the one row, under its own name |
+| reviewer, as one lens of a panel | Nothing. The ledger keeps one winning row per item and commit, preferring the most favorable verdict, so several lens rows would collapse to the panel's most favorable member. The pass that synthesizes the panel's verdict records the one row, under its own name |
 | spec-author, spec-reviewer | No ledger rows. Their artifacts are the spec and `spec_review_<slug>.md` |
 
 Nobody types a row on another pass's behalf. A row ghost-written by the coordinating pass is

@@ -3,7 +3,7 @@
 mstack's memory is a handful of small files in your repository, and this page reads
 through them one by one. Come here when you want to know what a column means, which file to
 trust after a crash, or where a verdict or a decision actually lands. Nothing in `.mstack/`
-is opaque: every file is plain text, and each one is small enough to read whole.
+is opaque: every file is plain text.
 
 Everything durable lives in `.mstack/`, in the repository, under version control. Chat is not
 state: a context window dies mid-task, a subagent's working context vanishes with it and its
@@ -175,7 +175,8 @@ Two files with opposite disciplines, plus one report per pass:
 
 Present only for items on the spec path. Four artifacts, all required before the item leaves
 `specifying`: `proposal.md`, `design.md`, `tasks.md`, `spec.md` (`src/gate.ts:36`).
-Requirements carry stable ids (`R1`, `R2`, ...) in EARS form, every task names the
+Requirements carry stable ids (`R1`, `R2`, ...) in EARS form (Easy Approach to Requirements
+Syntax), every task names the
 requirements it covers, and the implementation report maps each requirement to the test that
 proves it. The chain is greppable end to end: requirement to task to test to review.
 
