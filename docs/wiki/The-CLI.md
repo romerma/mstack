@@ -425,6 +425,30 @@ Reads Claude Code's status-line JSON on stdin, prints one line (with ANSI colour
 here), exits 0 no matter what. `--subagent` renders the agent-panel rows instead. Wiring and
 the full behaviour are in [Status-Line](Status-Line.md).
 
+## version
+
+```console
+$ mstack version
+mstack 0.1.0 at /.../mstack
+```
+
+The path is printed absolute; it is elided here.
+
+One line: the version from the running copy's own `.claude-plugin/plugin.json`, and the
+resolved root that copy executes from. The path is the load-bearing half. Two copies of this
+plugin have been observed declaring the same version string while ten of their twelve `src/`
+files differed and their gates disagreed on an exit code, so when a transcript or a bug
+report needs to say *which* `mstack` ran, the path is the part that answers. It needs no
+store, and an unreadable manifest prints `(version unknown)` rather than exiting non-zero —
+the path still identifies the copy on its own.
+
+The line exists for one trap in particular: inside a checkout of this plugin itself, the
+`mstack` on `PATH` is the *installed* copy, not the code being edited. The gate catches that
+case by itself ([Gates-and-Hooks](Gates-and-Hooks.md#what-mstack-gate-checks)); `version` is
+how any other run says which copy produced it. A copy installed before this subcommand
+existed refuses it with `unknown command 'version'` — that refusal is itself the answer,
+because it means the copy predates everything on this page that mentions the subcommand.
+
 ## lint-plugin
 
 ```console
