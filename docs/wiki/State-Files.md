@@ -7,12 +7,17 @@ The store is small enough to read in one sitting, and that is deliberate.
 
 ```
 .mstack/
-├── state.json      work items and the lifecycle the gate enforces
-├── ledger.tsv      target · sha · verdict · evidence · verifier · ts
-├── decisions.tsv   ts · phase · decision · why · evidence · result · resolves
-├── progress/       current.md (live) · history.md (append-only) · <kind>_<slug>.md
-└── specs/<slug>/   proposal · design · tasks · spec
+├── state.json        work items and the lifecycle the gate enforces
+├── ledger.tsv        target · sha · verdict · evidence · verifier · ts
+├── decisions.tsv     ts · phase · decision · why · evidence · result · resolves
+├── verification.tsv  target · sha · command · outcome · ts   (machine-local, gitignored)
+├── .gitignore        one line, and the reason it is there
+├── progress/         current.md (live) · history.md (append-only) · <kind>_<slug>.md
+└── specs/<slug>/     proposal · design · tasks · spec
 ```
+
+Everything there is committed except `verification.tsv`, which is the one file whose whole
+claim is about *this* checkout. See [below](#verificationtsv).
 
 ## state.json
 
@@ -35,7 +40,7 @@ An item's fields (`src/state.ts:6-33`):
 | `decision_required` | Optional. Prose naming an unresolved product fork; its presence triggers the human gate and, past `specifying`, blocks the item |
 | `decision_resolved` | The `ts` of the `decisions.tsv` row that answered the fork. A pointer, not a copy: the row carries the reasoning, and duplicating it here would give it somewhere to drift to. Written only by `mstack decide --resolves`, which writes the row and the pointer in one step so neither can exist alone. Dropped when `state set` rewrites or clears the `decision_required` it answered, because the row named that question and would otherwise answer the next one too |
 | `source` | Where the work came from: an issue reference, or "direct request" |
-| `verification` | The exact command that proves this item works |
+| `verification` | The exact command that proves this item works. From `verifying` on, the gate requires that it has actually been executed at the current commit; see [verification.tsv](#verificationtsv) |
 | `closed_by` | A note for the next reader. **Not a verdict**: the gate does not accept it in place of a ledger row, a lesson recorded in the changelog |
 
 ## ledger.tsv
@@ -80,6 +85,31 @@ change depends on, get it as far down this list as is cheap, and **say where it 
 
 Two rules travel with the ledger: CI green is an *input* to a verdict, never a verdict on its
 own; and anything you cannot get to rung 4 you say out loud rather than writing up as settled.
+
+## verification.tsv
+
+One row per verification command `mstack gate --full` actually executed:
+
+```
+target	sha	command	outcome	ts
+```
+
+A ledger row is a *verdict* by a pass that looked at the work; a row here is a *fact* about one
+command exiting, and the two are kept apart on purpose. Writing these into `ledger.tsv` would
+hand them a `verifier` column the gate accepts, so running `gate --full` would close the item
+it was meant to prove — the self-closing shape `require_verdict_to_close` exists to refuse.
+
+`target` is the item's slug, or `(project)` for the `verify` command from `state.json`; a slug
+is kebab-case, so the parentheses cannot collide with one. The fast gate reads these back and,
+from `verifying` on, refuses to call an item green on a command that never ran here; the rules
+and the reasoning are in
+[Gates-and-Hooks](Gates-and-Hooks.md#verification-that-actually-ran).
+
+**This is the one file in the store that is not committed**, and `mstack setup` writes a
+`.mstack/.gitignore` saying so. A receipt is keyed to HEAD, so committing one moves HEAD and
+voids the receipt being committed; and a receipt from another checkout would let one worktree's
+run stand in for a run nobody in this one ever did, when "somebody here actually executed it"
+is the entire claim being made.
 
 ## decisions.tsv
 

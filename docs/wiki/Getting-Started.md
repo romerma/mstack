@@ -43,9 +43,15 @@ $ mstack setup
 [ok]    progress/history.md written
 [ok]    ledger.tsv ready
 [ok]    decisions.tsv ready
+[ok]    .mstack/.gitignore ready (verification.tsv is machine-local)
 
 PASSED - 0 failures, 0 warnings
 ```
+
+Every file in the store is durable state under version control except one. `verification.tsv`
+records which verification command was executed *here* and against which commit, so a copy
+from another checkout proves nothing about this one — and committing it would move HEAD and
+void the very receipt being committed. That is what the store's own `.gitignore` is for.
 
 Prove the store is healthy. Straight after `setup`, with `.mstack/` not yet committed, the
 gate passes with two warnings:
@@ -66,6 +72,7 @@ $ mstack gate
 [ok]    no item carries a decision fork
 [ok]    no sdd item is past specifying
 [ok]    no closed items to audit
+[ok]    no active item, so no verification run is due
 
 -- workspace
 [warn]  on main; feature work belongs on its own branch
@@ -81,8 +88,9 @@ Commit the store; it is durable state and belongs in version control:
 ```console
 $ git add -A
 $ git commit -m "chore: add the mstack store"
-[main cf92869] chore: add the mstack store
- 5 files changed, 51 insertions(+)
+[main 4ef311d] chore: add the mstack store
+ 6 files changed, 56 insertions(+)
+ create mode 100644 .mstack/.gitignore
  create mode 100644 .mstack/decisions.tsv
  create mode 100644 .mstack/ledger.tsv
  create mode 100644 .mstack/progress/current.md
