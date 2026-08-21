@@ -111,6 +111,20 @@ on the implementer's row.
   but not the injected context. Before/after transcripts of the reviewer's exact worktree
   case (a branch with a check main lacks) are in the impl report's round-3 section.
 
+- Round 3 made same-repository necessary but not sufficient: sufficiency is the committed src
+  tree read as `HEAD:src` in the same rev-parse spawn, at zero extra cost. Severity split,
+  `fail` for a copy outside the repository and `warn` for a sibling whose src tree differs.
+  274 tests. Verified all five boundary cases myself.
+- Round 3 review: CHANGES_REQUESTED on one narrow blocker. `src/cli.ts:1038-1041` branches on
+  `!sameSrc` alone, so where a tree id is null the CLI says "differs" while the gate says
+  "could not be compared". Reproduced with a worktree whose HEAD has no committed src/. The
+  diff's own invariant at `src/paths.ts:188-190` says the two surfaces must agree.
+- The severity question I could not settle was split three ways by the review rather than
+  guessed: the model gets nothing by construction, the client captures exit-0 hook stderr, and
+  whether a person sees it rendered is something this repo already declines to promise.
+- Item 21 filed for a suite that failed 273/1 once and was clean on nineteen later runs, name
+  not captured. A one-in-twenty red suite is now a tracked fact rather than a line in a report.
+
 ## Verification
 
 - Round 1: `npm test` 267/267 under bun and node, typecheck exit 0, `lint-plugin` PASSED,

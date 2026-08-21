@@ -313,6 +313,19 @@
       "description": "Item 15 reserved _r<digits> as a round marker in agents/reviewer.md, the file that parses report names, but not in skills/review/SKILL.md step 2, the file that hands them out. 'mstack fanout plan --kind review --worker r2' allocates review_<slug>_r2.md to a lens, which then reads its own path as solo and records a row a panel member must not record. Zero real occurrences today; found as a non-blocking note in the item 15 round-3 review, which judged one clause in step 2 sufficient.",
       "source": "item 15 round-3 review, non-blocking note, 2026-08-21",
       "verification": "npm test && npm run typecheck && ./bin/mstack lint-plugin ."
+    },
+    {
+      "id": 21,
+      "slug": "unidentified-flaky-test",
+      "title": "One suite run failed 273/1 and was never identified",
+      "acceptance": [
+        "Either the failing test is identified and made deterministic, or the suite is run enough times under load to bound the rate and the finding is closed with that number",
+        "Whatever is found is recorded where the next person hitting a red suite will look"
+      ],
+      "status": "pending",
+      "description": "During the item 17 round-3 review a single 'npm test' run reported 273 pass, 1 fail. Nineteen subsequent runs were clean: 12 plain, 3 npm test, 6 under saturating load. The failing test name was not captured, which the reviewer recorded as its own error rather than dropping. The obvious suspect was ruled out: the fifo manifest test's 10s guard has 26x headroom at a 0.38s mean. Rung 5 that it happened, rung 1 for the cause. Filed so that a one-in-twenty red suite is a tracked fact rather than a sentence in one report.",
+      "source": "item 17 round-3 review, non-blocking, 2026-08-21",
+      "verification": "npm test && npm run typecheck && ./bin/mstack lint-plugin ."
     }
   ]
 }
