@@ -358,4 +358,7 @@ test("shellSegments cuts where the shell would and nowhere else", () => {
   // separator. Cutting there would hide whatever followed it from every guard.
   assert.deepEqual(shellSegments("git push --force 2>&1"), ["git push --force 2>&1"]);
   assert.deepEqual(shellSegments("cmd &> log && other"), ["cmd &> log", "other"]);
+
+  // `>|` is a clobbering redirect, not a pipe, for the same reason.
+  assert.deepEqual(shellSegments("cmd >| out && other"), ["cmd >| out", "other"]);
 });
