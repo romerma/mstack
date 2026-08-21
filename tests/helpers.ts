@@ -77,6 +77,57 @@ export function trackCurrent(box: Sandbox, note = "carry on"): void {
   );
 }
 
+/**
+ * Take a sandbox to a gate with nothing at all to say.
+ *
+ * Every sandbox warns twice out of the box: `git init` leaves the default
+ * branch checked out, and `mstack setup` leaves `.mstack/` untracked. Without a
+ * way to silence both, "a green gate prints nothing" and "a warning prints
+ * nothing" would be the same test running twice.
+ */
+export function quiesce(box: Sandbox): void {
+  const run = (args: string[]) => execFileSync("git", args, { cwd: box.store.root, stdio: "ignore" });
+  run(["checkout", "-q", "-b", "feat/sandbox"]);
+  run(["add", "-A"]);
+  run(["commit", "-q", "-m", "sandbox state"]);
+}
+
+/**
+ * Run `fn` with everything it prints captured, and hand back both streams.
+ *
+ * Both spellings of each stream are intercepted, which is not belt and braces.
+ * Under bun `console.error` does not go through `process.stderr.write`, so
+ * patching one of the pair captures nothing at all on one of the two runtimes
+ * this suite runs on — and a capture that sees nothing turns every "printed
+ * exactly this" assertion into a test that cannot fail.
+ */
+export function captured<T>(fn: () => T): { value: T; out: string; err: string } {
+  const out: string[] = [];
+  const err: string[] = [];
+  const realLog = console.log;
+  const realError = console.error;
+  const realOut = process.stdout.write.bind(process.stdout);
+  const realErr = process.stderr.write.bind(process.stderr);
+  console.log = (...args: unknown[]) => void out.push(`${args.join(" ")}\n`);
+  console.error = (...args: unknown[]) => void err.push(`${args.join(" ")}\n`);
+  process.stdout.write = ((chunk: unknown) => {
+    out.push(String(chunk));
+    return true;
+  }) as typeof process.stdout.write;
+  process.stderr.write = ((chunk: unknown) => {
+    err.push(String(chunk));
+    return true;
+  }) as typeof process.stderr.write;
+  try {
+    return { value: fn(), out: out.join(""), err: err.join("") };
+  } finally {
+    console.log = realLog;
+    console.error = realError;
+    process.stdout.write = realOut;
+    process.stderr.write = realErr;
+  }
+}
+
 export function item(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
     id: 1,

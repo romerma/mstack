@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
@@ -11,14 +11,27 @@ import { item, sandbox, state, trackCurrent } from "./helpers.ts";
 
 const BIN = join(dirname(fileURLToPath(import.meta.url)), "..", "bin", "mstack");
 
-function run(cwd: string, args: readonly string[]): { stdout: string; stderr: string; code: number } {
-  try {
-    const stdout = execFileSync(BIN, args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
-    return { stdout, stderr: "", code: 0 };
-  } catch (error) {
-    const e = error as { stdout?: string; stderr?: string; status?: number };
-    return { stdout: e.stdout ?? "", stderr: e.stderr ?? "", code: e.status ?? 1 };
-  }
+/**
+ * `spawnSync`, not `execFileSync`, for one reason: it hands back stderr on a
+ * *successful* exit too. The version this replaced returned `stderr: ""`
+ * whenever the code was 0, which would have made "the Stop hook exits 0 and
+ * writes the failures to stderr" untestable — and unfalsifiable, which is
+ * worse.
+ *
+ * `input` overrides stdio[0], which is how the hook subcommands get their JSON:
+ * they read stdin, and a hook fed nothing takes a different path.
+ */
+function run(
+  cwd: string,
+  args: readonly string[],
+  options: { input?: string } = {},
+): { stdout: string; stderr: string; code: number } {
+  const result = spawnSync(BIN, [...args], {
+    cwd,
+    encoding: "utf8",
+    ...(options.input !== undefined ? { input: options.input } : {}),
+  });
+  return { stdout: result.stdout ?? "", stderr: result.stderr ?? "", code: result.status ?? 1 };
 }
 
 test("`state active` prints the slug alone, so command substitution works", () => {
@@ -445,6 +458,76 @@ test("--sdd past specifying announces what it does to the gate", () => {
     const pending = run(sb.store.root, ["state", "set", "1", "--sdd"]);
     assert.equal(pending.code, 0, pending.stderr);
     assert.doesNotMatch(pending.stdout, /forced:/, "pending needs no spec, so there is no consequence to name");
+  } finally {
+    sb.dispose();
+  }
+});
+
+/**
+ * `--quiet` through the shipped binary, which is the only place the streams are
+ * real. The unit tests in `gate.test.ts` patch `process.stderr.write`; these run
+ * `bin/mstack` as a process and read fd 1 and fd 2 apart.
+ */
+test("gate --quiet prints its failures on stderr and leaves stdout empty", () => {
+  const sb = sandbox();
+  try {
+    sb.writeState(state([item({ status: "in_progress" })]));
+    const red = run(sb.store.root, ["gate", "--quiet"]);
+    assert.equal(red.code, 1);
+    assert.equal(
+      red.stderr,
+      "[fail]  1 storage-layer (in_progress) is active but progress/current.md is not: the Item line still says _none_; Next step is still the empty template -> if this session dies now, nothing tells the next one where to start\n",
+      "the wiki promises failures only; this is what that means byte for byte",
+    );
+    assert.equal(red.stdout, "", "stdout is where a hook's JSON goes");
+
+    // The same store without the flag, to pin what quiet drops: the section
+    // headers, the [ok] lines, the second `fix:` line and the count.
+    const loud = run(sb.store.root, ["gate"]);
+    assert.equal(loud.code, 1);
+    assert.match(loud.stdout, /-- store/);
+    assert.match(loud.stdout, /\[ok\]/);
+    assert.match(loud.stdout, /^ +fix: if this session dies now/m);
+    assert.match(loud.stdout, /FAILED - 1 failure/);
+    for (const dropped of ["-- store", "[ok]", "FAILED - "]) {
+      assert.ok(!red.stderr.includes(dropped), `quiet leaked ${JSON.stringify(dropped)}`);
+    }
+
+    // A green gate costs zero lines, which is what makes it cheap on a hook.
+    trackCurrent(sb);
+    const green = run(sb.store.root, ["gate", "--quiet"]);
+    assert.equal(green.code, 0);
+    assert.equal(green.stdout + green.stderr, "", `a passing quiet gate printed ${JSON.stringify(green.stdout + green.stderr)}`);
+  } finally {
+    sb.dispose();
+  }
+});
+
+test("hook stop keeps its JSON on stdout and the gate's failures on stderr", () => {
+  const sb = sandbox();
+  try {
+    sb.writeState(state([item({ status: "in_progress" })]));
+    const hook = run(sb.store.root, ["hook", "stop"], {
+      input: JSON.stringify({ hook_event_name: "Stop", cwd: sb.store.root }),
+    });
+
+    assert.equal(hook.code, 0, "a Stop hook nudges; only exit 2 blocks");
+    // The load-bearing assertion. Failure text on stdout would sit in front of
+    // this object and Claude Code would have nothing structured to read.
+    const parsed = JSON.parse(hook.stdout) as { hookSpecificOutput: { additionalContext: string } };
+    assert.equal(hook.stdout.trimEnd(), JSON.stringify(parsed), "stdout is one JSON object and nothing else");
+    assert.match(parsed.hookSpecificOutput.additionalContext, /The mstack gate is red/);
+    assert.equal(
+      hook.stderr,
+      "[fail]  1 storage-layer (in_progress) is active but progress/current.md is not: the Item line still says _none_; Next step is still the empty template -> if this session dies now, nothing tells the next one where to start\n",
+      "the human watching the session sees the failure, not just an exit code",
+    );
+
+    trackCurrent(sb);
+    const green = run(sb.store.root, ["hook", "stop"], {
+      input: JSON.stringify({ hook_event_name: "Stop", cwd: sb.store.root }),
+    });
+    assert.equal(green.stdout + green.stderr, "", "a green Stop says nothing on either stream");
   } finally {
     sb.dispose();
   }
