@@ -22,7 +22,7 @@ timed-out hook renders no decision at all, so a gate must never depend on being 
 
 ### What PreToolUse denies
 
-The guard list, from `src/hooks.ts:205-243`:
+The guard list, from `src/hooks.ts:230-271`:
 
 | Denied | Why |
 |---|---|
@@ -38,12 +38,40 @@ hooks run before the permission prompt, for every tool except EndConversation", 
 that exits with code 2 stops the tool call before permission rules are evaluated, so the block
 applies even when an allow rule would otherwise let the call proceed". The docs do not spell
 out the `bypassPermissions` case, but it follows from that ordering: a deny rendered before
-the permission system is consulted is a deny no permission mode gets to overrule. The guards
-themselves are regexes over the command string, not a shell parser, and
-they eat git's global options on purpose: `git -C dir push --force` and `git push origin
-+main` both used to slip through as spellings the patterns did not cover. The cost is accepted
-and documented in the source: `echo "do not git push --force"` is denied too, and erring in
-that direction is recoverable while the other direction is not.
+the permission system is consulted is a deny no permission mode gets to overrule.
+
+The guards themselves are regexes over **one shell command at a time**, not a shell parser,
+and they eat git's global options on purpose: `git -C dir push --force` and `git push origin
++main` both used to slip through as spellings the patterns did not cover.
+
+"One command at a time" is the half that took two rounds to get right, and it splits into two
+rules that lean opposite ways.
+
+Within a single command the match is loose, and the cost is accepted: `echo "do not git push
+--force"` is denied, because erring toward a line the author rewrites is recoverable and the
+other direction is not.
+
+Across commands it is not loose, because there is nothing to be loose about. A separator ends
+a command, so text after it cannot be an argument to what came before, and matching across one
+denies work that does nothing the rule warns about — `rm -rf /tmp/x && mstack decide
+--evidence ".mstack/x.md"` was denied by a pattern that read the store name out of the *next*
+command. So `preToolUse` cuts the line on `&&`, `||`, `;`, `&`, `|` and newlines
+first (`shellSegments`, `src/hooks.ts:273-383`) and runs each guard against each piece alone.
+`git push origin main && echo 'use --force only after asking'` is therefore allowed.
+
+The cut is where the danger moved. A separator inside `$(...)`, backticks, `<(...)` or a
+quoted string does **not** end the command, and a scanner that cuts there hands each guard
+half a command: the verb in one fragment, its argument in another, and no match on either.
+That is a false *allow*, and it shipped for exactly one review round —
+`rm -rf $(cd /r && pwd)/.mstack` was denied by the un-segmented guard and allowed by the first
+segmented one, across all five rules that carry the shape. The scanner now tracks quotes,
+backslash escapes, redirection operators and substitution depth, and the rule written at the
+top of `shellSegments` is one-directional: a construct it cannot model must leave a segment
+too long, never too short.
+
+None of this makes the array a sandbox, and the source says so rather than implying otherwise:
+an interpreter one-liner, `find -delete`, `fd -X rm`, a path arriving through a variable, or
+`mv` followed by a deletion all pass, because a `PreToolUse` hook only ever sees the string.
 
 ## What `mstack gate` checks
 
