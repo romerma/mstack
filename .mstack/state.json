@@ -235,7 +235,7 @@
         "Whether a reviewer with no Write tool can record at all is established by evidence rather than assumed, and if it cannot, the item says what does close the gap instead",
         "lint-plugin still passes and the agent frontmatter contract is unchanged"
       ],
-      "status": "pending",
+      "status": "in_progress",
       "description": "agents/implementer.md:45 is the only agent file that instructs 'mstack ledger record', and it hardcodes --verifier implementer. agents/reviewer.md:30 and skills/review/SKILL.md:35 tell the reviewer to run 'ledger check' and never to record. So the row that closes an item is always typed by somebody other than the reviewer, and src/roles.ts:96-99 already concedes the verifier column is free text and only a floor. The dogfood ledger is the proof: ten rows, eight verifier=implementer, one orchestrator, one reviewer — and the reviewer row was typed by the coordinating pass on the reviewer's behalf. The reports carried the separation the README leads with; the ledger did not.",
       "source": "sandbox dogfood session, divergent lens Part 3 #3, 2026-08-21",
       "verification": "npm test && npm run typecheck && ./bin/mstack lint-plugin ."
@@ -269,6 +269,20 @@
       "status": "pending",
       "description": "which -a mstack resolves only to ~/.claude/plugins/cache/mstack/mstack/0.1.0/bin/bin/mstack. Its own help line is the pre-item-13 form, with no --clear and no --description, so the copy on PATH is older than main and there is no warning that it is. CONTRIBUTING.md tells a contributor to run the plugin from the checkout with 'claude --plugin-dir .' and says nothing about the CLI. Every wiki transcript is written as '$ mstack ...', so a contributor re-running them to satisfy the pasted-output-from-real-runs rule exercises 0.1.0 and gets a mismatch that has nothing to do with the transcript. The loud failure is the benign one: an unknown flag. The dangerous one is silent and inverted — a gate or hook change the cached copy does not implement, run against the new store, reporting green. That is the same defect class as the rest of this refinement round: a check that reports on something other than what the reader thinks it ran against. Found while verifying item 16; reproduced at rung 5 by two passes.",
       "source": "item 16 review, reproduced at rung 5 by two passes, 2026-08-21",
+      "verification": "npm test && npm run typecheck && ./bin/mstack lint-plugin ."
+    },
+    {
+      "id": 18,
+      "slug": "closing-row-cites-own-report",
+      "title": "A closing verdict may cite the implementer's own report and still count",
+      "acceptance": [
+        "A done item whose only non-implementing row cites impl_<slug>.md as its evidence is reported by mstack gate",
+        "Evidence that is free prose rather than a path is unaffected, proven against every row currently in this repo's ledger",
+        "The check is proven at rung 5 by a row that passes today and is refused after"
+      ],
+      "status": "pending",
+      "description": "src/gate.ts:373 refuses a closing row whose verifier is an implementing role, but it reads only the verifier column. A row typed as '--verifier reviewer --evidence .mstack/progress/impl_<slug>.md' passes: the implementer's own evidence wearing another role's name. Every legitimate closing row in this repo's ledger cites a review_*.md or free prose, so the tightening has no false positives against the existing history. Split out of item 15 rather than widened into it, so it gets its own review.",
+      "source": "item 15 scope decision, 2026-08-21",
       "verification": "npm test && npm run typecheck && ./bin/mstack lint-plugin ."
     }
   ]

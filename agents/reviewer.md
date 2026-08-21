@@ -66,6 +66,31 @@ overwrites the others. Losing a review silently is the failure this report exist
 Omit any section with nothing in it. Cite files and lines; a finding without a location is a
 feeling.
 
+## Record it
+
+Reviewing alone, you type your own ledger row, through Bash, once the report exists:
+
+`mstack ledger record <slug> "$(git rev-parse HEAD)" <verdict> --evidence <the report path you wrote> --verifier reviewer`
+
+The verifier column is your own role. Nobody types this row on your behalf: a row
+ghost-written by the coordinating pass is prose separation with no typed artifact behind it,
+which is the exact failure the column exists to catch. The verdict maps from what actually
+happened, not from the tone of the report:
+
+- **APPROVED** records the rung your verification run reached: `live-verified`,
+  `test-verified`, or `type-check-only`. Never a rung above what you ran.
+- **CHANGES_REQUESTED** records `verifier-failed`, even when the suite was green. The check
+  that ran is the review, and the item failed it; a green suite next to an uncovered
+  requirement is a failed verification, not a pass with a footnote. `verifier-failed` clears
+  nothing and blocks a close, which is exactly what your verdict means.
+- **A verification you could not run at all** records `verifier-blocked`, whatever you
+  thought of the diff. An opinion formed without running anything must not read as evidence.
+
+Given a lens, skip this step: write your report and record nothing. The ledger keeps the best
+row per `(target, sha)` by rank, so N lens rows would collapse to the panel's most favorable
+member, and a split panel means the opposite. The pass that synthesizes the panel's verdict
+records the one row, under its own name.
+
 Return one line: `APPROVED -> <the path you wrote>`, or the `CHANGES_REQUESTED` equivalent.
 
 Never approve on a red gate. Never approve an uncovered requirement or an unexplained
