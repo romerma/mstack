@@ -219,7 +219,7 @@
         "The cost is bounded: whatever runs the verification does not turn every Stop hook into a full test suite run, and the reasoning for where the line falls is recorded",
         "Tests cover a red verification being caught, a green one passing, and the no-verification-configured case"
       ],
-      "status": "in_progress",
+      "status": "reviewing",
       "description": "src/hooks.ts:172 wires the Stop hook to runGate(store, { quiet: true }) — the fast gate, which touches only the store and the workspace and never runs state.verify or item.verification. Only a human typing 'mstack gate --full' executes them. CLAUDE.md and skills/setup/SKILL.md:64-71 both say the gate must be green before a session closes, and for the verification half of that sentence nothing enforces it. In the dogfood session the item's verification field was a non-executable string from intake and stayed red for 230 minutes across four agent passes; no hook, no gate and no agent noticed, because nothing ran it. Separately, 'gate --full' with nothing configured warns that it checked nothing and still exits 0, so asking for the full gate and getting no verification at all is indistinguishable from passing it.",
       "source": "sandbox dogfood session, divergent lens finding F6-B, F10, O6 and Part 3 #2, 2026-08-21",
       "verification": "npm test && npm run typecheck && ./bin/mstack lint-plugin ."
