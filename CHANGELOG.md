@@ -34,6 +34,20 @@ The docs round, before publication.
   broke the very command, then a close, all at exit 0 with the verification red the whole
   time. Paths under `.mstack/` are excluded from that fingerprint, so writing your own progress
   notes does not void a run and editing code does.
+- That tree fingerprint hashes **contents**, not the list of dirty paths. The first attempt
+  hashed `git status --porcelain`, whose lines are two status characters and a path — so it
+  keyed on *which* files were dirty, and if the tree was already dirty when the run happened,
+  the ordinary mid-session state, a further edit inside those same paths moved nothing and the
+  same green-gate-on-a-red-verification came back one layer in. It is now `git diff HEAD` plus
+  a content hash per untracked file, chosen over a temp-index `write-tree` with measurements
+  rather than by argument: 58ms and 34ms against 638ms on a 30k-file repository.
+- The tree is sampled after the verification commands run, so a suite that writes a log or a
+  coverage file into the repository does not void its own receipt; and a working tree git
+  cannot describe now warns that only the commit half of the key was checked, instead of
+  reporting "verification ran and passed" over the top of it.
+- A later `--closed-by` no longer erases the `closed unverified (forced):` marker, which is the
+  only durable record that an item closed on a verification nobody ran — and `skills/ship`
+  tells people to run exactly that command after a merge.
 - An unreadable `.mstack/verification.tsv` is a gate failure rather than an exception that
   escapes the run. It made `mstack hook stop` emit zero bytes and exit 0 — byte-identical to a
   green gate — and threw `mstack gate` out mid-run so the workspace section and the summary

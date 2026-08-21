@@ -145,7 +145,9 @@ So `--full` records what it ran, against which commit and working tree, and how 
 fast gate reads that back. From `verifying` on, an item whose verification has no passing run
 here is a gate failure; moving it to `done` to make the gate stop looking is refused at the
 transition; and an uncommitted edit to code after the run voids the run, because a receipt that
-certified only the commit would call a verification green while it was red right now.
+certified only the commit would call a verification green while it was red right now. That last
+part is keyed on the *contents* of what is uncommitted rather than on which files are dirty,
+which is the difference between a guarantee and a sentence that sounds like one.
 
 ```bash
 $ mstack state set greet-flag --status done
