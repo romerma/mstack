@@ -369,3 +369,46 @@ Left behind and not cleaned: branch `review17-wt-probe` from a round-1 review pr
 is removed; the force-delete spelling is refused by this plugin's own guard, which is the guard
 working. Filed separately: writing that spelling inside this very history entry tripped the
 guard, because it scans the whole invocation including heredoc bodies.
+
+## Item 23 docs-for-newcomers, 2026-08-22
+
+Three panel rounds on a docs item, two lenses per round, and the lenses earned their
+separation every time: neither ever found the other's blockers.
+
+The request came from the user directly: the docs were accurate but not friendly, and nothing
+explained the cast. Measured before deciding: no wiki page documented the 5 agents, 12 skills
+or 7 playbooks as topics; zero diagrams anywhere; every page opened at mechanism level.
+Decided and recorded: additive, not a rewrite - item 9's panel had verified the existing
+~2400 lines, and the problem was structure, not accuracy.
+
+Shipped: The-Agents.md and Skills-and-Playbooks.md; a lifecycle stateDiagram matching
+TRANSITIONS edge for edge; a request-flow flowchart with the three passes framed in an
+orchestrator subgraph and merge-gate as the landing decision; opening summaries on all 8
+existing pages; a README concept map; and a jargon pass that defines or links every term at
+first use. 100 relative links, 0 broken.
+
+What the rounds caught, by lens:
+
+- Reader, round 1: the four promised dimensions existed for agents but not skills; the flow
+  diagram taught mstack gate as the landing decision and omitted the orchestrator; 11
+  unglossed terms. Facts, round 1: the Skills page's opening contradicted its own route table
+  30 lines down; a summary contradicted its own page; two stale line cites.
+- Round 2 fixed all of it and reintroduced the jargon defect inside the fix's own tables, and
+  added a caption asserting the session gate runs at SessionStart - refuted at rung 5, one
+  runGate hook call site, in Stop, per turn. The fifth true-sounding connective sentence this
+  refinement has caught asserting behaviour the mechanism does not have.
+- The reader's round-2 structural worry - subgraph members bound to top level by earlier edge
+  references - was settled at rung 4 by driving mermaid 11.17.0's own parser db: shipped
+  membership [spec, impl, review], and a true-failure mutant returning [review] proves the
+  probe can fail. The diagram was not restructured for a hedge against an unknown.
+
+Honest residuals, stated rather than swept: GitHub's own mermaid render was observed by no
+pass (the probe pins 11.17.0, GitHub pins its own) - closable only by looking at the pushed
+page; and the wiki-publish rewrite leaves Page.md#anchor links 404ing on the published wiki,
+a pre-existing class now counted at seven instances and filed as item 24.
+
+Process notes: both round-2 lenses were killed at launch by a usage limit and resumed with
+context intact, nothing repeated. The panel rows followed item 15's grammar throughout - the
+lenses recorded nothing, the synthesizing pass recorded one row per round under its own role,
+and the composed r<N>-<lens> report names classified correctly at every step. Item 24's
+instance count was corrected five-to-seven from the round-3 facts sweep before close.

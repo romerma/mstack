@@ -353,10 +353,11 @@
         "Pasted output on touched pages is from real ./bin/mstack runs at the editing commit, and existing verified transcripts are not altered unless re-run",
         "check-doc-links and lint-plugin pass, and Home.md and _Sidebar.md list every page"
       ],
-      "status": "verifying",
+      "status": "done",
       "description": "The wiki's 8 content pages are organized around mechanisms (CLI, gates, state files) and were fact-checked by item 9's panel, but no page documents the five agents, twelve skills or seven playbooks as topics - mentions are scattered 1-14 per page. There is not a single diagram in README or the wiki, no page opens with a plain-language summary, and a newcomer meets the lifecycle transition table before anyone tells them what a work item is for. User request 2026-08-21: make the docs easier to read and explain all the subagents, gates, playbooks and skills.",
       "source": "user request, docs refinement, 2026-08-21",
-      "verification": "npm test && npm run typecheck && ./bin/mstack lint-plugin . && node scripts/check-doc-links.mjs README.md docs/wiki/*.md"
+      "verification": "npm test && npm run typecheck && ./bin/mstack lint-plugin . && node scripts/check-doc-links.mjs README.md docs/wiki/*.md",
+      "closed_by": "Panel APPROVED at round 3, both lenses; synthesized row test-verified at 871f9768"
     },
     {
       "id": 24,
