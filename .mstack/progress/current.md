@@ -346,13 +346,41 @@ programme 230 minutes of a red gate nobody saw.
   check-doc-links 60/0. Mutation baseline green before and after, restores byte-verified.
 - Still rung 2: the receipt **write** failure path. Still rung 3: losing a row under concurrency.
 - Commits: `8771939` the code, `c82cf57` the docs.
+- **Round 4.** One review finding, and it shipped fixed rather than measured away.
+  `git hash-object` follows symlinks and hashes the target bytes; git records a symlink blob as
+  the *target string*. Verified myself before touching anything. Following it broke four ways:
+  a link to a directory or a dangling link could not be hashed at all, so treeId returned
+  `unknown`, the tree half switched off, and an item closed green on a verification exiting 1.
+- Every untracked path is now lstat-ed and only a regular file is opened; a symlink contributes
+  readlink. The /dev/zero row went 5253ms to 25ms.
+- **Two more of the same shape found while fixing it, neither reported.** A store in a
+  subdirectory had its tree half off always, because ls-files prints cwd-relative paths and
+  hash-object resolves repo-root-relative ones. And treeId ran twice per fast gate, which is why
+  /dev/zero cost 10.6s rather than 5.25s.
+- Corrected a claim of my own: I justified classifying by file kind by saying a fifo would stall
+  hash-object with no symlink involved. Measured, false - git lists only regular files and
+  symlinks. Decision row superseded, failing test replaced by one pinning what is true.
+- 22 mutations, 20 killed, 2 unreachable. First run was 15/22 and **three survivors were my
+  mutations being unfaithful**, one was a real test gap (my nested-store test passed even when
+  every path resolved to nowhere).
+
+## Verification
+
+- Round 4, rung 5: the false green reproduced before the fix and re-run after, through the
+  shipped binary; all four symlink rows measured before and after; the nested-store disagreement
+  shown with git own output; the fifo measurement that corrected my reasoning.
+- Round 4, rung 4: `npm test` 258 pass on bun and node; typecheck clean; lint-plugin 0/0;
+  check-doc-links 60/0. Mutation baseline green both sides, restores byte-verified.
+- Cost got *cheaper*: fast gate at verifying 88ms to 77ms, because the double treeId is gone.
+  in_progress unchanged at 57ms.
+- Still rung 2: the `gone` race branch, the readlink-catch branch, and the receipt write path.
+- Commits: `defdb18` the code, `feea311` the docs.
 ## Next step
 
-- If this dies: round 3 of item 14 is complete on feat/verification-never-runs. The round-3
-  section is at the end of `.mstack/progress/impl_verification-never-runs.md`; the two review
-  reports are `review_verification-never-runs.md` and `..._r2.md`. It is **not** approved —
-  a reviewer that did not write it decides that, and the item stays `in_progress`.
-  For the closing pass: finding D (a verdict at the closing SHA from a pass that did not write
-  the code — every row so far is `--verifier implementer`), and the one-character `state.json`
-  edit that would let the dedupe stop running this suite twice per `gate --full`.
-  Items 15 and 17 still pending.
+- If this dies: round 4 of item 14 is complete on feat/verification-never-runs. The round-4
+  section is at the end of `.mstack/progress/impl_verification-never-runs.md`; the three review
+  reports are `review_verification-never-runs.md`, `..._r2.md` and `..._r3.md`. It is **not**
+  approved - a reviewer that did not write it decides that, and the item stays `in_progress`.
+  For the closing pass: a verdict at the closing SHA from a pass that did not write the code
+  (every row so far is `--verifier implementer`), and the one-character `state.json` edit that
+  would stop `gate --full` running this suite twice. Items 15 and 17 still pending.
