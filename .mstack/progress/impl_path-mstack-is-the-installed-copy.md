@@ -199,3 +199,192 @@ hook would pay for on every turn.
 real process in scratch stores, the differential was reproduced before and after from byte
 copies, and the full suite (267 × 2 runtimes), typecheck, lint-plugin, doc links and the
 session gate are green at this head.
+
+---
+
+# Round 2
+
+Review verdict CHANGES_REQUESTED at `7df41e6`
+(`.mstack/progress/review_path-mstack-is-the-installed-copy.md`), four findings, two
+blocking. All four addressed. Base for this round: `de38c59` (round-1 review artifacts
+committed). The pre-fix byte copy for this round is round 1's code
+(`scratchpad/r1-src`, identical to HEAD `src/` at `de38c59`); every swap and restore below
+was `rm -rf src && cp -R`, never `git checkout`.
+
+## Finding 1 (blocking): a worktree of this repo at the same commit was a red gate
+
+**Fix.** Foreign now means *outside the repository*, not merely at another path:
+`foreignCliRoot` returns null when both roots resolve the same canonical
+`git rev-parse --git-common-dir`. Every worktree of this repo, at any commit, stops being
+foreign; the installed cache (not a git repository) and separate clones keep their different
+(or absent) common dir and stay foreign. Decision row recorded (phase item-17) with what the
+alternatives give up: comparing commits stays red for every worktree on its own branch,
+which is every worktree the orchestrate flow creates; comparing content prices a src-tree
+hash into the Stop hook every turn. What the chosen rule gives up — a worktree at a
+different commit runs different code and is accepted silently — is priced in the row and
+pinned by a test so it is a decision, not an accident. The common dirs are only consulted
+after the cheap path comparisons disagree, so no git spawn is added in user repos or on the
+agreeing path.
+
+The `[ok]` line was also rewording-forced by this finding: round 1 printed "came from its
+own ./bin/mstack", which in the worktree case is not what happened. It now prints "came
+from within the same repository". Three test assertions were updated to the new wording in
+the same commit as the message — a deliberate message change, not a weakening; the old
+regex would have shipped a claim the mechanism no longer makes.
+
+**Live before/after, real runs (`git worktree add --detach scratchpad/wt17-r2 HEAD`,
+removed from `git worktree list` after capture):**
+
+```
+=== BEFORE (round-1 code): main checkout's bin/mstack against its own worktree, same commit ===
+[fail]  this store's root is an mstack checkout, but the CLI producing this report runs from /Users/romerma/Code/mstack
+        fix: run .../wt17-r2/bin/mstack instead; ...
+FAILED - 1 failure, 0 warnings
+exit=1
+
+=== AFTER (round-2 code): same binary, same worktree ===
+[ok]    store root is an mstack checkout, and this report came from within the same repository
+PASSED - 0 failures, 0 warnings
+exit=0
+
+=== AFTER: worktree moved to a different commit, still the same repository ===
+PASSED - 0 failures, 0 warnings
+exit=0
+
+=== AFTER: a separate clone of this repo, same commit, still foreign ===
+[fail]  this store's root is an mstack checkout, but the CLI producing this report runs from /Users/romerma/Code/mstack
+FAILED - 1 failure, 1 warning
+exit=1
+```
+
+## Finding 2 (blocking): the two-marker heuristic false-positived, with a looping fix line
+
+**Fix.** `isMstackCheckout` now requires `.claude-plugin/plugin.json` at the store root to
+parse with `"name": "mstack"`, on top of `bin/mstack` and `src/cli.ts` existing (the file
+markers stay because the failure's `fix:` line must point at something runnable). The
+manifest is tracked, so every clone and every worktree carries it, and the false-positive
+repo has none. Missing, unreadable, unparseable and differently-named manifests all read as
+not-a-checkout: silence is the only safe failure direction in a stranger's repo, and
+mstack's own manifest going bad is `lint-plugin`'s problem. Decision row recorded.
+`tests/provenance.test.ts`'s `scratchCheckout` now byte-copies `.claude-plugin/` too — the
+review predicted exactly that edit, and it doubles as proof the identifying markers changed.
+
+**Live before/after, real runs (reviewer's recipe: wrapper `bin/mstack` that echoes
+"my own tool", unrelated `src/cli.ts`, store from real `setup`):**
+
+```
+=== BEFORE (round-1 code) ===
+$ ./bin/mstack        # the user's own script
+my own tool
+$ /Users/romerma/Code/mstack/bin/mstack gate
+[fail]  this store's root is an mstack checkout, but the CLI producing this report runs from /Users/romerma/Code/mstack
+        fix: run .../userproj-r2/bin/mstack instead; ...
+FAILED - 1 failure, 1 warning
+exit=1
+
+=== AFTER (round-2 code) ===
+$ /Users/romerma/Code/mstack/bin/mstack gate
+[warn]  on main; feature work belongs on its own branch
+PASSED - 0 failures, 1 warning
+exit=0
+```
+
+## Finding 3: the transcript convention now sits where the transcripts are
+
+Three placements, not 72 edits (decision row amends the round-1 answer): the intro of
+`docs/wiki/The-CLI.md` (40 transcript lines) and of `docs/wiki/Getting-Started.md` (14),
+and a parenthetical ahead of README's first transcript at the "Your first item" section
+rather than 180 lines after its last. The footer line stays for the published wiki.
+
+## Finding 4: the README claim now carries its limit
+
+"a red gate that says so" became: the gate turns red *once the installed copy is new enough
+to contain that check; a copy installed before it existed still reports green and says
+nothing, which is why the habit, not the check, is what protects you today*. Same limit
+CONTRIBUTING already carried.
+
+## Minor review notes
+
+- `current.md`'s `## Verification` no longer says "Pending"; it now mirrors both rounds.
+- The double `isMstackCheckout` call in `checkCliProvenance` has the explanatory comment the
+  review asked for: `foreignCliRoot` folds "not a checkout" and "own copy" into one null for
+  `warnForeignCli`, while the gate must split silence from a said-out-loud `[ok]`.
+- The `warnForeignCli`-on-every-hook cost note stands as a note; the round-2 change adds git
+  spawns only on the actually-foreign path, never on hooks in user repos.
+- The orchestrate playbook was left untouched on purpose: with worktrees no longer foreign,
+  the failure mode the suggested paragraph would have documented no longer exists.
+
+## Files (round 2)
+
+- `src/paths.ts` — manifest requirement in `isMstackCheckout`, `gitCommonDir`, common-dir
+  rule in `foreignCliRoot`
+- `src/gate.ts` — reworded agreeing line, comment on the double check
+- `tests/gate.test.ts` — manifest in `checkoutMarkers`, 2 new unit tests (`:1276`, `:1297`),
+  1 assertion updated to the new wording (`:1229`)
+- `tests/provenance.test.ts` — manifest + commit in `scratchCheckout`, 3 new process tests
+  (`:150` worktree, `:189` clone guard, `:206` false positive), 3 assertions updated to the
+  new wording (`:68`, `:164`, `:173`)
+- `README.md`, `docs/wiki/The-CLI.md`, `docs/wiki/Getting-Started.md`,
+  `docs/wiki/Gates-and-Hooks.md` — findings 3, 4 and the mechanism description
+- `.mstack/decisions.tsv` — three round-2 rows (worktree rule, manifest identity, bullet-3
+  placement amendment)
+
+## Commands (round 2)
+
+```
+$ npm test
+ 272 pass
+ 0 fail
+Ran 272 tests across 15 files. [46.26s]
+ℹ tests 272
+ℹ pass 272
+ℹ fail 0
+
+$ npm run typecheck
+> bunx --bun tsc --noEmit
+(exit 0)
+
+$ ./bin/mstack lint-plugin .
+PASSED - 0 failures, 0 warnings
+
+$ node scripts/check-doc-links.mjs README.md docs/wiki/*.md
+61 relative links checked, 0 broken
+```
+
+Red against the round-1 byte copy (`rm -rf src && cp -R scratchpad/r1-src src`, restored
+from `scratchpad/r2-src` afterwards and re-verified green):
+
+```
+$ node --test tests/provenance.test.ts
+✖ a git worktree of the repository is not foreign, at the same commit or any other
+✔ a separate clone stays foreign even at the same commit        # boundary guard: red in
+✖ bin/mstack plus src/cli.ts without the mstack manifest ...    #   neither round, on purpose
+ℹ tests 8  pass 6  fail 2
+
+$ bun test tests/gate.test.ts
+(fail) both file markers without the plugin manifest are a user's repo, and the check stays silent
+(fail) a manifest that is someone else's, or unparseable, does not make a checkout either
+ 60 pass
+ 2 fail
+```
+
+The clone test passes in both rounds by construction: it pins the boundary the worktree rule
+must not erase, and round 1 already treated a clone as foreign. The two red process tests and
+two red unit tests are the behaviour changes.
+
+## Finding → evidence (round 2)
+
+| Finding | Fix | Test | Rung |
+|---|---|---|---|
+| 1: worktree red on identical code | common-dir rule in `foreignCliRoot` | `tests/provenance.test.ts:150` (same commit, different commit, own copy — red on r1 code); clone boundary `:189`; live before/after pasted above | 5 |
+| 2: false positive + looping fix line | manifest identity in `isMstackCheckout` | `tests/provenance.test.ts:206` (red on r1), `tests/gate.test.ts:1276` and `:1297` (red on r1) | 5 |
+| 3: convention not on the reading path | intros of The-CLI.md and Getting-Started.md, README parenthetical before first transcript | prose placement; verified `rg -n '\$ mstack'` pages carry the statement | 2 — text placement, same rung the review assigned it |
+| 4: README over-claim | limit stated inline | prose; the claim now matches the Demo B transcript in round 1 (installed 0.1.0 green and silent) | 2 for the wording; the underlying fact was rung 5 in round 1 |
+
+## Verdict (round 2)
+
+`live-verified` — both blocking findings reproduced live before the fix and shown fixed
+after, through real `bin/mstack` processes against a real worktree of this repository and a
+real false-positive repo; every behaviour-change test shown red against the round-1 byte
+copy; full suite (272 × 2 runtimes), typecheck, lint-plugin, doc links and the gate green at
+this head.

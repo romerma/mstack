@@ -54,11 +54,14 @@ change against a CLI that does not contain it, and nothing says so.
 
 ## Next step
 
-Implementation complete: code, tests (red pre-fix from byte copies, green after), docs,
-differential at rung 5, report at `.mstack/progress/impl_path-mstack-is-the-installed-copy.md`,
-implementer ledger row recorded. If this session stops now: nothing is left for the
-implementer — the item awaits a review pass that did not write this code. Do not close it on
-the implementer's row.
+Round 2 complete: all four review findings addressed. Worktrees stop being foreign via the
+git common dir (decision row recorded), the manifest is the checkout identity (decision row
+recorded), the transcript convention sits on the pages that carry the transcripts, and the
+README claim carries its limit. +5 tests (272), each new one shown red against the round-1
+byte copy; live before/after transcripts for the worktree and false-positive cases are in
+the round-2 section of the impl report. If this session stops now: nothing is left for the
+implementer — the item awaits a review pass that did not write this code. Do not close it
+on the implementer's row.
 
 - Round 1 landed the mechanism: `runningCliRoot()` off `import.meta.url`, `isMstackCheckout`
   on two markers, `foreignCliRoot` canonicalising both sides. 267 tests, was 258.
@@ -76,7 +79,18 @@ the implementer's row.
     it off.
 - Two docs findings: the transcript convention is stated where the transcripts are not, and
   README claims a red gate that today's foreign copy does not produce.
+- Round 2: foreign now means outside the repository (`git rev-parse --git-common-dir`
+  equality), the manifest (`.claude-plugin/plugin.json` naming mstack) is the checkout
+  identity, the agreeing `[ok]` line says "within the same repository" because in a worktree
+  the store's own launcher did not run, and the docs findings are fixed at their sites.
+  Worktree fixture removed from `git worktree list` after capture; the reviewer's
+  `review17-wt-probe` branch left alone as instructed.
 
 ## Verification
 
-- Pending.
+- Round 1: `npm test` 267/267 under bun and node, typecheck exit 0, `lint-plugin` PASSED,
+  doc links 0 broken, gate PASSED — pasted in the impl report; implementer row
+  `live-verified` at 2a1fe341.
+- Round 2: `npm test` 272/272 under bun and node, typecheck exit 0, `lint-plugin` PASSED,
+  doc links 0 broken, gate PASSED — pasted in the impl report's round-2 section; fresh
+  implementer row at the round-2 head.
