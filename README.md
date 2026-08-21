@@ -120,6 +120,11 @@ means `mstack decide --resolves <slug>`: the reasoning goes to `decisions.tsv` i
 **names the item it answers**, and the item gets a pointer back to that row. A blank decision,
 or one whose result is still `open`, is refused by the CLI and rejected by the gate.
 
+Forks are usually found while `specifying`, which is after intake, so `mstack state set <ref>
+--decision-required "<the question>"` attaches one there. Past that line it is refused in both
+directions: an item already building cannot have a fork bolted on, because it would be past a
+gate it never passed.
+
 ```bash
 $ mstack state set export-json --status spec_ready
 mstack: export-json has an unanswered decision: "Is this a stable public contract other tools
