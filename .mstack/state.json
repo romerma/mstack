@@ -219,7 +219,7 @@
         "The cost is bounded: whatever runs the verification does not turn every Stop hook into a full test suite run, and the reasoning for where the line falls is recorded",
         "Tests cover a red verification being caught, a green one passing, and the no-verification-configured case"
       ],
-      "status": "pending",
+      "status": "in_progress",
       "description": "src/hooks.ts:172 wires the Stop hook to runGate(store, { quiet: true }) — the fast gate, which touches only the store and the workspace and never runs state.verify or item.verification. Only a human typing 'mstack gate --full' executes them. CLAUDE.md and skills/setup/SKILL.md:64-71 both say the gate must be green before a session closes, and for the verification half of that sentence nothing enforces it. In the dogfood session the item's verification field was a non-executable string from intake and stayed red for 230 minutes across four agent passes; no hook, no gate and no agent noticed, because nothing ran it. Separately, 'gate --full' with nothing configured warns that it checked nothing and still exits 0, so asking for the full gate and getting no verification at all is indistinguishable from passing it.",
       "source": "sandbox dogfood session, divergent lens finding F6-B, F10, O6 and Part 3 #2, 2026-08-21",
       "verification": "npm test && npm run typecheck && ./bin/mstack lint-plugin ."
@@ -249,10 +249,11 @@
         "The Stop hook's output on a red gate is shown from a real run, in the item's report and wherever the docs describe that hook",
         "Tests cover the failing case, the passing case, and the warning-only case"
       ],
-      "status": "reviewing",
+      "status": "done",
       "description": "docs/wiki/The-CLI.md:60 says '--quiet prints failures only'. It printed nothing: reproduced at rung 5 against a store with two real failures, empty output on both streams and exit 1, while the same gate without --quiet prints both failures and their fixes. CORRECTION made after the fix landed, verified against main's binary: an earlier version of this description claimed a red gate at session close was silent by construction and the exit code was the only signal. That was wrong. src/hooks.ts already composed the failures into the Stop hook's additionalContext on stdout, so the model always received them; what nobody received was human-visible output on a stream. The finding stands, a documented flag printed nothing, but its severity was overstated by the pass that filed it.",
       "source": "item 13 implementation pass, reproduced on main by three passes, 2026-08-21",
-      "verification": "npm test && npm run typecheck && ./bin/mstack lint-plugin ."
+      "verification": "npm test && npm run typecheck && ./bin/mstack lint-plugin .",
+      "closed_by": "Reviewer APPROVED at round 2; the load-bearing claim went rung 2 to rung 5 across three passes and display is still marked unverified"
     },
     {
       "id": 17,
