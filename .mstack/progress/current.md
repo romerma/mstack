@@ -159,7 +159,43 @@ failure, the failure stays invisible and 14 buys nothing.
 - `npm test` 196 pass on bun and node; typecheck clean; lint-plugin 0 failures 0 warnings.
 - Commits: `9a4dc59` code and tests, `d62e32b` docs.
 
+- Item 16 implementer pass. Defect re-reproduced at rung 5 in a scratch store first: two real
+  failures, `gate --quiet` emitted 0 bytes on both streams and exited 1.
+- Four design decisions recorded up front in decisions.tsv before any code: failures go to
+  **stderr** (stdout carries the Stop hook's JSON and text in front of it would stop that
+  parsing); one line per failure **with** its `fix`, byte-identical to what the hook already
+  hands the model; **no** summary count line; **silent** on warnings.
+- The fix is `src/report.ts#fail` only. Quiet writes through `process.stderr.write`, not
+  `console.error`: under bun a patched `process.stderr.write` never sees `console.error`, so
+  the assertions pinning this output would have measured nothing on one of the two runtimes.
+- `tests/cli.test.ts`'s `run()` moved from `execFileSync` to `spawnSync` because it discarded
+  stderr on exit 0 — the exact case the Stop hook is.
+
+- Implementer pass done. Six new tests: three in gate.test.ts for the failing, passing and
+  warning-only cases, one in hooks.test.ts for the Stop hook's two streams, two in cli.test.ts
+  driving the shipped binary. Four go red against `main:src/report.ts`; the other two are
+  preservation requirements, so they cannot, and their bite is shown by mutations M4/M5/M6.
+- 8 mutations, 8 killed by a named test, restores byte-verified by sha256 each time.
+- Two wiki pages rebuilt from real runs: the `gate` section of The-CLI, and a new
+  "What the Stop hook prints on a red gate" in Gates-and-Hooks.
+- Called out for the reviewer: `run()` in cli.test.ts moved to `spawnSync` (execFileSync threw
+  stderr away on exit 0, which is the Stop hook's case), and the pre-existing `[fail] security`
+  noise from fanout.test.ts, confirmed identical on main.
+
+## Verification
+
+- Rung 5 for the behaviour: the shipped `bin/mstack` in scratch stores, and `bin/mstack hook
+  stop` as a real process with real JSON on stdin. Before: 0 bytes, exit 1. After: the failure
+  lines on stderr, the hook's JSON still alone and parseable on stdout.
+- Rung 4: `npm test` 202 pass on bun and on node; typecheck clean; lint-plugin 0 failures 0
+  warnings; check-doc-links 56 links, 0 broken.
+- Rung 2 and stated as such in the report: whether Claude Code surfaces a hook's stderr in the
+  transcript at exit 0. The bytes reach fd 2; what the client does with them is the client's.
+- Commits: `40c37cf` fix, `cc33e27` tests, `29a7304` comment correction, `86615b0` docs.
+
 ## Next step
 
-- If this dies: item 16 is in flight on fix/quiet-gate-prints-nothing, four acceptance criteria
-  in state.json. Items 14 and 15 still pending. Items 12 and 13 are closed and merged to main.
+- If this dies: item 16 is implemented and reported at
+  `.mstack/progress/impl_quiet-gate-prints-nothing.md`; it needs a **review pass that did not
+  write this code** before it can be closed. Items 14 and 15 still pending; 14 was waiting on
+  this one.
