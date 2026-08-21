@@ -714,6 +714,58 @@ test("--force with a reason closes it, and the reason is durable and marked", ()
  * item that closed long ago must not hold it to today's commit, for the same
  * reason `checkClosedItems` does not.
  */
+/**
+ * Round 3, nitpicks 1 and 2. The marker is the only durable record that an item
+ * closed on a verification nobody ran, and a later plain `--closed-by` erased
+ * it — which is not a contrived path, because `skills/ship/SKILL.md` tells
+ * people to run exactly that command after a merge.
+ */
+test("a later note cannot quietly erase the forced-close marker", () => {
+  const sb = sandbox();
+  try {
+    sb.writeState(state([item({ status: "verifying", verification: "pytest -q" })]));
+    trackCurrent(sb);
+    const forced = run(sb.store.root, [
+      "state", "set", "storage-layer", "--status", "done", "--force",
+      "--closed-by", "no python on this host; checked by hand",
+    ]);
+    assert.equal(forced.code, 0, forced.stderr);
+    // Nitpick 2: one closed_by line, not the user's value followed by the
+    // marked value. Honest either way, but two reads like a bug.
+    assert.equal(
+      forced.stdout.split("\n").filter((l) => /^ {2}closed_by:/.test(l)).length,
+      1,
+      `one closed_by change line, got: ${forced.stdout}`,
+    );
+
+    const later = run(sb.store.root, ["state", "set", "storage-layer", "--closed-by", "PR #12 merged"]);
+    assert.equal(later.code, 0, later.stderr);
+    assert.equal(
+      parseState(sb.store.state).items[0]?.closed_by,
+      "closed unverified (forced): PR #12 merged",
+      "the marker survives; the words after it are the author's",
+    );
+  } finally {
+    sb.dispose();
+  }
+});
+
+test("an ordinary note is not marked, so the marker keeps meaning something", () => {
+  const sb = sandbox();
+  try {
+    sb.writeState(state([item({ status: "verifying", verification: "true" })]));
+    trackCurrent(sb);
+    assert.equal(run(sb.store.root, ["gate", "--full"]).code, 0);
+    const closed = run(sb.store.root, [
+      "state", "set", "storage-layer", "--status", "done", "--closed-by", "verified and merged",
+    ]);
+    assert.equal(closed.code, 0, closed.stderr);
+    assert.equal(parseState(sb.store.state).items[0]?.closed_by, "verified and merged");
+  } finally {
+    sb.dispose();
+  }
+});
+
 test("only the move into done is guarded; every other move and a re-close are not", () => {
   const sb = sandbox();
   try {

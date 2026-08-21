@@ -24,16 +24,38 @@ export interface GitOptions {
   /**
    * Keep the output exactly as git wrote it.
    *
-   * Every other caller wants a single value with the newline gone, so trimming
-   * is the default. `status --porcelain` is the exception and it is not a
-   * stylistic one: its format is two status characters, a space, then the path,
-   * and either status character may itself be a space. Trimming the buffer eats
-   * the leading space of the first line, so ` M src/app.ts` arrives as
-   * `M src/app.ts` and the path parse silently returns `rc/app.ts` — for the
-   * first line only, which is the kind of bug that passes every test with two
-   * changed files and fails with one.
+   * Most callers want a single value with the newline gone, so trimming is the
+   * default. The exception is output that is *data* rather than an answer:
+   * `diff HEAD`, whose bytes are hashed into the tree fingerprint, and where
+   * trimming content before hashing it is wrong in principle.
+   *
+   * Stated at the rung it deserves, because the first version of this comment
+   * asserted more than had been checked. **No current behaviour distinguishes
+   * it**, measured rather than assumed: both sides of every comparison call this
+   * same function, so the trimmed diff hashes just as consistently, and JS
+   * `trim()` does not treat NUL as whitespace, so `ls-files -z` is byte-identical
+   * either way. A mutation dropping this option survives the suite, and it is an
+   * equivalent mutant rather than a coverage gap.
+   *
+   * It was introduced for a case that no longer exists, and that reason is worth
+   * keeping: `status --porcelain` is two status characters, a space, then the
+   * path, and either status character may be a space — so trimming the buffer ate
+   * the leading space of the *first line only*, and a column parse silently
+   * returned `rc/app.ts` for ` M src/app.ts`. That is the kind of bug that passes
+   * every fixture with two dirty files and fails with one. Nothing parses
+   * porcelain columns now; `treeId` hashes content instead.
    */
   readonly raw?: boolean;
+  /**
+   * Feed this to git on stdin.
+   *
+   * One caller: `git hash-object --stdin-paths`, which is how the tree
+   * fingerprint reads the content of untracked files. Passing those paths as
+   * argv instead would work until a repository had enough untracked files to
+   * exceed `ARG_MAX`, and that limit is exactly the kind that holds in every
+   * test and fails on somebody's machine.
+   */
+  readonly stdin?: string;
 }
 
 export function git(store: Store, args: readonly string[], options: GitOptions = {}): string | null {
@@ -41,7 +63,8 @@ export function git(store: Store, args: readonly string[], options: GitOptions =
     const out = execFileSync("git", args, {
       cwd: store.root,
       encoding: "utf8",
-      stdio: ["ignore", "pipe", "ignore"],
+      stdio: [options.stdin === undefined ? "ignore" : "pipe", "pipe", "ignore"],
+      ...(options.stdin === undefined ? {} : { input: options.stdin }),
       timeout: GIT_TIMEOUT_MS,
       // A git that stops to ask for credentials never returns on its own.
       env: { ...process.env, GIT_TERMINAL_PROMPT: "0", GIT_OPTIONAL_LOCKS: "0" },
