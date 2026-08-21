@@ -82,14 +82,105 @@ greet-flag
 `state list` marks active items with `*`. `state active` prints the slug alone to stdout so
 `SLUG=$(mstack state active)` works, and exits 1 with a stderr note when nothing is active.
 `state set` accepts an id or a slug, refuses illegal transitions and unanswered forks (exit 2),
-and takes `--force` for the deliberate exception, which the gate will still audit. Other flags:
-`--sdd` to opt into the spec path, `--decision-required "<the fork>"`, `--closed-by "<note>"`.
+and takes `--force` for the deliberate exception, which the gate will still audit.
 
 ```console
 $ mstack state set greet-flag --status done
 mstack: in_progress -> done is not a legal transition
         pass --force if you mean to skip a phase, and say why in decisions.tsv
 ```
+
+### Correcting a field after intake
+
+`state set` takes every field `state add` takes: `--title`, `--description`, `--source`,
+`--verification`, `--acceptance`, `--add-acceptance`, `--sdd`, `--decision-required` and
+`--closed-by`. A field the item does not carry yet is added rather than refused, and every
+edit prints what it replaced, because a write nobody sees is indistinguishable from a no-op.
+
+`--acceptance` **replaces** the whole list and names each criterion it dropped;
+`--add-acceptance` appends. One command may not do both.
+
+```console
+$ mstack state set greet-flag --description "the flag is off by default" \
+    --acceptance '`python3 greet.py --shout world` prints HELLO, WORLD!'
+1 greet-flag (pending)
+  description: (unset) -> "the flag is off by default"
+  acceptance: 2 criterion(s) replaced with 1
+    - dropped "`python3 greet.py --shout world` prints HELLO..."
+    - dropped "test_greet.py covers the flag and the default"
+
+$ mstack state set greet-flag --add-acceptance "test_greet.py covers the flag and the default"
+1 greet-flag (pending)
+  acceptance: 1 added, now 2
+```
+
+Removal has one spelling, and an empty value is refused rather than stored: a key whose value
+is `""` reads back as present-but-blank, a third state nobody asked for, and the gate already
+treats a `decision_required` of `""` as no fork at all.
+
+```console
+$ mstack state set greet-flag --clear description
+1 greet-flag (pending)
+  description: "the flag is off by default" -> (unset)
+
+$ mstack state set greet-flag --description ""
+mstack: an empty --description is not a value
+        to remove a field, say so: 'mstack state set greet-flag --clear description'
+```
+
+`--clear` takes `description`, `source`, `verification`, `decision-required`, `sdd` and
+`closed-by`. `acceptance` is not among them — the gate fails an item with no criteria, so
+replace them instead — and `--slug` is refused outright, because it names the branch, the spec
+directory, the progress files and every ledger and decision row already written for the item,
+and none of those move with it. Two instructions for one field in one command (`--description
+X --clear description`) are refused rather than silently ordered, and a `state set` given
+nothing to set exits 2 instead of reporting success.
+
+### Attaching a product fork after intake
+
+A fork is usually found while `specifying`, which is after intake, so `--decision-required` has
+to be attachable there. That is the whole reason these flags exist: the gate the README leads
+with could previously only be attached by hand-editing `state.json`.
+
+```console
+$ mstack state set export-json --status specifying
+3 export-json (specifying)
+  status: "pending" -> "specifying"
+
+$ mstack state set export-json --decision-required "Is this a stable public contract ..."
+3 export-json (specifying)
+  decision_required: (unset) -> "Is this a stable public contract other tools ..."
+
+$ mstack state set export-json --status spec_ready
+mstack: export-json has an unanswered decision: "Is this a stable public contract other tools may depend on, or a convenience dump we are free to change?"
+        answer it with 'mstack decide --resolves export-json ...' first
+```
+
+`spec_ready` and beyond is now guarded in **both** directions. Moving an item across that line
+with a fork unanswered was already refused; attaching a fork to an item already sitting past it
+is refused too, because it would put the item past a gate it never passed and leave `mstack
+gate` reporting a state this command had just created. Park it, or pass `--force` and the
+command prints the failure it is creating:
+
+```console
+$ mstack state set cli-search --status in_progress
+2 cli-search (in_progress)
+  status: "pending" -> "in_progress"
+
+$ mstack state set cli-search --decision-required "Does search match the body ..."
+mstack: cli-search is in_progress, at or past the point where a fork must already be answered
+        park it first ('mstack state set cli-search --status blocked --decision-required ...'), or pass --force to attach it where it stands and let the gate report it
+
+$ mstack state set cli-search --status blocked --decision-required "Does search match the body ..."
+2 cli-search (blocked)
+  status: "in_progress" -> "blocked"
+  decision_required: (unset) -> "Does search match the body as well as the tit..."
+```
+
+Rewriting the fork prose drops `decision_resolved`, and `--clear decision-required` drops both.
+The row that answered the old question does not answer the new one, and the gate matches a row
+on its timestamp and the slug it resolves, never on the question — so a pointer left behind
+would let the next fork be born answered.
 
 ## ledger record / check / summary
 

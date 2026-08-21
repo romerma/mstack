@@ -33,7 +33,7 @@ An item's fields (`src/state.ts:6-33`):
 | `status` | One of the nine lifecycle statuses; see [How-A-Work-Item-Flows](How-A-Work-Item-Flows.md) |
 | `sdd` | Optional. `true` opts into the spec path |
 | `decision_required` | Optional. Prose naming an unresolved product fork; its presence triggers the human gate and, past `specifying`, blocks the item |
-| `decision_resolved` | The `ts` of the `decisions.tsv` row that answered the fork. A pointer, not a copy: the row carries the reasoning, and duplicating it here would give it somewhere to drift to. Written only by `mstack decide --resolves`, which writes the row and the pointer in one step so neither can exist alone |
+| `decision_resolved` | The `ts` of the `decisions.tsv` row that answered the fork. A pointer, not a copy: the row carries the reasoning, and duplicating it here would give it somewhere to drift to. Written only by `mstack decide --resolves`, which writes the row and the pointer in one step so neither can exist alone. Dropped when `state set` rewrites or clears the `decision_required` it answered, because the row named that question and would otherwise answer the next one too |
 | `source` | Where the work came from: an issue reference, or "direct request" |
 | `verification` | The exact command that proves this item works |
 | `closed_by` | A note for the next reader. **Not a verdict**: the gate does not accept it in place of a ledger row, a lesson recorded in the changelog |
