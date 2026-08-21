@@ -133,8 +133,37 @@ pass surfaced, because it makes the plugin's headline human gate unreachable.
   deliberately out of scope, recorded as the `09:10:57.329Z` decision row.
 - Commits: `ceda13b` the CLI and its tests, `a426edc` the idempotence test, `0041e54` docs.
 
+- Round 2. Review came back CHANGES_REQUESTED with six required findings and six minors; all
+  twelve are answered, and the round-2 section of the impl report maps each one to its fix,
+  its test and the mutation that proves the test bites.
+- The two that mattered were both a claim the code was making that was not true. The change
+  line printed an identical before and after for two forks sharing a 45-char prefix, while the
+  same command dropped `decision_resolved`; and `required()` validated trimmed but stored raw,
+  so a trailing space was a different fork. Reproduced live against `9a4dc59^`'s own cli.ts,
+  swapped in and restored by byte copy.
+- `--sdd` now announces what it does to the gate, and reads the disk so it claims a failure
+  only when it made one. The decision row whose reason the reviewer demolished is superseded
+  rather than edited; decisions.tsv is append-only.
+- `state add` now shares `required()` with `state set`, so the empty-string rule holds at both
+  doors instead of one.
+- Six doc transcripts re-run and pasted; two wiki blocks now show the command that actually
+  ran, verified by reading the stored value back out of state.json.
+- Caught one of my own false claims mid-report: I wrote that the page's fork was byte-identical
+  to the shipped example's before checking. It was the first sentence of two. Fixed the page so
+  the claim is true rather than softening the sentence.
+
+## Verification
+
+- 16 round-2 mutations, each reverting one fix to its round-1 behaviour, all killed by a named
+  test. The first run reported one survivor and the survivor was my mutation, not the test:
+  it substituted `" "` for `""`, which `required()` trims and refuses either way.
+- `npm test` 196 pass on bun and node; typecheck clean; lint-plugin 0 failures 0 warnings.
+- Commits: `9a4dc59` code and tests, `d62e32b` docs.
+
 ## Next step
 
-- Item 13 is implemented and reported at `.mstack/progress/impl_editable-item-fields.md`.
-  It is **not** done: it needs a review pass that did not write this code, and the ledger row
-  on it is the implementer's own evidence, not an approval. Items 14 and 15 are untouched.
+- Item 13 round 2 is reported at `.mstack/progress/impl_editable-item-fields.md`. It is
+  **not** done: it needs a re-review by a pass that did not write this code. The ledger row on
+  it is still the implementer's own round-1 evidence, not an approval. Items 14 and 15 are
+  untouched, and the reviewer filed one out-of-scope find worth its own item: `gate --quiet`
+  prints nothing on failure while The-CLI says it "prints failures only".
