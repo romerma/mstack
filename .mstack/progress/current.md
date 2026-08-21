@@ -49,13 +49,29 @@ The last of the three enforcement gaps. The check already exists; the instructio
   frontmatter untouched); `skills/review/SKILL.md` gained step 9. verify/ship skills already
   generic, unchanged. README and wiki already say the reviewer records its own row, so no
   doc contradicts.
-- If this session stops right now: the change and verification are done; what remains is the
-  impl report at `.mstack/progress/impl_reviewer-writes-the-verdict.md`, the implementer
-  ledger row at the committed head, and the commit(s).
+- Round 1 shipped as 2c2b367 with the implementer row committed as 3b4e131.
+- Round 2: review came back CHANGES_REQUESTED
+  (`.mstack/progress/review_reviewer-writes-the-verdict.md`). All four fixes applied:
+  (1) struck the false "clears nothing and blocks a close" sentence in `agents/reviewer.md`;
+  the true statement is the row records the rejection and the lifecycle keeps the item at
+  `reviewing`. Making the promise true is item 18 bullet 4, out of scope, `src/gate.ts`
+  untouched. (2) `skills/review/SKILL.md` mapping paragraph moved with it. (3) lensed-or-not
+  is now the observable report-path suffix test, and the review skill gained the no-row
+  remedy: re-run the reviewer, never type the row for it. (4) evidence-ladder.md now says
+  the check in its verifier-failed row is the whole claim under judgement, decision recorded
+  (ladder changed, not reviewer.md, because the other direction places a close-enabling row
+  at a rejected sha). Also narrowed the overbroad "no document contradicts" claim at
+  impl report line 24.
+- If this session stops right now: round-2 fixes and verification are done; what remains is
+  the round-2 section of the impl report, the fresh implementer row at the committed head,
+  and the commit(s).
 
 ## Verification
+
+Round 2, at the head carrying the four fixes:
 
 - `npm test`: bun 258 pass 0 fail, node 258 pass 0 fail, exit 0.
 - `npm run typecheck`: exit 0.
 - `./bin/mstack lint-plugin .`: PASSED - 0 failures, 0 warnings.
-- `./bin/mstack gate`: PASSED - 0 failures, 1 warning (uncommitted mid-session changes).
+- `./bin/mstack gate`: PASSED - 0 failures, warnings are the expected mid-session
+  uncommitted changes.

@@ -68,7 +68,12 @@ feeling.
 
 ## Record it
 
-Reviewing alone, you type your own ledger row, through Bash, once the report exists:
+Whether you record is not a judgement call, and you do not infer it from the phrasing of your
+brief: you were given a lens iff the report path you were handed carries a lens suffix,
+`review_<slug>_<lens>.md`. That is the same signal that chose your filename above.
+
+Handed `review_<slug>.md`, you are reviewing alone: type your own ledger row, through Bash,
+once the report exists:
 
 `mstack ledger record <slug> "$(git rev-parse HEAD)" <verdict> --evidence <the report path you wrote> --verifier reviewer`
 
@@ -81,13 +86,14 @@ happened, not from the tone of the report:
   `test-verified`, or `type-check-only`. Never a rung above what you ran.
 - **CHANGES_REQUESTED** records `verifier-failed`, even when the suite was green. The check
   that ran is the review, and the item failed it; a green suite next to an uncovered
-  requirement is a failed verification, not a pass with a footnote. `verifier-failed` clears
-  nothing and blocks a close, which is exactly what your verdict means.
+  requirement is a failed verification, not a pass with a footnote. The row records the
+  rejection with your report as its evidence; it does not by itself block anything. What
+  keeps the item open is that a rejected item does not move past `reviewing`.
 - **A verification you could not run at all** records `verifier-blocked`, whatever you
   thought of the diff. An opinion formed without running anything must not read as evidence.
 
-Given a lens, skip this step: write your report and record nothing. The ledger keeps the best
-row per `(target, sha)` by rank, so N lens rows would collapse to the panel's most favorable
+Handed a lens suffix, write your report and record nothing. The ledger keeps the best row
+per `(target, sha)` by rank, so N lens rows would collapse to the panel's most favorable
 member, and a split panel means the opposite. The pass that synthesizes the panel's verdict
 records the one row, under its own name.
 

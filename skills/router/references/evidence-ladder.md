@@ -40,6 +40,10 @@ happened.
 | Could not run the check at all | `verifier-blocked` |
 | Ran it and it failed | `verifier-failed` |
 
+The check in the last two rows is the whole claim you were asked to judge, not the suite that
+ran inside it. A reviewer whose suite was green but whose review found a blocking defect ran
+the check and the check failed: that records `verifier-failed`, never the suite's rung.
+
 `mstack ledger record <target> "$(git rev-parse HEAD)" <verdict> --evidence <path> --verifier <role>`
 
 Two rules travel with that command. CI green is an *input* to a verdict, never a verdict on its
