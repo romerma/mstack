@@ -128,6 +128,7 @@ Switched to a new branch 'feat/greet-flag'
 
 $ mstack state set greet-flag --status in_progress
 1 greet-flag (in_progress)
+  status: "pending" -> "in_progress"
 ```
 
 ### The gate holds you to the checkpoint discipline
@@ -196,11 +197,19 @@ The legal route is `in_progress -> reviewing -> verifying -> done`:
 ```console
 $ mstack state set greet-flag --status reviewing
 1 greet-flag (reviewing)
+  status: "in_progress" -> "reviewing"
 $ mstack state set greet-flag --status verifying
 1 greet-flag (verifying)
+  status: "reviewing" -> "verifying"
 $ mstack state set greet-flag --status done --closed-by "demo walkthrough"
 1 greet-flag (done)
+  status: "verifying" -> "done"
+  closed_by: (unset) -> "demo walkthrough"
 ```
+
+Every `state set` prints one line per field it touched. It is the same mechanism that names each
+acceptance criterion a `--acceptance` replaces, and the reason is the same: a write nobody sees
+is indistinguishable from a no-op.
 
 ### The close is audited, and the author's word is not enough
 

@@ -74,6 +74,7 @@ $ mstack state list
 
 $ mstack state set greet-flag --status in_progress
 1 greet-flag (in_progress)
+  status: "pending" -> "in_progress"
 
 $ mstack state active
 greet-flag
@@ -103,14 +104,14 @@ edit prints what it replaced, because a write nobody sees is indistinguishable f
 ```console
 $ mstack state set greet-flag --description "the flag is off by default" \
     --acceptance '`python3 greet.py --shout world` prints HELLO, WORLD!'
-1 greet-flag (pending)
+1 greet-flag (in_progress)
   description: (unset) -> "the flag is off by default"
   acceptance: 2 criterion(s) replaced with 1
     - dropped "`python3 greet.py --shout world` prints HELLO..."
     - dropped "test_greet.py covers the flag and the default"
 
 $ mstack state set greet-flag --add-acceptance "test_greet.py covers the flag and the default"
-1 greet-flag (pending)
+1 greet-flag (in_progress)
   acceptance: 1 added, now 2
 ```
 
@@ -120,13 +121,33 @@ treats a `decision_required` of `""` as no fork at all.
 
 ```console
 $ mstack state set greet-flag --clear description
-1 greet-flag (pending)
+1 greet-flag (in_progress)
   description: "the flag is off by default" -> (unset)
 
 $ mstack state set greet-flag --description ""
 mstack: an empty --description is not a value
         to remove a field, say so: 'mstack state set greet-flag --clear description'
 ```
+
+Values are stored trimmed. `--decision-required "$FORK "` and `--decision-required "$FORK"` are
+the same fork, which matters because a rewrite drops the answer to the question it replaced, and
+a trailing space is not a new question. When two values are long enough that the abbreviation
+above would render them identically, the command prints both in full with their lengths instead:
+
+```console
+$ mstack state set export-json --decision-required "Should the export be a stable public contract \
+we are free to reshape at will?"
+3 export-json (specifying)
+  decision_required: changed, and the short forms match, so both in full
+    was (72 chars) "Should the export be a stable public contract other tools may depend on?"
+    now (77 chars) "Should the export be a stable public contract we are free to reshape at will?"
+  decision_resolved: "2026-08-21T10:00:53.883Z" -> (unset)
+```
+
+Both halves of that block matter. The two questions share a 45-character prefix, so the
+abbreviated form printed them identically on either side of an arrow while the same command
+dropped the answer — the line that exists to make a write visible, showing no change, on the
+field where this command silently un-answers a fork.
 
 `--clear` takes `description`, `source`, `verification`, `decision-required`, `sdd` and
 `closed-by`. `acceptance` is not among them — the gate fails an item with no criteria, so
@@ -147,7 +168,8 @@ $ mstack state set export-json --status specifying
 3 export-json (specifying)
   status: "pending" -> "specifying"
 
-$ mstack state set export-json --decision-required "Is this a stable public contract ..."
+$ mstack state set export-json --decision-required "Is this a stable public contract other tools \
+may depend on, or a convenience dump we are free to change?"
 3 export-json (specifying)
   decision_required: (unset) -> "Is this a stable public contract other tools ..."
 
@@ -167,11 +189,13 @@ $ mstack state set cli-search --status in_progress
 2 cli-search (in_progress)
   status: "pending" -> "in_progress"
 
-$ mstack state set cli-search --decision-required "Does search match the body ..."
+$ mstack state set cli-search --decision-required "Does search match the body as well as the title? \
+The two answers produce different work."
 mstack: cli-search is in_progress, at or past the point where a fork must already be answered
         park it first ('mstack state set cli-search --status blocked --decision-required ...'), or pass --force to attach it where it stands and let the gate report it
 
-$ mstack state set cli-search --status blocked --decision-required "Does search match the body ..."
+$ mstack state set cli-search --status blocked --decision-required "Does search match the body as well \
+as the title? The two answers produce different work."
 2 cli-search (blocked)
   status: "in_progress" -> "blocked"
   decision_required: (unset) -> "Does search match the body as well as the tit..."
