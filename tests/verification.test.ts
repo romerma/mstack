@@ -174,9 +174,13 @@ test("setup writes a store .gitignore, because a committed receipt voids itself"
     const body = readFileSync(join(sb.store.dir, ".gitignore"), "utf8");
     assert.equal(body, STORE_GITIGNORE);
     assert.match(body, /^verification\.tsv$/m);
-    // The lock file `withLock` drops beside it is machine-local for the same
-    // reason, and it appears exactly when two mstack processes overlap.
-    assert.match(body, /^verification\.tsv\.lock$/m);
+    // Only that one file. Every other file in the store is durable state under
+    // version control, and an over-broad rule here would silently stop
+    // committing a ledger row or a decision.
+    assert.deepEqual(
+      body.split("\n").filter((line) => line !== "" && !line.startsWith("#")),
+      ["verification.tsv"],
+    );
   } finally {
     sb.dispose();
   }
