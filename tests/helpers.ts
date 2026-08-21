@@ -8,6 +8,7 @@ import assert from "node:assert/strict";
 import { storeAt, type Store } from "../src/paths.ts";
 import { Report } from "../src/report.ts";
 import { setup } from "../src/setup.ts";
+import { record, treeId, type Receipt } from "../src/verification.ts";
 
 export interface Sandbox {
   readonly store: Store;
@@ -79,18 +80,40 @@ export function trackCurrent(box: Sandbox, note = "carry on"): void {
 }
 
 /**
+ * Record a receipt against the sandbox's tree as it stands, the way `--full`
+ * does.
+ *
+ * A receipt is keyed to `(commit, command, tree)`, so a fixture that hand-wrote
+ * a tree id would be asserting against a working tree that does not exist. Every
+ * test whose subject is *not* the tree key goes through here; the ones that are
+ * call `record` directly with the tree they mean.
+ */
+export function recordReceipt(
+  box: Sandbox,
+  receipt: Omit<Receipt, "ts" | "tree"> & { ts?: string },
+): Receipt {
+  return record(box.store, { ...receipt, tree: treeId(box.store) });
+}
+
+/**
  * Take a sandbox to a gate with nothing at all to say.
  *
  * Every sandbox warns twice out of the box: `git init` leaves the default
  * branch checked out, and `mstack setup` leaves `.mstack/` untracked. Without a
  * way to silence both, "a green gate prints nothing" and "a warning prints
  * nothing" would be the same test running twice.
+ *
+ * Returns the new head SHA, because quiescing *commits*: `box.sha` was captured
+ * before it and is stale afterwards. A receipt recorded against the stale one
+ * reads as "has not run at <head>", which is a true failure about the wrong
+ * thing and looks exactly like the check under test misbehaving.
  */
-export function quiesce(box: Sandbox): void {
+export function quiesce(box: Sandbox): string {
   const run = (args: string[]) => execFileSync("git", args, { cwd: box.store.root, stdio: "ignore" });
   run(["checkout", "-q", "-b", "feat/sandbox"]);
   run(["add", "-A"]);
   run(["commit", "-q", "-m", "sandbox state"]);
+  return execFileSync("git", ["rev-parse", "HEAD"], { cwd: box.store.root, encoding: "utf8" }).trim();
 }
 
 /**
