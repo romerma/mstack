@@ -17,8 +17,28 @@ timed-out hook renders no decision at all, so a gate must never depend on being 
 | `SessionStart` | A session starts, including on `--resume` | Prints the active item, its open `decision_required` if any, and the last checkpoint from `progress/current.md` back into context. Resume is the case that matters: a session that resumes without its checkpoint restarts work that was already done |
 | `PostToolUse` | After a matched tool call succeeds (a failed call fires `PostToolUseFailure` instead); mstack matches `Edit\|Write` | The cheapest useful check and nothing more. Re-validates `state.json` after an edit to it, and reminds that `history.md` is append-only after an edit to that. Exits 0 unconditionally: it nudges, it never blocks, because a hook that runs the test suite on every edit is a hook someone switches off |
 | `SubagentStop` | A subagent finishes | Checks that the subagent left its report file on disk, and that the file says something: under 40 bytes is a stub, judged per file so one substantial lens does not excuse an empty sibling. Exists because a review subagent once returned a confident summary having written nothing. A reply is not evidence, the file is |
-| `Stop` | The main agent is about to end its turn | Runs the fast gate. On failures it returns feedback (`additionalContext`) rather than a block: the same loop protections apply, including the eight-continuation cap, but the transcript labels it feedback and no hook error is raised |
+| `Stop` | The main agent is about to end its turn | Runs the fast gate, quiet. On failures it returns feedback (`additionalContext`) rather than a block: the same loop protections apply, including the eight-continuation cap, but the transcript labels it feedback and no hook error is raised. The failures also go to stderr, so the session shows them rather than only an exit code — see [below](#what-the-stop-hook-prints-on-a-red-gate) |
 | `PreToolUse` | Before a matched tool call; mstack matches `Bash` | Denies the handful of commands that are hard or impossible to walk back. This is the only hook that blocks |
+
+### What the Stop hook prints on a red gate
+
+Two streams, two audiences, and they must not mix. Here is one real run against a store whose
+active item never had its checkpoint written:
+
+```console
+$ echo '{"hook_event_name":"Stop","cwd":"'$PWD'"}' | mstack hook stop
+[fail]  1 greet-flag (in_progress) is active but progress/current.md is not: the Item line still says _none_; Next step is still the empty template -> if this session dies now, nothing tells the next one where to start
+{"hookSpecificOutput":{"hookEventName":"Stop","additionalContext":"The mstack gate is red. Fix these before closing:\n- 1 greet-flag (in_progress) is active but progress/current.md is not: the Item line still says _none_; Next step is still the empty template -> if this session dies now, nothing tells the next one where to start"}}
+```
+
+The `[fail]` line is on stderr and the JSON is on stdout. The JSON is the hook's structured
+output; anything printed in front of it would stop it parsing, which is why `--quiet` writes
+where it does. The exit code is 0, because a `Stop` hook nudges and only exit 2 blocks.
+
+Until this was fixed, the `[fail]` line was not there at all: `--quiet` printed nothing on any
+stream, the page describing it said "prints failures only", and a red gate at session close
+came down to an exit code nobody displays. A green gate still prints nothing on either stream,
+warnings included, which is what makes it cheap to run at the end of every turn.
 
 ### What PreToolUse denies
 
