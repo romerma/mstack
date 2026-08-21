@@ -332,6 +332,15 @@ claude --plugin-dir .             # then /reload-plugins after editing hooks or 
 claude plugin validate . --strict
 ```
 
+One rule is worth stating here because it bites before CONTRIBUTING.md gets read: inside
+this repository, the `mstack` on `PATH` is the *installed* plugin, not your checkout, and an
+older copy reports green on checks it does not contain. Every CLI call here is
+`./bin/mstack` — `./bin/mstack version` prints which copy is running, and `mstack gate` run
+by a foreign copy against this repository's store is a red gate that says so. The command
+transcripts in this README and the wiki are spelled `$ mstack ...` for a reader running the
+installed plugin; the binary that produces and re-runs them is the checkout's own
+`./bin/mstack` at the commit that edits them.
+
 The contribution rules that are not obvious from the code — no build step, no runtime
 dependencies, both runtimes green, output pasted from real runs — are in
 [CONTRIBUTING.md](CONTRIBUTING.md). The security posture, and where to report a
