@@ -283,6 +283,9 @@ const CROSS_SEGMENT_ALLOW: readonly [string, string][] = [
     "the store named only inside a commit message",
   ],
   ["rm -rf /tmp/x || echo .mstack survived", "the store named after ||"],
+  // Documents rather than falsifies: the pre-change `[^\n]*` could not cross a
+  // newline either, so this row is the one here that passes on both sides. It
+  // does not count toward acceptance criterion 2.
   ["rm -rf /tmp/x &\necho .mstack", "the store named on the next line"],
   ["rm -rf /tmp/scratch & mstack gate .mstack", "the store named after a backgrounding &"],
   ["rm -rf /tmp/x 2>&1 | grep .mstack", "a redirection before the pipe does not glue the two together"],
@@ -292,6 +295,11 @@ const CROSS_SEGMENT_ALLOW: readonly [string, string][] = [
   ["git push origin main && echo 'the +main spelling forces too'", "a + refspec named in a later echo"],
   ["gh pr merge 3 --squash && echo skipped --admin", "--admin named in a later echo"],
   ["git branch -a && echo remember -D deletes unmerged work", "-D named in a later echo"],
+  // A substitution that closes must give the depth back, or every separator
+  // after the first `$(` on the line stops being one and the guard over-denies
+  // for the rest of the command.
+  ["rm -rf $(mktemp -d) && echo .mstack", "a closed substitution before the separator"],
+  ["rm -rf `mktemp -d` && echo .mstack", "the backtick spelling of the same"],
 ];
 
 /**
@@ -318,6 +326,33 @@ const CROSS_SEGMENT_DENY: readonly [string, string][] = [
   ["git push origin main 2>&1 --force", "the & of a redirection does not end the command"],
 ];
 
+/**
+ * Command substitution, which shipped as a live false allow for one review
+ * round and is the reason this table exists separately.
+ *
+ * A separator inside `$(...)` or `` `...` `` does not end the surrounding
+ * command — the whole construct is one word of it. The first version of
+ * `shellSegments` cut there anyway, so the verb landed in one fragment and its
+ * argument in another and no guard matched either. Thirty spellings across
+ * every rule in `GUARDS` went from denied to allowed, and one of them really
+ * did delete a store directory when a reviewer ran it.
+ *
+ * The first four are everyday idioms rather than contrivances.
+ */
+const SUBSTITUTION_DENY: readonly [string, string][] = [
+  ["rm -rf $(git rev-parse --show-toplevel 2>/dev/null || echo .)/.mstack", "the idiom that really deleted a store"],
+  ["rm -rf $(cd /r && pwd)/.mstack", "&& inside a substitution"],
+  ["rm -rf `cd /r && pwd`/.mstack", "the backtick spelling of the same"],
+  ["git push origin $(echo main; true) --force", "a sibling guard, ; inside a substitution"],
+  ["rm -rf $(cd /r ; pwd)/.mstack", "; inside a substitution"],
+  ["rm -rf $(ls /r | head -1)/.mstack", "a pipe inside a substitution"],
+  ["rm -rf $(a & wait)/.mstack", "a backgrounding & inside a substitution"],
+  ["rm -rf $( (cd /r) && pwd )/.mstack", "a subshell nested inside the substitution"],
+  ["git branch $(cd /r && pwd) -D feature", "the branch guard loses its flag the same way"],
+  ["gh pr merge $(cd /r && pwd) --admin", "and so does the gh guard"],
+  ["rm -rf $(cd /r && echo .mstack", "an opener with no closer holds the whole line, which denies"],
+];
+
 // Reported as a list rather than row by row on purpose. `assert.ok` in a loop
 // stops at the first bad row, which is the least useful thing to know when a
 // change moves the boundary: the question is always how far it moved.
@@ -336,6 +371,14 @@ test("segmenting the command does not let a real deletion of the store through",
     CROSS_SEGMENT_DENY.filter(([command]) => !denied(command)).map(label),
     [],
     "allowed, though each one really does reach the thing its guard protects",
+  );
+});
+
+test("a separator inside a substitution does not end the command that contains it", () => {
+  assert.deepEqual(
+    SUBSTITUTION_DENY.filter(([command]) => !denied(command)).map(label),
+    [],
+    "allowed: the substitution was cut open and the guard lost half its command",
   );
 });
 
@@ -361,4 +404,32 @@ test("shellSegments cuts where the shell would and nowhere else", () => {
 
   // `>|` is a clobbering redirect, not a pipe, for the same reason.
   assert.deepEqual(shellSegments("cmd >| out && other"), ["cmd >| out", "other"]);
+});
+
+/**
+ * The cut points for every substitution spelling, asserted here rather than
+ * through a guard because `<(`, `>(` and `$((` have no destructive one-liner
+ * anyone would actually write. Where the scanner cuts is the contract; whether
+ * some rule then fires is a weaker question.
+ */
+test("shellSegments keeps a whole substitution inside one segment", () => {
+  assert.deepEqual(shellSegments("rm -rf $(cd /r && pwd)/x"), ["rm -rf $(cd /r && pwd)/x"]);
+  assert.deepEqual(shellSegments("rm -rf `cd /r && pwd`/x"), ["rm -rf `cd /r && pwd`/x"]);
+  assert.deepEqual(shellSegments("diff <(a && b) c"), ["diff <(a && b) c"]);
+  assert.deepEqual(shellSegments("tee >(a; b) out"), ["tee >(a; b) out"]);
+  assert.deepEqual(shellSegments("echo $((1 && 2)) x"), ["echo $((1 && 2)) x"]);
+  assert.deepEqual(shellSegments("echo $( (a) && b ) x"), ["echo $( (a) && b ) x"]);
+
+  // ...and gives the depth back when it closes, or every separator after the
+  // first substitution on the line stops being one.
+  assert.deepEqual(shellSegments("rm -rf $(mktemp -d) && echo x"), ["rm -rf $(mktemp -d)", "echo x"]);
+  assert.deepEqual(shellSegments("rm -rf `mktemp -d` && echo x"), ["rm -rf `mktemp -d`", "echo x"]);
+
+  // A bare `(` is a subshell, not a substitution. The commands inside one
+  // really are separate, so cutting there is right.
+  assert.deepEqual(shellSegments("(cd /r && rm -rf x)"), ["(cd /r", "rm -rf x)"]);
+
+  // An opener nobody closes swallows the rest of the line. That is the long
+  // direction, which denies.
+  assert.deepEqual(shellSegments("rm -rf $(cd /r && pwd"), ["rm -rf $(cd /r && pwd"]);
 });

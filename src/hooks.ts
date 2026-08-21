@@ -278,28 +278,61 @@ export const GUARDS: readonly Guard[] = [
  * running one against a whole line lets it take the verb from one command and
  * the argument from another and deny a line that does neither thing.
  *
- * This is a scanner, not a parser, and it tracks exactly three things:
+ * Exported for `tests/hooks.test.ts` rather than for any caller: where the cuts
+ * fall *is* the contract, and asserting it through `preToolUse` would only ever
+ * show that some guard did or did not fire, which is a weaker statement.
+ *
+ * ## The rule that governs every change to this function
+ *
+ * A construct it cannot model must leave a segment too **long**, never too
+ * short. The two directions are not symmetric and never will be:
+ *
+ * - Too long over-denies. The guards see text from a neighbouring command and
+ *   refuse something harmless. The author rewrites the line and moves on.
+ * - Too short under-denies. One command is cut so the verb lands in one
+ *   fragment and its argument in another, and then *no guard matches either*.
+ *   Nothing downstream recovers from that.
+ *
+ * This is not a hypothetical ordering of harms. The first version of this
+ * scanner split inside `$(...)`, and `rm -rf $(cd /r && pwd)/.mstack` — denied
+ * by the un-segmented guard it replaced — became allowed, along with 29 other
+ * spellings across every rule in the array. Read the list below as the set of
+ * places that rule is being enforced, not as a feature list.
+ *
+ * ## What it models
  *
  * - Quotes. A separator inside `'...'` or `"..."` is a filename character.
  * - Backslash escapes, outside single quotes, for the same reason.
  * - Redirections. The `&` of `2>&1` and of `&>log` belongs to the redirection,
- *   and `>|` is a clobbering redirect rather than a pipe.
+ *   and `>|` is a clobbering redirect rather than a pipe. This one is not about
+ *   erring long: cutting `git push origin main 2>&1 --force` in half hides
+ *   `--force` from the rule that exists to catch it.
+ * - Substitution depth. Inside `$(...)`, `` `...` ``, `<(...)`, `>(...)` and
+ *   `$((...))` — and inside any parenthesis nested within one — nothing is a
+ *   separator, because the whole construct is one word of the command that
+ *   contains it. An opener with no closer holds the rest of the line in a
+ *   single segment, which is the long direction.
  *
- * The first two lean one way and the third leans the other, deliberately.
- * Refusing to split inside a quote leaves the segment longer, so the guards see
- * more and deny more; if the quoting is misread the cost is a false denial the
- * author can rewrite. Refusing to split a redirection is the opposite case:
- * cutting `git push origin main 2>&1 --force` in half hides `--force` from the
- * rule that exists to catch it, and a false *allow* is the one outcome nothing
- * downstream recovers from.
+ * ## What it does not model, and which way each one fails
  *
- * Everything it still gets wrong — `$(...)` holding a separator, a heredoc — it
- * gets wrong by leaving a segment too long, which denies rather than allows.
+ * - A heredoc body is scanned as though it were command text. Fails long: a
+ *   body line that reads like a destructive command is denied even though it is
+ *   data. Nothing is hidden, because each body line is already whole.
+ * - `[[ a && b ]]`, `((i && j))` as a command rather than an expansion, and
+ *   `case` patterns spelled with `|` are all cut internally. Fails short, but
+ *   none of them is a command with a destructive verb and an argument to
+ *   separate, so nothing the guards look for can straddle the cut. That is an
+ *   argument, not a test — it is the first place to look if a bypass appears.
+ * - `isSeparator` re-indexes the raw string, so it cannot tell that a preceding
+ *   `>` was itself escaped: `cmd a\>|grep x` reads as a `>|` redirect. Fails
+ *   long.
  */
 export function shellSegments(command: string): string[] {
   const segments: string[] = [];
   let current = "";
   let quote: string | null = null;
+  let backtick = false;
+  let depth = 0;
 
   for (let i = 0; i < command.length; i += 1) {
     const char = command[i] as string;
@@ -318,7 +351,27 @@ export function shellSegments(command: string): string[] {
       current += char;
       continue;
     }
-    if (isSeparator(command, i)) {
+    // Backticks have no nesting to track: the inner ones are backslash-escaped
+    // and the escape branch above has already eaten them.
+    if (char === "`") {
+      backtick = !backtick;
+      current += char;
+      continue;
+    }
+    // `depth > 0` is what carries `$((...))` and a plain subshell written
+    // inside a substitution. Without it the first `)` of `$( (a) && b )` drops
+    // the depth to zero and the `&&` splits a command that has not ended.
+    if (char === "(" && (depth > 0 || opensSubstitution(command[i - 1]))) {
+      depth += 1;
+      current += char;
+      continue;
+    }
+    if (char === ")" && depth > 0) {
+      depth -= 1;
+      current += char;
+      continue;
+    }
+    if (depth === 0 && !backtick && isSeparator(command, i)) {
       segments.push(current);
       current = "";
       continue;
@@ -327,6 +380,15 @@ export function shellSegments(command: string): string[] {
   }
   segments.push(current);
   return segments.map((segment) => segment.trim()).filter((segment) => segment !== "");
+}
+
+/**
+ * `$(`, `<(` and `>(` open a construct whose contents are an argument to the
+ * surrounding command. A bare `(` does not: it is a subshell, and the commands
+ * inside it really are separate, so cutting there is right.
+ */
+function opensSubstitution(previous: string | undefined): boolean {
+  return previous === "$" || previous === "<" || previous === ">";
 }
 
 function isSeparator(command: string, index: number): boolean {
@@ -346,11 +408,12 @@ export function preToolUse(input: HookInput): string | null {
   const command = typeof input.tool_input?.["command"] === "string" ? input.tool_input["command"] : "";
   if (command === "") return null;
 
-  // Every guard is judged per segment, not just the rm one. Five of the six
-  // patterns above carry the same `[^\n]*` shape and had the same defect —
-  // `git reset --hard` escaped only because its pattern happens to be anchored
-  // tighter, which is luck, not design. Making this per-guard would mean the
-  // same mechanism written five times and forgotten on the seventh rule.
+  // Every guard is judged per segment, not just the rm one. All but one of the
+  // patterns above carry the same `[^\n]*` shape and had the same defect; the
+  // exception is `git reset --hard`, which escaped only because its pattern
+  // happens to be anchored tighter, and that is luck rather than design. Making
+  // this per-guard would mean the same mechanism written five times and
+  // forgotten on the seventh rule.
   const segments = shellSegments(command);
   const hit = GUARDS.find((g) => segments.some((segment) => g.pattern.test(segment)));
   if (hit === undefined) return null;
