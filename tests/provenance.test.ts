@@ -37,12 +37,18 @@ function scratchRepo(): string {
 
 /**
  * A store whose root is an mstack checkout: this repository's own launcher,
- * source and plugin manifest, byte-copied into a scratch repo. Copied rather
- * than symlinked on purpose — the launcher resolves symlinks, so a symlinked
- * copy would resolve back here and stop being a *different* copy. The manifest
- * is what makes it a checkout at all: `isMstackCheckout` keys on
+ * source, plugin manifest and package.json, byte-copied into a scratch repo.
+ * Copied rather than symlinked on purpose — the launcher resolves symlinks, so
+ * a symlinked copy would resolve back here and stop being a *different* copy.
+ * The manifest is what makes it a checkout at all: `isMstackCheckout` keys on
  * `.claude-plugin/plugin.json` naming mstack, because the file markers alone
  * false-positived on an ordinary project (see the wrapper-repo test below).
+ * package.json rides along because every real checkout shape — clone, worktree,
+ * installed cache — carries it with `"type": "module"`; without it, node 22.6's
+ * type-stripping fallback prints a MODULE_TYPELESS_PACKAGE_JSON warning on
+ * stderr and the empty-stderr assertions below fail on a fixture shape no real
+ * deployment has. The real file, not a stub, so the fixture stays faithful as
+ * the file evolves.
  *
  * Everything is committed, because the worktree and clone tests below need a
  * tree that `git worktree add` and `git clone` can reproduce.
@@ -52,6 +58,7 @@ function scratchCheckout(): string {
   cpSync(join(ROOT, "bin"), join(root, "bin"), { recursive: true });
   cpSync(join(ROOT, "src"), join(root, "src"), { recursive: true });
   cpSync(join(ROOT, ".claude-plugin"), join(root, ".claude-plugin"), { recursive: true });
+  cpSync(join(ROOT, "package.json"), join(root, "package.json"));
   const setup = run(root, join(root, "bin", "mstack"), ["setup"]);
   assert.equal(setup.status, 0, `setup failed: ${setup.stderr}`);
   const git = (args: string[]) => execFileSync("git", args, { cwd: root, stdio: "ignore" });
