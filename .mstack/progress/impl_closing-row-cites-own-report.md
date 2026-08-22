@@ -384,3 +384,106 @@ PASSED - 0 failures, 1 warning
 - The design-record erratum (candidate A citing docs-for-newcomers as multi-role
   supersession when its rows are all `orchestrator`) is the coordinator's to record at
   close; the behaviour itself is now pinned by the change-4 test.
+
+## Round 3
+
+Security and tests lenses approved round 2; the r2-correctness report
+(`.mstack/progress/review_closing-row-cites-own-report_r2-correctness.md`) required two
+coverage additions and one docs fix. No `src/` change this round — verified:
+`git diff 0a4ea73..HEAD -- src/` is empty (0 lines). Commits: `test:` f5a5e6c (changes 1-2),
+`docs:` ebba284 (change 3), then this section + the re-recorded row.
+
+### Change 1 — both-kinds tie-break pinned (finding A)
+
+One honest complication, stated rather than papered over: the tie-break lives at **two
+layers**, and the lens's surviving swap mutation (src/gate.ts:404) only changes behaviour
+when *different rows* cite different kinds — a single row citing both resolves to
+`"implementer"` inside the predicate (set order, src/roles.ts), so the gate-level `else`
+never sees a spec entry for it. The prescribed single-row test therefore cannot kill that
+particular mutation, and pinning the contract took three tests, one per layer plus the
+prescribed end-to-end shape:
+
+- tests/gate.test.ts:766 "a row citing both kinds lands on the implementer list" — the
+  prescribed test: one closing row citing BOTH `.mstack/progress/impl_storage-layer.md`
+  and `.mstack/progress/spec_storage-layer.md`, `expectFail /implementer's own report/`,
+  detail asserts `storage-layer (reviewer)`.
+- tests/gate.test.ts:790 "mixed-kind citing rows land on the implementer list, naming its
+  citers" — two rows, `reviewer` citing impl and `spec-reviewer` citing spec; this is the
+  shape the gate-level swap changes.
+- tests/roles.test.ts:40 — the lens's cheaper alternative, pinning the predicate:
+  `citesImplementingReport("spec_storage-layer.md impl_storage-layer.md", "storage-layer")
+  === "implementer"` with the spec name first in the string.
+
+Mutation results, in a `git worktree` at ebba284, `node --test tests/gate.test.ts
+tests/roles.test.ts`, baseline 72 pass / 0 fail, `git checkout HEAD -- src/` between runs:
+
+The lens's swap mutation (gate-level, prefer spec when both kinds are cited):
+
+```
+swap applied
+✖ mixed-kind citing rows land on the implementer list, naming its citers (143.454917ms)
+ℹ pass 71
+ℹ fail 1
+```
+
+The predicate-order flip (`IMPLEMENTING_ROLES` iterated spec-author first), which is the
+mutation the prescribed single-row test exists to kill:
+
+```
+order flip applied
+✖ a row citing both kinds lands on the implementer list (133.330167ms)
+✖ a citation is the exact report filename as a whole token (1.017791ms)
+ℹ pass 70
+ℹ fail 2
+```
+
+Every mutation of the tie-break now dies at the layer that owns it; restored baseline
+re-run: 72 pass, 0 fail.
+
+### Change 2 — spec-list detail assertion (finding B)
+
+tests/gate.test.ts:737 now uses verifier `spec-reviewer` (matching the lens's probe shape)
+and asserts the failure text includes `storage-layer (spec-reviewer)` — the same shape the
+round-2 assertions gave the other two lists. The lens's typo mutation, same worktree:
+
+```
+typo applied
+✖ a closing row citing the spec-author's own report does not close the item (227.890959ms)
+ℹ pass 71
+ℹ fail 1
+```
+
+The `storage-layer ()` output can no longer ship unnoticed. (The lens's stronger fix —
+narrowing the predicate's return type — is a `src/` change and this round forbids those;
+left for the coordinator to queue if wanted.)
+
+### Change 3 — wiki transcript from one real run (finding C)
+
+Regenerated myself: one scratch store, three items (`storage-layer` → impl-citing row,
+`other-item` → spec-citing row, `third-item` → implementer pass + reviewer
+`verifier-failed`), one `./bin/mstack gate` run, exit 1, all three `[fail]` pairs in one
+output. My pasted block in docs/wiki/Gates-and-Hooks.md is that run's output and it matches
+the lens's ready-to-paste block byte for byte (same slugs, same six lines). A lead-in
+sentence now states that an item lands on at most one list.
+
+### Verification (round 3)
+
+`npm test`:
+
+```
+bun test v1.3.11 (af24e281)
+ 286 pass
+ 0 fail
+Ran 286 tests across 16 files. [35.40s]
+ℹ tests 286
+ℹ pass 286
+ℹ fail 0
+```
+
+`node scripts/check-doc-links.mjs README.md docs/wiki/*.md`:
+
+```
+100 relative links checked, 0 broken
+```
+
+`git diff 0a4ea73..HEAD -- src/`: empty (0 lines) — src untouched this round.
