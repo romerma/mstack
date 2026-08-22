@@ -447,3 +447,55 @@ orchestrator frame containing exactly the three pass boxes, with APPROVED leavin
 to ledger, merge-gate, merged - agreeing with the 11.17.0 parser-db probe - and the lifecycle
 stateDiagram renders all nine statuses with the blocked note as a note box. Screenshots taken
 in a live browser session against github.com/romerma/mstack at fffbc5c.
+
+## Item 18 closing-row-cites-own-report, 2026-08-22
+
+The gate's no-self-approval audit read only the verifier column, so a row recorded
+--verifier reviewer --evidence impl_<slug>.md closed an item on the implementer's own
+report, and its all-rows-failed guard let one passing implementer row hide an unsuperseded
+verifier-failed reviewer verdict. Both holes reproduced at rung 5 before any fix: forged
+rows against this repo's real ledger through ./bin/mstack gate, green then, ledger restored
+bit-for-bit. Red tests committed before the fix (b27240e) so the broken state stays
+checkoutable.
+
+Design ran as two blind sonnet candidates judged by opus, which transcribed both predicates
+and traced them over the real ledger and 17 adversarial probes: tie 10/12, base candidate A
+for message truthfulness, four grafts from B. The judge's open boundary question was resolved
+before implementation and recorded in decisions.tsv: a citation is the exact report filename
+as a whole token however punctuated.
+
+Three implementation rounds, three review lenses, five verdicts. Round 1 shipped the
+six-step audit and the citesImplementingReport predicate; the panel then earned its keep:
+security proved case-evasion is not theoretical on APFS (IMPL_*.md is the same file) and
+that a U+200B citation reads identically to a human and differently to the regex, both at
+rung 5; correctness caught the new message committing the exact nearby-falsehood the judge
+made the deciding criterion (it said "implementer's own report" while firing on the
+spec-author's), plus the wiki's refusal enumeration going stale; tests proved by mutation
+that multi-role supersession, a decision stated twice in the design record, was pinned by
+nothing. Round 2 closed all of it (i flag, \p{Cf} strip, kind-split messages each literally
+true, the mutation-killing test); round 3 added the two coverage tests correctness's own
+round-2 mutations demanded and replaced a wiki paste no single run could produce with one
+from a real three-item run. Final: 286 tests green on both runtimes, all six boundary probes
+pinned twice, panel verdict at 70a5e30f, ff-merged to main as 96af070, CI run 32587889133
+green, and a session row at the merge SHA whose src tree hash is byte-identical to the
+panel-verified one.
+
+Erratum for the design record: candidate A justifies identity-agnostic supersession by
+citing docs-for-newcomers as the real-ledger multi-role case, but that item's three closing
+rows all carry verifier orchestrator - same-verifier supersession. The decision stands on
+its own reasoning and is now pinned by a test with genuinely different verifier strings; the
+cited backing was wrong and the doc stays as written per append-only discipline, corrected
+here.
+
+Residuals stated rather than swept: Unicode homoglyphs still evade and the predicate's
+comment now says so; free prose that never names the file is irreducible while evidence is
+free text; wrong-slug citations out of scope. Two findings filed instead of left in report
+prose: item 26 (ledger record accepts the forged shape at write time) and item 27 (the
+unsuperseded-failure message misdescribes the ledger when a forged row follows the failure).
+Item 19's shape bit twice in the flesh: the implementer's row was voided by its own report
+commit every round and re-recorded each time.
+
+Process notes: ship ran without a PR - this repo has zero PRs and every prior branch landed
+as a fast-forward, so the PR and merge-gate steps were skipped for the repo's real
+convention and CI was watched on main's own run. The panel grammar held: lenses recorded no
+rows across five reports, the coordinator recorded one verdict per terminal round.
