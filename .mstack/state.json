@@ -284,7 +284,7 @@
         "The check is proven at rung 5 by a row that passes today and is refused after",
         "A done item carrying an unsuperseded verifier-failed row from a non-implementing role is refused by mstack gate; today that row is what satisfies the no-self-approval audit and flips the gate green"
       ],
-      "status": "pending",
+      "status": "in_progress",
       "description": "src/gate.ts:373 refuses a closing row whose verifier is an implementing role, but it reads only the verifier column. A row typed as '--verifier reviewer --evidence .mstack/progress/impl_<slug>.md' passes: the implementer's own evidence wearing another role's name. Every legitimate closing row in this repo's ledger cites a review_*.md or free prose, so the tightening has no false positives against the existing history. Split out of item 15 rather than widened into it, so it gets its own review.",
       "source": "item 15 scope decision, 2026-08-21",
       "verification": "npm test && npm run typecheck && ./bin/mstack lint-plugin ."
