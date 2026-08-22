@@ -746,12 +746,73 @@ test("a closing row citing the spec-author's own report does not close the item"
       sha: sb.sha,
       verdict: "live-verified",
       evidence: ".mstack/progress/spec_storage-layer.md",
-      verifier: "reviewer",
+      verifier: "spec-reviewer",
     });
     // The message names the pass whose report was actually cited — there is
     // no implementer report in this ledger, and saying there was would send a
     // maintainer looking for a file that does not exist.
     expectFail(gate(sb), /spec-author's own report/, "spec-citing close");
+    // The detail names the offender, same as the other two lists: a refusal is
+    // never a headline with nothing after the colon.
+    assert.ok(
+      gate(sb).failures.some((f) => /storage-layer \(spec-reviewer\)/.test(f)),
+      `the offender is named: ${JSON.stringify(gate(sb).failures)}`,
+    );
+  } finally {
+    sb.dispose();
+  }
+});
+
+test("a row citing both kinds lands on the implementer list", () => {
+  const sb = sandbox();
+  try {
+    sb.writeState(state([item({ status: "done" })]));
+    // One row, both reports named. The predicate resolves it to the
+    // implementer — IMPLEMENTING_ROLES' first entry — so a flipped iteration
+    // order would print the spec-author message here instead.
+    record(sb.store, {
+      target: "storage-layer",
+      sha: sb.sha,
+      verdict: "live-verified",
+      evidence: ".mstack/progress/impl_storage-layer.md and .mstack/progress/spec_storage-layer.md",
+      verifier: "reviewer",
+    });
+    expectFail(gate(sb), /implementer's own report/, "both-kinds row");
+    assert.ok(
+      gate(sb).failures.some((f) => /storage-layer \(reviewer\)/.test(f)),
+      `the offender is named: ${JSON.stringify(gate(sb).failures)}`,
+    );
+  } finally {
+    sb.dispose();
+  }
+});
+
+test("mixed-kind citing rows land on the implementer list, naming its citers", () => {
+  const sb = sandbox();
+  try {
+    sb.writeState(state([item({ status: "done" })]));
+    // Two rows, one kind each. The item lands on the implementer list — the
+    // gate-level tie-break at the if/else in checkClosedItems — and the
+    // detail names only the verifiers whose rows cited that kind.
+    record(sb.store, {
+      target: "storage-layer",
+      sha: sb.sha,
+      verdict: "live-verified",
+      evidence: ".mstack/progress/impl_storage-layer.md",
+      verifier: "reviewer",
+    });
+    record(sb.store, {
+      target: "storage-layer",
+      sha: sb.sha,
+      verdict: "live-verified",
+      evidence: ".mstack/progress/spec_storage-layer.md",
+      verifier: "spec-reviewer",
+    });
+    expectFail(gate(sb), /implementer's own report/, "mixed-kind rows");
+    assert.ok(
+      gate(sb).failures.some((f) => /storage-layer \(reviewer\)/.test(f)),
+      `the impl-citing verifier is named: ${JSON.stringify(gate(sb).failures)}`,
+    );
   } finally {
     sb.dispose();
   }
