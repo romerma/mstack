@@ -51,3 +51,4 @@ docs-for-newcomers	871f9768d914fd8214e7d83240133e028fcc3b75	test-verified	.mstac
 provenance-fixtures-lack-package-json	8e83bf4a4988ce22597b56415886f1f104920d62	test-verified	.mstack/progress/impl_provenance-fixtures-lack-package-json.md	implementer	2026-08-22T15:07:23.894Z
 provenance-fixtures-lack-package-json	4dc667ddcdc58a8df1a370608976442502be09d7	test-verified	.mstack/progress/review_provenance-fixtures-lack-package-json.md	reviewer	2026-08-22T15:18:28.500Z
 closing-row-cites-own-report	b16aa45416cbf492ee2aff3c814a46eb19ca12b3	live-verified	.mstack/progress/impl_closing-row-cites-own-report.md	implementer	2026-08-22T16:27:49.367Z
+closing-row-cites-own-report	5b2ec33406328d63c6a8d3464c4642d474ab7f2e	live-verified	.mstack/progress/impl_closing-row-cites-own-report.md round-2 section	implementer	2026-08-22T17:00:14.377Z

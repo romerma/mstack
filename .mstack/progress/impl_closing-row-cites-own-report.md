@@ -224,3 +224,163 @@ suite on both runtimes) except the typecheck line, which is what it says it is.
 - The `rows.every` branch is now reachable only when *every* row failed (as before), which
   keeps `/only verdict is verifier-failed/` pinning exactly that shape — the judge's
   criterion 6 reasoning for candidate A, confirmed in the green run.
+
+## Round 2
+
+Panel verdict CHANGES_REQUESTED (security, correctness, tests reports in
+`.mstack/progress/review_closing-row-cites-own-report_{security,correctness,tests}.md`).
+All eight consolidated changes implemented. Commits: `fix:` (src + tests, changes 1-4 and
+6-8), `docs:` (wiki, change 5), then this report section + the re-recorded ledger row.
+
+### Change map
+
+| # | Change | Where | Proof |
+|---|---|---|---|
+| 1 | `i` flag on the citation regex | src/roles.ts:158 | Unit: tests/roles.test.ts:41 (`IMPL_STORAGE-LAYER.MD`), :42 (mixed case). Gate probe: tests/gate.test.ts:691. Rung 5 transcript below. |
+| 2 | `\p{Cf}` strip before matching | src/roles.ts:153 | Cf category probe below. Unit: tests/roles.test.ts:45 (U+200B), :46 (U+FEFF + U+200D). Gate probe: tests/gate.test.ts:694. Rung 5 transcript below (printf trick). |
+| 3 | Forged list split by kind; predicate returns matched role | src/roles.ts:152 (`string \| undefined`), src/gate.ts:368-369, :396-409, :441-452 | Committed red regex `/implementer's own report/` untouched (tests/gate.test.ts:588 unchanged); spec test now expects the truthful wording (tests/gate.test.ts:754); real spec-citing gate line pasted below. Both-kinds row lands on the implementer list (set order; comment at src/gate.ts:398-402), detail names only the verifiers whose rows cited that kind (correctness finding 4 folded in). |
+| 4 | Multi-role supersession pinned | tests/gate.test.ts:651 | Mutation result below: verifier-scoped supersession fails exactly and only the new test. |
+| 5 | Wiki refusal classes | docs/wiki/Gates-and-Hooks.md, "closed items to audit" bullet | Three new `[fail]`/`fix:` line pairs pasted from real `./bin/mstack gate` runs in scratch stores (transcript sources below); enumeration now covers all six refusal classes. |
+| 6 | Residual comment | src/roles.ts:137-151 | Names case-insensitivity and Cf-stripping as closed, and homoglyphs, wrong-slug citations and free prose as the open residual; floor-not-proof framing kept; no evasion wording. |
+| 7 | Detail strings pinned | tests/gate.test.ts:590-594, :630-634 | Asserts `storage-layer (reviewer)` appears in the failure text of both committed red tests; kills tests-report mutation (g). |
+| 8 | Empty-suffix gate probe | tests/gate.test.ts:696 | `impl_storage-layer_.md` in the refused list; gate-level cover for mutation (c). |
+
+### Cf category probe (required before relying on `\p{Cf}`)
+
+```
+$ node -e '...'
+U+200B Cf? true
+U+200C Cf? true
+U+200D Cf? true
+U+FEFF Cf? true
+strip demo: .mstack/progress/impl_x.md
+```
+
+All four are category Cf, so the single `\p{Cf}` class covers the set; no explicit list
+needed.
+
+### Mutation result (change 4)
+
+The tests report's verifier-scoped supersession mutation, applied to the round-2 tree
+(the `latest` block at src/gate.ts:417 replaced by a per-verifier "failure not cleared by
+a later same-verifier pass" scan, detail shape preserved so only the semantics move), then
+`node --test tests/gate.test.ts tests/roles.test.ts`:
+
+```
+✖ a later pass from a different closing role supersedes a failure (170.777458ms)
+ℹ pass 69
+ℹ fail 1
+```
+
+Exactly and only the new test dies. Shipped code restored from backup;
+`rg -n "const latest = legitimate" src/gate.ts` → 417, subset re-run: 70 pass, 0 fail.
+
+### Rung-5 re-runs of the security transcripts (both now refused)
+
+Upper-case citation (security finding 1), scratch store, shipped `./bin/mstack`:
+
+```
+$ mstack ledger record storage-layer $SHA live-verified --evidence ".mstack/progress/impl_storage-layer.md" --verifier implementer
+recorded live-verified for storage-layer at f61b3f66
+$ mstack ledger record storage-layer $SHA live-verified --evidence ".mstack/progress/IMPL_storage-layer.md" --verifier reviewer
+recorded live-verified for storage-layer at f61b3f66
+$ mstack gate
+[fail]  items closed on a verdict whose evidence cites the implementer's own report: storage-layer (reviewer)
+        fix: a closing verdict needs evidence from the closing pass's own work, not a pointer to the implementer's report; re-run the check and record what actually happened
+FAILED - 1 failure, 2 warnings
+exit: 1
+```
+
+Zero-width citation (security finding 2), same printf trick as the security report:
+
+```
+$ EVIDENCE=$(printf '.mstack/progress/impl_storage-layer\xe2\x80\x8b.md')
+$ mstack ledger record storage-layer $SHA live-verified --evidence "$EVIDENCE" --verifier reviewer
+recorded live-verified for storage-layer at 2878ad8d
+$ mstack gate
+[fail]  items closed on a verdict whose evidence cites the implementer's own report: storage-layer (reviewer)
+        fix: a closing verdict needs evidence from the closing pass's own work, not a pointer to the implementer's report; re-run the check and record what actually happened
+FAILED - 1 failure, 2 warnings
+exit: 1
+```
+
+Spec-citing shape, generating the wiki's pasted line (correctness finding 1 fixed —
+message now names the spec-author):
+
+```
+$ mstack ledger record storage-layer $SHA live-verified --evidence ".mstack/progress/spec_storage-layer.md" --verifier spec-reviewer
+$ mstack gate
+[fail]  items closed on a verdict whose evidence cites the spec-author's own report: storage-layer (spec-reviewer)
+        fix: a closing verdict needs evidence from the closing pass's own work, not a pointer to the spec-author's report; re-run the check and record what actually happened
+exit: 1
+```
+
+### Widened-predicate sweep over the real ledger
+
+Changes 1-2 widen what the predicate matches, so the round-1 differential was re-run with
+the shipped module over every row of `.mstack/ledger.tsv`:
+
+```
+total rows: 52
+rows citing an implementing report (widened predicate: i-flag + Cf strip): 22
+of which from a closing role (would trip the gate): 0
+```
+
+Same 22 rows as before widening — all `--verifier implementer` — so the widening changes
+nothing on real history. The live gate agrees (below): 18 done items green.
+
+### Verification (round 2)
+
+`npm test`:
+
+```
+bun test v1.3.11 (af24e281)
+ 284 pass
+ 0 fail
+Ran 284 tests across 16 files. [43.97s]
+ℹ tests 284
+ℹ suites 0
+ℹ pass 284
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 19480.039416
+```
+
+`npm run typecheck`:
+
+```
+> mstack@0.1.0 typecheck
+> bunx --bun tsc --noEmit
+
+typecheck exit: 0
+```
+
+`./bin/mstack lint-plugin .` (tail):
+
+```
+[ok]    the lifecycle enum appears only in src/lifecycle.ts
+
+PASSED - 0 failures, 0 warnings
+```
+
+`./bin/mstack gate` at the repo root (closed-items line and summary):
+
+```
+[ok]    18 closed item(s) carry a ledger verdict
+PASSED - 0 failures, 1 warning
+```
+
+(The warning is the mid-session uncommitted tree, as in round 1.)
+
+### Noticed, not done (round 2)
+
+- Correctness finding 5 (the unsuperseded-failure message on the forged-supersession shape
+  does not mention the forged row) was not in the consolidated list and is unchanged; the
+  refusal itself is pinned at tests/gate.test.ts:786.
+- The Cyrillic-homoglyph probe from the security report remains open by design and is now
+  named in the predicate's comment (change 6) rather than left unstated.
+- The design-record erratum (candidate A citing docs-for-newcomers as multi-role
+  supersession when its rows are all `orchestrator`) is the coordinator's to record at
+  close; the behaviour itself is now pinned by the change-4 test.
