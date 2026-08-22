@@ -586,6 +586,12 @@ test("a closing row citing the implementer's own report does not close the item"
       verifier: "reviewer",
     });
     expectFail(gate(sb), /implementer's own report/, "self-citing close");
+    // The detail names the offender in the decided `(verifiers)` shape, so a
+    // refusal is never a headline with nothing after the colon.
+    assert.ok(
+      gate(sb).failures.some((f) => /storage-layer \(reviewer\)/.test(f)),
+      `the offender is named: ${JSON.stringify(gate(sb).failures)}`,
+    );
 
     record(sb.store, {
       target: "storage-layer",
@@ -622,6 +628,11 @@ test("an unsuperseded verifier-failed closing row does not close the item", () =
       verifier: "reviewer",
     });
     expectFail(gate(sb), /verifier-failed/, "closed on the reviewer's failure");
+    // The detail names whose failure is unsuperseded, in the decided shape.
+    assert.ok(
+      gate(sb).failures.some((f) => /storage-layer \(reviewer\)/.test(f)),
+      `the offender is named: ${JSON.stringify(gate(sb).failures)}`,
+    );
 
     // Reopened, fixed, re-reviewed: a later closing row supersedes the failure.
     record(sb.store, {
@@ -637,6 +648,34 @@ test("an unsuperseded verifier-failed closing row does not close the item", () =
   }
 });
 
+test("a later pass from a different closing role supersedes a failure", () => {
+  const sb = sandbox();
+  try {
+    sb.writeState(state([item({ status: "done" })]));
+    record(sb.store, {
+      target: "storage-layer",
+      sha: sb.sha,
+      verdict: "verifier-failed",
+      evidence: "review found the fix incomplete",
+      verifier: "reviewer",
+    });
+    // Supersession is identity-agnostic by decision: the verifier column is
+    // free text with no identity model, so the most recent word from any
+    // closing role governs, whoever wrote the earlier failure. A rule scoped
+    // to the same verifier string would leave this red.
+    record(sb.store, {
+      target: "storage-layer",
+      sha: sb.sha,
+      verdict: "test-verified",
+      evidence: "panel re-review after the fix: suite green",
+      verifier: "review panel",
+    });
+    expectPass(gate(sb), "multi-role supersession");
+  } finally {
+    sb.dispose();
+  }
+});
+
 test("a citation is the exact report filename as a whole token, however punctuated", () => {
   // A closing-role row whose evidence cites the implementer's report is refused
   // whatever punctuation surrounds the filename; a string that merely resembles
@@ -647,6 +686,14 @@ test("a citation is the exact report filename as a whole token, however punctuat
     "[impl_storage-layer.md]",
     "impl_storage-layer.md-round-2",
     ".mstack/progress/impl_storage-layer.md round-2 section",
+    // Case does not launder a citation: on a case-insensitive filesystem the
+    // upper-cased string resolves to the very same file.
+    ".mstack/progress/IMPL_STORAGE-LAYER.MD",
+    // Nor does a zero-width format character, which renders as nothing in
+    // every viewer the ledger targets.
+    ".mstack/progress/impl_storage-layer\u200B.md",
+    // The empty-suffix member of the fan-out family reportFiles admits.
+    "impl_storage-layer_.md",
   ];
   const allowed = [
     "re-impl_storage-layer.md",
@@ -701,7 +748,10 @@ test("a closing row citing the spec-author's own report does not close the item"
       evidence: ".mstack/progress/spec_storage-layer.md",
       verifier: "reviewer",
     });
-    expectFail(gate(sb), /implementer's own report/, "spec-citing close");
+    // The message names the pass whose report was actually cited — there is
+    // no implementer report in this ledger, and saying there was would send a
+    // maintainer looking for a file that does not exist.
+    expectFail(gate(sb), /spec-author's own report/, "spec-citing close");
   } finally {
     sb.dispose();
   }

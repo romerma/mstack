@@ -365,7 +365,8 @@ function checkClosedItems(store: Store, state: State, report: Report): void {
   const missing: string[] = [];
   const failed: string[] = [];
   const selfClosed: string[] = [];
-  const forgedEvidence: string[] = [];
+  const forgedImpl: string[] = [];
+  const forgedSpec: string[] = [];
   const unsupersededFailure: string[] = [];
   for (const item of closed) {
     const rows = ledgerEntries(store).filter((entry) => entry.target === item.slug);
@@ -389,9 +390,22 @@ function checkClosedItems(store: Store, state: State, report: Report): void {
     // evidence says another, and the evidence wins. Dropped here, before the
     // ordering below, so a forged row can neither close an item nor supersede
     // a genuine failure.
-    const legitimate = closingRows.filter((entry) => !citesImplementingReport(entry.evidence, item.slug));
+    const cited = closingRows.map((entry) => ({ entry, role: citesImplementingReport(entry.evidence, item.slug) }));
+    const legitimate = cited.filter((c) => c.role === undefined).map((c) => c.entry);
     if (legitimate.length === 0) {
-      forgedEvidence.push(`${item.slug} (${[...new Set(closingRows.map((r) => r.verifier || "unnamed"))].join(", ")})`);
+      // Every closing row cites some implementing pass's report. The item is
+      // reported under the kind actually cited, so the message states the
+      // fact; an item whose rows cite both kinds lands on the implementer
+      // list — one list is enough, and each detail names only the verifiers
+      // whose rows cited that kind.
+      const verifiers = (role: string) =>
+        [...new Set(cited.filter((c) => c.role === role).map((c) => c.entry.verifier || "unnamed"))];
+      const implVerifiers = verifiers("implementer");
+      if (implVerifiers.length > 0) {
+        forgedImpl.push(`${item.slug} (${implVerifiers.join(", ")})`);
+      } else {
+        forgedSpec.push(`${item.slug} (${verifiers("spec-author").join(", ")})`);
+      }
       continue;
     }
     // The operative state of a closed item is whatever its most recent
@@ -424,10 +438,16 @@ function checkClosedItems(store: Store, state: State, report: Report): void {
       "a closing verdict has to come from somewhere other than the implementer; run the verification again from a pass that did not write it",
     );
   }
-  if (forgedEvidence.length > 0) {
+  if (forgedImpl.length > 0) {
     report.fail(
-      `items closed on a verdict whose evidence cites the implementer's own report: ${forgedEvidence.join(", ")}`,
+      `items closed on a verdict whose evidence cites the implementer's own report: ${forgedImpl.join(", ")}`,
       "a closing verdict needs evidence from the closing pass's own work, not a pointer to the implementer's report; re-run the check and record what actually happened",
+    );
+  }
+  if (forgedSpec.length > 0) {
+    report.fail(
+      `items closed on a verdict whose evidence cites the spec-author's own report: ${forgedSpec.join(", ")}`,
+      "a closing verdict needs evidence from the closing pass's own work, not a pointer to the spec-author's report; re-run the check and record what actually happened",
     );
   }
   if (unsupersededFailure.length > 0) {
@@ -440,7 +460,8 @@ function checkClosedItems(store: Store, state: State, report: Report): void {
     missing.length === 0 &&
     failed.length === 0 &&
     selfClosed.length === 0 &&
-    forgedEvidence.length === 0 &&
+    forgedImpl.length === 0 &&
+    forgedSpec.length === 0 &&
     unsupersededFailure.length === 0
   ) {
     report.ok(`${closed.length} closed item(s) carry a ledger verdict`);
