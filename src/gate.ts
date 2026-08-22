@@ -28,7 +28,7 @@ const TERMINAL_IGNORED = new Set<string>(["cancelled"]);
 const SUBSTANTIAL = /[a-z0-9]/i;
 import { cliProvenance, describeSrcComparison, runningCliRoot, UserError, type Store } from "./paths.ts";
 import { Report } from "./report.ts";
-import { canCloseAnItem, MIN_REPORT_BYTES } from "./roles.ts";
+import { canCloseAnItem, citesImplementingReport, MIN_REPORT_BYTES } from "./roles.ts";
 import { EMPTY_ITEM_LINE, EMPTY_NEXT_STEP } from "./setup.ts";
 import { parseState, type Item, type State } from "./state.ts";
 
@@ -365,16 +365,44 @@ function checkClosedItems(store: Store, state: State, report: Report): void {
   const missing: string[] = [];
   const failed: string[] = [];
   const selfClosed: string[] = [];
+  const forgedEvidence: string[] = [];
+  const unsupersededFailure: string[] = [];
   for (const item of closed) {
     const rows = ledgerEntries(store).filter((entry) => entry.target === item.slug);
     if (rows.length === 0) {
       missing.push(item.slug);
-    } else if (rows.every((entry) => entry.verdict === "verifier-failed")) {
+      continue;
+    }
+    if (rows.every((entry) => entry.verdict === "verifier-failed")) {
       failed.push(item.slug);
-    } else if (!rows.some((entry) => canCloseAnItem(entry.verifier))) {
-      // The pass that wrote the code does not get to close the item. Nothing
-      // read this column, so the implementer's own row was sufficient.
+      continue;
+    }
+    // The pass that wrote the code does not get to close the item. Nothing
+    // read this column, so the implementer's own row was sufficient.
+    const closingRows = rows.filter((entry) => canCloseAnItem(entry.verifier));
+    if (closingRows.length === 0) {
       selfClosed.push(`${item.slug} (only ${[...new Set(rows.map((r) => r.verifier || "unnamed"))].join(", ")})`);
+      continue;
+    }
+    // A closing-role row whose evidence is an implementing role's own report is
+    // that report wearing a reviewer's name: the column says one thing, the
+    // evidence says another, and the evidence wins. Dropped here, before the
+    // ordering below, so a forged row can neither close an item nor supersede
+    // a genuine failure.
+    const legitimate = closingRows.filter((entry) => !citesImplementingReport(entry.evidence, item.slug));
+    if (legitimate.length === 0) {
+      forgedEvidence.push(`${item.slug} (${[...new Set(closingRows.map((r) => r.verifier || "unnamed"))].join(", ")})`);
+      continue;
+    }
+    // The operative state of a closed item is whatever its most recent
+    // legitimate closing row says — `entries()` returns file order, which is
+    // chronological, and `filter` keeps it. An earlier failure a later row
+    // superseded is exactly what "closed" is supposed to mean; a later failure
+    // after an earlier pass is approval retracted, and does not get waved
+    // through because the item once passed.
+    const latest = legitimate[legitimate.length - 1]!;
+    if (latest.verdict === "verifier-failed") {
+      unsupersededFailure.push(`${item.slug} (${latest.verifier || "unnamed"})`);
     }
   }
 
@@ -396,7 +424,25 @@ function checkClosedItems(store: Store, state: State, report: Report): void {
       "a closing verdict has to come from somewhere other than the implementer; run the verification again from a pass that did not write it",
     );
   }
-  if (missing.length === 0 && failed.length === 0 && selfClosed.length === 0) {
+  if (forgedEvidence.length > 0) {
+    report.fail(
+      `items closed on a verdict whose evidence cites the implementer's own report: ${forgedEvidence.join(", ")}`,
+      "a closing verdict needs evidence from the closing pass's own work, not a pointer to the implementer's report; re-run the check and record what actually happened",
+    );
+  }
+  if (unsupersededFailure.length > 0) {
+    report.fail(
+      `items marked done whose most recent closing verdict is verifier-failed: ${unsupersededFailure.join(", ")}`,
+      "the ledger is append-only, so the failed row stays; a later verdict from a closing role is what clears it — re-run the review after the fix and record a fresh one",
+    );
+  }
+  if (
+    missing.length === 0 &&
+    failed.length === 0 &&
+    selfClosed.length === 0 &&
+    forgedEvidence.length === 0 &&
+    unsupersededFailure.length === 0
+  ) {
     report.ok(`${closed.length} closed item(s) carry a ledger verdict`);
   }
 }

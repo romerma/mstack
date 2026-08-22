@@ -637,6 +637,135 @@ test("an unsuperseded verifier-failed closing row does not close the item", () =
   }
 });
 
+test("a citation is the exact report filename as a whole token, however punctuated", () => {
+  // A closing-role row whose evidence cites the implementer's report is refused
+  // whatever punctuation surrounds the filename; a string that merely resembles
+  // the filename — glued prefix, different extension, different slug — is not a
+  // citation and closes the item as usual.
+  const refused = [
+    '".mstack/progress/impl_storage-layer.md"',
+    "[impl_storage-layer.md]",
+    "impl_storage-layer.md-round-2",
+    ".mstack/progress/impl_storage-layer.md round-2 section",
+  ];
+  const allowed = [
+    "re-impl_storage-layer.md",
+    "impl_storage-layer.mdx",
+    "impl_other-item.md",
+  ];
+  for (const evidence of refused) {
+    const sb = sandbox();
+    try {
+      sb.writeState(state([item({ status: "done" })]));
+      record(sb.store, {
+        target: "storage-layer",
+        sha: sb.sha,
+        verdict: "live-verified",
+        evidence,
+        verifier: "reviewer",
+      });
+      expectFail(gate(sb), /implementer's own report/, `refused: ${evidence}`);
+    } finally {
+      sb.dispose();
+    }
+  }
+  for (const evidence of allowed) {
+    const sb = sandbox();
+    try {
+      sb.writeState(state([item({ status: "done" })]));
+      record(sb.store, {
+        target: "storage-layer",
+        sha: sb.sha,
+        verdict: "live-verified",
+        evidence,
+        verifier: "reviewer",
+      });
+      expectPass(gate(sb), `allowed: ${evidence}`);
+    } finally {
+      sb.dispose();
+    }
+  }
+});
+
+test("a closing row citing the spec-author's own report does not close the item", () => {
+  const sb = sandbox();
+  try {
+    sb.writeState(state([item({ status: "done" })]));
+    // The spec-author's progress report is the same artifact as the
+    // implementer's — a report by a pass that wrote the thing — and
+    // IMPLEMENTING_ROLES already contains spec-author for exactly this reason.
+    record(sb.store, {
+      target: "storage-layer",
+      sha: sb.sha,
+      verdict: "live-verified",
+      evidence: ".mstack/progress/spec_storage-layer.md",
+      verifier: "reviewer",
+    });
+    expectFail(gate(sb), /implementer's own report/, "spec-citing close");
+  } finally {
+    sb.dispose();
+  }
+});
+
+test("a later verifier-failed closing row retracts an earlier pass", () => {
+  const sb = sandbox();
+  try {
+    sb.writeState(state([item({ status: "done" })]));
+    record(sb.store, {
+      target: "storage-layer",
+      sha: sb.sha,
+      verdict: "test-verified",
+      evidence: "first review: suite green",
+      verifier: "reviewer",
+    });
+    // The most recent word from a closing role governs, not the best-ever word:
+    // a review that later retracts approval blocks the close.
+    record(sb.store, {
+      target: "storage-layer",
+      sha: sb.sha,
+      verdict: "verifier-failed",
+      evidence: "regression found on re-review",
+      verifier: "reviewer",
+    });
+    expectFail(gate(sb), /most recent closing verdict is verifier-failed/, "pass then fail");
+  } finally {
+    sb.dispose();
+  }
+});
+
+test("a forged passing row cannot supersede a genuine failure", () => {
+  const sb = sandbox();
+  try {
+    sb.writeState(state([item({ status: "done" })]));
+    record(sb.store, {
+      target: "storage-layer",
+      sha: sb.sha,
+      verdict: "live-verified",
+      evidence: ".mstack/progress/impl_storage-layer.md",
+      verifier: "implementer",
+    });
+    record(sb.store, {
+      target: "storage-layer",
+      sha: sb.sha,
+      verdict: "verifier-failed",
+      evidence: "review found the fix incomplete",
+      verifier: "reviewer",
+    });
+    // Forged rows are dropped before the ordering, so a self-citing pass
+    // appended after a genuine failure clears nothing.
+    record(sb.store, {
+      target: "storage-layer",
+      sha: sb.sha,
+      verdict: "live-verified",
+      evidence: ".mstack/progress/impl_storage-layer.md",
+      verifier: "reviewer",
+    });
+    expectFail(gate(sb), /most recent closing verdict is verifier-failed/, "forged supersession");
+  } finally {
+    sb.dispose();
+  }
+});
+
 test("a plugin-qualified role is the same role", () => {
   const sb = sandbox();
   try {
