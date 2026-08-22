@@ -12,29 +12,38 @@ import { citesImplementingReport } from "../src/roles.ts";
  */
 test("a citation is the exact report filename as a whole token", () => {
   const slug = "storage-layer";
-  const cites: string[] = [
+  const cites: ReadonlyArray<readonly [string, string]> = [
     // The plain forms.
-    "impl_storage-layer.md",
-    ".mstack/progress/impl_storage-layer.md",
+    ["impl_storage-layer.md", "implementer"],
+    [".mstack/progress/impl_storage-layer.md", "implementer"],
     // Trailing prose after the filename is the ledger's established style.
-    ".mstack/progress/impl_storage-layer.md round-2 section",
-    "impl_storage-layer.md - shipped bin/mstack driven as a process",
+    [".mstack/progress/impl_storage-layer.md round-2 section", "implementer"],
+    ["impl_storage-layer.md - shipped bin/mstack driven as a process", "implementer"],
     // Punctuation around the token still cites: quotes, brackets, `=`, `(`.
-    '".mstack/progress/impl_storage-layer.md"',
-    "[impl_storage-layer.md]",
-    "=impl_storage-layer.md",
-    "(impl_storage-layer.md)",
+    ['".mstack/progress/impl_storage-layer.md"', "implementer"],
+    ["[impl_storage-layer.md]", "implementer"],
+    ["=impl_storage-layer.md", "implementer"],
+    ["(impl_storage-layer.md)", "implementer"],
     // `.md` terminates the filename contract, so a trailing hyphen — or any
     // other non-word character — is punctuation, not a longer filename.
-    "impl_storage-layer.md-round-2",
-    "impl_storage-layer.md.",
-    "impl_storage-layer.md#tests",
+    ["impl_storage-layer.md-round-2", "implementer"],
+    ["impl_storage-layer.md.", "implementer"],
+    ["impl_storage-layer.md#tests", "implementer"],
     // The fan-out family reportFiles admits, including the empty suffix.
-    "impl_storage-layer_round2.md",
-    "impl_storage-layer_.md",
+    ["impl_storage-layer_round2.md", "implementer"],
+    ["impl_storage-layer_.md", "implementer"],
     // The spec-author's report is an implementing role's report too.
-    "spec_storage-layer.md",
-    ".mstack/progress/spec_storage-layer.md",
+    ["spec_storage-layer.md", "spec-author"],
+    [".mstack/progress/spec_storage-layer.md", "spec-author"],
+    // Case does not launder a citation: kind and slug are lowercase by
+    // contract, and on a case-insensitive filesystem the upper-cased string
+    // resolves to the very same file.
+    ["IMPL_STORAGE-LAYER.MD", "implementer"],
+    [".mstack/progress/Impl_Storage-Layer.mD", "implementer"],
+    // Nor do zero-width format characters, which render as nothing in every
+    // viewer the ledger targets.
+    ["impl_storage-layer\u200B.md", "implementer"],
+    ["\uFEFFimpl_storage\u200D-layer.md", "implementer"],
   ];
   const doesNot: string[] = [
     // A leading letter, digit, hyphen or underscore glues into a different
@@ -54,10 +63,10 @@ test("a citation is the exact report filename as a whole token", () => {
     // Free prose that never names the file is the stated residual.
     "read the implementer's report, all good",
   ];
-  for (const evidence of cites) {
-    assert.equal(citesImplementingReport(evidence, slug), true, `should cite: ${evidence}`);
+  for (const [evidence, role] of cites) {
+    assert.equal(citesImplementingReport(evidence, slug), role, `should cite ${role}: ${evidence}`);
   }
   for (const evidence of doesNot) {
-    assert.equal(citesImplementingReport(evidence, slug), false, `should not cite: ${evidence}`);
+    assert.equal(citesImplementingReport(evidence, slug), undefined, `should not cite: ${evidence}`);
   }
 });

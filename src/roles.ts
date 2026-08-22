@@ -108,7 +108,10 @@ export function canCloseAnItem(verifier: string): boolean {
 /**
  * Does this evidence string name an implementing role's own report for this
  * item — the report `reportFiles` would list for `impl`/`spec` — regardless
- * of which role the row's `verifier` column claims?
+ * of which role the row's `verifier` column claims? Returns the implementing
+ * role whose report is cited (a row citing both kinds reports `implementer`,
+ * the set's first entry), or `undefined` when nothing is cited — so the
+ * caller can say which pass's report the evidence points at.
  *
  * A pure string check against the naming contract, not a directory read: the
  * ledger row has to prove or disprove itself from its own columns, the same
@@ -124,24 +127,38 @@ export function canCloseAnItem(verifier: string): boolean {
  * than `+` in the suffix arm mirrors `reportFiles`' own
  * `startsWith(prefix + "_")`, which admits `impl_x_.md`.
  *
+ * Matching is case-insensitive: kind and slug are lowercase by contract
+ * (`SLUG`, src/state.ts:49), so the `i` flag only widens what the evidence
+ * side may look like — and on the case-insensitive filesystem this project
+ * develops on, `IMPL_x.MD` resolves to the very file `impl_x.md` names.
+ * Format characters (Unicode category Cf: zero-width spaces and joiners, the
+ * BOM) are stripped before matching, because they render as nothing in every
+ * viewer the ledger targets — a filename carrying one reads as the real
+ * filename to a human and has to read the same way to this check.
+ *
  * No escaping of `slug`: `SLUG` (src/state.ts:49) admits no regex
  * metacharacter and is enforced on load at src/state.ts:143, so interpolating
  * it directly is safe by construction, not by convention.
  *
  * Like `canCloseAnItem` above, this is a floor and not a proof: it stops the
- * default path, not a determined forger. Free prose that never names the file
- * passes, and nothing here can tell an honest description from a dishonest
- * one — that residual is irreducible while `evidence` is free text.
+ * default path, not a determined forger. What remains open: free prose that
+ * never names the file passes, and nothing here can tell an honest
+ * description from a dishonest one while `evidence` is free text; a Unicode
+ * homoglyph (a Cyrillic letter standing in for a Latin one) is a different
+ * string to this check and an identical-looking one to a reader; and a
+ * citation of a *different* item's report is invisible here, because the
+ * prefix is built from the audited item's own slug.
  */
-export function citesImplementingReport(evidence: string, slug: string): boolean {
+export function citesImplementingReport(evidence: string, slug: string): string | undefined {
+  const visible = evidence.replace(/\p{Cf}/gu, "");
   for (const role of IMPLEMENTING_ROLES) {
     const kind = REPORT_KINDS[role];
     if (kind === undefined) continue;
     const prefix = `${kind}_${slug}`;
-    const pattern = new RegExp(`(^|[^A-Za-z0-9_-])${prefix}(\\.md|_[^\\s/]*\\.md)(?=$|[^A-Za-z0-9_])`);
-    if (pattern.test(evidence)) return true;
+    const pattern = new RegExp(`(^|[^A-Za-z0-9_-])${prefix}(\\.md|_[^\\s/]*\\.md)(?=$|[^A-Za-z0-9_])`, "i");
+    if (pattern.test(visible)) return role;
   }
-  return false;
+  return undefined;
 }
 
 /**
