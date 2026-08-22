@@ -381,7 +381,7 @@
         "Every test fixture that stands in for an mstack checkout carries package.json, found by sweeping all fixture builders rather than patching the four sites",
         "npm test green on both runtimes locally, and CI green on main after push, which is the surface the defect lives on"
       ],
-      "status": "in_progress",
+      "status": "reviewing",
       "description": "The oldest-node CI job fails 4 of 276 tests at the pushed head 4ca0586: tests 206, 208, 211, 217 in tests/provenance.test.ts. The fixtures stand in for mstack checkouts but copy only bin/, src/ and .claude-plugin/, omitting package.json - which every real clone, worktree and the installed plugin cache ship, all with type:module. Node 22.6 with --experimental-strip-types then prints a MODULE_TYPELESS_PACKAGE_JSON warning to stderr, and the tests assert stderr empty. Reproduced at rung 5 on the local nvm node v22.6.0, the exact CI-pinned version; adding {\"type\":\"module\"} to the fixture silences it. Invisible to all four item-17 review rounds because bun and node 26 never emit the warning.",
       "source": "user report: main red on GitHub; CI run 32526687400, 2026-08-22",
       "verification": "npm test && npm run typecheck && ./bin/mstack lint-plugin ."
