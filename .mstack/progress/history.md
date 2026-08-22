@@ -412,3 +412,29 @@ context intact, nothing repeated. The panel rows followed item 15's grammar thro
 lenses recorded nothing, the synthesizing pass recorded one row per round under its own role,
 and the composed r<N>-<lens> report names classified correctly at every step. Item 24's
 instance count was corrected five-to-seven from the round-3 facts sweep before close.
+
+## Item 25 provenance-fixtures-lack-package-json, 2026-08-22
+
+CI red on main, reported by the user. One round, and the whole thing closed at rung 5 on the
+surface the defect lives on.
+
+Four provenance tests from item 17 failed only on the oldest-node CI job: the checkout
+fixtures copied bin/, src/ and the manifest but not package.json, so node 22.6's
+type-stripping path printed MODULE_TYPELESS_PACKAGE_JSON on stderr, and the tests assert
+empty stderr. Invisible to every local run and all four item-17 review rounds because bun and
+node 26 never emit the warning; the only warning runtime was the one CI pins. Reproduced on
+the exact binary (the machine's nvm had v22.6.0), fix direction proven before filing: the
+same fixture with {"type":"module"} goes silent.
+
+The fix copies the real package.json into every checkout-shaped fixture, swept across both
+test files rather than patched at the four sites. The reviewer independently re-ran the
+red-first proof (4 red with main's test file on 22.6.0, 276/276 with the fix) and confirmed
+the installed plugin cache ships package.json with type module, so the fixture is now
+faithful rather than masking a shipping defect. Its approval carried the honest caveat that
+acceptance 3's CI half was unproven; the push closed it: run 32581440487 green on main at
+d442724.
+
+Second fixture-identity omission in this defect's family: item 17 round 2 added the manifest
+to these same fixtures, this item adds package.json. A fixture that stands in for a real
+shape drifts from it one forgotten file at a time, and each file is found by the one
+environment that cares.
