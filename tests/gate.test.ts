@@ -1,9 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { checkCliProvenance, runGate, SPEC_ARTIFACTS } from "../src/gate.ts";
 import { record } from "../src/ledger.ts";
@@ -1198,6 +1199,14 @@ function checkoutMarkers(sb: ReturnType<typeof sandbox>, manifest: string | null
   mkdirSync(join(sb.store.root, "src"), { recursive: true });
   writeFileSync(join(sb.store.root, "bin", "mstack"), "#!/bin/sh\n", "utf8");
   writeFileSync(join(sb.store.root, "src", "cli.ts"), "// marker\n", "utf8");
+  // Every real checkout shape carries the repository's package.json (with
+  // "type": "module"); a fixture standing in for one carries the real file too,
+  // so the shape stays faithful as the file evolves. `isMstackCheckout` does
+  // not key on it, so the not-a-checkout variants below are unaffected.
+  copyFileSync(
+    join(dirname(fileURLToPath(import.meta.url)), "..", "package.json"),
+    join(sb.store.root, "package.json"),
+  );
   if (manifest !== null) {
     mkdirSync(join(sb.store.root, ".claude-plugin"), { recursive: true });
     writeFileSync(join(sb.store.root, ".claude-plugin", "plugin.json"), manifest, "utf8");
