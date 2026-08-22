@@ -438,3 +438,12 @@ Second fixture-identity omission in this defect's family: item 17 round 2 added 
 to these same fixtures, this item adds package.json. A fixture that stands in for a real
 shape drifts from it one forgotten file at a time, and each file is found by the one
 environment that cares.
+
+## Follow-up to item 23, 2026-08-22
+
+The one residual its close left open is now shut at rung 5: both diagrams were observed
+rendered by GitHub's own mermaid on the pushed main. The README flowchart draws the
+orchestrator frame containing exactly the three pass boxes, with APPROVED leaving the frame
+to ledger, merge-gate, merged - agreeing with the 11.17.0 parser-db probe - and the lifecycle
+stateDiagram renders all nine statuses with the blocked note as a note box. Screenshots taken
+in a live browser session against github.com/romerma/mstack at fffbc5c.
