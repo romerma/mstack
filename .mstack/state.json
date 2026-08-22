@@ -287,7 +287,8 @@
       "status": "done",
       "description": "src/gate.ts:373 refuses a closing row whose verifier is an implementing role, but it reads only the verifier column. A row typed as '--verifier reviewer --evidence .mstack/progress/impl_<slug>.md' passes: the implementer's own evidence wearing another role's name. Every legitimate closing row in this repo's ledger cites a review_*.md or free prose, so the tightening has no false positives against the existing history. Split out of item 15 rather than widened into it, so it gets its own review.",
       "source": "item 15 scope decision, 2026-08-21",
-      "verification": "npm test && npm run typecheck && ./bin/mstack lint-plugin ."
+      "verification": "npm test && npm run typecheck && ./bin/mstack lint-plugin .",
+      "closed_by": "ff-merged to main as 96af070, CI run 32587889133 green"
     },
     {
       "id": 19,
@@ -386,6 +387,32 @@
       "source": "user report: main red on GitHub; CI run 32526687400, 2026-08-22",
       "verification": "npm test && npm run typecheck && ./bin/mstack lint-plugin .",
       "closed_by": "Reviewer APPROVED at 4dc667dd; CI run 32581440487 green on main at d442724, closing acceptance 3 at rung 5"
+    },
+    {
+      "id": 26,
+      "slug": "ledger-record-accepts-the-forged-closing-shape",
+      "title": "ledger record accepts at write time the forged closing shape the gate now refuses",
+      "acceptance": [
+        "mstack ledger record warns or refuses when a closing-role row's evidence cites an implementing role's report for the same target, proven through the shipped CLI",
+        "Legitimate implementer rows citing their own report are unaffected, proven against the recording patterns in this repo's ledger"
+      ],
+      "status": "pending",
+      "description": "Item 18 tightened the post-hoc audit only: checkClosedItems refuses the forged row at gate time, but 'mstack ledger record <target> <sha> live-verified --evidence .mstack/progress/impl_<target>.md --verifier reviewer' still records without a word. Raised as an open question in design_closing-row-cites-own-report_candidate-a.md and as hole 5 of the judge report; deferred out of item 18's scope. citesImplementingReport in src/roles.ts is the reusable predicate.",
+      "source": "item 18 design record and judge report, 2026-08-22",
+      "verification": "npm test && npm run typecheck && ./bin/mstack lint-plugin ."
+    },
+    {
+      "id": 27,
+      "slug": "forged-supersession-diagnosis-is-partial",
+      "title": "the unsuperseded-failure message misdescribes the ledger when a forged row follows the failure",
+      "acceptance": [
+        "On the forged-pass-after-genuine-fail shape the gate's output either says the most recent legitimate closing verdict is verifier-failed or also reports the forged row, and the wiki paste matches a real run",
+        "The existing refusal behaviour is unchanged, proven by the test at the forged-supersession shape staying green"
+      ],
+      "status": "pending",
+      "description": "checkClosedItems refuses correctly when a forged passing row is appended after a genuine reviewer failure, but prints 'most recent closing verdict is verifier-failed' while the ledger's literal last closing-role row is a passing one, and forgedEvidence stays silent because a legitimate closing row exists. The refusal is right; the diagnosis is partial. Found as correctness round-1 finding 5, re-confirmed in round 2 as strictly truer but still silent about the forged row.",
+      "source": "item 18 correctness review, finding 5, 2026-08-22",
+      "verification": "npm test && npm run typecheck && ./bin/mstack lint-plugin ."
     }
   ]
 }
