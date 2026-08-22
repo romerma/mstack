@@ -35,6 +35,9 @@ test("a citation is the exact report filename as a whole token", () => {
     // The spec-author's report is an implementing role's report too.
     ["spec_storage-layer.md", "spec-author"],
     [".mstack/progress/spec_storage-layer.md", "spec-author"],
+    // A string citing both kinds resolves to the implementer — the set's
+    // first entry — regardless of which filename appears first.
+    ["spec_storage-layer.md impl_storage-layer.md", "implementer"],
     // Case does not launder a citation: kind and slug are lowercase by
     // contract, and on a case-insensitive filesystem the upper-cased string
     // resolves to the very same file.
