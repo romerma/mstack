@@ -202,8 +202,24 @@ Walking the lines that carry the weight:
 
 - **"closed items to audit"** is `require_verdict_to_close`. An item marked `done` fails the
   gate if the ledger holds no verdict for it, if its only verdict is `verifier-failed`, or if
-  every verdict it has came from the pass that wrote the code (`only implementer`). The escape
-  hatch for "no check could be run" is not a prose note but a typed verdict:
+  every verdict it has came from the pass that wrote the code (`only implementer`). Three more
+  refusals audit the rows that *look* closing. A closing-role row whose evidence cites the
+  implementer's own report — or the spec-author's — does not count: the verifier column says
+  one thing, the evidence says another, and the evidence wins. And a `done` item whose most
+  recent legitimate closing verdict is `verifier-failed` stays refused until a later closing
+  row supersedes it; a forged row cannot be that later row, because it is dropped before the
+  ordering:
+
+  ```console
+  [fail]  items closed on a verdict whose evidence cites the implementer's own report: storage-layer (reviewer)
+          fix: a closing verdict needs evidence from the closing pass's own work, not a pointer to the implementer's report; re-run the check and record what actually happened
+  [fail]  items closed on a verdict whose evidence cites the spec-author's own report: storage-layer (spec-reviewer)
+          fix: a closing verdict needs evidence from the closing pass's own work, not a pointer to the spec-author's report; re-run the check and record what actually happened
+  [fail]  items marked done whose most recent closing verdict is verifier-failed: storage-layer (reviewer)
+          fix: the ledger is append-only, so the failed row stays; a later verdict from a closing role is what clears it — re-run the review after the fix and record a fresh one
+  ```
+
+  The escape hatch for "no check could be run" is not a prose note but a typed verdict:
   `verifier-blocked`, keyed to a SHA, carrying its reason.
 
 - **"a verification run is due at verifying"** is the check described [below](#verification-that-actually-ran).
