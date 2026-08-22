@@ -565,6 +565,78 @@ test("the pass that wrote the code does not get to close the item", () => {
   }
 });
 
+test("a closing row citing the implementer's own report does not close the item", () => {
+  const sb = sandbox();
+  try {
+    sb.writeState(state([item({ status: "done" })]));
+    record(sb.store, {
+      target: "storage-layer",
+      sha: sb.sha,
+      verdict: "live-verified",
+      evidence: ".mstack/progress/impl_storage-layer.md",
+      verifier: "implementer",
+    });
+    // The verifier column says reviewer; the evidence is the implementer's own
+    // report. A check that reads only the column accepts this row.
+    record(sb.store, {
+      target: "storage-layer",
+      sha: sb.sha,
+      verdict: "live-verified",
+      evidence: ".mstack/progress/impl_storage-layer.md",
+      verifier: "reviewer",
+    });
+    expectFail(gate(sb), /implementer's own report/, "self-citing close");
+
+    record(sb.store, {
+      target: "storage-layer",
+      sha: sb.sha,
+      verdict: "live-verified",
+      evidence: ".mstack/progress/review_storage-layer.md",
+      verifier: "reviewer",
+    });
+    expectPass(gate(sb), "review evidence closes");
+  } finally {
+    sb.dispose();
+  }
+});
+
+test("an unsuperseded verifier-failed closing row does not close the item", () => {
+  const sb = sandbox();
+  try {
+    sb.writeState(state([item({ status: "done" })]));
+    record(sb.store, {
+      target: "storage-layer",
+      sha: sb.sha,
+      verdict: "live-verified",
+      evidence: ".mstack/progress/impl_storage-layer.md",
+      verifier: "implementer",
+    });
+    // The implementer's passing row keeps the every-row-failed branch from
+    // firing, and the reviewer's failed row satisfies the no-self-approval
+    // scan, so the reviewer saying "this does not work" closes the item.
+    record(sb.store, {
+      target: "storage-layer",
+      sha: sb.sha,
+      verdict: "verifier-failed",
+      evidence: "review found the fix incomplete",
+      verifier: "reviewer",
+    });
+    expectFail(gate(sb), /verifier-failed/, "closed on the reviewer's failure");
+
+    // Reopened, fixed, re-reviewed: a later closing row supersedes the failure.
+    record(sb.store, {
+      target: "storage-layer",
+      sha: sb.sha,
+      verdict: "test-verified",
+      evidence: "re-review after the fix: suite green",
+      verifier: "reviewer",
+    });
+    expectPass(gate(sb), "superseded failure");
+  } finally {
+    sb.dispose();
+  }
+});
+
 test("a plugin-qualified role is the same role", () => {
   const sb = sandbox();
   try {
