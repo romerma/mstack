@@ -106,6 +106,45 @@ export function canCloseAnItem(verifier: string): boolean {
 }
 
 /**
+ * Does this evidence string name an implementing role's own report for this
+ * item — the report `reportFiles` would list for `impl`/`spec` — regardless
+ * of which role the row's `verifier` column claims?
+ *
+ * A pure string check against the naming contract, not a directory read: the
+ * ledger row has to prove or disprove itself from its own columns, the same
+ * way every other check in `checkClosedItems` does.
+ *
+ * A citation is the exact report filename as a whole token, however
+ * punctuated. Leading: quotes, brackets, `=`, `(`, whitespace, `/` or string
+ * start all precede a citation; a letter, digit, hyphen or underscore glues
+ * into a different filename (`re-impl_x.md` is not a citation). Trailing:
+ * `.md` terminates the filename contract, so any following character that is
+ * not a letter, digit or underscore — including a hyphen — is punctuation
+ * (`impl_x.md-round-2` IS a citation; `impl_x.mdx` is not). The `*` rather
+ * than `+` in the suffix arm mirrors `reportFiles`' own
+ * `startsWith(prefix + "_")`, which admits `impl_x_.md`.
+ *
+ * No escaping of `slug`: `SLUG` (src/state.ts:49) admits no regex
+ * metacharacter and is enforced on load at src/state.ts:143, so interpolating
+ * it directly is safe by construction, not by convention.
+ *
+ * Like `canCloseAnItem` above, this is a floor and not a proof: it stops the
+ * default path, not a determined forger. Free prose that never names the file
+ * passes, and nothing here can tell an honest description from a dishonest
+ * one — that residual is irreducible while `evidence` is free text.
+ */
+export function citesImplementingReport(evidence: string, slug: string): boolean {
+  for (const role of IMPLEMENTING_ROLES) {
+    const kind = REPORT_KINDS[role];
+    if (kind === undefined) continue;
+    const prefix = `${kind}_${slug}`;
+    const pattern = new RegExp(`(^|[^A-Za-z0-9_-])${prefix}(\\.md|_[^\\s/]*\\.md)(?=$|[^A-Za-z0-9_])`);
+    if (pattern.test(evidence)) return true;
+  }
+  return false;
+}
+
+/**
  * Prefixes a fan-out may allocate under.
  *
  * Wider than `REPORT_KINDS`, which maps the agent roles this plugin ships.
