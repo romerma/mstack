@@ -11,7 +11,7 @@ argument-hint: [what to prove]
 2. Pick the surface where the claim is actually true or false. Unit tests answer questions
    about branches. They do not answer questions about the running system.
 3. Run it. Capture the real output, not a summary of it.
-4. Place the result on the [evidence ladder](../mstack/references/evidence-ladder.md) and say where it
+4. Place the result on the [evidence ladder](../router/references/evidence-ladder.md) and say where it
    stopped.
 5. Record the verdict:
    `mstack ledger record <slug> "$(git rev-parse HEAD)" <verdict> --evidence <path> --verifier <role>`.

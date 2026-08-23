@@ -424,7 +424,7 @@
         "lint-plugin turns red when a doc names a /mstack:<x> command that no skill directory provides",
         "every doc reference to skills/router/ points at the new path"
       ],
-      "status": "blocked"
+      "status": "cancelled"
     },
     {
       "id": 29,
@@ -437,7 +437,47 @@
         "the entry point section says there is one command and how its argument works",
         "node scripts/check-doc-links.mjs README.md docs/wiki/*.md passes and lint-plugin stays green"
       ],
-      "status": "reviewing"
+      "status": "reviewing",
+      "verification": "npm test && npm run typecheck && ./bin/mstack lint-plugin . && node scripts/check-doc-links.mjs README.md docs/wiki/*.md"
+    },
+    {
+      "id": 30,
+      "slug": "readme-counts-drift",
+      "title": "Nothing checks the README's seven, five and twelve against the directories they count",
+      "acceptance": [
+        "lint-plugin fails when the README's playbook, agent or skill counts disagree with skills/mstack/playbooks/, agents/ and skills/",
+        "lint-plugin fails when the README names a playbook, agent or skill that does not exist"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": 31,
+      "slug": "docs-escape-the-reference-lint",
+      "title": "lint-plugin never scans README or the wiki, so a dead /mstack:<x> reference there stays green",
+      "acceptance": [
+        "lint-plugin fails when README.md or a docs/wiki page names a /mstack:<x> command no skill or agent provides",
+        "a test plants a dead reference in README.md and in a wiki page and expects a failure from each"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": 32,
+      "slug": "lint-references-uncovered",
+      "title": "The lintReferences name-resolution line is uncovered: reverting it leaves the suite green",
+      "acceptance": [
+        "reverting src/lint.ts lintReferences to resolve front-matter-name-first turns at least one test red"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": 33,
+      "slug": "bare-skill-names-collide",
+      "title": "Every mstack skill resolves without the mstack: prefix, so the plugin squats eleven bare command names",
+      "acceptance": [
+        "the naming behaviour is stated somewhere a user reads: a colon-free front-matter name registers as a bare alias, so /setup, /verify and /design resolve to mstack",
+        "a decision row records whether mstack keeps the bare aliases or drops them by prefixing each declared name"
+      ],
+      "status": "pending"
     }
   ]
 }

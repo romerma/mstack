@@ -7,14 +7,13 @@
 > empty template below.
 
 - **Item:** 29 readme-leads-with-use
-- **Status:** reviewing (written; needs a pass that did not write it)
+- **Status:** reviewing, APPROVED at a84950b; awaiting a fresh row at the final head
 - **Branch:** fix/mstack-front-door
 - **Base:** main
 - **Worktree:** none
 
-Item 28 mstack-front-door is parked at `blocked` on the same branch: implemented, green, and
-waiting on a review pass this session is not permitted to launch. It is not abandoned, it is
-one reviewer away from `done`.
+Item 28 mstack-front-door is **cancelled and reverted**. Its premise was false; see the
+section below. Items 31 and 32 carry the two findings from its review that were worth keeping.
 
 ## Plan
 
@@ -113,7 +112,7 @@ What changed:
   so it is gone.
 - New `## The seven playbooks`, `## The five agents` and `## The twelve skills` sections. The
   playbook and agent rows were written from the files themselves, not from memory:
-  `skills/mstack/playbooks/*.md` and the `description:`/`tools:` front matter in `agents/*.md`.
+  `skills/router/playbooks/*.md` and the `description:`/`tools:` front matter in `agents/*.md`.
 - Dropped `## The map`, whose nine rows pointed at the same wiki pages the `## Documentation`
   table at the bottom already lists, and `### A router, not an orchestrator`, which repeated
   the new `## One command` section.
@@ -124,17 +123,99 @@ What changed:
 Net 439 -> 473 lines: about 65 lines of new playbook and agent tables against about 30 lines
 of removed duplication.
 
+### Item 28's premise is refuted. Do not release.
+
+The reviewer read the installed `claude 2.1.241` bundle and found that a plugin skill whose
+front-matter `name` contains no colon is registered as an **alias**. I confirmed the bytes
+myself in `/Users/romerma/.local/share/claude/versions/2.1.241`:
+
+```
+C = a.name != null ? String(a.name) : void 0        // the front-matter name
+R = C && !C.includes(":") ? [C] : void 0            // becomes aliases
+JUS(e,t){return e.name===t || Vf(e)===t || (e.aliases?.includes(t) ?? !1)}
+```
+
+So `skills/router/` + `name: mstack` registered canonical `mstack:router` **and** alias
+`mstack`. **`/mstack` already worked.** It was never broken.
+
+That makes the change net negative as it stands. Before: canonical `mstack:router`, alias
+`mstack`. After: canonical `mstack:mstack`, alias `mstack`. `/mstack` works either way, and
+`/mstack:router` no longer does. The rename buys nothing and costs one command name.
+
+Consequences, all of which block the release:
+
+- `CHANGELOG.md` says "`/mstack` answered nothing". False, and it would ship as the headline
+  of 0.2.0.
+- `docs/wiki/Skills-and-Playbooks.md` says a differently-named directory "would leave
+  `/mstack` unanswered no matter what its frontmatter claimed". False, and it is the inverse
+  of the error it replaced.
+- `README.md:141-142` explains the naming rule without the alias, so it is misleading too.
+- `lintSkill`'s hard failure on a name/directory disagreement is **actively wrong**: that
+  disagreement is how a plugin declares a short alias. Shipped, it would reject legitimate
+  plugins.
+- Acceptance 3 was never implemented. `SKIP_DIRS` at `src/lint.ts:490` excludes `docs`, and
+  the prose set at `src/lint.ts:336-342` is skills plus agents, so `README.md` and the wiki
+  are never scanned. The reviewer planted `/mstack:nosuchthing` in both and lint stayed green.
+- `src/lint.ts:329` is uncovered: reverting it by hand leaves the lint suite at 17 pass, 0
+  fail.
+
+Ledger at this head: both items `verifier-failed`. Nothing is close-worthy.
+
+Done, in that order. `git revert` of `4eefde6` then `d38e0ef`, resolving the `.mstack/`
+conflicts in favour of the live store so the append-only records and items 29 to 32 survived.
+The result is byte-identical to `61fdd04` across `src`, `tests`, `skills`, `agents`,
+`CHANGELOG.md` and `docs/wiki`, confirmed with `git diff --stat 61fdd04 -- ...` returning
+empty. Item 28 is `cancelled` with a row in `decisions.tsv`.
+
+Two corrections the revert alone did not make, because the text they restore was written
+before anyone understood the mechanism:
+
+- `README.md` now says the router answers `/mstack` because its front matter declares
+  `name: mstack`, and that Claude Code registers `/<plugin>:<directory>` plus the bare
+  declared name as an alias when it carries no colon.
+- `docs/wiki/Skills-and-Playbooks.md` says the same thing, so both name the alias rather than
+  leaving "its skill is named `mstack`, so it is invoked as plain `/mstack`" as an assertion
+  with no mechanism behind it. That sentence was correct all along; it was the one I replaced
+  with something false.
+
+Kept from item 29: the whole README restructure. What it lost: nothing, since the only line
+that depended on the rename was the naming paragraph, now rewritten.
+
 ## Verification
 
+Against the reverted tree, item 29 only:
+
 - `node scripts/check-doc-links.mjs README.md docs/wiki/*.md`: 93 relative links, 0 broken.
-- `mstack lint-plugin .`: PASSED, 0 failures, 0 warnings, including the new line
-  `[ok] front door: /mstack resolves to skills/mstack/SKILL.md`. Rung 4.
-- `npm test`: 289 pass, 0 fail on node and 289 pass, 0 fail on bun. Rung 4.
+- `./bin/mstack lint-plugin .`: PASSED, 0 failures, 0 warnings.
+- `npm test`: 286 pass, 0 fail on node, and 286 pass, 0 fail on bun. Back to 286 from 289
+  because the three tests item 28 added went with it.
 - `npm run typecheck`: clean.
-- `mstack gate`: PASSED, 0 failures.
-- **Not closed:** typing `/mstack` in a live session still has no rung-4 observation. The
-  installed copy comes from the `romerma/mstack` GitHub marketplace, so `claude plugin details`
-  cannot see this branch, and the headless probe could not run on this machine's auth. What is
-  proven is structural, at rung 2: directory and front matter now both read `mstack`, so both
-  candidate resolution rules yield `/mstack`. Confirming it costs one session started with
-  `claude --plugin-dir .` and the marketplace copy disabled.
+- `git diff --stat 61fdd04 -- src tests skills agents CHANGELOG.md docs/wiki`: empty, which is
+  the revert being byte-clean rather than approximately clean.
+
+**Rung note on the alias finding.** Both the reviewer's refutation and item 28's original
+claim are rung 3: each walks a resolution path, neither typed `/mstack` in a live session. The
+refutation wins anyway because it reads the resolver itself, `JUS`, and shows an alias branch
+that the original evidence never accounted for, while `claude plugin details` printing `router`
+and a transcript `lastPrompt` of `/mstack:router` are consistent with both stories. Rung 4 is
+still open and still cheap: type `/mstack` in a session running this checkout.
+
+## PR #1 was merged early, and main carries the refuted work
+
+At 07:00Z PR #1 was merged by hand at `5ea9110`, three commits before this branch finished.
+`main` therefore carries every part of item 28: the `skills/mstack/` rename, the false
+`CHANGELOG` line, the wiki sentence asserting the inverse of the truth, and the lint check that
+would reject any plugin declaring a short alias. `git show origin/main:CHANGELOG.md | grep -c
+'answered nothing'` returns 1, and `git ls-tree -d origin/main skills/` lists `skills/mstack`.
+
+Recovery, not a rewrite of history: `origin/main` merged into this branch (its tree was
+identical to `5ea9110`, so the merge added nothing), and PR #2 carries the three commits main
+is missing. Nothing outside `.mstack/` moved between the approved `a84950b` and the current
+head, checked with `git diff --stat a84950b HEAD -- . ':!.mstack'` returning empty.
+
+**No release until PR #2 lands.** Tagging main as it stands would publish the refuted claim as
+the headline of the version.
+
+Item 33 filed from the reviewer's round-3 note: every mstack skill declares a colon-free name,
+so `/setup`, `/verify`, `/design` and the rest resolve with no `mstack:` prefix. That is a
+property of the shipped plugin, documented nowhere, and a cross-plugin collision surface.

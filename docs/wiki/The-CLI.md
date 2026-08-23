@@ -29,7 +29,7 @@ settings must not turn the status bar into an error message.
 ## Verdicts and the ladder
 
 Five verdicts, defined in `src/ledger.ts:17-23`, mapped from the evidence ladder in
-`skills/mstack/references/evidence-ladder.md`:
+`skills/router/references/evidence-ladder.md`:
 
 | Rung reached | Verdict |
 |---|---|
