@@ -124,6 +124,48 @@ What changed:
 Net 439 -> 473 lines: about 65 lines of new playbook and agent tables against about 30 lines
 of removed duplication.
 
+### Item 28's premise is refuted. Do not release.
+
+The reviewer read the installed `claude 2.1.241` bundle and found that a plugin skill whose
+front-matter `name` contains no colon is registered as an **alias**. I confirmed the bytes
+myself in `/Users/romerma/.local/share/claude/versions/2.1.241`:
+
+```
+C = a.name != null ? String(a.name) : void 0        // the front-matter name
+R = C && !C.includes(":") ? [C] : void 0            // becomes aliases
+JUS(e,t){return e.name===t || Vf(e)===t || (e.aliases?.includes(t) ?? !1)}
+```
+
+So `skills/router/` + `name: mstack` registered canonical `mstack:router` **and** alias
+`mstack`. **`/mstack` already worked.** It was never broken.
+
+That makes the change net negative as it stands. Before: canonical `mstack:router`, alias
+`mstack`. After: canonical `mstack:mstack`, alias `mstack`. `/mstack` works either way, and
+`/mstack:router` no longer does. The rename buys nothing and costs one command name.
+
+Consequences, all of which block the release:
+
+- `CHANGELOG.md` says "`/mstack` answered nothing". False, and it would ship as the headline
+  of 0.2.0.
+- `docs/wiki/Skills-and-Playbooks.md` says a differently-named directory "would leave
+  `/mstack` unanswered no matter what its frontmatter claimed". False, and it is the inverse
+  of the error it replaced.
+- `README.md:141-142` explains the naming rule without the alias, so it is misleading too.
+- `lintSkill`'s hard failure on a name/directory disagreement is **actively wrong**: that
+  disagreement is how a plugin declares a short alias. Shipped, it would reject legitimate
+  plugins.
+- Acceptance 3 was never implemented. `SKIP_DIRS` at `src/lint.ts:490` excludes `docs`, and
+  the prose set at `src/lint.ts:336-342` is skills plus agents, so `README.md` and the wiki
+  are never scanned. The reviewer planted `/mstack:nosuchthing` in both and lint stayed green.
+- `src/lint.ts:329` is uncovered: reverting it by hand leaves the lint suite at 17 pass, 0
+  fail.
+
+Ledger at this head: both items `verifier-failed`. Nothing is close-worthy.
+
+Recommended next step: revert item 28 entirely rather than repair it, keep item 29, and file
+the one thing worth keeping from it, which is that nothing lints the docs' `/mstack:<x>`
+references.
+
 ## Verification
 
 - `node scripts/check-doc-links.mjs README.md docs/wiki/*.md`: 93 relative links, 0 broken.

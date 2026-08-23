@@ -323,3 +323,202 @@ green. `npm test` is green inside the gate's `--full` run above.
   invocation rather than stopping on the red gate. Both readings are defensible from
   `skills/setup/SKILL.md:3` and `skills/mstack/SKILL.md:17`. It does not change finding 1, which
   is a contradiction inside README.md between `:26-27` and `:45-49` whatever the model does.
+
+---
+
+# Re-review, round 2
+
+**Verdict:** CHANGES_REQUESTED
+
+Head is now `b4894a788a87347b032e996a083c7f3cd6ec96c5`, commit `b4894a7` "docs: the four things
+the README review found", resolved with `git rev-parse HEAD` rather than from either SHA I was
+handed: the coordinator's first message named `d5d47b8`, which is not in this history, and its
+own correction named `b4894a7`, which is.
+
+All five applied fixes are confirmed. One blocker remains, and it is the same falsehood as
+round-1 finding 1 surviving in a second location my own report failed to cite. That is a miss on
+my side as much as a miss on the fix's side, and it is one line.
+
+## The correction I owe
+
+**The coordinator is right and I was wrong. Five skills are chained, not six.** My round-1
+finding 1 listed "understand, design, implement, verify, review and ship". `implement` does not
+belong there.
+
+The cause was my own regex. I searched `mstack:(setup|reflect|unslop|orchestrate|understand|
+design|spec|implement|verify|review|ship)` with no trailing boundary, so the alternative
+`implement` prefix-matched `mstack:implementer`, which is the agent at `agents/implementer.md`,
+not the skill at `skills/implement/`. Rerun with an exact token:
+
+```
+$ rg -o 'mstack:[a-z-]+' skills/mstack | sort -u
+skills/mstack/playbooks/bug-fix.md:mstack:design
+skills/mstack/playbooks/bug-fix.md:mstack:implementer
+skills/mstack/playbooks/bug-fix.md:mstack:review
+skills/mstack/playbooks/bug-fix.md:mstack:ship
+skills/mstack/playbooks/bug-fix.md:mstack:understand
+skills/mstack/playbooks/feature.md:mstack:design
+skills/mstack/playbooks/feature.md:mstack:implementer
+skills/mstack/playbooks/feature.md:mstack:review
+skills/mstack/playbooks/feature.md:mstack:ship
+skills/mstack/playbooks/feature.md:mstack:understand
+skills/mstack/playbooks/feature.md:mstack:verify
+skills/mstack/playbooks/investigate.md:mstack:understand
+skills/mstack/playbooks/refactor.md:mstack:design
+skills/mstack/playbooks/refactor.md:mstack:review
+skills/mstack/playbooks/refactor.md:mstack:ship
+skills/mstack/playbooks/refactor.md:mstack:understand
+skills/mstack/SKILL.md:mstack:implementer
+skills/mstack/SKILL.md:mstack:review
+skills/mstack/SKILL.md:mstack:reviewer
+skills/mstack/SKILL.md:mstack:ship
+skills/mstack/SKILL.md:mstack:spec-author
+skills/mstack/SKILL.md:mstack:spec-reviewer
+skills/mstack/SKILL.md:mstack:verify
+
+$ for n in setup understand design spec implement verify review ship orchestrate reflect unslop
+  do rg -o "mstack:$n\b" skills/mstack | wc -l; done
+setup 0, understand 4, design 3, spec 2, implement 0, verify 2, review 4, ship 4,
+orchestrate 0, reflect 0, unslop 0
+```
+
+Four of the nine distinct tokens are agents, not skills: `implementer`, `reviewer`,
+`spec-author`, `spec-reviewer` all exist under `agents/` and have no directory under `skills/`.
+The `spec` count of 2 is an artifact of the same class of trap I fell into the first time: `\b`
+matches at the hyphen, so those two hits are `mstack:spec-author` and `mstack:spec-reviewer`, and
+the unique-token list confirms no bare `mstack:spec` appears anywhere. So:
+
+- chained skills = `understand`, `design`, `verify`, `review`, `ship` = **5**
+- typed by the user = `setup` = **1**
+- neither = `implement`, `spec`, `orchestrate`, `reflect`, `unslop` = **5**
+- 1 + 5 + 5 = **11**, and that set is exactly the eleven non-router directories under `skills/`.
+
+The arithmetic at `README.md:26-30` is correct. Rung 4: I ran the greps against the real files in
+this checkout at `b4894a7`.
+
+## The five fixes, confirmed
+
+1. `README.md:26-30` - fixed and accurate. Names `/mstack:setup` as the one you type, the five
+   the router calls, and the five that are yours. Verified against the grep above.
+2. `README.md:94` - fixed. Now "Two structurally distinct designs before picking, or a stated
+   reason the constraints forced the answer", matching `skills/mstack/playbooks/feature.md:5-6`
+   clause for clause.
+3. `README.md:92` - fixed. "Past three moving parts, fans out narrow readers instead of one broad
+   one" against `skills/mstack/playbooks/investigate.md:8` "For anything with more than three
+   moving parts". Same threshold, same direction.
+4. `.mstack/state.json` item 29 - fixed, and this one is now load-bearing rather than cosmetic.
+   The item carries `npm test && npm run typecheck && ./bin/mstack lint-plugin . && node
+   scripts/check-doc-links.mjs README.md docs/wiki/*.md`, and `mstack gate --full` printed it
+   back as the command it executed. The acceptance criterion's own command is now run by the
+   gate at close instead of by a reviewer who happened to remember.
+5. `README.md:460` - fixed. "The anatomy of `.mstack/` column by column, and the evidence
+   ladder", restoring the pointer the deleted map row carried and matching
+   `docs/wiki/Home.md:66`.
+
+Item 30 `readme-counts-drift` is filed at `pending` with two acceptance criteria that would catch
+the counts and the names. It would not have caught either version of the chaining sentence, which
+is a claim about behaviour rather than about counts, so this round's blocker stays a human catch.
+
+## The remaining blocker
+
+`README.md:132` still reads:
+
+> You need the first one. The other eleven are what it chains.
+
+That is the round-1 falsehood, unfixed, in its second location. Six of the eleven are not chained
+by anything: `setup`, `implement`, `spec`, `orchestrate`, `reflect`, `unslop` all return zero
+references in `skills/mstack/`. It is now also a self-contradiction: `README.md:28` says five are
+steps the router calls, and 106 lines later `README.md:132` says all eleven are. A reader who
+notices has no way to tell which sentence to believe.
+
+My round-1 report cited only `:26-27` in Changes required 1, so the fix pass had no reason to
+look further. `rg -n 'eleven|chain' README.md` now returns exactly one line, `:132`, so this is
+the last one.
+
+Fix, one line, matching what `:26-30` already establishes: "You need the first one. The router
+calls five of the others for you; the rest are here for when you want them directly." Any
+phrasing works as long as it does not say all eleven are chained.
+
+## The two questions I was asked
+
+**"Say so if you think the README now needs to own that [mstack's escape hatch is the same shape
+as the one it criticises pstack for]."** It does not, and I would leave `README.md:161-165` alone.
+The criticised pstack behaviour is quoted in this repository's own research at
+`docs/research/pstack-port.md:122`: feature.md step 2 says `architect` is required, then
+supplies *"Skipping stays as `architect skipped: <reason>`."* That is an escape from the step.
+mstack's restored clause is an escape from the *output* of a step that still runs: `/mstack:design`
+is not optional in `feature.md:5`, and "or a stated reason the constraints forced the answer"
+governs how many candidates come out of it. Different shapes.
+
+The honest caveat, since you asked me to say what I could not settle: mstack does have a
+general escape of pstack's exact shape, at `skills/mstack/SKILL.md:24-25` ("A step you choose not
+to do stays in the list with a one-line `skip: <reason>`"), exercised by name at
+`skills/mstack/playbooks/bug-fix.md:13-14` as `skip: single-site fix`. So "can the design pass be
+skipped with a reason" is yes in both plugins. The paragraph survives that anyway, because its
+claim is not "our playbook has no escape hatch". It is that prose cannot bind, which is why
+mstack puts what must bind in code and concedes the rest to judgment at `README.md:164-165`. The
+two paragraphs are arguing different things. No ownership needed.
+
+**"Confirm that did not lose the warning's force."** It did not, and it gained some. Against
+`skills/mstack/playbooks/orchestrate.md:5-9`, the prose at `README.md:100-102` keeps both
+load-bearing parts, "opens by telling you not to use it" and the twelve-versus-one head-to-head,
+and adds the rule the old table cell omitted: below that line, use feature. The playbook's
+"in at least one measured head-to-head" is rendered "In one measured head-to-head", which is the
+weaker claim and so cannot overstate. The only clause not carried over is "Choosing this playbook
+is a decision worth recording with `mstack decide`", which was never in the README. As a
+readability fix it also works: the 55-word cell is gone and the row is now four items long.
+
+## Still non-blocking
+
+- `README.md:28-30` sets up a contrast that is literally true but can be read past. `implement`
+  and `spec` sit in the "yours to type" group, yet the router does cover both steps, through
+  `mstack:implementer` (`skills/mstack/SKILL.md:65`, `playbooks/feature.md:15`, where delegation
+  is "Mandatory, with no skip-with-reason escape") and `mstack:spec-author` /
+  `mstack:spec-reviewer` (`skills/mstack/SKILL.md:65-66`). The sentence only claims they are
+  available, so it is accurate, and the diagram at `README.md:61-73` shows all three agents being
+  dispatched. Worth half a clause if you touch the paragraph anyway, not worth a round on its own.
+- Round-1 items 6 and 7 for the table cells at `:93` and `:110` stand as written.
+
+## Verification I ran, round 2
+
+```
+$ git rev-parse HEAD
+b4894a788a87347b032e996a083c7f3cd6ec96c5
+
+$ ./bin/mstack gate --full
+... (full body green)
+PASSED - 0 failures, 0 warnings
+93 relative links checked, 0 broken
+[ok]    npm test && npm run typecheck && ./bin/mstack lint-plugin . && node scripts/check-doc-links.mjs README.md docs/wiki/*.md
+
+PASSED - 0 failures, 0 warnings
+
+$ node scripts/check-doc-links.mjs README.md docs/wiki/*.md
+93 relative links checked, 0 broken
+EXIT=0
+
+$ ./bin/mstack lint-plugin .
+PASSED - 0 failures, 0 warnings
+
+$ ./bin/mstack ledger check readme-leads-with-use
+FAIL no verdict at b4894a78; 1 row(s) exist at other SHAs and a new head SHA voids them
+LEDGER_EXIT=1
+
+$ rg -n 'eleven|chain' README.md
+132:You need the first one. The other eleven are what it chains.
+```
+
+That ledger line is the mechanism `README.md:345-350` describes, working: my round-1 row at
+`5ea9110` was voided the moment the fix commit landed, which is why this pass records its own row
+at `b4894a7` rather than letting the old verdict ride.
+
+The fix commit touches no test file. `git show --stat b4894a7` is `.mstack/ledger.tsv`,
+`.mstack/progress/review_readme-leads-with-use_readme-leads-with-use.md`, `.mstack/state.json`
+and `README.md`. Nothing was weakened to obtain green.
+
+## Changes required, round 2
+
+1. `README.md:132` - "The other eleven are what it chains" is false for `setup`, `implement`,
+   `spec`, `orchestrate`, `reflect` and `unslop`, and contradicts the corrected `README.md:28`.
+   Rewrite it to agree with `:26-30`. This is the only blocker; everything else on this branch is
+   confirmed done.

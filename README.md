@@ -129,7 +129,8 @@ Who does what, in full, is [docs/wiki/The-Agents.md](docs/wiki/The-Agents.md).
 
 ## The twelve skills
 
-You need the first one. The other eleven are what it chains.
+You need the first one. The router calls five of the others for you; the rest are there for
+when you want them.
 
 | | |
 |---|---|
