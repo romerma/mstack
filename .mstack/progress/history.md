@@ -542,3 +542,35 @@ is an undocumented cross-plugin collision surface.
 
 Still at rung 3, and cheap to close: nobody typed `/mstack` in a live session. Every claim here
 about the resolver comes from reading it and running its expressions, not from using it.
+
+## 2026-08-23 — 0.2.1
+
+A patch release correcting two things 0.2.0 shipped. No behaviour changed.
+
+The 0.2.0 changelog claimed the alias mechanism "is documented in neither Claude Code's skill
+docs nor this project's research". Only the second half had been checked; the first is a
+negative claim about documentation this session never read. Caught by the reviewer *after* the
+tag was pushed, which is why it needed a release rather than an edit.
+
+That is the third instance in one episode of the same sentence-shape: something consistent with
+what was already believed, stated as fact, unchecked against the source. The other two were
+"the command is named after the directory" and "a directory called anything else would leave
+`/mstack` unanswered", and between them they cost a rename that reached `main` and had to be
+reverted. Worth stating plainly because the pattern was invisible at each individual instance
+and obvious across three.
+
+The wiki's "both spellings" became three. The verification method is the part worth keeping:
+the reviewer ran the bundle's real dispatch chain, `PFt` into `yb` into `JUS`, over the real
+skill directories rather than reading the resolver and inferring. The binary carries a second
+matcher, `al`, that never consults `userFacingName`; had dispatch used that one,
+`/mstack:mstack` would resolve to nothing and the replacement sentence would have been as wrong
+as the sentence it replaced.
+
+`## 0.2.0` in the changelog was restored to exactly what its tag carries, verified against
+`git show v0.2.0:CHANGELOG.md`, and the correction lives in `## 0.2.1`. The v0.2.0 tag message
+still carries the overclaim and was not rewritten.
+
+Item 33 gained the sharpest form of its question, and the reviewer flagged it **unverified**
+rather than assuming it: an exact `name` match outranks any alias in `yb`, so if the user- and
+project-command loaders use unprefixed names, a user's own `/verify` displaces mstack's
+`/verify` alias outright. That has to be settled before the keep-or-drop decision, not after.
