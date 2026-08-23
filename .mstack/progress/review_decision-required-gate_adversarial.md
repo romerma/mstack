@@ -3,10 +3,10 @@
 **Verdict:** CHANGES_REQUESTED
 
 **Tree reviewed:** the source moved four times while I was reading it. Findings were developed
-against HEAD `3370d21` plus its uncommitted edits, then every one of them was re-run against
-HEAD `01c1725` (`6637e56 fix: make the fork's answer an answer`,
-`29d5aa2 fix: the linter must not police the store's own records`, `01c1725`). All findings below
-hold at `01c1725` except finding 21, which those commits fixed and which I have left in place with
+against HEAD `791890f` plus its uncommitted edits, then every one of them was re-run against
+HEAD `f75d0f7` (`45bb6df fix: make the fork's answer an answer`,
+`5cbcc72 fix: the linter must not police the store's own records`, `f75d0f7`). All findings below
+hold at `f75d0f7` except finding 21, which those commits fixed and which I have left in place with
 the fix noted, because it is the one that would otherwise redden CI. Where an in-flight edit
 narrowed a finding, I say so in the finding.
 
@@ -281,8 +281,8 @@ panel's finding 1 was wrong and the current code is right. `roleOf` correctly st
 ## Findings
 
 1. **`src/cli.ts:373-380` and `src/gate.ts:228-232` — a product fork is answered by two single
-   characters, and `--why` and `--evidence` are optional.** *Narrowed but not closed by `6637e56`,
-   which added the `--result` requirement and the one-alphanumeric floor; re-verified at `01c1725`,
+   characters, and `--why` and `--evidence` are optional.** *Narrowed but not closed by `45bb6df`,
+   which added the `--result` requirement and the one-alphanumeric floor; re-verified at `f75d0f7`,
    where `--decision x --result y` still clears the fork and `state set ... --status spec_ready`
    still exits 0.* The floor on `--decision` is
    `/[a-z0-9]/i`: one alphanumeric character. `--result` need only be non-empty and not the literal
@@ -469,7 +469,7 @@ panel's finding 1 was wrong and the current code is right. `roleOf` correctly st
     items whose "work landed long ago", i.e. at a SHA that is not HEAD. **Fix:** rewrite both steps
     around the ledger.
 
-21. **`src/lint.ts:386` — FIXED IN `29d5aa2` DURING THIS REVIEW.** `.mstack/` was not in
+21. **`src/lint.ts:386` — FIXED IN `5cbcc72` DURING THIS REVIEW.** `.mstack/` was not in
     `SKIP_DIRS`, so the durable store and every review report were linted as plugin prose, and
     `./bin/mstack lint-plugin .` was red because another reviewer's report named the lifecycle —
     with `.github/workflows/ci.yml:30` running exactly that command. It is now
@@ -546,6 +546,6 @@ $ git status --porcelain
 
 The only untracked path is this report. Everything else that was dirty during the review was
 someone else's in-flight work, already present before I ran anything, and has since been committed
-as `6637e56`, `29d5aa2` and `01c1725`. The four `.mstack/` files my script contaminated were
+as `45bb6df`, `5cbcc72` and `f75d0f7`. The four `.mstack/` files my script contaminated were
 restored to `HEAD` and verified clean. I modified no source file, left no background process, and
 removed every scratch directory I created.

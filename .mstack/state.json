@@ -239,7 +239,7 @@
       "description": "agents/implementer.md:45 is the only agent file that instructs 'mstack ledger record', and it hardcodes --verifier implementer. agents/reviewer.md:30 and skills/review/SKILL.md:35 tell the reviewer to run 'ledger check' and never to record. So the row that closes an item is always typed by somebody other than the reviewer, and src/roles.ts:96-99 already concedes the verifier column is free text and only a floor. The dogfood ledger is the proof: ten rows, eight verifier=implementer, one orchestrator, one reviewer — and the reviewer row was typed by the coordinating pass on the reviewer's behalf. The reports carried the separation the README leads with; the ledger did not.",
       "source": "sandbox dogfood session, divergent lens Part 3 #3, 2026-08-21",
       "verification": "npm test && npm run typecheck && ./bin/mstack lint-plugin .",
-      "closed_by": "APPROVED at round 3, reviewer row live-verified at 112ffc3c"
+      "closed_by": "APPROVED at round 3, reviewer row live-verified at 3fa32394"
     },
     {
       "id": 16,
@@ -272,7 +272,7 @@
       "description": "which -a mstack resolves only to ~/.claude/plugins/cache/mstack/mstack/0.1.0/bin/bin/mstack. Its own help line is the pre-item-13 form, with no --clear and no --description, so the copy on PATH is older than main and there is no warning that it is. CONTRIBUTING.md tells a contributor to run the plugin from the checkout with 'claude --plugin-dir .' and says nothing about the CLI. Every wiki transcript is written as '$ mstack ...', so a contributor re-running them to satisfy the pasted-output-from-real-runs rule exercises 0.1.0 and gets a mismatch that has nothing to do with the transcript. The loud failure is the benign one: an unknown flag. The dangerous one is silent and inverted — a gate or hook change the cached copy does not implement, run against the new store, reporting green. That is the same defect class as the rest of this refinement round: a check that reports on something other than what the reader thinks it ran against. Found while verifying item 16; reproduced at rung 5 by two passes.",
       "source": "item 16 review, reproduced at rung 5 by two passes, 2026-08-21",
       "verification": "npm test && npm run typecheck && ./bin/mstack lint-plugin .",
-      "closed_by": "APPROVED at round 4, reviewer row live-verified at b6e58739"
+      "closed_by": "APPROVED at round 4, reviewer row live-verified at be596130"
     },
     {
       "id": 18,
@@ -288,7 +288,7 @@
       "description": "src/gate.ts:373 refuses a closing row whose verifier is an implementing role, but it reads only the verifier column. A row typed as '--verifier reviewer --evidence .mstack/progress/impl_<slug>.md' passes: the implementer's own evidence wearing another role's name. Every legitimate closing row in this repo's ledger cites a review_*.md or free prose, so the tightening has no false positives against the existing history. Split out of item 15 rather than widened into it, so it gets its own review.",
       "source": "item 15 scope decision, 2026-08-21",
       "verification": "npm test && npm run typecheck && ./bin/mstack lint-plugin .",
-      "closed_by": "ff-merged to main as 96af070, CI run 32587889133 green"
+      "closed_by": "ff-merged to main as 9a0b09f, CI run 32587889133 green"
     },
     {
       "id": 19,
@@ -299,7 +299,7 @@
         "Whatever is chosen is proven by recording a row, committing it, and re-running the check"
       ],
       "status": "pending",
-      "description": "mstack ledger record keys a row to HEAD. Committing that row moves HEAD, so the row is immediately at a superseded sha. Right now 'mstack ledger check reviewer-writes-the-verdict' reports FAIL best verdict at 3b4e1315 is verifier-failed for rows recorded seconds earlier. skills/review/SKILL.md step 7 already had this shape and item 15 step 9 makes it load-bearing in a second place by telling the coordinator to confirm the row with ledger check. Found as observation 5 of the item 15 review.",
+      "description": "mstack ledger record keys a row to HEAD. Committing that row moves HEAD, so the row is immediately at a superseded sha. Right now 'mstack ledger check reviewer-writes-the-verdict' reports FAIL best verdict at 88ecfb4f is verifier-failed for rows recorded seconds earlier. skills/review/SKILL.md step 7 already had this shape and item 15 step 9 makes it load-bearing in a second place by telling the coordinator to confirm the row with ledger check. Found as observation 5 of the item 15 review.",
       "source": "item 15 review, observation 5, 2026-08-21",
       "verification": "npm test && npm run typecheck && ./bin/mstack lint-plugin ."
     },
@@ -358,7 +358,7 @@
       "description": "The wiki's 8 content pages are organized around mechanisms (CLI, gates, state files) and were fact-checked by item 9's panel, but no page documents the five agents, twelve skills or seven playbooks as topics - mentions are scattered 1-14 per page. There is not a single diagram in README or the wiki, no page opens with a plain-language summary, and a newcomer meets the lifecycle transition table before anyone tells them what a work item is for. User request 2026-08-21: make the docs easier to read and explain all the subagents, gates, playbooks and skills.",
       "source": "user request, docs refinement, 2026-08-21",
       "verification": "npm test && npm run typecheck && ./bin/mstack lint-plugin . && node scripts/check-doc-links.mjs README.md docs/wiki/*.md",
-      "closed_by": "Panel APPROVED at round 3, both lenses; synthesized row test-verified at 871f9768"
+      "closed_by": "Panel APPROVED at round 3, both lenses; synthesized row test-verified at b1220edc"
     },
     {
       "id": 24,
@@ -383,10 +383,10 @@
         "npm test green on both runtimes locally, and CI green on main after push, which is the surface the defect lives on"
       ],
       "status": "done",
-      "description": "The oldest-node CI job fails 4 of 276 tests at the pushed head 4ca0586: tests 206, 208, 211, 217 in tests/provenance.test.ts. The fixtures stand in for mstack checkouts but copy only bin/, src/ and .claude-plugin/, omitting package.json - which every real clone, worktree and the installed plugin cache ship, all with type:module. Node 22.6 with --experimental-strip-types then prints a MODULE_TYPELESS_PACKAGE_JSON warning to stderr, and the tests assert stderr empty. Reproduced at rung 5 on the local nvm node v22.6.0, the exact CI-pinned version; adding {\"type\":\"module\"} to the fixture silences it. Invisible to all four item-17 review rounds because bun and node 26 never emit the warning.",
+      "description": "The oldest-node CI job fails 4 of 276 tests at the pushed head c141dd2: tests 206, 208, 211, 217 in tests/provenance.test.ts. The fixtures stand in for mstack checkouts but copy only bin/, src/ and .claude-plugin/, omitting package.json - which every real clone, worktree and the installed plugin cache ship, all with type:module. Node 22.6 with --experimental-strip-types then prints a MODULE_TYPELESS_PACKAGE_JSON warning to stderr, and the tests assert stderr empty. Reproduced at rung 5 on the local nvm node v22.6.0, the exact CI-pinned version; adding {\"type\":\"module\"} to the fixture silences it. Invisible to all four item-17 review rounds because bun and node 26 never emit the warning.",
       "source": "user report: main red on GitHub; CI run 32526687400, 2026-08-22",
       "verification": "npm test && npm run typecheck && ./bin/mstack lint-plugin .",
-      "closed_by": "Reviewer APPROVED at 4dc667dd; CI run 32581440487 green on main at d442724, closing acceptance 3 at rung 5"
+      "closed_by": "Reviewer APPROVED at 5c1d0acb; CI run 32581440487 green on main at 57aa3bc, closing acceptance 3 at rung 5"
     },
     {
       "id": 26,

@@ -161,11 +161,11 @@ $ node <scratch>/check-links.mjs README.md docs/wiki/*.md
 53 relative links checked, 0 broken
 
 $ ./bin/mstack ledger check readme-and-wiki
-FAIL no verdict at 12aeff67; 1 row(s) exist at other SHAs and a new head SHA voids them
+FAIL no verdict at 90e7f948; 1 row(s) exist at other SHAs and a new head SHA voids them
 ```
 
-**On the ledger.** At head `12aeff678d2f442977ac1dfcf195b0231f5f2842` there is no verdict. The one row
-that exists is at `06c589e5` — a *different* SHA — and its verifier is `implementer`, so even
+**On the ledger.** At head `90e7f94866371ad58c262a9f230e5a50401f6751` there is no verdict. The one row
+that exists is at `63e64710` — a *different* SHA — and its verifier is `implementer`, so even
 re-recorded at head it could not close the item: `canCloseAnItem` (`src/roles.ts:103-106`) rejects
 `implementer`. This item needs a verdict from a non-implementing pass at the current head, and it does
 not have one.
@@ -456,7 +456,7 @@ Findings I went after adversarially and could not break, one line each.
   `skills/router/references/evidence-ladder.md:28-34`.
 - `The-CLI.md:207-208` fan-out concurrency cap — `src/fanout.ts:68-72`, including "fails outright
   rather than queueing".
-- `The-CLI.md:244-249` lint-plugin's `rg` ban — corroborated by commit `a3c8022` and the `0.1.0`
+- `The-CLI.md:244-249` lint-plugin's `rg` ban — corroborated by commit `6077e17` and the `0.1.0`
   changelog; `[ok] 32 file(s), no command that would hang on stdin` in my run.
 - `How-A-Work-Item-Flows.md:46-49` the two-active-items incident — `.mstack/decisions.tsv:4` records
   the exact gate string and the revert to `pending`.

@@ -48,7 +48,7 @@ PASSED - 0 failures, 0 warnings
 ```
 
 196 on both runtimes. `src/cli.ts` gained `node:fs` and `node:path`, both builtins; no new
-dependency. No test was weakened - `git diff --numstat 01ce70e..HEAD -- tests/` is `183 1`, and
+dependency. No test was weakened - `git diff --numstat 3a918b9..HEAD -- tests/` is `183 1`, and
 the single deleted line is an import.
 
 ### The `R2-*` mutations are real
@@ -226,11 +226,11 @@ path where it follows an actual `--force`. Nothing is forced here; `--sdd` is no
 
 ## Before this item closes
 
-`mstack ledger check editable-item-fields` FAILs at head `dd74249e`, and the only row for the slug
-is the round-1 implementer row at `3a269781`, whose evidence line reads "npm test 191 pass... 12
+`mstack ledger check editable-item-fields` FAILs at head `ca319d1d`, and the only row for the slug
+is the round-1 implementer row at `41c235d3`, whose evidence line reads "npm test 191 pass... 12
 mutations all killed" - numbers that no longer describe this tree (196 and 16). Round 2 shipped no
-implementer row of its own, where item 12 recorded one per round (`0c0c24d`, `739870c`, then the
-reviewer's `e362a0f`). This is disclosed, not hidden - `.mstack/progress/current.md:166-167` says
+implementer row of its own, where item 12 recorded one per round (`33bf004`, `bfa6eb9`, then the
+reviewer's `c6653e5`). This is disclosed, not hidden - `.mstack/progress/current.md:166-167` says
 so in as many words - and item 13 is still `in_progress` so nothing enforces it. It just has to
 happen before `done`, together with the reviewer row this report is the evidence for.
 

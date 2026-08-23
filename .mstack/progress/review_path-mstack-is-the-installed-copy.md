@@ -4,7 +4,7 @@
 
 Round 1, reviewing alone. Every CLI call below went through `./bin/mstack` (or an explicit
 absolute path where the point was to run a *different* copy). Head at review time:
-`7df41e611118609ff4d5d447f548e700a0c3af1c`.
+`edf7f7c23dd86c0ab53471d8d358ce6d581d14f8`.
 
 The mechanism is the right one and the reasoning behind it is sound: keying on the resolved
 root of the executing module rather than on a version string is correct, and I confirmed the
@@ -194,10 +194,10 @@ for that case but is harmless. `bin/mstack:27-35` resolving `$0` covers the
 
 ```
 $ ./bin/mstack ledger check path-mstack-is-the-installed-copy
-FAIL no verdict at 7df41e61; 1 row(s) exist at other SHAs and a new head SHA voids them
+FAIL no verdict at edf7f7c2; 1 row(s) exist at other SHAs and a new head SHA voids them
 ```
 
-Expected: the only row is the implementer's, at `2a1fe341`, and `7df41e6` is the commit that
+Expected: the only row is the implementer's, at `70f5a47b`, and `edf7f7c` is the commit that
 added that row. My own row follows this report.
 
 ## Changes required

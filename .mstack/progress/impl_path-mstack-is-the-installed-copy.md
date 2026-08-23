@@ -1,6 +1,6 @@
 # impl: path-mstack-is-the-installed-copy (item 17)
 
-Branch `fix/path-mstack-is-the-installed-copy`, base `main` at `c7f863f3` (item 15 merged
+Branch `fix/path-mstack-is-the-installed-copy`, base `main` at `5facd161` (item 15 merged
 ff-only). Direct path: the five acceptance bullets are the contract. Every CLI call in this
 session went through `./bin/mstack`.
 
@@ -204,11 +204,11 @@ session gate are green at this head.
 
 # Round 2
 
-Review verdict CHANGES_REQUESTED at `7df41e6`
+Review verdict CHANGES_REQUESTED at `edf7f7c`
 (`.mstack/progress/review_path-mstack-is-the-installed-copy.md`), four findings, two
-blocking. All four addressed. Base for this round: `de38c59` (round-1 review artifacts
+blocking. All four addressed. Base for this round: `cd8be9d` (round-1 review artifacts
 committed). The pre-fix byte copy for this round is round 1's code
-(`scratchpad/r1-src`, identical to HEAD `src/` at `de38c59`); every swap and restore below
+(`scratchpad/r1-src`, identical to HEAD `src/` at `cd8be9d`); every swap and restore below
 was `rm -rf src && cp -R`, never `git checkout`.
 
 ## Finding 1 (blocking): a worktree of this repo at the same commit was a red gate
@@ -393,10 +393,10 @@ this head.
 
 # Round 3
 
-Review verdict CHANGES_REQUESTED at `da57a20`
+Review verdict CHANGES_REQUESTED at `47e1875`
 (`.mstack/progress/review_path-mstack-is-the-installed-copy_r2.md`): one blocker (round 2
 inverted the failure direction — a loud false positive became a silent false negative) and
-three located findings. All addressed. Base for this round: `79bb74a` (round-2 review
+three located findings. All addressed. Base for this round: `5e199ff` (round-2 review
 artifacts committed). The pre-fix byte copy is round 2's code (`scratchpad/r2-src`, verified
 identical to `src/` before any edit); every swap and restore was `rm -rf src && cp -R`,
 never `git checkout` or `git reset`.
@@ -587,11 +587,11 @@ runtimes), typecheck, lint-plugin, doc links and the gate green at this head.
 
 # Round 4
 
-Review verdict CHANGES_REQUESTED at `e32a86c`
+Review verdict CHANGES_REQUESTED at `e246f1c`
 (`.mstack/progress/review_path-mstack-is-the-installed-copy_r3.md`): one blocker (the two
 provenance surfaces disagree on the uncomparable case, and the CLI one over-claims) and two
 smaller items; item 21 was filed by the review for the unidentified flake and is not this
-round's to fix. Base: `4103db1` (round-3 review artifacts and item 21 committed). The
+round's to fix. Base: `d8243f1` (round-3 review artifacts and item 21 committed). The
 pre-fix byte copy is round 3's code (`scratchpad/r3-src`, verified identical to `src/`
 before any edit); every swap and restore was `rm -rf src && cp -R`, never `git checkout` or
 `git reset`. One process slip to disclose: while staging the reviewer's artifacts I ran a

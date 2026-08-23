@@ -4,8 +4,8 @@
 
 ## Scope
 
-Base `3c7e883`, fix at `b16aa45` (+ red-repro `b27240e`, + `dfa78f0` implementer report),
-branch `fix/closing-row-cites-own-report`, HEAD `dfa78f0`. `git diff 3c7e883...HEAD -- src/
+Base `0933753`, fix at `0f6d972` (+ red-repro `b446aa5`, + `a87a493` implementer report),
+branch `fix/closing-row-cites-own-report`, HEAD `a87a493`. `git diff 0933753...HEAD -- src/
 tests/` reviewed in full: `src/gate.ts` `checkClosedItems`, new `citesImplementingReport` in
 `src/roles.ts`, `tests/gate.test.ts` (+6 tests), new `tests/roles.test.ts`.
 
@@ -171,7 +171,7 @@ in findings 1-2 above, which the acceptance bullet's plain reading does not excl
 
 | R | Test | Evidence |
 |---|---|---|
-| Forged self-citation refused | `tests/gate.test.ts:568` "a closing row citing the implementer's own report does not close the item" | Reverting `src/roles.ts`/`src/gate.ts` to `b27240e` and re-running fails this test (pasted in impl report, `.mstack/progress/impl_closing-row-cites-own-report.md:117-132`) — real regression check, not just presence |
+| Forged self-citation refused | `tests/gate.test.ts:568` "a closing row citing the implementer's own report does not close the item" | Reverting `src/roles.ts`/`src/gate.ts` to `b446aa5` and re-running fails this test (pasted in impl report, `.mstack/progress/impl_closing-row-cites-own-report.md:117-132`) — real regression check, not just presence |
 | Unsuperseded verifier-failed refused | `tests/gate.test.ts:603` "an unsuperseded verifier-failed..." | Same red-without-fix proof |
 | Boundary table (punctuation, quoting, spec-author) | `tests/roles.test.ts:11-63` | Direct unit table, 23 strings each way |
 | Case-insensitivity / Unicode confusables | **none** | No test exists; findings 1-2 above are uncovered by design, not by omission of a planned test — no design doc or decision row mentions them |

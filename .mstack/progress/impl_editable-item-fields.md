@@ -43,7 +43,7 @@ nothing to set exits 2 instead of rewriting the file unchanged and printing the 
 - `.mstack/decisions.tsv` — five rows, `2026-08-21T09:10:24.170Z` to `...09:10:57.329Z`.
 - `.mstack/progress/current.md` — plan, log and next step.
 
-Commits: `ceda13b` (CLI + tests), `a426edc` (the idempotence test), `0041e54` (docs).
+Commits: `b09f8cc` (CLI + tests), `edc0edc` (the idempotence test), `c37b1de` (docs).
 
 ## Design decisions
 
@@ -439,7 +439,7 @@ named "exactly as before" did not touch.
 - `.mstack/decisions.tsv` — two superseding rows, `2026-08-21T10:01:59.983Z` and
   `2026-08-21T10:02:08.247Z`.
 
-Commits: `9a4dc59` (code + tests), `d62e32b` (docs).
+Commits: `b4cd0b7` (code + tests), `32a06be` (docs).
 
 ## Finding by finding
 
@@ -520,11 +520,11 @@ a mutation that cannot change behaviour is the same false negative as a test tha
 
 ### The three behaviours, in the running system
 
-First the defect itself, on `9a4dc59^` — the state the reviewer read — with that revision of
+First the defect itself, on `b4cd0b7^` — the state the reviewer read — with that revision of
 `src/cli.ts` swapped in by byte copy and restored from the same copy:
 
 ```console
-=== 9a4dc59^ : the state review read ===
+=== b4cd0b7^ : the state review read ===
 $ mstack state set p-item --decision-required "$B"
 1 p-item (specifying)
   decision_required: "Should the export be a stable public contract..." -> "Should the export be a stable public contract..."
@@ -712,7 +712,7 @@ PASSED - 0 failures, 0 warnings
 
 | Claim | Rung | What backs it |
 |---|---|---|
-| The collision printed an identical before and after, and no longer does | 5 | Reproduced in a real store against `9a4dc59^`'s own `src/cli.ts`, swapped in and restored by byte copy with the sha re-checked, then the same command on the fix; plus rung 4 via `tests/cli.test.ts:351`, killed by `R2-1`, `R2-2`, `R2-3` |
+| The collision printed an identical before and after, and no longer does | 5 | Reproduced in a real store against `b4cd0b7^`'s own `src/cli.ts`, swapped in and restored by byte copy with the sha re-checked, then the same command on the fix; plus rung 4 via `tests/cli.test.ts:351`, killed by `R2-1`, `R2-2`, `R2-3` |
 | A trailing space no longer re-opens an answered fork | 5 | Real store, `decision_resolved` read before and after; rung 4 via `:390`, killed by `R2-4` |
 | `--sdd` announces the consequence, and claims a failure only when it made one | 5 | Real store, both branches, gate exit 0 then 1; rung 4 via `:414`, killed by `R2-8`, `R2-9`, `R2-10` |
 | `state add` and `state set` now refuse the same shapes | 5 | Both commands run against a real store; rung 4 via `:453`, killed by `R2-5`, `R2-6`, `R2-7` |

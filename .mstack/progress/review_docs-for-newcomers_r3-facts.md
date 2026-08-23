@@ -3,7 +3,7 @@
 **Verdict:** APPROVED
 
 Panel lens, so this pass records **no ledger row** (`agents/reviewer.md:99-102`). Head at
-review time: `871f9768d914fd8214e7d83240133e028fcc3b75`. Prior reports:
+review time: `b1220edc451d16cfeb73b693d67193d77b97b4c7`. Prior reports:
 `review_docs-for-newcomers_facts.md` (round 1), `_r2-facts.md` (round 2).
 
 Confirmation pass over a 19-line documentation diff. Both round-2 findings are fixed, every
@@ -23,7 +23,7 @@ glosses trace to their sources, and nothing previously verified moved.
 | Worktree gloss | `docs/wiki/The-CLI.md:355-361`, `skills/orchestrate/SKILL.md:25-26` | traces. Rung 2 |
 | `[lens](The-Agents.md#reviewer)` | anchor resolves and the destination defines the term | `The-Agents.md:139`, definition at `:148-150`. Rung 4 |
 | `[rung](#the-evidence-ladder)` | same-page anchor resolves to the 5-rung table | `Skills-and-Playbooks.md:156`. Rung 4 |
-| No transcript or diagram moved | fenced-block compare of every page against `a246026` | zero changed. Rung 4 |
+| No transcript or diagram moved | fenced-block compare of every page against `bfcb6eb` | zero changed. Rung 4 |
 | Counts and listings unchanged | re-derived from the filesystem | 5 / 12 / 7 / 9, tables 12/12/10/7/7/5, 12 bullets. Rung 4 |
 | Anchor class | publish rewrite re-run | one joined item 24's class, one is same-page and safe. Rung 4 |
 
@@ -106,11 +106,11 @@ deliberate duplication for a reader who lands on either table, not a contradicti
 Source is untouched since round 2, so every source comparison from rounds 1 and 2 stands:
 
 ```console
-$ git diff a246026..HEAD --stat -- src/ skills/ agents/ hooks/ bin/ scripts/
+$ git diff bfcb6eb..HEAD --stat -- src/ skills/ agents/ hooks/ bin/ scripts/
 (empty)
 ```
 
-Fenced-block compare of every page against `a246026`:
+Fenced-block compare of every page against `bfcb6eb`:
 
 ```console
 no fenced block changed on any page
@@ -224,10 +224,10 @@ The item's verification, exit 0, pasted above. `mstack gate`: `PASSED - 0 failur
 
 ```console
 $ ./bin/mstack ledger check docs-for-newcomers
-FAIL no verdict at 871f9768; 5 row(s) exist at other SHAs and a new head SHA voids them
+FAIL no verdict at b1220edc; 5 row(s) exist at other SHAs and a new head SHA voids them
 ```
 
-`git diff 05a7c49 871f976` is `.mstack/ledger.tsv | 1 +`: the round-3 implementer row
+`git diff f6dffd2 b1220ed` is `.mstack/ledger.tsv | 1 +`: the round-3 implementer row
 committing itself, the same benign chicken-and-egg as rounds 1 and 2. The closing pass owes a
 verdict at whatever head it closes on. Recording is not mine. Worth noting that both panel
 rounds were typed correctly: one `verifier-failed` row per round under `--verifier

@@ -37,7 +37,7 @@
 - The orchestrator implemented (eight prose lines; delegation skipped with the reason in the
   plan) and an independent reviewer judged the diff: round 1 CHANGES_REQUESTED after its
   repo-wide sweep caught two live sites the item's own sweep had missed, round 2 APPROVED at
-  3a38bab. The record files (CHANGELOG, research doc, history, item-9 reports) keep the old
+  973f8a5. The record files (CHANGELOG, research doc, history, item-9 reports) keep the old
   wording deliberately: they are records of the finding, not claims.
 - Ship: merge-gate skip: no remote exists before publication; local fast-forward into main.
 
@@ -432,7 +432,7 @@ red-first proof (4 red with main's test file on 22.6.0, 276/276 with the fix) an
 the installed plugin cache ships package.json with type module, so the fixture is now
 faithful rather than masking a shipping defect. Its approval carried the honest caveat that
 acceptance 3's CI half was unproven; the push closed it: run 32581440487 green on main at
-d442724.
+57aa3bc.
 
 Second fixture-identity omission in this defect's family: item 17 round 2 added the manifest
 to these same fixtures, this item adds package.json. A fixture that stands in for a real
@@ -446,7 +446,7 @@ rendered by GitHub's own mermaid on the pushed main. The README flowchart draws 
 orchestrator frame containing exactly the three pass boxes, with APPROVED leaving the frame
 to ledger, merge-gate, merged - agreeing with the 11.17.0 parser-db probe - and the lifecycle
 stateDiagram renders all nine statuses with the blocked note as a note box. Screenshots taken
-in a live browser session against github.com/romerma/mstack at fffbc5c.
+in a live browser session against github.com/romerma/mstack at e018413.
 
 ## Item 18 closing-row-cites-own-report, 2026-08-22
 
@@ -455,7 +455,7 @@ The gate's no-self-approval audit read only the verifier column, so a row record
 report, and its all-rows-failed guard let one passing implementer row hide an unsuperseded
 verifier-failed reviewer verdict. Both holes reproduced at rung 5 before any fix: forged
 rows against this repo's real ledger through ./bin/mstack gate, green then, ledger restored
-bit-for-bit. Red tests committed before the fix (b27240e) so the broken state stays
+bit-for-bit. Red tests committed before the fix (b446aa5) so the broken state stays
 checkoutable.
 
 Design ran as two blind sonnet candidates judged by opus, which transcribed both predicates
@@ -476,7 +476,7 @@ nothing. Round 2 closed all of it (i flag, \p{Cf} strip, kind-split messages eac
 true, the mutation-killing test); round 3 added the two coverage tests correctness's own
 round-2 mutations demanded and replaced a wiki paste no single run could produce with one
 from a real three-item run. Final: 286 tests green on both runtimes, all six boundary probes
-pinned twice, panel verdict at 70a5e30f, ff-merged to main as 96af070, CI run 32587889133
+pinned twice, panel verdict at 487abdf7, ff-merged to main as 9a0b09f, CI run 32587889133
 green, and a session row at the merge SHA whose src tree hash is byte-identical to the
 panel-verified one.
 
@@ -511,7 +511,7 @@ by `claude plugin details` listing the skill as `router` and a transcript `lastP
 conclusion, which is the lesson: three documents agreeing is one claim counted three times, not
 corroboration. The reviewer read the loader in the installed `claude 2.1.241` binary and found
 that a declared `name` with no colon is registered as a bare alias. `/mstack` had always
-worked. Reverted byte-clean against `61fdd04`; the item carries its reasoning in
+worked. Reverted byte-clean against `b31d93b`; the item carries its reasoning in
 `decisions.tsv`.
 
 Two process facts worth keeping. The reviewer's round-1 pass had *approved* the same false
@@ -520,7 +520,7 @@ it could not reach rung 4. That sentence is what told a later pass where to push
 review was launched only because a release was requested; had the branch been tagged when it
 was green, the refuted claim would have been the headline of 0.2.0.
 
-**PR #1 was merged by hand at `5ea9110` while the branch was still under review**, so `main`
+**PR #1 was merged by hand at `b96a474` while the branch was still under review**, so `main`
 carried the refuted work for about three hours. Recovery was PR #2 with the three missing
 commits, no history rewritten. This is the one time in this repository that a merge got ahead
 of its review, and it is named in the 0.2.0 tag rather than left out.
@@ -532,9 +532,9 @@ every playbook, every agent with what it cannot do, and all twelve skills. Three
 review found: a claim that contradicted the README twenty lines later, a playbook row that
 deleted its playbook's escape hatch sixty lines from where the README criticises pstack for
 exactly that, an unconditional claim the playbook conditions, and an acceptance criterion whose
-command nothing executed at close. Approved at `ccccd38`, closed at `012561f`.
+command nothing executed at close. Approved at `f57ad03`, closed at `1e2580d`.
 
-**Released 0.2.0**, annotated tag on `22c039f`, CI green on main. Follow-ups filed: **31**
+**Released 0.2.0**, annotated tag on `53a0865`, CI green on main. Follow-ups filed: **31**
 `lint-plugin` never scans README or the wiki, so a dead `/mstack:<x>` reference there stays
 green; **32** the `lintReferences` name-resolution line is uncovered; **33** every mstack skill
 declares a colon-free name, so `/setup`, `/verify` and `/design` resolve with no prefix, which

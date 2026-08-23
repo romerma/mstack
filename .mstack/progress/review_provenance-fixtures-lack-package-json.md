@@ -2,8 +2,8 @@
 
 **Verdict:** APPROVED
 
-Solo reviewer, round 1. Judged at head `4dc667dd` on branch
-`fix/provenance-fixtures-lack-package-json`. Substantive commit `471b163e`; the code diff is
+Solo reviewer, round 1. Judged at head `5c1d0acb` on branch
+`fix/provenance-fixtures-lack-package-json`. Substantive commit `605374b2`; the code diff is
 28 lines across `tests/gate.test.ts` and `tests/provenance.test.ts` and nothing else.
 `git diff main...HEAD --name-only -- src/ bin/ .claude-plugin/` returns empty, so the
 "src/ untouched" claim is confirmed rather than assumed (rung 4).
@@ -128,5 +128,5 @@ The two touched files alone, on 22.6.0: `# tests 74 / # pass 74 / # fail 0`, whi
 - The defect, the four test numbers, and red-then-green on v22.6.0: **rung 5** for this review - I ran the failing binary myself on a pre-fix tree and on the post-fix tree.
 - "Every real checkout shape carries package.json": **rung 5** - observed in the installed plugin cache and the marketplace clone on this machine, not taken from the report.
 - The sweep's completeness: **rung 3-4** - `isMstackCheckout`'s three conditions walked against every fixture builder in `tests/`, and the negative direction confirmed by a green suite. A future builder is not prevented by anything but a comment.
-- Both runtimes, typecheck, lint, `gate --full`: **rung 4**, output pasted above from runs at `4dc667dd`.
+- Both runtimes, typecheck, lint, `gate --full`: **rung 4**, output pasted above from runs at `5c1d0acb`.
 - **CI green on main: rung 0. Not run, cannot be run before the push.** Acceptance bullet 3 is half-open by construction, the report says so, and this approval carries the same caveat: if the push turns CI red, this verdict was wrong and the item is not closeable on it.

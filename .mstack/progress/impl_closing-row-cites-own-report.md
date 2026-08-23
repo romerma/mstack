@@ -114,7 +114,7 @@ PASSED - 0 failures, 1 warning
 The warning is the mid-session working tree (this report, tests, src, current.md, the
 design files), expected before the closing commit.
 
-Red-without-the-fix proof: src/gate.ts and src/roles.ts restored to HEAD (b27240e), then
+Red-without-the-fix proof: src/gate.ts and src/roles.ts restored to HEAD (b446aa5), then
 `node --test tests/gate.test.ts tests/roles.test.ts`:
 
 ```
@@ -390,8 +390,8 @@ PASSED - 0 failures, 1 warning
 Security and tests lenses approved round 2; the r2-correctness report
 (`.mstack/progress/review_closing-row-cites-own-report_r2-correctness.md`) required two
 coverage additions and one docs fix. No `src/` change this round — verified:
-`git diff 0a4ea73..HEAD -- src/` is empty (0 lines). Commits: `test:` f5a5e6c (changes 1-2),
-`docs:` ebba284 (change 3), then this section + the re-recorded row.
+`git diff f0c96c1..HEAD -- src/` is empty (0 lines). Commits: `test:` fa59243 (changes 1-2),
+`docs:` 4f14865 (change 3), then this section + the re-recorded row.
 
 ### Change 1 — both-kinds tie-break pinned (finding A)
 
@@ -414,7 +414,7 @@ prescribed end-to-end shape:
   `citesImplementingReport("spec_storage-layer.md impl_storage-layer.md", "storage-layer")
   === "implementer"` with the spec name first in the string.
 
-Mutation results, in a `git worktree` at ebba284, `node --test tests/gate.test.ts
+Mutation results, in a `git worktree` at 4f14865, `node --test tests/gate.test.ts
 tests/roles.test.ts`, baseline 72 pass / 0 fail, `git checkout HEAD -- src/` between runs:
 
 The lens's swap mutation (gate-level, prefer spec when both kinds are cited):
@@ -486,4 +486,4 @@ Ran 286 tests across 16 files. [35.40s]
 100 relative links checked, 0 broken
 ```
 
-`git diff 0a4ea73..HEAD -- src/`: empty (0 lines) — src untouched this round.
+`git diff f0c96c1..HEAD -- src/`: empty (0 lines) — src untouched this round.

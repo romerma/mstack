@@ -19,7 +19,7 @@ to the definition in the same paragraph, not a wrong model, and not worth a four
 PASSED - 0 failures, 1 warning
 ```
 
-The item's `verification` field, command by command, at head `871f976`:
+The item's `verification` field, command by command, at head `b1220ed`:
 
 ```
 npm test                                                   TEST_EXIT=0   (276 pass / 0 fail bun, pass 276 / fail 0 node)
@@ -31,7 +31,7 @@ node scripts/check-doc-links.mjs README.md docs/wiki/*.md  LINKS_EXIT=0  100 rel
 Link count 91 -> 99 -> 100 across the three rounds, 0 broken throughout.
 
 Ledger: no row from me (panel lens, `agents/reviewer.md` Record-it). Same structural note as
-rounds 1 and 2 - the implementer's round-3 row is at `05a7c49` and `871f976` is the row
+rounds 1 and 2 - the implementer's round-3 row is at `f6dffd2` and `b1220ed` is the row
 itself, so the synthesizing pass records at whatever head it is standing on.
 
 ## The subgraph finding, closed

@@ -26,7 +26,7 @@ PASSED - 0 failures, 1 warning
 [exited with code 0]
 ```
 
-The item's `verification` field, command by command, at head `a2460265`:
+The item's `verification` field, command by command, at head `bfcb6eb0`:
 
 ```
 npm test                                                   TEST_EXIT=0   (276 pass / 0 fail bun, pass 276 / fail 0 node)
@@ -38,7 +38,7 @@ node scripts/check-doc-links.mjs README.md docs/wiki/*.md  LINKS_EXIT=0  99 rela
 Green. Nothing below is a gate finding.
 
 `./bin/mstack ledger check docs-for-newcomers` - same structural note as round 1: the
-implementer's round-2 row landed at `06899f1` and commit `a246026` is the row itself, so head
+implementer's round-2 row landed at `a8d7a2e` and commit `bfcb6eb` is the row itself, so head
 moved past it again. I record no row (panel lens, `agents/reviewer.md` Record-it). The pass
 that synthesizes this panel must record its single row at the head SHA at that moment.
 

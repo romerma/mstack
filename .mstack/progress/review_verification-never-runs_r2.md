@@ -2,7 +2,7 @@
 
 **Verdict:** CHANGES_REQUESTED
 
-Reviewed at `85c231176a2f0da25b8d061bab3f2f6c9d997125`. Round 1's report is
+Reviewed at `6ff4eec873279c8f9d5e2e09ddcc75fe03eb0827`. Round 1's report is
 `.mstack/progress/review_verification-never-runs.md`. I did not write this code.
 
 **Six of my eight findings closed cleanly, and the two blocking ones closed as demoed.** I
@@ -25,9 +25,9 @@ Everything else below is either closed, or a smaller item I would not block on a
 | 3 | Pre-existing stores get no migration and no warning | **Yes** | `src/gate.ts:120-138`; both recovery branches verified live; `CHANGELOG.md` upgrade note |
 | 4 | Whitespace half of the command match untested | **Yes** | `tests/verification.test.ts:180-215`; mutation N3d kills it. My round-1 claim was overstated — see the correction below |
 | 5 | `--force` leaves no durable trace | **Yes** | `src/cli.ts:528-582`; `closed_by` is written and marked; verified live |
-| 6 | Ledger stale at HEAD | **No, and correctly deferred** | Still `FAIL` at `85c23117`. Not the implementer's to close. See finding D |
+| 6 | Ledger stale at HEAD | **No, and correctly deferred** | Still `FAIL` at `6ff4eec8`. Not the implementer's to close. See finding D |
 | 7 | Reviewer path starts red with no `verify` configured | **Yes** | `agents/reviewer.md:21-26` |
-| 8 | `db80b45` scope judgement | n/a | I ruled it in scope in round 1; unchanged |
+| 8 | `c52a174` scope judgement | n/a | I ruled it in scope in round 1; unchanged |
 
 Plus the round-1 nits: dedupe landed (`src/verification.ts:95-107`, mutation N8 kills a named
 test), `Status` renamed `RunStatus` (`src/verification.ts:213`), the `obligations` guard order
@@ -205,7 +205,7 @@ verification run against` warning three lines up is the shape.
 
 ```console
 $ ./bin/mstack ledger check verification-never-runs
-FAIL no verdict at 85c23117; 3 row(s) exist at other SHAs and a new head SHA voids them
+FAIL no verdict at 6ff4eec8; 3 row(s) exist at other SHAs and a new head SHA voids them
 ```
 
 All three rows are `--verifier implementer`, so none of them can close the item
@@ -315,7 +315,7 @@ Ran 243 tests across 14 files. [20.70s]
 ℹ fail 0
 
 $ ./bin/mstack ledger check verification-never-runs
-FAIL no verdict at 85c23117; 3 row(s) exist at other SHAs and a new head SHA voids them
+FAIL no verdict at 6ff4eec8; 3 row(s) exist at other SHAs and a new head SHA voids them
 ```
 
 Mutation run, scratch copy at `scratchpad/mut2`, baseline 92 pass / 0 fail confirmed before

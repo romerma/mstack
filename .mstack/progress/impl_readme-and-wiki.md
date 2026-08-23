@@ -37,7 +37,7 @@ the runtime table and the enforcement claims moved verbatim.
 - `.mstack/progress/current.md`, `.mstack/decisions.tsv` (two rows), this report, and the
   ledger row (bookkeeping)
 
-Commits: `a35ba42` readme · `3ce1096` wiki · `06c589e` changelog · bookkeeping follows.
+Commits: `4e8d229` readme · `8660104` wiki · `63e6471` changelog · bookkeeping follows.
 
 ## Commands
 
@@ -126,7 +126,7 @@ published page.
 **3. "docs/wiki/ holds Home, Getting-Started, The-Story, How-A-Work-Item-Flows,
 Gates-and-Hooks, The-CLI, State-Files, Status-Line, Publishing-the-Wiki, _Sidebar and
 _Footer; every technical claim traces to the research doc, the code, or an official doc"**
-All eleven files exist with exactly those names (commit `3ce1096`, 11 files, 1329 lines).
+All eleven files exist with exactly those names (commit `8660104`, 11 files, 1329 lines).
 Tracing: lineage claims cite `docs/research/pstack-port.md` (linked from The-Story and
 Gates-and-Hooks); code claims carry `file:line` (`src/lifecycle.ts:63-73`,
 `src/hooks.ts:205-243`, `src/roles.ts:64` and `:101-106`, `src/state.ts:6-33`,
@@ -166,7 +166,7 @@ explicit credit to poteto.
 Recorded after the last content commit:
 
 ```
-mstack ledger record readme-and-wiki 06c589e50e312a3fb2f184ff149e888da53113c0 test-verified \
+mstack ledger record readme-and-wiki 63e647101e1166173eed6012e100afd86e48d044 test-verified \
   --evidence .mstack/progress/impl_readme-and-wiki.md --verifier implementer
 ```
 

@@ -46,16 +46,16 @@ switch off.
 | `CHANGELOG.md` | Four Unreleased bullets |
 | `.mstack/.gitignore` | **New.** Byte-identical to what `setup` writes |
 
-Commits, each building: `ddac8e3` module, `fd1b27a` gate, `ae40ab2` closing guard, `f2e9308`
-the boundary test the first mutation round demanded, `db00832` docs, `028e3bd` changelog,
-`db80b45` one correction of my own (below).
+Commits, each building: `1aeaa23` module, `18a70cd` gate, `a3bf984` closing guard, `46a6818`
+the boundary test the first mutation round demanded, `ed8ab7c` docs, `19499d4` changelog,
+`c52a174` one correction of my own (below).
 
 ### A false claim of mine, caught before the reviewer had to
 
 `STORE_GITIGNORE` first carried a second line, `verification.tsv.lock`, and the test asserting
 it said the lock "appears exactly when two mstack processes overlap". That is not true.
 `withLock` is used by `src/decisions.ts` alone, because `decisions.add` reads before it appends;
-`verification.record` appends directly and takes no lock, so the file never exists. `db80b45`
+`verification.record` appends directly and takes no lock, so the file never exists. `c52a174`
 removes the line and replaces the assertion with the opposite and more useful one — **exactly**
 one ignored path, so an over-broad rule here could not silently stop committing a ledger row.
 Noted rather than quietly fixed, because a false sentence in a test comment is how a check that
@@ -135,7 +135,7 @@ PASSED - 0 failures, 1 warning
 
 Red to green with nothing having run, in one command. That run used the fast-gate check already
 in place (step 1 is the new check working) and shows the hole it still had; step 2 is what
-`ae40ab2` now refuses.
+`a3bf984` now refuses.
 
 ### The mechanism catching a red verification, end to end, rung 5
 
@@ -227,8 +227,8 @@ PASSED - 0 failures, 0 warnings
 
 $ column -s$'\t' -t .mstack/verification.tsv
 target                   sha                                       command                                                      outcome  ts
-(project)                028e3bd082c2a79ab9cf90a3ff3ceaf38d9647ca  npm test && npm run typecheck && bin/mstack lint-plugin .    passed   2026-08-21T12:04:32.681Z
-verification-never-runs  028e3bd082c2a79ab9cf90a3ff3ceaf38d9647ca  npm test && npm run typecheck && ./bin/mstack lint-plugin .  passed   2026-08-21T12:05:00.545Z
+(project)                19499d429f2be0a8b91c449920252972eb5b2201  npm test && npm run typecheck && bin/mstack lint-plugin .    passed   2026-08-21T12:04:32.681Z
+verification-never-runs  19499d429f2be0a8b91c449920252972eb5b2201  npm test && npm run typecheck && ./bin/mstack lint-plugin .  passed   2026-08-21T12:05:00.545Z
 
 $ git status --porcelain
 (clean above = the receipt is ignored)
@@ -236,7 +236,7 @@ $ git status --porcelain
 
 ### New tests red against the pre-change code, restored by byte copy
 
-`src/gate.ts` swapped for `fd1b27a~1:src/gate.ts`, restored from a copy taken beforehand and
+`src/gate.ts` swapped for `18a70cd~1:src/gate.ts`, restored from a copy taken beforehand and
 checked by sha256. No `git checkout` anywhere in this pass.
 
 ```console
@@ -360,7 +360,7 @@ git status --porcelain src/:
 on every status move, not only into `done` — survived, which meant nothing in the suite stopped
 a version of this feature that demands a full verification run just to advance an item from
 `in_progress` to `reviewing`. That is the opposite of the cost boundary criterion 3 asks for.
-It is a gap in my tests, not a bad mutation, so `f2e9308` added
+It is a gap in my tests, not a bad mutation, so `46a6818` added
 `tests/cli.test.ts:678` and the run above is the re-run with it in place.
 
 ### Final state
@@ -511,7 +511,7 @@ obligation list is what `--full` runs — one function, two callers, so the chec
 command `--full` never runs), `:38` (round trip), `:53` (never-run message), `:142` (one green
 does not carry the other), `:171` (the store `.gitignore` ignores exactly one path).
 
-The mutation run above predates `db80b45`, which touched `src/setup.ts` and one assertion and
+The mutation run above predates `c52a174`, which touched `src/setup.ts` and one assertion and
 no logic in `src/verification.ts`, `src/gate.ts` or `src/cli.ts` — the three files every
 mutation targets. The suite is 230 pass on both runtimes at that commit and at this one.
 
@@ -553,7 +553,7 @@ before it goes green — which is this feature verifying itself, and worth watch
 
 # Round 2 — response to CHANGES_REQUESTED
 
-Reviewed at `26b0671`. Eight findings, two blocking. All eight addressed below; the reviewer's
+Reviewed at `908cc31`. Eight findings, two blocking. All eight addressed below; the reviewer's
 ruling on finding 5 is followed rather than re-argued, and finding 6 is left where the reviewer
 put it. **Both blocking findings were reproduced by me first, at rung 5, before any fix.**
 
@@ -589,7 +589,7 @@ and gained a `raw` option — which turned out to be load-bearing rather than co
 | 5 REQUIRED | fixed, reviewer's ruling followed | `--force` on this transition now exits 2 without `--closed-by`, and stores `closed unverified (forced): <reason>` in `state.json`. Two tests, three mutations |
 | 6 REQUIRED before close | left for the closing pass, as the reviewer directed | A fresh implementer row is recorded at the round-2 head. It cannot close the item: `--verifier implementer` is refused by `canCloseAnItem`, which is the point |
 | 7 MODERATE | fixed | `agents/reviewer.md:19-26`. Also `skills/router/playbooks/cleanup.md` for nitpick 7 |
-| 8 | agreed | `db80b45` kept |
+| 8 | agreed | `c52a174` kept |
 
 ### Nitpicks
 
@@ -734,7 +734,7 @@ PASSED - 0 failures, 2 warnings
 ### Mutations: 36, all killed, baseline green before and after
 
 Round 1's nineteen re-anchored against the new code, plus seventeen for round 2. Every `R2-*`
-entry reverts one round-2 fix to exactly the behaviour the reviewer reproduced at `26b0671`, so
+entry reverts one round-2 fix to exactly the behaviour the reviewer reproduced at `908cc31`, so
 the same run is the "red against the code as it was" evidence for every new test.
 
 ```console
@@ -780,7 +780,7 @@ M18    src/cli.ts             the closing guard is consulted and its answer igno
        killed (1 of 1 matching "an item cannot be closed on a verification that never ran here" went red)   (restored ok, sha256 f0ea8a46bfb5)
 M20    src/cli.ts             the guard fires on every status move, not only into done
        killed (1 of 1 matching "only the move into done is guarded" went red)   (restored ok, sha256 f0ea8a46bfb5)
-R2-1a  src/gate.ts            F1: the receipt read is unguarded again, as at 26b0671
+R2-1a  src/gate.ts            F1: the receipt read is unguarded again, as at 908cc31
        killed (1 of 1 matching "an unreadable receipt file is a failure" went red)   (restored ok, sha256 a11818f53599)
 R2-1b  src/gate.ts            F1: the same, seen from the checks below it
        killed (1 of 1 matching "does not stop the checks below it" went red)   (restored ok, sha256 a11818f53599)
@@ -868,7 +868,7 @@ $ node scripts/check-doc-links.mjs README.md docs/wiki/*.md
 60 relative links checked, 0 broken
 ```
 
-This repository, verifying itself at `2c61061`:
+This repository, verifying itself at `56e8516`:
 
 ```console
 $ ./bin/mstack gate | tail -6
@@ -886,9 +886,9 @@ $ ./bin/mstack gate --full | tail -3
 PASSED - 0 failures, 0 warnings
 
 $ column -s$'\t' -t .mstack/verification.tsv | tail -3
-verification-never-runs  26b0671d46b655ae82bda50eb9ef1a1c75e9010c  npm test && npm run typecheck && ./bin/mstack lint-plugin .  passed   2026-08-21T12:17:46.438Z
-(project)                2c61061500c2269b0810d29e97ec6127120d69bc  npm test && npm run typecheck && bin/mstack lint-plugin .    passed   2026-08-21T12:57:10.948Z  clean
-verification-never-runs  2c61061500c2269b0810d29e97ec6127120d69bc  npm test && npm run typecheck && ./bin/mstack lint-plugin .  passed   2026-08-21T12:57:10.948Z  clean
+verification-never-runs  908cc317a5903156db5ae877a60c158f95a6fe6c  npm test && npm run typecheck && ./bin/mstack lint-plugin .  passed   2026-08-21T12:17:46.438Z
+(project)                56e8516a6d8a29770d4b5f88752ebd3561f5791f  npm test && npm run typecheck && bin/mstack lint-plugin .    passed   2026-08-21T12:57:10.948Z  clean
+verification-never-runs  56e8516a6d8a29770d4b5f88752ebd3561f5791f  npm test && npm run typecheck && ./bin/mstack lint-plugin .  passed   2026-08-21T12:57:10.948Z  clean
 ```
 
 The round-1 row has no `tree` value and the round-2 rows do: that is `ensureHeader` widening the
@@ -923,7 +923,7 @@ file in place, live, in this store. The old row is voided rather than trusted, a
 | Finding 2 was real: a green receipt survived an edit that broke the command, and the item closed | 5 | My own repro before any fix, exit 0 throughout |
 | Finding 2 is fixed, **and store churn still does not void a run** | 5 | Scratch store: code edit → red; revert code, edit `.mstack/` → green again |
 | Finding 3's warning fires on a pre-change store and clears after `mstack setup` | 5 | Store built without `.mstack/.gitignore`, through the shipped binary |
-| The tree key does not break this repository's own gate | 5 | `./bin/mstack gate --full` green at `2c61061`, two rows recorded `clean`, tree still clean afterwards |
+| The tree key does not break this repository's own gate | 5 | `./bin/mstack gate --full` green at `56e8516`, two rows recorded `clean`, tree still clean afterwards |
 | Every round-2 behaviour is enforced by code rather than prose | 4 | 243 tests on bun and node; 36 mutations, all killed, baseline green before and after, restores byte-verified |
 | `record` under concurrency can lose a row | **3** | Unchanged from the reviewer's finding: the `ensureHeader` window is real, 8 of 8 concurrent runs lost nothing. Not settled, and not written up as settled |
 | A store on a filesystem that refuses the **write** reports usefully | **2** | Still only read and typechecked. The read path is now rung 4; the write path is not, and I am not claiming otherwise |
@@ -932,7 +932,7 @@ file in place, live, in this store. The old row is voided rather than trusted, a
 ## For the reviewer, round 2
 
 1. **Process, and it is worse than round 1.** Round 1 landed as five ordered commits. Round 2's
-   code landed as **one** (`db80ca9`), because the fixes interleave inside the same functions and
+   code landed as **one** (`f6f9793`), because the fixes interleave inside the same functions and
    splitting them cleanly needed per-hunk staging, which is not available here. I did not rewrite
    history to fake it. The docs are a separate commit; the code is not separable after the fact.
 2. **The dedupe does not help this store**, because `state.verify` says `bin/mstack lint-plugin .`
@@ -954,7 +954,7 @@ file in place, live, in this store. The old row is voided rather than trusted, a
 
 # Round 3 — response to the second CHANGES_REQUESTED
 
-Reviewed at `85c2311`. Three items left: A blocking, B and C required, D carried. All three
+Reviewed at `6ff4eec`. Three items left: A blocking, B and C required, D carried. All three
 addressed; **A was reproduced by me first, at rung 5, before any fix**, and the coordinator's
 invitation to answer with a measurement instead of a change was taken up for one sub-question
 and declined for the main one, with numbers either way.
@@ -1267,7 +1267,7 @@ $ node scripts/check-doc-links.mjs README.md docs/wiki/*.md
 
 # Round 4 — response to the third CHANGES_REQUESTED
 
-Reviewed at `1a05d83`. One finding, and it shipped fixed rather than measured away. Two more
+Reviewed at `47d8bed`. One finding, and it shipped fixed rather than measured away. Two more
 defects of the same shape turned up while fixing it, both found by me and neither reported.
 
 ## What changed

@@ -2,8 +2,8 @@
 
 **Verdict:** CHANGES_REQUESTED
 
-Reviewed at HEAD `5ea911045c38b9ee7da097372ae2091434ad23fc` on branch `fix/mstack-front-door`.
-In scope: `d38e0ef` (repro) and `4eefde6` (fix). `c08f696` and `5ea9110` belong to item 29 and
+Reviewed at HEAD `b96a474958b45aa8caccc61234ccc8f25e7425eb` on branch `fix/mstack-front-door`.
+In scope: `ad6d9e2` (repro) and `39b1927` (fix). `9488661` and `b96a474` belong to item 29 and
 were read only for the state-file transitions they make to item 28.
 
 I did not write this code. I ran everything below myself.
@@ -36,8 +36,8 @@ evidence of, and the acceptance bullet that would have caught doc drift is not i
 
 | R | Test | Evidence |
 |---|---|---|
-| A1 skill inventory lists `mstack` | `tests/lint.test.ts:217` "the front door the docs name is a command the plugin actually ships"; `tests/lint.test.ts:231` "removing the front door skill is caught" | Both red at `d38e0ef`, green at HEAD. Run pasted below. Rung 4 |
-| A2 directory and front matter agree | `tests/lint.test.ts:203` "a skill whose front-matter name disagrees with its directory is caught"; enforced by `src/lint.ts:228-235` | Red at `d38e0ef` with the right diagnostic. Rung 4 |
+| A1 skill inventory lists `mstack` | `tests/lint.test.ts:217` "the front door the docs name is a command the plugin actually ships"; `tests/lint.test.ts:231` "removing the front door skill is caught" | Both red at `ad6d9e2`, green at HEAD. Run pasted below. Rung 4 |
+| A2 directory and front matter agree | `tests/lint.test.ts:203` "a skill whose front-matter name disagrees with its directory is caught"; enforced by `src/lint.ts:228-235` | Red at `ad6d9e2` with the right diagnostic. Rung 4 |
 | A3 lint red on a doc naming an unprovided `/mstack:<x>` | **none** | No test in either commit exercises this. Demonstrated not met for README/wiki below. Rung 4 |
 | `src/lint.ts:329` directory-keyed cross-references | **none** | Reverting the line alone leaves 289/289 green. Rung 4 |
 | A4 doc references repointed | none (structural) | `rg 'skills/router'` output below. Rung 4 |
@@ -219,7 +219,7 @@ A test would plant a skill whose directory and front-matter name disagree, plant
 `mstack:<directory>` reference in a playbook, and assert the reference does *not* appear in the
 failures — the shape `expectFail` cannot express today.
 
-Incidentally, the repro run at `d38e0ef` exhibits the old bug directly, which is a nice
+Incidentally, the repro run at `ad6d9e2` exhibits the old bug directly, which is a nice
 confirmation the change is aimed at something real: mutating `verify`'s name to `prove` caused
 the pre-fix linter to report `mstack:verify is referenced in ... but no such skill or agent
 exists` — a false positive on a reference the harness resolves fine.
@@ -322,8 +322,8 @@ outage to be worth making.
 
 ### 4. Non-blocking - item 28 is `blocked` in `state.json` with no recorded reason
 
-`.mstack/state.json:426` reads `"status": "blocked"`. It was `reviewing` at `c08f696` and was
-flipped to `blocked` by `5ea9110`, an item-29 commit, with nothing in the commit message,
+`.mstack/state.json:426` reads `"status": "blocked"`. It was `reviewing` at `9488661` and was
+flipped to `blocked` by `b96a474`, an item-29 commit, with nothing in the commit message,
 `decisions.tsv` or `current.md` saying why. `blocked` is a legal transition from `reviewing`
 (`src/lifecycle.ts:93,119`) and the gate does not object, so this is not a red gate — but I was
 asked whether this is close-worthy, and an item cannot be closed out of `blocked` without
@@ -352,19 +352,19 @@ own function with its reasoning written down.
 
 ## Tests: were any weakened?
 
-**No.** `git diff d38e0ef..4eefde6 -- tests/lint.test.ts` is five hunks, every one of them a
+**No.** `git diff ad6d9e2..39b1927 -- tests/lint.test.ts` is five hunks, every one of them a
 path substitution `skills/router` -> `skills/mstack` at lines 99, 169, 180, 195 and 244,
 following the rename. No assertion was loosened, no matcher widened, no test deleted. The three
-tests added by `d38e0ef` reach `4eefde6` byte-identical.
+tests added by `ad6d9e2` reach `39b1927` byte-identical.
 
 ## Did the repro really fail?
 
-Yes, verified rather than reasoned about. I extracted the `d38e0ef` tree with `git archive` into
+Yes, verified rather than reasoned about. I extracted the `ad6d9e2` tree with `git archive` into
 a scratch directory (no worktree, no stash, the repository untouched) and ran the lint tests
 against it:
 
 ```
-$ git archive d38e0ef | tar -x -C $SCRATCH/repro && cd $SCRATCH/repro
+$ git archive ad6d9e2 | tar -x -C $SCRATCH/repro && cd $SCRATCH/repro
 $ node --test 'tests/lint.test.ts'
 ✖ a skill whose front-matter name disagrees with its directory is caught (16.016792ms)
 ✖ the front door the docs name is a command the plugin actually ships (11.046208ms)
@@ -449,7 +449,7 @@ $ ./bin/mstack ledger check mstack-front-door
 FAIL no verdict recorded for mstack-front-door
 ```
 
-Plus, all pasted in full above: the `d38e0ef` repro run, the four planted-doc lint cases, the
+Plus, all pasted in full above: the `ad6d9e2` repro run, the four planted-doc lint cases, the
 one-line revert of `src/lint.ts:329`, the `skills/router` sweep, the 89-skill cache survey, the
 `claude plugin details mstack` inventory, and the failed live probe.
 
@@ -463,8 +463,8 @@ on a `git archive` copy in the scratch directory.
 | Claim | Rung | On what |
 |---|---|---|
 | Suite 289/289 on both runtimes, typecheck and lint clean at HEAD | 4 | This checkout, `./bin/mstack gate --full` |
-| The three new tests fail at `d38e0ef` | 4 | `git archive` copy of `d38e0ef`, `node --test` |
-| No test was weakened between the two commits | 2 | `git diff d38e0ef..4eefde6 -- tests/lint.test.ts` |
+| The three new tests fail at `ad6d9e2` | 4 | `git archive` copy of `ad6d9e2`, `node --test` |
+| No test was weakened between the two commits | 2 | `git diff ad6d9e2..39b1927 -- tests/lint.test.ts` |
 | `lint-plugin` does not catch `/mstack:<x>` in README.md or `docs/wiki/` | 4 | `git archive` copy of HEAD, four planted cases |
 | `src/lint.ts:329` is uncovered | 4 | Line reverted on the copy, 289/289 still green |
 | The directory-keyed change breaks no legitimate case | 3 | Walked the three input shapes against `src/lint.ts:228-235,329` |
@@ -501,7 +501,7 @@ on a `git archive` copy in the scratch directory.
    far as it goes; it is the counterfactual in the next clause that overreaches.
 
 4. **`.mstack/state.json:426`** — item 28 sits at `blocked` with no reason recorded anywhere,
-   set by `5ea9110`, a commit belonging to item 29. Record what it is blocked on, or move it back
+   set by `b96a474`, a commit belonging to item 29. Record what it is blocked on, or move it back
    to `reviewing`. It also has no `verification` field, unlike items 27 and 29.
 
 5. **Non-blocking, `src/lint.ts:188-195`** — `plugin.json` is read and parsed a second time

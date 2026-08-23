@@ -1,6 +1,6 @@
 # impl: provenance-fixtures-lack-package-json (item 25)
 
-Branch `fix/provenance-fixtures-lack-package-json`, fix committed at `471b163e`.
+Branch `fix/provenance-fixtures-lack-package-json`, fix committed at `605374b2`.
 
 ## What changed
 
@@ -145,6 +145,6 @@ PASSED - 0 failures, 0 warnings
 
 - The defect and the fix on node 22.6.0: rung 4 for this report (the exact failing binary,
   red then green, pasted). CI on main itself: not yet run, pending push — stated, not claimed.
-- Both-runtimes green, typecheck, lint: rung 4, output pasted from real runs at `471b163e`.
+- Both-runtimes green, typecheck, lint: rung 4, output pasted from real runs at `605374b2`.
 - Verdict recorded as `test-verified`: the fix is proven by tests on the real runtime, but
   the surface the defect lives on (CI on main) has not executed it yet, so not `live-verified`.

@@ -2,7 +2,7 @@
 
 **Verdict:** APPROVED
 
-Reviewed at `22e220a860a5c3c713186e7f55d17153150fb4c0`. Rounds 1-3 are
+Reviewed at `65b79282d274abbbfb177ada9ebbbd07885c1ef2`. Rounds 1-3 are
 `.mstack/progress/review_verification-never-runs.md`, `..._r2.md` and `..._r3.md`. I did not
 write this code.
 
@@ -91,7 +91,7 @@ So any store in a subdirectory, with any untracked file at all, fingerprinted `u
 the consequence at round-3 code and at round-4 code in the same store:
 
 ```console
-### round-3 code (1a05d83), nested store
+### round-3 code (47d8bed), nested store
 receipt tree: unknown
 verification really exits: 1
 [ok]    verification ran and passed at 911b5b2e: sh check.sh
@@ -254,7 +254,7 @@ Ran 258 tests across 14 files. [24.46s]
 ℹ fail 0
 
 $ ./bin/mstack ledger check verification-never-runs
-FAIL no verdict at 22e220a8; 5 row(s) exist at other SHAs and a new head SHA voids them
+FAIL no verdict at 65b79282; 5 row(s) exist at other SHAs and a new head SHA voids them
 ```
 
 Round-4 mutations, scratch copy at `scratchpad/mut4`, baseline 107 pass / 0 fail before and

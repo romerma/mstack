@@ -182,7 +182,7 @@ The claim holds. `Home.md` and `_Sidebar.md` still link *to* it, and both of tho
 
 ## Regression sweep
 
-`git diff 12aeff6..55f241f --stat` touches 17 files. Every one is explained by the fix list:
+`git diff 90e7f94..cdb1931 --stat` touches 17 files. Every one is explained by the fix list:
 8 wiki pages, `README.md`, `CHANGELOG.md`, the new `scripts/check-doc-links.mjs`, `src/ledger.ts`,
 and four `.mstack/` bookkeeping files (`state.json`, `decisions.tsv`, `progress/current.md`,
 `progress/impl_readme-and-wiki.md`). Nothing unexplained.

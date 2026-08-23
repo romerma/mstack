@@ -2,8 +2,8 @@
 
 **Verdict:** CHANGES_REQUESTED
 
-Item 29, commit `5ea9110`, branch `fix/mstack-front-door`, head
-`5ea911045c38b9ee7da097372ae2091434ad23fc`. Items 28, `d38e0ef` and `4eefde6` are out of scope
+Item 29, commit `b96a474`, branch `fix/mstack-front-door`, head
+`b96a474958b45aa8caccc61234ccc8f25e7425eb`. Items 28, `ad6d9e2` and `39b1927` are out of scope
 and were not judged.
 
 The restructure is right and most of it is accurate: 5 of 7 playbook rows, 5 of 5 agent rows and
@@ -174,7 +174,7 @@ $ ./bin/mstack version
 mstack 0.1.0 at /Users/romerma/Code/mstack
 
 $ git rev-parse HEAD
-5ea911045c38b9ee7da097372ae2091434ad23fc
+b96a474958b45aa8caccc61234ccc8f25e7425eb
 
 $ ./bin/mstack gate --full
 -- manifest
@@ -255,7 +255,7 @@ EXIT=2
 Rung 4, and I say what I ran it on: this checkout's `bin/mstack` against an empty git repository,
 which is exactly the first-run case `README.md:26-27` is making a claim about.
 
-Tests: this commit touches no test file (`git show --stat 5ea9110` lists `README.md`,
+Tests: this commit touches no test file (`git show --stat b96a474` lists `README.md`,
 `.mstack/state.json`, `.mstack/progress/current.md` only), so no test was weakened to obtain
 green. `npm test` is green inside the gate's `--full` run above.
 
@@ -330,10 +330,10 @@ green. `npm test` is green inside the gate's `--full` run above.
 
 **Verdict:** CHANGES_REQUESTED
 
-Head is now `b4894a788a87347b032e996a083c7f3cd6ec96c5`, commit `b4894a7` "docs: the four things
+Head is now `5d15d32865ca82d832c7227efa70f48aabd49560`, commit `5d15d32` "docs: the four things
 the README review found", resolved with `git rev-parse HEAD` rather than from either SHA I was
 handed: the coordinator's first message named `d5d47b8`, which is not in this history, and its
-own correction named `b4894a7`, which is.
+own correction named `5d15d32`, which is.
 
 All five applied fixes are confirmed. One blocker remains, and it is the same falsehood as
 round-1 finding 1 surviving in a second location my own report failed to cite. That is a miss on
@@ -394,7 +394,7 @@ the unique-token list confirms no bare `mstack:spec` appears anywhere. So:
 - 1 + 5 + 5 = **11**, and that set is exactly the eleven non-router directories under `skills/`.
 
 The arithmetic at `README.md:26-30` is correct. Rung 4: I ran the greps against the real files in
-this checkout at `b4894a7`.
+this checkout at `5d15d32`.
 
 ## The five fixes, confirmed
 
@@ -483,7 +483,7 @@ readability fix it also works: the 55-word cell is gone and the row is now four 
 
 ```
 $ git rev-parse HEAD
-b4894a788a87347b032e996a083c7f3cd6ec96c5
+5d15d32865ca82d832c7227efa70f48aabd49560
 
 $ ./bin/mstack gate --full
 ... (full body green)
@@ -501,7 +501,7 @@ $ ./bin/mstack lint-plugin .
 PASSED - 0 failures, 0 warnings
 
 $ ./bin/mstack ledger check readme-leads-with-use
-FAIL no verdict at b4894a78; 1 row(s) exist at other SHAs and a new head SHA voids them
+FAIL no verdict at 5d15d328; 1 row(s) exist at other SHAs and a new head SHA voids them
 LEDGER_EXIT=1
 
 $ rg -n 'eleven|chain' README.md
@@ -509,10 +509,10 @@ $ rg -n 'eleven|chain' README.md
 ```
 
 That ledger line is the mechanism `README.md:345-350` describes, working: my round-1 row at
-`5ea9110` was voided the moment the fix commit landed, which is why this pass records its own row
-at `b4894a7` rather than letting the old verdict ride.
+`b96a474` was voided the moment the fix commit landed, which is why this pass records its own row
+at `5d15d32` rather than letting the old verdict ride.
 
-The fix commit touches no test file. `git show --stat b4894a7` is `.mstack/ledger.tsv`,
+The fix commit touches no test file. `git show --stat 5d15d32` is `.mstack/ledger.tsv`,
 `.mstack/progress/review_readme-leads-with-use_readme-leads-with-use.md`, `.mstack/state.json`
 and `README.md`. Nothing was weakened to obtain green.
 
@@ -529,8 +529,8 @@ and `README.md`. Nothing was weakened to obtain green.
 
 **Verdict:** APPROVED
 
-Head is `a84950b15128de9dbc7ab717f4b7a4db0663e2c1`, resolved with `git rev-parse HEAD`, over
-`e3521d7` (the round-2 blocker) and `a84950b` (the item-28 revert). Item 29 is close-worthy.
+Head is `9776e487ab05d81a41acf61e576e075a68af22ee`, resolved with `git rev-parse HEAD`, over
+`dc76595` (the round-2 blocker) and `9776e48` (the item-28 revert). Item 29 is close-worthy.
 
 ## The round-2 blocker
 
@@ -633,7 +633,7 @@ did its job even though I did not do mine, and that is the argument for the ladd
 The revert restored `skills/router/`, so I re-checked everything my earlier rounds verified at
 the old paths:
 
-- `git diff --stat 61fdd04 HEAD -- skills/router/playbooks agents/` is empty. The seven playbooks
+- `git diff --stat b31d93b HEAD -- skills/router/playbooks agents/` is empty. The seven playbooks
   and five agent definitions are byte-identical to their pre-item-28 state, so every fact-check
   in rounds 1 and 2 carries over unchanged; only the path in my citations moved from
   `skills/mstack/...` to `skills/router/...`.
@@ -652,7 +652,7 @@ the old paths:
 1. **"the README shows a real /mstack <request> example before any mechanism prose"** - met.
    `README.md:15-18`, four requests routing to four different playbooks.
 2. **"all seven playbooks are named in the README with what each one does"** - met. Seven rows,
-   seven files, every row checked against its file; the two defective rows fixed in `b4894a7`.
+   seven files, every row checked against its file; the two defective rows fixed in `5d15d32`.
 3. **"all five subagents are named in the README with what each does and what it cannot do"** -
    met. Five rows against five unchanged `agents/*.md`, descriptions and `tools:` both verified
    in round 1.
@@ -683,7 +683,7 @@ the old paths:
 
 ```
 $ git rev-parse HEAD
-a84950b15128de9dbc7ab717f4b7a4db0663e2c1
+9776e487ab05d81a41acf61e576e075a68af22ee
 
 $ ./bin/mstack gate --full
 PASSED - 0 failures, 0 warnings
@@ -705,20 +705,20 @@ PASSED - 0 failures, 0 warnings
 $ rg -n 'eleven|chain' README.md
 (no output)
 
-$ git diff --stat 61fdd04 HEAD -- skills/router/playbooks agents/
+$ git diff --stat b31d93b HEAD -- skills/router/playbooks agents/
 (no output)
 
 $ ./bin/mstack ledger check readme-leads-with-use
-FAIL no verdict at a84950b1; 2 row(s) exist at other SHAs and a new head SHA voids them
+FAIL no verdict at 9776e487; 2 row(s) exist at other SHAs and a new head SHA voids them
 ```
 
 286 rather than 289 is item 28's three lint tests leaving with the revert, as expected. Both
 earlier rows are voided by the new head, which is the stale-verdict mechanic working; this pass
-records its own at `a84950b`.
+records its own at `9776e48`.
 
-No test was weakened for this item: across `5ea9110`, `b4894a7` and `e3521d7` no test file is
-touched. `a84950b` removes tests, and it removes them as part of reverting the change that added
-them, byte-clean against `61fdd04`. That is item 28's revert, not item 29's doing, and it is out
+No test was weakened for this item: across `b96a474`, `5d15d32` and `dc76595` no test file is
+touched. `9776e48` removes tests, and it removes them as part of reverting the change that added
+them, byte-clean against `b31d93b`. That is item 28's revert, not item 29's doing, and it is out
 of my scope beyond confirming it left this item's evidence intact, which it did.
 
 ## Verdict
@@ -732,17 +732,17 @@ verification reached, not rung 5, because nothing here was proven in a live sess
 
 **Verdict:** APPROVED
 
-Head is `ccccd38dc6a3c9a17e01a189efdae6a5ff9812a5`. The row moved because the SHA moved, not
+Head is `f57ad0364e9dfe06430eefbfedd29c17234ed552`. The row moved because the SHA moved, not
 because the work did. This round re-establishes the verdict at the current head and checks one
-claim: that nothing reviewable changed since `a84950b`.
+claim: that nothing reviewable changed since `9776e48`.
 
 ## The claim, checked
 
 ```
-$ git diff --stat a84950b ccccd38 -- . ':!.mstack'
+$ git diff --stat 9776e48 f57ad03 -- . ':!.mstack'
 (no output)
 
-$ git diff --name-status a84950b ccccd38
+$ git diff --name-status 9776e48 f57ad03
 M	.mstack/ledger.tsv
 M	.mstack/progress/current.md
 M	.mstack/progress/review_readme-leads-with-use_readme-leads-with-use.md
@@ -755,7 +755,7 @@ the round-3 findings carry without re-derivation.
 
 I checked the specific hazard that topology creates rather than inferring it from the empty
 diff. `origin/main` carries the refuted work (`git ls-tree origin/main skills/` lists
-`skills/mstack`), and `6624bf9` merged that main back into this branch. A merge that resurrected
+`skills/mstack`), and `017d34e` merged that main back into this branch. A merge that resurrected
 `skills/mstack/` is exactly the accident this situation invites. It did not happen:
 
 ```
@@ -792,17 +792,17 @@ Said plainly, because it is a difference from round 3: I ran the four commands o
 `verification` string **individually**, not through `mstack gate --full`, which exceeded the
 tool timeout twice at this head and produced no output. The commands are the same commands and
 they pass. What running them by hand does not do is write a row to `.mstack/verification.tsv`,
-and the last recorded run is still at `a84950b`:
+and the last recorded run is still at `9776e48`:
 
 ```
 $ tail -2 .mstack/verification.tsv
-(project)               a84950b1... passed  clean
-readme-leads-with-use   a84950b1... npm test && ... && node scripts/check-doc-links.mjs R...
+(project)               9776e487... passed  clean
+readme-leads-with-use   9776e487... npm test && ... && node scripts/check-doc-links.mjs R...
 ```
 
 **So one mechanical step remains before this item can close.** From `verifying` on, the gate
-demands a passing run at the current commit and working tree; a run at `a84950b` will not
-satisfy a close at `ccccd38`. Whoever closes item 29 has to run `./bin/mstack gate --full` at
+demands a passing run at the current commit and working tree; a run at `9776e48` will not
+satisfy a close at `f57ad03`. Whoever closes item 29 has to run `./bin/mstack gate --full` at
 the head it closes on. That is a close-time chore, not a defect, and it does not touch the
 verdict on the work.
 
@@ -850,7 +850,7 @@ meets today, so it belongs in the record.
 
 ## Verdict
 
-APPROVED at rung 4, unchanged from round 3 and re-established at `ccccd38`. The evidence is the
+APPROVED at rung 4, unchanged from round 3 and re-established at `f57ad03`. The evidence is the
 same evidence: rounds 1 to 3 verified content that is byte-identical at this head, and this round
 proved that identity rather than assuming it.
 
@@ -864,42 +864,42 @@ one claim that shipped in 0.2.0 that nobody has verified.
 ## What happened after round 4
 
 A background `mstack gate --full` I had started was killed rather than finishing, which is what
-sent me back to look. HEAD is now `aa75729`, five commits past the `ccccd38` I approved:
+sent me back to look. HEAD is now `9026eb8`, five commits past the `f57ad03` I approved:
 
 ```
-aa75729 chore: close the session, 0.2.0 out
-22c039f chore: cut 0.2.0
-012561f Merge branch 'fix/mstack-front-door'
-5bdc2c2 chore: the reviewer's round-4 report and its row at the final head
-0fb2b93 Merge pull request #2 from romerma/fix/mstack-front-door
+9026eb8 chore: close the session, 0.2.0 out
+53a0865 chore: cut 0.2.0
+1e2580d Merge branch 'fix/mstack-front-door'
+43fbeef chore: the reviewer's round-4 report and its row at the final head
+d7e38c5 Merge pull request #2 from romerma/fix/mstack-front-door
 ```
 
 ## The close is legitimate, and I checked it rather than assuming
 
-Item 29 closed on a row at the merge SHA, `012561f9`, recorded by `session`, not by `reviewer`.
+Item 29 closed on a row at the merge SHA, `1e2580dc`, recorded by `session`, not by `reviewer`.
 Nobody recorded a verdict in my name. Its evidence field makes two checkable claims and both
 hold:
 
 ```
-$ git diff --stat ccccd38 012561f9 -- . ':!.mstack'
+$ git diff --stat f57ad03 1e2580dc -- . ':!.mstack'
 (empty)
 
-$ rg '012561f9' .mstack/verification.tsv
-(project)              012561f9... npm test && npm run typecheck && bin/mstack lint-plugin .  passed
-readme-leads-with-use  012561f9... npm test && ... && node scripts/check-doc-links.mjs ...    passed
+$ rg '1e2580dc' .mstack/verification.tsv
+(project)              1e2580dc... npm test && npm run typecheck && bin/mstack lint-plugin .  passed
+readme-leads-with-use  1e2580dc... npm test && ... && node scripts/check-doc-links.mjs ...    passed
 ```
 
 So the tree the item closed on was identical outside `.mstack/` to the one I approved, and the
 `gate --full` that round 4 said was still owed did get run, at the merge SHA, with a clean tree.
 The gate now reports `20 closed item(s) carry a ledger verdict` and `no active item`.
 
-## Why there is no row at `aa75729`
+## Why there is no row at `9026eb8`
 
-Because a row there would claim more than I checked. `22c039f` changed content outside
+Because a row there would claim more than I checked. `53a0865` changed content outside
 `.mstack/` after my approval:
 
 ```
-$ git diff --stat ccccd38 HEAD -- . ':!.mstack'
+$ git diff --stat f57ad03 HEAD -- . ':!.mstack'
  .claude-plugin/plugin.json |  2 +-
  CHANGELOG.md               | 24 ++++++++++++++++++++++--
  package.json               |  2 +-
@@ -907,7 +907,7 @@ $ git diff --stat ccccd38 HEAD -- . ':!.mstack'
 
 That is the 0.2.0 release. It was never in the scope I was given, item 29 was already closed
 before it landed, and `README.md` is untouched by it, so the verdict on the work stands where it
-was earned. Recording `test-verified` at `aa75729` would attach my name to a release I was not
+was earned. Recording `test-verified` at `9026eb8` would attach my name to a release I was not
 asked to judge.
 
 ## One claim in the 0.2.0 CHANGELOG that nobody verified

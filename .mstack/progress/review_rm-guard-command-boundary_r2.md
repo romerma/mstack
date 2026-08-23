@@ -2,7 +2,7 @@
 
 **Verdict:** APPROVED
 
-Item 12, branch `fix/rm-guard-command-boundary`, head `27eaed7f7d6ccbe96b6e4f0d816f7db9a215ab9e`.
+Item 12, branch `fix/rm-guard-command-boundary`, head `88432d142a6a6b450e334a3e88b426da6838bff3`.
 Round-1 report: `.mstack/progress/review_rm-guard-command-boundary.md`. Reviewed by a pass that
 did not write the code, in either round.
 
@@ -72,12 +72,12 @@ $ node scripts/check-doc-links.mjs README.md docs/wiki/*.md
 56 relative links checked, 0 broken
 
 $ mstack ledger check rm-guard-command-boundary
-FAIL no verdict at 27eaed7f; 2 row(s) exist at other SHAs and a new head SHA voids them
+FAIL no verdict at 88432d14; 2 row(s) exist at other SHAs and a new head SHA voids them
 ```
 
-Both ledger rows are `live-verified` by `implementer`, at `0c0c24d6` and `739870c4`. Neither is
+Both ledger rows are `live-verified` by `implementer`, at `33bf0041` and `bfa6eb92`. Neither is
 at head and neither is an approval. I recorded nothing: I am forbidden from touching state, so
-the approving row is the orchestrator's to write at `27eaed7f`.
+the approving row is the orchestrator's to write at `88432d14`.
 
 **Every table through the shipped binary**, driven as a real process with real JSON on stdin:
 
@@ -258,7 +258,7 @@ point `reflect_divergent.md` raised in its postscript.
 
 | Claim | Rung |
 |---|---|
-| Gate, both runtimes, typecheck, lint, doc links green at `27eaed7f` | **5** - run here, pasted above |
+| Gate, both runtimes, typecheck, lint, doc links green at `88432d14` | **5** - run here, pasted above |
 | All four acceptance criteria hold | **5** - all 73 table rows driven through the shipped binary as a real process |
 | Finding 1 closed; 30/30 of my round-1 regressions back to DENY | **5** - three shipped binaries, plus the store-deleting idiom denied again |
 | Zero false allows introduced against `main` | **4** - 736-spelling differential in process. A large sample, not a proof of absence, and I say so |

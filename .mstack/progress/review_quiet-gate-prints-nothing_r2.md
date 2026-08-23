@@ -2,7 +2,7 @@
 
 **Verdict:** APPROVED
 
-Closure check against head `63d6c9e64bd041687b282a52eee54d44fb92a8ad`. Round 1 is at
+Closure check against head `3ffea58e13045a07df41b79d2c9daa014c7a70a6`. Round 1 is at
 `.mstack/progress/review_quiet-gate-prints-nothing.md` (CHANGES_REQUESTED, four findings).
 **This approval is keyed to that SHA.** Any further commit voids it and needs a fresh pass;
 that is the same rebase hazard the ledger exists to catch.
@@ -19,7 +19,7 @@ everything rather than reading the round-2 report's numbers.
 | `npm run typecheck` | clean |
 | `./bin/mstack lint-plugin .` | `PASSED - 0 failures, 0 warnings` |
 | `node scripts/check-doc-links.mjs README.md docs/wiki/*.md` | 57 links, 0 broken |
-| assertions removed or loosened in `tests/` this round | none — `git diff 7493037..HEAD -- tests/ \| rg "^-\s*assert"` is empty |
+| assertions removed or loosened in `tests/` this round | none — `git diff 54d55c3..HEAD -- tests/ \| rg "^-\s*assert"` is empty |
 | product code changed | none. Every changed line under `src/` is a comment line, checked mechanically, not by eye |
 | dependencies | `package.json` and `plugin.json` untouched; the one new import is `node:util`, a builtin, and it is in `tests/` |
 | `tests/hooks.test.ts` | untouched this round |
@@ -174,14 +174,14 @@ One qualification, recorded as minor 4 rather than a change: the test mixes one 
 
 ```console
 $ git rev-parse HEAD
-63d6c9e64bd041687b282a52eee54d44fb92a8ad
+3ffea58e13045a07df41b79d2c9daa014c7a70a6
 $ ./bin/mstack ledger check quiet-gate-prints-nothing
-FAIL no verdict at 63d6c9e6; 1 row(s) exist at other SHAs and a new head SHA voids them
+FAIL no verdict at 3ffea58e; 1 row(s) exist at other SHAs and a new head SHA voids them
 ```
 
-The only row is still the implementer's `live-verified` at `2ebd5c5`, four commits behind head.
+The only row is still the implementer's `live-verified` at `5360fd1`, four commits behind head.
 The coordinator owns recording the reviewer row; this report is the evidence for it. The row must
-be keyed to `63d6c9e6` and carry a reviewer verifier, or `src/gate.ts`'s self-close check will
+be keyed to `3ffea58e` and carry a reviewer verifier, or `src/gate.ts`'s self-close check will
 refuse the item — correctly.
 
 ## Acceptance, re-checked at head

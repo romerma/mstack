@@ -2,7 +2,7 @@
 
 **Verdict:** APPROVED
 
-Reviewing alone, round 4. Head at review time: `b6e58739604eb13d69afeffa7afae845529a7d25`.
+Reviewing alone, round 4. Head at review time: `be596130989891fd4c8e1aa63319d9151f65a495`.
 Every CLI call went through `./bin/mstack`, or an explicit absolute path where the point was to
 run a different copy.
 
@@ -79,7 +79,7 @@ reasons this is not luck:
 
 Byte copies of `HEAD` from `git archive`, never `git checkout`.
 
-**Mutation A - the round-3 source restored** (`git show e32a86c:src/{cli,gate,paths}.ts` written
+**Mutation A - the round-3 source restored** (`git show e246f1c:src/{cli,gate,paths}.ts` written
 over the round-4 files, round-4 tests kept). This is the exact defect I reported:
 
 ```
@@ -190,10 +190,10 @@ to add to it.
 
 ```
 $ ./bin/mstack ledger check path-mstack-is-the-installed-copy
-FAIL no verdict at b6e58739; 7 row(s) exist at other SHAs and a new head SHA voids them
+FAIL no verdict at be596130; 7 row(s) exist at other SHAs and a new head SHA voids them
 ```
 
-Expected: the newest row is the implementer's at `a8084dc`, and `b6e5873` is the commit that added
+Expected: the newest row is the implementer's at `e2a653d`, and `be59613` is the commit that added
 it. My row follows this report.
 
 ## Judge point 5: what four rounds accumulated

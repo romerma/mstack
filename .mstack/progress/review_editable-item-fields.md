@@ -103,11 +103,11 @@ and no debug leftover in the diff.
 
 ```console
 $ ./bin/mstack ledger check editable-item-fields
-FAIL no verdict at 01ce70e1; 1 row(s) exist at other SHAs and a new head SHA voids them
+FAIL no verdict at 3a918b93; 1 row(s) exist at other SHAs and a new head SHA voids them
 ```
 
-Expected shape, not a finding. The only row is the implementer's, at `3a269781`, and
-`git diff --stat 3a26978 01ce70e` is `.mstack/ledger.tsv | 1 +` - the commit that recorded the
+Expected shape, not a finding. The only row is the implementer's, at `41c235d3`, and
+`git diff --stat 41c235d 3a918b9` is `.mstack/ledger.tsv | 1 +` - the commit that recorded the
 verdict is what moved the head. No source file differs. `ledger check` at head FAILs the same way
 for `rm-guard-command-boundary`, an item already closed and approved; `src/gate.ts:303-306`
 documents that the gate deliberately does not hold closed items to today's HEAD. There is no
@@ -116,7 +116,7 @@ reviewer verdict yet, which is correct - this pass produces it.
 ### Tests were not weakened
 
 ```console
-$ git diff --numstat c2dbba8..01ce70e -- tests/
+$ git diff --numstat 9c5086e..3a918b9 -- tests/
 233	0	tests/cli.test.ts
 202	1	tests/decisions.test.ts
 ```
@@ -204,7 +204,7 @@ $ mstack state set greet-flag --status done --closed-by "demo walkthrough"
 `CONTRIBUTING.md:43-46` makes this a bug, not a nit: "If a README or wiki change shows command
 output, run the command and paste what it printed... the ones that did not reproduce were treated
 as bugs." `docs/wiki/The-CLI.md:75-76` is the sharpest case - it sits three lines above the
-section commit `0041e54` added, on the page that commit rewrote. Nothing in `mstack gate` or
+section commit `c37b1de` added, on the page that commit rewrote. Nothing in `mstack gate` or
 `lint-plugin` checks transcripts, so review is the only thing standing between this and the wiki.
 
 **What would satisfy me:** re-run each of the six and paste what they print.

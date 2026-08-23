@@ -3,7 +3,7 @@
 **Verdict:** CHANGES_REQUESTED
 
 Panel lens, so this pass records **no ledger row** (`agents/reviewer.md:99-102`). Head at
-review time: `a2460265cdf16865d11686a284e0d575a81baaa6`. Round-1 report:
+review time: `bfcb6eb0e3eef2b64ccd0ea545fea7f5711e26bf`. Round-1 report:
 `.mstack/progress/review_docs-for-newcomers_facts.md`.
 
 All four round-1 findings are fixed. The round-2 additions are largely sound: I checked all
@@ -26,7 +26,7 @@ hook it describes.
 | Router "or a skill directly" | `skills/router/SKILL.md:29-42` | 3 of 10 rows go to a skill. Rung 2 |
 | "session gate runs at the start and end of every session" | ran the real `SessionStart` handler; read `src/hooks.ts` | **FAILS**, finding 1. Rung 5 |
 | Round-1 findings 1-4 | re-read at their locations | all four fixed. Rung 2 |
-| No verified transcript moved | fenced-block compare of every page against `2a4c17c` | only the 2 mermaid blocks changed. Rung 4 |
+| No verified transcript moved | fenced-block compare of every page against `fe50a07` | only the 2 mermaid blocks changed. Rung 4 |
 | Counts | re-derived from the filesystem | 5 / 12 / 7 / 9 unchanged. Rung 4 |
 | Anchors | GitHub-slug resolver over all `#` links | 13/13 resolve, including the new one. Rung 4 |
 
@@ -99,7 +99,7 @@ winning row per item and commit, preferring the most favorable verdict" - matche
 **"Pasted output on touched pages is from real ./bin/mstack runs at the editing commit, and
 existing verified transcripts are not altered unless re-run"** - MET, rung 4.
 
-Every fenced block on every page compared byte-wise against `2a4c17c`:
+Every fenced block on every page compared byte-wise against `fe50a07`:
 
 ```console
 page                               r1 blocks r2 blocks  changed fenced blocks
@@ -112,8 +112,8 @@ gate transcripts on `The-Agents.md`, not the three on `How-A-Work-Item-Flows.md`
 Getting-Started's or The-CLI's. `Publishing-the-Wiki.md` is untouched in round 2, so the -2
 deletion I cleared at rung 4 in round 1 is the only one in the item.
 
-`src/`, `skills/`, `agents/`, `hooks/`, `bin/` and `scripts/` are unchanged since `2a4c17c`
-(`git diff 2a4c17c..HEAD --stat` over those paths is empty), so my round-1 rung-4
+`src/`, `skills/`, `agents/`, `hooks/`, `bin/` and `scripts/` are unchanged since `fe50a07`
+(`git diff fe50a07..HEAD --stat` over those paths is empty), so my round-1 rung-4
 reproduction of both gate transcripts stands without re-running: identical bytes on the page,
 identical CLI underneath.
 
@@ -194,12 +194,12 @@ Ledger:
 
 ```console
 $ ./bin/mstack ledger check docs-for-newcomers
-FAIL no verdict at a2460265; 3 row(s) exist at other SHAs and a new head SHA voids them
+FAIL no verdict at bfcb6eb0; 3 row(s) exist at other SHAs and a new head SHA voids them
 ```
 
-`git diff 06899f1 a246026` is `.mstack/ledger.tsv | 1 +` - the round-2 implementer row
+`git diff a8d7a2e bfcb6eb` is `.mstack/ledger.tsv | 1 +` - the round-2 implementer row
 committing itself. Same benign chicken-and-egg as round 1. Worth recording that the round-1
-panel verdict was typed correctly: one `verifier-failed` row at `2a4c17c7` under
+panel verdict was typed correctly: one `verifier-failed` row at `fe50a071` under
 `--verifier orchestrator`, naming both lens reports as evidence, exactly per
 `skills/review/SKILL.md:44-48`.
 

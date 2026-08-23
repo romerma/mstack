@@ -2,7 +2,7 @@
 
 **Verdict:** CHANGES_REQUESTED
 
-Item 12, branch `fix/rm-guard-command-boundary`, head `b99857b2d0f91f820f99e995b8d4f69e0024055b`.
+Item 12, branch `fix/rm-guard-command-boundary`, head `27bf6548f297dbdc1e7a2da16f4c4746b96e6a4b`.
 Reviewed by a pass that did not write the code.
 
 The gate is green, both runtimes are green, and criteria 1-3 hold on their own terms. The
@@ -70,10 +70,10 @@ i pass 20
 i fail 0
 
 $ mstack ledger check rm-guard-command-boundary
-FAIL no verdict at b99857b2; 1 row(s) exist at other SHAs and a new head SHA voids them
+FAIL no verdict at 27bf6548; 1 row(s) exist at other SHAs and a new head SHA voids them
 ```
 
-The one ledger row is `rm-guard-command-boundary  0c0c24d6...  live-verified  ...  implementer`:
+The one ledger row is `rm-guard-command-boundary  33bf0041...  live-verified  ...  implementer`:
 the implementer's own row on the implementer's own evidence, recorded two commits before head.
 It is not an approval and nothing carries over. I recorded no row of my own - the verdict is
 CHANGES_REQUESTED and I am forbidden from touching state.
@@ -258,7 +258,7 @@ Do not delete the sentence - the criterion asks for the limit to be stated, not 
 
 | Claim | Rung |
 |---|---|
-| Gate, both runtimes, typecheck and lint green at `b99857b2` | **5** - run here, output pasted above |
+| Gate, both runtimes, typecheck and lint green at `27bf6548` | **5** - run here, output pasted above |
 | Criteria 1, 2 and 3 hold on their stated terms | **5** - all 60 table rows driven through the shipped binary as a real process |
 | The new tests are falsifiable | **4** - 11 mutations, all killed, each by a named test |
 | Finding 1 is a real false allow that `main` caught | **5** - shipped binary on both revisions, a real store directory really deleted by the allowed command, and `set -x` showing the force-push expansion |

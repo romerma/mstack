@@ -2,7 +2,7 @@
 
 **Verdict:** CHANGES_REQUESTED
 
-Commits `0402a42` and `f1506dc`. The gate is real — I could not walk an unanswered fork to
+Commits `434ddc4` and `6187a2d`. The gate is real — I could not walk an unanswered fork to
 `done` through `state set` alone, and `--force` is caught exactly as the commit message promises.
 But the *answer* it demands is not checked at all: the gate verifies that `decision_resolved`
 names a row that exists, and nothing else. An empty row answers a fork, an unrelated row answers
@@ -324,7 +324,7 @@ below, because nobody thought to ask what is *in* the row.
    was added to `state list` (`src/cli.ts:166`), `state active` (`src/cli.ts:176`) and
    `ledger summary` (`src/cli.ts:318`), but `cmdWorktree`'s list branch has the identical
    `[sub, ...rest]` shape and swallows anything: `worktree list --nope` and `worktree list garbage`
-   both exit 0 and print the list. `f1506dc`'s claim that "everywhere else a typo stays loud" is
+   both exit 0 and print the list. `6187a2d`'s claim that "everywhere else a typo stays loud" is
    one subcommand short, and the test at `tests/launcher.test.ts:102-109` iterates exactly the
    three fixed cases, so nothing would catch the omission. Fix: one more `takesNothing("worktree
    list", rest)` and a fourth entry in that test's array.

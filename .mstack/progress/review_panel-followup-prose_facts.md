@@ -66,7 +66,7 @@ The-Story.md:49 and :59, Home.md:9, State-Files.md:5"**
 Met, verified against the actual finding
 (`review_readme-and-wiki_r2-facts.md:221-222`, which named `The-Story.md:49` at 150 cols, `:59`
 as an orphaned short line reading `nobody waits for is a gate nobody runs."* Its`, `Home.md:9`
-at 118 cols, `State-Files.md:5` at 130 cols). Confirmed against `c5de4fb^` (the pre-fix blob):
+at 118 cols, `State-Files.md:5` at 130 cols). Confirmed against `51d6037^` (the pre-fix blob):
 all four matched exactly. Post-fix: `The-Story.md:49` is now 89 cols, `:59` is now 93 cols and
 no longer an orphan ("Its" is folded back into "reviewer roles ship without..."), `Home.md:9` is
 now 88 cols, `State-Files.md:5` is now 89 cols. I also diffed every added (`+`) line across all
@@ -82,7 +82,7 @@ of this item's scope.
 records, not claims"**
 
 Met. `git diff main -- docs/research/pstack-port.md` is empty; the file is untouched by
-`c5de4fb`. Its line 244 (`sec-395` quote) still carries the old "reply bodies" phrasing
+`51d6037`. Its line 244 (`sec-395` quote) still carries the old "reply bodies" phrasing
 verbatim, correctly, as a quotation of a primary source rather than an mstack claim.
 
 **"The verification field runs green and the CHANGELOG Unreleased section records the round"**
@@ -127,7 +127,7 @@ expected mid-session, not at close` — `.mstack/state.json`'s working-tree diff
 `bin/mstack ledger check panel-followup-prose` → `FAIL no verdict recorded for
 panel-followup-prose`, expected: this is the first review pass, not yet recorded.
 
-`git show c5de4fb --stat` confirms every touched file traces to this item's acceptance: the five
+`git show 51d6037 --stat` confirms every touched file traces to this item's acceptance: the five
 agent contracts, `skills/router/SKILL.md`, `README.md`, `docs/wiki/{Gates-and-Hooks,Home,
 State-Files,The-Story}.md`, `CHANGELOG.md`, `src/hooks.ts` (confirmed comment-only — every `+`/`-`
 line in its hunk is a `*` comment line, `export function subagentStop` is unchanged context), and
@@ -159,7 +159,7 @@ is absent from the stat, confirmed untouched.
   introduced anywhere in the diff.
 - `docs/research/pstack-port.md` byte-identical to `main`; its quoted primary source at line 244
   correctly left untouched.
-- `git show c5de4fb --stat` — every touched file accounted for by the item's acceptance; nothing
+- `git show 51d6037 --stat` — every touched file accounted for by the item's acceptance; nothing
   extraneous moved.
 - Full verification battery green: 169/169 tests, clean typecheck, lint-plugin 0/0, 54/54 links,
   `gate --full` passed (1 expected warning, no failures).
@@ -168,7 +168,7 @@ is absent from the stat, confirmed untouched.
 
 **Verdict:** APPROVED
 
-Fix commit `3a38bab` addresses both round-1 findings and nothing else of substance.
+Fix commit `973f8a5` addresses both round-1 findings and nothing else of substance.
 
 **Check 1 — repo-wide `rg -n "reply body"` sweep.** Re-ran it clean:
 
@@ -196,7 +196,7 @@ returned without writing its report"` — the test whose comment was edited (now
 lives in the subagent's working context, which the parent never sees. A reply is not
 evidence."*) — still green.
 
-**Check 4 — diff scope.** `git diff c5de4fb 3a38bab --stat`:
+**Check 4 — diff scope.** `git diff 51d6037 973f8a5 --stat`:
 
 ```
  .mstack/progress/current.md                        |  22 ++-

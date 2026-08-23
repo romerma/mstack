@@ -2,7 +2,7 @@
 
 **Verdict:** CHANGES_REQUESTED
 
-Reviewing alone, round 3. Head at review time: `e32a86c7ff42653dc37ad6e75b5eced90186809d`.
+Reviewing alone, round 3. Head at review time: `e246f1c310f088311491c80e6d1dacd5d8586655`.
 Every CLI call went through `./bin/mstack`, or an explicit absolute path where the point was to
 run a different copy.
 
@@ -147,10 +147,10 @@ $ ./bin/mstack gate --full
 PASSED - 0 failures, 1 warning     (the warning is this session's uncommitted state.json)
 
 $ ./bin/mstack ledger check path-mstack-is-the-installed-copy
-FAIL no verdict at e32a86c7; 5 row(s) exist at other SHAs and a new head SHA voids them
+FAIL no verdict at e246f1c3; 5 row(s) exist at other SHAs and a new head SHA voids them
 ```
 
-The ledger FAIL is expected: the newest row is the implementer's at `6653bc0` and `e32a86c` is
+The ledger FAIL is expected: the newest row is the implementer's at `3eb5e80` and `e246f1c` is
 the commit that added it. My row follows this report.
 
 **Attack 1, does the warning reach a human.** I did not accept either answer. Measured the

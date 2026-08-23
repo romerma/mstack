@@ -2,7 +2,7 @@
 
 **Verdict:** CHANGES_REQUESTED
 
-Reviewed at `26b0671d46b655ae82bda50eb9ef1a1c75e9010c` on `feat/verification-never-runs`,
+Reviewed at `908cc317a5903156db5ae877a60c158f95a6fe6c` on `feat/verification-never-runs`,
 eight commits ahead of `main`. I did not write this code.
 
 The mechanism is well built and the tests are real: I killed eight independent mutations of the
@@ -31,7 +31,7 @@ change that exists to close the sixth.
 | **Working tree changed after the run** | **none** | Reproduced green at rung 5. See finding 2 |
 
 No test was weakened. `git diff main...HEAD --numstat -- tests/` is `136/1`, `236/0`, `187/0`;
-the single deleted line is an import. The one assertion `db80b45` rewrote was strengthened, not
+the single deleted line is an import. The one assertion `c52a174` rewrote was strengthened, not
 loosened (finding 13).
 
 ## Acceptance, quoted
@@ -126,7 +126,7 @@ Ran 230 tests across 14 files. [18.99s]
 `mstack ledger check verification-never-runs` at the current head SHA:
 
 ```
-FAIL no verdict at 26b0671d; 2 row(s) exist at other SHAs and a new head SHA voids them
+FAIL no verdict at 908cc317; 2 row(s) exist at other SHAs and a new head SHA voids them
 EXIT=1
 ```
 
@@ -332,8 +332,8 @@ gitignored by design.
 
 ### 6. REQUIRED before close - the ledger is stale at HEAD
 
-`mstack ledger check verification-never-runs` fails at `26b0671d`; the newest row is at
-`90b6e88`, two commits back. The structural reason is real and well argued at
+`mstack ledger check verification-never-runs` fails at `908cc317`; the newest row is at
+`75e6a2f`, two commits back. The structural reason is real and well argued at
 `.mstack/progress/current.md:280-284` — a row cannot name the commit that carries it — and the
 gate does not fail on it because the item is not `done`. I am recording it rather than waiving
 it: whoever closes this item must land a verdict at the SHA it closes on, from a pass that did
@@ -353,7 +353,7 @@ entry tells a reviewer what to do when `--full` is red because nothing is config
 **Fix:** one line in `agents/reviewer.md` near line 19 — a `--full` that ran nothing is a
 store-configuration failure to be reported, not an item defect and not a reason to hand-wave.
 
-### 8. Judgement on `db80b45` - it belongs in this item
+### 8. Judgement on `c52a174` - it belongs in this item
 
 Asked to rule on whether it is scope-widening: it is not. Both files it touches
 (`.mstack/.gitignore`, `src/setup.ts:69`) were created by this same branch three commits

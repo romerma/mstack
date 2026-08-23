@@ -1,9 +1,9 @@
 # Reflect - divergent lens on the sandbox dogfood retro
 
-**Head:** `26c22d38163a3f5f0528a72f7ae858218d98e205` (`main`, working tree clean).
+**Head:** `a43c301ae11769430455c66c1f3dc15226223a8d` (`main`, working tree clean).
 Note for whoever reads this next: `chore/sandbox-dogfood` was fast-forwarded into `main`
 between my first and second `mstack gate` run of this session, by something that was not me.
-My readings are all at `26c22d3`.
+My readings are all at `a43c301`.
 
 I did not run the session that produced these findings, and I am arguing **against** acting on
 them. Where a finding survives that argument I say so in one line and move on. Rungs refer to
@@ -563,7 +563,7 @@ PASSED - 0 failures, 1 warning
 
 $ npm test                    -> tests 171, pass 171, fail 0
 $ ./bin/mstack lint-plugin .  -> PASSED - 0 failures, 0 warnings
-$ git rev-parse HEAD          -> 26c22d38163a3f5f0528a72f7ae858218d98e205
+$ git rev-parse HEAD          -> a43c301ae11769430455c66c1f3dc15226223a8d
 
 $ mstack state add --help   -> mstack: Unknown option '--help'    EXIT 2
 $ mstack state set --help   -> mstack: no item matches '--help'   EXIT 2
@@ -620,7 +620,7 @@ Written at the end of the session, after `git status` showed files I had not tou
 `mstack state list` now shows `* 12 rm-guard-command-boundary (in_progress)`, and the working
 tree carries uncommitted changes to `src/hooks.ts` (+120) and `tests/hooks.test.ts` (+98) that
 are not mine. **Every line number I cite for `src/hooks.ts` and `tests/hooks.test.ts` is at
-`26c22d3`, not at the working tree.** Read them against that SHA or they will not resolve.
+`a43c301`, not at the working tree.** Read them against that SHA or they will not resolve.
 
 Both of my objections to item 12 as filed are answered by that work, independently of this
 report:

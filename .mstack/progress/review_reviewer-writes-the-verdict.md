@@ -100,11 +100,11 @@ The one warning is the expected mid-session uncommitted-change warning (`.mstack
 
 ```
 $ ./bin/mstack ledger check reviewer-writes-the-verdict
-FAIL no verdict at 3b4e1315; 1 row(s) exist at other SHAs and a new head SHA voids them
+FAIL no verdict at 88ecfb4f; 1 row(s) exist at other SHAs and a new head SHA voids them
 EXIT=1
 ```
-Expected before this row: the implementer recorded at `2c2b367` and then committed the ledger
-row as `3b4e131`, which moved HEAD past its own verdict. See observation 4.
+Expected before this row: the implementer recorded at `fe740e8` and then committed the ledger
+row as `88ecfb4`, which moved HEAD past its own verdict. See observation 4.
 
 ### The probe: what a CHANGES_REQUESTED row actually does
 
@@ -202,8 +202,8 @@ executed.
    case or saying in `agents/reviewer.md` that the review verdict overrides the rung mapping.
 
 5. **The row voids itself on commit.** `mstack ledger check reviewer-writes-the-verdict` is red
-   at HEAD right now, because the implementer recorded at `2c2b367` and the commit that carried
-   that row into git became `3b4e131`. `skills/review/SKILL.md:41` now tells the coordinator to
+   at HEAD right now, because the implementer recorded at `fe740e8` and the commit that carried
+   that row into git became `88ecfb4`. `skills/review/SKILL.md:41` now tells the coordinator to
    "Confirm the row exists with `mstack ledger check <slug>`", which passes at the instant of
    recording and goes red the moment anything is committed. The hazard predates this diff
    (pre-existing step 7 has it too) and is out of the item's scope, but the new step makes it
@@ -235,16 +235,16 @@ because the instruction under review is the one a reviewer is meant to obey:
 ```
 $ ./bin/mstack ledger record reviewer-writes-the-verdict "$(git rev-parse HEAD)" verifier-failed \
     --evidence ".mstack/progress/review_reviewer-writes-the-verdict.md" --verifier reviewer
-recorded verifier-failed for reviewer-writes-the-verdict at 3b4e1315
+recorded verifier-failed for reviewer-writes-the-verdict at 88ecfb4f
 
 $ ./bin/mstack ledger check reviewer-writes-the-verdict
-FAIL best verdict at 3b4e1315 is verifier-failed, which does not clear test-verified
+FAIL best verdict at 88ecfb4f is verifier-failed, which does not clear test-verified
 EXIT=1
 ```
 
 That FAIL is finding 1 seen from the other side, and it is an accident of this branch rather
-than the rule the wording claims. It reads FAIL only because HEAD `3b4e131` carries no other
-row - the implementer's `test-verified` sits at `2c2b367`, one commit back. Put the two rows at
+than the rule the wording claims. It reads FAIL only because HEAD `88ecfb4` carries no other
+row - the implementer's `test-verified` sits at `fe740e8`, one commit back. Put the two rows at
 one sha, which is what every item that has not committed its ledger yet looks like, and probe
 `revF` above shows the same rejection reading `PASS test-verified` and turning the close audit
 green. The instruction is harmless here by coincidence, not by design.

@@ -7,19 +7,19 @@ nit is closed at a stricter standard than I asked for. `src/` did not move, so n
 verified in rounds 1 and 2 needs re-deriving; I re-confirmed that mechanically rather than by
 reading the diff, and spot-checked the shipped behaviour anyway.
 
-## `src/` is byte-identical to 0a4ea73
+## `src/` is byte-identical to f0c96c1
 
 Not "the diff looks empty" — the tree object hash:
 
 ```
-=== src/ diff 0a4ea73..HEAD ===
+=== src/ diff f0c96c1..HEAD ===
 (empty)
 === hash check on src/ tree object ===
-0a4ea73: a8a6acae410d529e0d9df0cc4f3141bd9804401b
+f0c96c1: a8a6acae410d529e0d9df0cc4f3141bd9804401b
 HEAD:    a8a6acae410d529e0d9df0cc4f3141bd9804401b
 ```
 
-Same hash means same bytes, recursively. My scratch clone at `70a5e30` reports the same
+Same hash means same bytes, recursively. My scratch clone at `487abdf` reports the same
 `HEAD:src` hash, so the tree I ran mutations against is the tree under review. Every
 correctness conclusion from rounds 1 and 2 — the four acceptance bullets at rung 5, the
 sentence-truth table, the ledger trace, the `\p{Cf}` and case semantics — carries forward
@@ -27,7 +27,7 @@ unchanged by construction.
 
 ## My round-2 findings, re-verified by mutation
 
-Scratch clone at `70a5e30` (a clone rather than a worktree: strictly more isolated, and it
+Scratch clone at `487abdf` (a clone rather than a worktree: strictly more isolated, and it
 never touches the repo's `.git`). `node --test tests/gate.test.ts tests/roles.test.ts`,
 baseline **72 pass / 0 fail**, `git checkout HEAD -- src/` between every run.
 
@@ -169,8 +169,8 @@ Identical to round 2, every line.
 
 ## Not a code finding, for the coordinator
 
-`./bin/mstack ledger check closing-row-cites-own-report` is red at head `70a5e30`:
-`FAIL no verdict at 70a5e30f; 3 row(s) exist at other SHAs and a new head SHA voids them`.
+`./bin/mstack ledger check closing-row-cites-own-report` is red at head `487abdf`:
+`FAIL no verdict at 487abdf7; 3 row(s) exist at other SHAs and a new head SHA voids them`.
 Structural and now in its third round — the report commit voids the row it contains. I recorded
 no row, per the panel protocol. The synthesized verdict needs recording at whatever SHA is head
 when the panel lands.

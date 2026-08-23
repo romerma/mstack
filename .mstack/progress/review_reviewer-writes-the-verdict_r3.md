@@ -291,10 +291,10 @@ in round 3 is that the sentences left standing are the ones that were executed.
 ```
 $ ./bin/mstack ledger record reviewer-writes-the-verdict "$(git rev-parse HEAD)" live-verified \
     --evidence ".mstack/progress/review_reviewer-writes-the-verdict_r3.md" --verifier reviewer
-recorded live-verified for reviewer-writes-the-verdict at 112ffc3c
+recorded live-verified for reviewer-writes-the-verdict at 3fa32394
 
 $ ./bin/mstack ledger check reviewer-writes-the-verdict
-PASS live-verified at 112ffc3c by reviewer
+PASS live-verified at 3fa32394 by reviewer
 EXIT=0
 ```
 

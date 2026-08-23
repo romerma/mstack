@@ -2,7 +2,7 @@
 
 **Verdict:** CHANGES_REQUESTED
 
-Reviewed at `1a05d83b765c34b9b98cf874705788d26888f28e`. Rounds 1 and 2 are
+Reviewed at `47d8bed827f2294fba984d64956e7cd63e5563ba`. Rounds 1 and 2 are
 `.mstack/progress/review_verification-never-runs.md` and `..._r2.md`. I did not write this code.
 
 **A, B and C are all closed.** I re-ran my own round-2 transcripts rather than inheriting the
@@ -286,7 +286,7 @@ Ran 252 tests across 14 files. [23.76s]
 ℹ fail 0
 
 $ ./bin/mstack ledger check verification-never-runs
-FAIL no verdict at 1a05d83b; 4 row(s) exist at other SHAs and a new head SHA voids them
+FAIL no verdict at 47d8bed8; 4 row(s) exist at other SHAs and a new head SHA voids them
 ```
 
 Mutation run, scratch copy at `scratchpad/mut3`, baseline 101 pass / 0 fail confirmed before and

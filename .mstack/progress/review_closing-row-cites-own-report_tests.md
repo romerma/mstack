@@ -79,7 +79,7 @@ passing, which is exactly the "flips the gate green today" shape):
 
 ## Revert matrix
 
-`git checkout b27240e^ -- src/` in a worktree at HEAD. `git diff b27240e^ b16aa45^ -- src/`
+`git checkout b446aa5^ -- src/` in a worktree at HEAD. `git diff b446aa5^ 0f6d972^ -- src/`
 is empty (0 lines), so pre-repro src and pre-fix src are the same tree; the revert is honest.
 `node --test tests/gate.test.ts tests/roles.test.ts`: **tests 69, pass 62, fail 7.**
 
@@ -93,7 +93,7 @@ is empty (0 lines), so pre-repro src and pre-fix src are the same tree; the reve
 | `gate.test.ts:736` a forged passing row cannot supersede a genuine failure | RED - "forged supersession: expected a failure, got a pass" |
 | `roles.test.ts:13` a citation is the exact report filename as a whole token | RED - `SyntaxError: The requested module '../src/roles.ts' does not provide an export named 'citesImplementingReport'` |
 
-Every test added in b27240e and b16aa45 goes red. Nothing pins nothing. (Note the
+Every test added in b446aa5 and 0f6d972 goes red. Nothing pins nothing. (Note the
 `roles.test.ts` failure is a module-load error, not an assertion - it still fails loudly, but
 it proves only that the export exists; the *contract* is what mutations (a)-(c) prove.)
 Restored with `git checkout HEAD -- src/`: full suite green (see "Verification I ran").
@@ -139,10 +139,10 @@ false-positive class that matters most and it is covered.
 
 ## Were the committed red tests weakened?
 
-No. `git diff b27240e HEAD -- tests/gate.test.ts` is **additions only, all after line 637** -
+No. `git diff b446aa5 HEAD -- tests/gate.test.ts` is **additions only, all after line 637** -
 the two red tests' bodies (`:568-601` and `:603-638`), their `expectFail` regexes
 (`/implementer's own report/`, `/verifier-failed/`) and their `expectPass` calls survive
-byte-for-byte. Across the whole item, `git diff 3c7e883...HEAD -- tests/` contains **zero
+byte-for-byte. Across the whole item, `git diff 0933753...HEAD -- tests/` contains **zero
 deleted lines**. Nothing was loosened to get green.
 
 ## Test quality
@@ -171,7 +171,7 @@ deleted lines**. Nothing was loosened to get green.
 
 ## Verification I ran
 
-`./bin/mstack gate --full` (main checkout, HEAD `dfa78f09`):
+`./bin/mstack gate --full` (main checkout, HEAD `a87a493d`):
 
 ```
 [ok]    one active item: closing-row-cites-own-report (reviewing)
@@ -204,12 +204,12 @@ green inside the gate run above (`PASSED - 0 failures, 0 warnings`).
 `./bin/mstack ledger check closing-row-cites-own-report`:
 
 ```
-FAIL no verdict at dfa78f09; 1 row(s) exist at other SHAs and a new head SHA voids them
+FAIL no verdict at a87a493d; 1 row(s) exist at other SHAs and a new head SHA voids them
 ```
 
-Expected mid-panel - the only row is the implementer's, at `b16aa45`, and commit `dfa78f0`
+Expected mid-panel - the only row is the implementer's, at `0f6d972`, and commit `a87a493`
 (the implementer's report) moved head after it. Flagged for the coordinator, not for this
-lens to fix: whatever verdict the panel lands has to be recorded at `dfa78f09` or later, and
+lens to fix: whatever verdict the panel lands has to be recorded at `a87a493d` or later, and
 the implementer's own row will need re-recording at head if anything downstream reads it.
 
 All experiments ran in `git worktree add .../wt18 HEAD`, removed with `git worktree remove

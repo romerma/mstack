@@ -4,7 +4,7 @@
 
 ## Scope
 
-Round-2 diff `dfa78f0..0a4ea73` (`c90c2dd` fix, `5b2ec33` wiki, `0a4ea73` report). Verified
+Round-2 diff `a87a493..f0c96c1` (`99b5261` fix, `6dfc21d` wiki, `f0c96c1` report). Verified
 against my own round-1 report's three findings by re-running my own probes against the
 shipped CLI and the real predicate — not by reading the implementer's pastes — then attacked
 the round-2 changes themselves independently.
@@ -104,7 +104,7 @@ reasoning plus the four probes above; no accidental-prose false positive found.
 ### `i`-flag over-match on the real ledger
 
 Re-ran the widened-predicate sweep myself, independently, against `.mstack/ledger.tsv` at the
-current HEAD (`0a4ea73`), using the real `citesImplementingReport`/`canCloseAnItem` from
+current HEAD (`f0c96c1`), using the real `citesImplementingReport`/`canCloseAnItem` from
 `src/roles.ts` and `readRecords` from `src/tsv.ts` — not the implementer's numbers:
 
 ```
@@ -186,12 +186,12 @@ since round 2 already went further than the panel required.
 ## Verification I ran (independent of the implementer's pastes)
 
 ```
-$ git log --oneline dfa78f0..HEAD
-0a4ea73 docs: round-2 implementer report section and ledger row for item 18
-5b2ec33 docs: all six closed-item refusal classes in Gates-and-Hooks
-c90c2dd fix: close case, zero-width, and wrong-kind holes in the citation audit
+$ git log --oneline a87a493..HEAD
+f0c96c1 docs: round-2 implementer report section and ledger row for item 18
+6dfc21d docs: all six closed-item refusal classes in Gates-and-Hooks
+99b5261 fix: close case, zero-width, and wrong-kind holes in the citation audit
 
-$ ./bin/mstack gate            (repo root, HEAD 0a4ea73)
+$ ./bin/mstack gate            (repo root, HEAD f0c96c1)
 [ok]    18 closed item(s) carry a ledger verdict
 PASSED - 0 failures, 1 warning
 

@@ -2,7 +2,7 @@
 
 **Verdict:** CHANGES_REQUESTED
 
-Reviewing alone, round 2. Head at review time: `da57a207b0e2cc4cd7e60c86803fd940565c99c6`.
+Reviewing alone, round 2. Head at review time: `47e187594a00007004ce4d594e52d4a62365d3e6`.
 Every CLI call went through `./bin/mstack`, or an explicit absolute path where the point was
 to run a different copy.
 
@@ -117,10 +117,10 @@ The one warning is the uncommitted `.mstack/state.json` this review session is h
 
 ```
 $ ./bin/mstack ledger check path-mstack-is-the-installed-copy
-FAIL no verdict at da57a207; 3 row(s) exist at other SHAs and a new head SHA voids them
+FAIL no verdict at 47e18759; 3 row(s) exist at other SHAs and a new head SHA voids them
 ```
 
-Expected: the newest row is the implementer's at `9490d77`, and `da57a20` is the commit that
+Expected: the newest row is the implementer's at `df60563`, and `47e1875` is the commit that
 added it. My row follows this report.
 
 **Attack 4, do the round-2 tests bite.** `git archive HEAD | tar -x`, then one surgical edit
@@ -242,7 +242,7 @@ d8f14adb1e8e442cc7c69ab3f2379279e3c236ab
 
 $ git -C <main> rev-parse --git-common-dir HEAD HEAD:src
 .git
-da57a207b0e2cc4cd7e60c86803fd940565c99c6
+47e187594a00007004ce4d594e52d4a62365d3e6
 60d60f7ea54078e058e3f70e4d56f13ee5a566d2
 
 current  (--git-common-dir)          : 19.8 ms   (both roots, mean of 20)

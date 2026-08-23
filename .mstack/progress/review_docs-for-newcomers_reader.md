@@ -35,21 +35,21 @@ node scripts/check-doc-links.mjs README.md docs/wiki/*.md  LINKS_EXIT=0
 
 Green suite. Nothing here blocks on the gate; the changes below are lens findings.
 
-`./bin/mstack ledger check docs-for-newcomers` at head `2a4c17c7`:
+`./bin/mstack ledger check docs-for-newcomers` at head `fe50a071`:
 
 ```
-FAIL no verdict at 2a4c17c7; 1 row(s) exist at other SHAs and a new head SHA voids them
+FAIL no verdict at fe50a071; 1 row(s) exist at other SHAs and a new head SHA voids them
 ```
 
-Expected: commit `2a4c17c` is itself the implementer's ledger row, so the row landed one SHA
+Expected: commit `fe50a07` is itself the implementer's ledger row, so the row landed one SHA
 behind head. As a lens I record no row (`agents/reviewer.md`, Record-it). Flagging it so the
 pass that synthesizes this panel records its single row at the head SHA and not at
-`7d84e0d`.
+`6c9cb07`.
 
 ## Requirement to test
 
 This is a docs item; no bullet is covered by an executing test, and the item's `verification`
-field is a suite that would stay green if `7a85351` were reverted wholesale. That is not a
+field is a suite that would stay green if `a7f6249` were reverted wholesale. That is not a
 defect - it is what a docs item is - but it means every bullet below is judged by reading,
 and the evidence rung is stated per bullet rather than assumed.
 

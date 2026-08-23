@@ -123,13 +123,13 @@ Standalone: `npm run typecheck` clean, no diagnostics. `./bin/mstack lint-plugin
 `PASSED - 0 failures, 0 warnings`. `node scripts/check-doc-links.mjs README.md docs/wiki/*.md`
 -> `100 relative links checked, 0 broken`.
 
-`./bin/mstack ledger check closing-row-cites-own-report` at head `0a4ea73`:
-`FAIL no verdict at 0a4ea73c; 2 row(s) exist at other SHAs and a new head SHA voids them`.
+`./bin/mstack ledger check closing-row-cites-own-report` at head `f0c96c1`:
+`FAIL no verdict at f0c96c1a; 2 row(s) exist at other SHAs and a new head SHA voids them`.
 Structural, same as round 1 - the report commit voids the row inside it. Recorded no row myself.
 
 ### Mutation testing (this is what the verdict rests on)
 
-Run in a scratch clone at `0a4ea73`, `node --test tests/gate.test.ts tests/roles.test.ts`,
+Run in a scratch clone at `f0c96c1`, `node --test tests/gate.test.ts tests/roles.test.ts`,
 baseline 70 pass / 0 fail. Shipped tree restored after each.
 
 | Mutation | Result | Reading |
@@ -138,7 +138,7 @@ baseline 70 pass / 0 fail. Shipped tree restored after each.
 | drop the `\p{Cf}` strip (`src/roles.ts:153`) | **2 fail** | covered |
 | drop the verifier detail from `forgedImpl` (`src/gate.ts:405`) | **1 fail** | covered - the round-2 assertion at `tests/gate.test.ts:592` earns its place |
 | drop the verifier detail from `unsupersededFailure` (`src/gate.ts:419`) | **1 fail** | covered - `tests/gate.test.ts:633` earns its place |
-| revert `src/gate.ts` to `dfa78f0`, keep round-2 tests | **1 fail** (the spec-author test) | the kind split's entire test surface is one assertion |
+| revert `src/gate.ts` to `a87a493`, keep round-2 tests | **1 fail** (the spec-author test) | the kind split's entire test surface is one assertion |
 | **prefer spec when both kinds are cited** (`src/gate.ts:404`) | **70 pass / 0 fail** | **uncovered - finding A** |
 | **typo the role label to `verifiers("spec_author")`** (`src/gate.ts:407`) | **70 pass / 0 fail** | **uncovered - finding D** |
 
@@ -217,7 +217,7 @@ line. In the mixed-kind shape the kind split *improved* truthfulness and *reduce
 which I measured by running both CLIs against one store:
 
 ```
-### same store, ROUND-1 CLI (dfa78f0):
+### same store, ROUND-1 CLI (a87a493):
 [fail]  ...cites the implementer's own report: storage-layer (alice, bob)
 ### same store, ROUND-2 CLI (HEAD):
 [fail]  ...cites the implementer's own report: storage-layer (alice)
@@ -252,7 +252,7 @@ line above it, where it *is* reachable. Noting it only so it is not mistaken for
   `continue`-per-outcome shape, the `(verifiers)` detail style and the `IMPLEMENTING_ROLES` loop
   all survive; only the fourth outcome is split in two, and the divergence is recorded in the
   round-2 report's change map.
-- **Tests weakened.** No. `git diff dfa78f0..HEAD -- tests/` deletes only the round-1 spec
+- **Tests weakened.** No. `git diff a87a493..HEAD -- tests/` deletes only the round-1 spec
   assertion that finding 2 required be changed, and the boolean/tri-state rewrite of the
   `roles.test.ts` table, which strengthens it (it now pins *which* role, not just that some
   role matched).
@@ -262,7 +262,7 @@ line above it, where it *is* reachable. Noting it only so it is not mistaken for
 ## Evidence ladder
 
 Findings 1, 2, 4, 7 closed and every row of the sentence-truth table: **rung 5** - the shipped
-`./bin/mstack` against scratch stores I built, plus the round-1 CLI from a `dfa78f0` clone for
+`./bin/mstack` against scratch stores I built, plus the round-1 CLI from a `a87a493` clone for
 the comparison in finding D. Finding C's byte comparison: **rung 5** (real generated output
 diffed against the file). Mutation table and findings A and B: **rung 3** for the surviving
 mutations, **rung 5** for the `storage-layer ()` output the role-label typo ships. Ledger

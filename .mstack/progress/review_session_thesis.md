@@ -198,7 +198,7 @@ the Stop/SubagentStop section: *"Exit code 2 is ignored ... `additionalContext` 
    to `report.ok("no active item")`. The gate prints a false statement and passes; the status
    line, on the same state, correctly prints "3 active items" (`src/statusline.ts:112`). The
    same branch is the only caller of `checkCurrent`, so turning off `one_active_item` also
-   silently turns off the `current.md` check that commit 21e6ebf was written to add. Fix: count
+   silently turns off the `current.md` check that commit b425fe9 was written to add. Fix: count
    the actives independently of the rule, report the count either way, and hang `checkCurrent`
    off "there is at least one active item" rather than off "there is exactly one".
 

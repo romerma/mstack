@@ -5,7 +5,7 @@ item 33.
 
 Checked against `/Users/romerma/.local/share/claude/versions/2.1.241`, which `claude --version`
 confirms is the active version, not against the description I was given. Working tree at
-`40bf444` on `main` with `docs/wiki/Skills-and-Playbooks.md` uncommitted.
+`ff9c8d7` on `main` with `docs/wiki/Skills-and-Playbooks.md` uncommitted.
 
 ## The resolver, end to end
 

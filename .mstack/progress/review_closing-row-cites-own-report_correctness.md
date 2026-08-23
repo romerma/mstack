@@ -12,14 +12,14 @@ on a shape the diff itself ships a test for, and a shipped test pins the false w
 
 | R | Test | Evidence |
 |---|---|---|
-| Hole A: closing row citing `impl_<slug>.md` refused | `tests/gate.test.ts:568` (committed red at b27240e) | Red at b27240e: `expected a failure, got a pass`. Green at HEAD. Fails again when `src/gate.ts` alone is reverted to 3c7e883. |
+| Hole A: closing row citing `impl_<slug>.md` refused | `tests/gate.test.ts:568` (committed red at b446aa5) | Red at b446aa5: `expected a failure, got a pass`. Green at HEAD. Fails again when `src/gate.ts` alone is reverted to 0933753. |
 | Hole A: spec-author's report is the same artifact | `tests/gate.test.ts:690` | Green; red on reverted gate.ts. Also live at rung 5 (see findings - the message it asserts is wrong). |
-| Hole B: unsuperseded `verifier-failed` refused | `tests/gate.test.ts:603` (committed red at b27240e) | Red at b27240e: `closed on the reviewer's failure: expected a failure, got a pass`. Green at HEAD. |
+| Hole B: unsuperseded `verifier-failed` refused | `tests/gate.test.ts:603` (committed red at b446aa5) | Red at b446aa5: `closed on the reviewer's failure: expected a failure, got a pass`. Green at HEAD. |
 | Hole B: pass-then-fail retracts | `tests/gate.test.ts:710` | Green; red on reverted gate.ts. |
 | Forged row excluded from ordering in both directions | `tests/gate.test.ts:736` | Green; red on reverted gate.ts. Reproduced live below. |
 | Citation boundary contract (decisions.tsv, 2026-08-22T16:14:07.640Z) | `tests/gate.test.ts:640` (7 shapes through the gate) + `tests/roles.test.ts:12` (23 strings direct) | Green on both runtimes; roles.test.ts fails to even import on reverted roles.ts. I ran 29 further probes of my own, 0 unexpected. |
 | Fail-then-pass supersession | `tests/gate.test.ts:626-634` | Green; reproduced live. |
-| Existing green tests unchanged | `git diff b27240e HEAD -- tests/` has zero deletion lines | No test text was altered to obtain green. |
+| Existing green tests unchanged | `git diff b446aa5 HEAD -- tests/` has zero deletion lines | No test text was altered to obtain green. |
 
 ## Acceptance, quoted
 
@@ -31,7 +31,7 @@ Met. Rung 5, in a scratch store I built (`scratchpad/pre_forged`), driven end to
 and nothing else.
 
 ```
-=== forged : OLD CLI (3c7e883) ===
+=== forged : OLD CLI (0933753) ===
 [ok]    1 closed item(s) carry a ledger verdict
 PASSED - 0 failures, 2 warnings
 === forged : NEW CLI (HEAD) ===
@@ -86,9 +86,9 @@ row stays in the append-only ledger and simply stops being the only candidate, e
 design says.
 
 Passes-today: I did not take this on the implementer's word or on the pre-fix session log. I
-cloned the repo to `scratchpad/redcheck`, checked out **3c7e883** (pre-fix), and ran that
+cloned the repo to `scratchpad/redcheck`, checked out **0933753** (pre-fix), and ran that
 checkout's own `bin/mstack` against the same scratch store - output above, `PASSED`. I also
-confirmed the committed red tests really were red at b27240e:
+confirmed the committed red tests really were red at b446aa5:
 
 ```
 ✖ a closing row citing the implementer's own report does not close the item (268.546584ms)
@@ -97,7 +97,7 @@ confirmed the committed red tests really were red at b27240e:
   AssertionError: closed on the reviewer's failure: expected a failure, got a pass
 ```
 
-And that the coverage is not free-riding: with `src/gate.ts` alone reverted to 3c7e883 and
+And that the coverage is not free-riding: with `src/gate.ts` alone reverted to 0933753 and
 everything else at HEAD, all six new gate tests fail and the other 62 still pass -
 
 ```
@@ -121,7 +121,7 @@ Met, both the refusal and the clearing, at rung 5 in `scratchpad/pre_failed` and
 `verifier-failed` with free-prose evidence.
 
 ```
-=== failed : OLD CLI (3c7e883) ===
+=== failed : OLD CLI (0933753) ===
 [ok]    1 closed item(s) carry a ledger verdict
 PASSED - 0 failures, 2 warnings
 === failed : NEW CLI (HEAD) ===
@@ -169,14 +169,14 @@ EXIT=0
 `bun test tests/roles.test.ts` -> `1 pass`; `node --test tests/roles.test.ts` -> `ℹ pass 1`.
 The new file runs on both runtimes.
 
-`./bin/mstack ledger check closing-row-cites-own-report` at head `dfa78f09`:
+`./bin/mstack ledger check closing-row-cites-own-report` at head `a87a493d`:
 
 ```
-FAIL no verdict at dfa78f09; 1 row(s) exist at other SHAs and a new head SHA voids them
+FAIL no verdict at a87a493d; 1 row(s) exist at other SHAs and a new head SHA voids them
 EXIT=1
 ```
 
-The item's only ledger row sits at `b16aa45`, and the docs commit `dfa78f0` moved head. See
+The item's only ledger row sits at `0f6d972`, and the docs commit `a87a493` moved head. See
 finding 6.
 
 ### Edge semantics I re-derived live (rung 5, scratch stores)
@@ -226,7 +226,7 @@ decided one.
 - **Debug leftovers, dead code, layering.** None. No `console.log`, no TODO, no unused
   binding. The naming contract stayed in `src/roles.ts`; `src/gate.ts` learned nothing about
   `<kind>_<slug>`.
-- **Tests weakened to obtain green.** No. `git diff b27240e HEAD -- tests/` contains zero
+- **Tests weakened to obtain green.** No. `git diff b446aa5 HEAD -- tests/` contains zero
   deletion lines.
 
 ## Changes required
@@ -304,8 +304,8 @@ decided one.
    closing verdict", or let a forged row be reported even when a legitimate one exists.
 
 6. **Ledger, not code** - `./bin/mstack ledger check closing-row-cites-own-report` is red at
-   head `dfa78f09` (`no verdict at dfa78f09; 1 row(s) exist at other SHAs`). The implementer's
-   row is at `b16aa45`; commit `dfa78f0` voided it. Per the panel protocol I recorded no row.
+   head `a87a493d` (`no verdict at a87a493d; 1 row(s) exist at other SHAs`). The implementer's
+   row is at `0f6d972`; commit `a87a493` voided it. Per the panel protocol I recorded no row.
    The coordinator needs the synthesized verdict recorded at whatever SHA is head when the
    panel lands, and the implementer's row will need re-recording too.
 

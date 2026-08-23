@@ -1,6 +1,6 @@
 # Implementation report — 16 `quiet-gate-prints-nothing`
 
-Branch `fix/quiet-gate-prints-nothing`. Code, tests and docs through `86615b0`; this report is
+Branch `fix/quiet-gate-prints-nothing`. Code, tests and docs through `8a1cc0e`; this report is
 the commit on top of it, and that is the SHA the ledger row is keyed to. Direct path; the
 item's four `acceptance` bullets in `.mstack/state.json` are the contract.
 
@@ -41,8 +41,8 @@ same class of reason: it discarded stderr whenever the exit code was 0, which is
 | `.mstack/decisions.tsv` | 5 rows |
 | `.mstack/progress/current.md` | log kept during the pass |
 
-Commits, each building: `40c37cf` the fix, `cc33e27` the tests, `29a7304` a comment
-correction, `86615b0` the docs.
+Commits, each building: `9a1e275` the fix, `bc4fe9b` the tests, `b86dfd5` a comment
+correction, `8a1cc0e` the docs.
 
 ## Design decisions
 
@@ -58,7 +58,7 @@ this line said `13:2*` in round 1, which matches nothing — see round 2, minor 
 | do warnings print | **no, silent** | this repo's two commonest warnings are "uncommitted changes" and "on main", both normal mid-session; a hook repeating them every turn is a hook someone switches off |
 | colour | **none in quiet** | the readers are a hook transcript and `OUT=$(mstack gate --quiet 2>&1)`; escape codes are noise there, and deterministic bytes are what let the tests assert concrete text |
 
-One correction made mid-pass and committed separately (`29a7304`): the comment justifying
+One correction made mid-pass and committed separately (`b86dfd5`): the comment justifying
 `process.stderr.write` claimed it was "the only spelling a test can intercept in both
 runtimes". False — patching `console.error` works in both too. The true, narrower fact is that
 the two are not the same channel under bun, which is what `tests/helpers.ts` is built on.
@@ -392,7 +392,7 @@ four findings. No product code changed in this round: findings 1, 2 and 4 are al
 overclaimed, and the reviewer confirmed the four acceptance criteria and all five design
 decisions hold. Finding 3 (no ledger verdict at head) is the coordinator's to record at close.
 
-Commits: `2ee2fda` finding 1 plus the new `--full` test and three minors, `878e92b` findings 2
+Commits: `90b67b5` finding 1 plus the new `--full` test and three minors, `f5edae8` findings 2
 and 4 with the wiki and two decision rows.
 
 ## Finding 1 — the framing was wrong in four places, and I wrote it
@@ -643,7 +643,7 @@ $ node scripts/check-doc-links.mjs README.md docs/wiki/*.md
 - **No product code changed in round 2.** `src/report.ts` and `src/gate.ts` differ from round 1
   only in a comment. The reviewer found the code sound and I found nothing to contradict that.
 - **Finding 3 is not mine to close.** The ledger still has only my `live-verified` row at
-  `2ebd5c5`, which is now several commits behind head and is the implementer's evidence, not an
+  `5360fd1`, which is now several commits behind head and is the implementer's evidence, not an
   approval. A reviewer row at the final head SHA is what closes this.
 - **Item status untouched**, and the `--full` stdio question is filed here for item 14 rather
   than fixed here.

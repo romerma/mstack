@@ -1,6 +1,6 @@
 # Implementation — item 12 `rm-guard-command-boundary`
 
-**Branch** `fix/rm-guard-command-boundary` · **Commits** `a8e8d90` (the fix), `51a79cc` and `9b951a4` (tests) · **Verdict** `live-verified`
+**Branch** `fix/rm-guard-command-boundary` · **Commits** `37aa3b5` (the fix), `6731cfc` and `1b16677` (tests) · **Verdict** `live-verified`
 **This pass did not change the item's status and did not approve its own work.**
 
 ## What changed
@@ -495,11 +495,11 @@ not defend it past a reviewer's call.
 
 # Round 2 — the three review findings
 
-**Review:** `.mstack/progress/review_rm-guard-command-boundary.md`, CHANGES_REQUESTED at `b99857b`.
-**Commits:** `7b81823` (findings 1 and 2), `5b8397f` (finding 3).
+**Review:** `.mstack/progress/review_rm-guard-command-boundary.md`, CHANGES_REQUESTED at `27bf654`.
+**Commits:** `c5c7134` (findings 1 and 2), `bd06089` (finding 3).
 **Still not approving my own work.** Item status untouched; a reviewer closes this.
 
-> Read every `file:line` above this divider against the tree at `0c0c24d`, not against head.
+> Read every `file:line` above this divider against the tree at `33bf004`, not against head.
 > Round 2 inserted ~57 lines into `src/hooks.ts` and ~11 into `tests/hooks.test.ts`, so the
 > round-1 pointers have shifted: `shellSegments` 299 → 330, `preToolUse` 344 → 406, the
 > `GUARDS` doc comment 185-221 → unchanged, `CROSS_SEGMENT_DENY` 302 → 310 and its rows

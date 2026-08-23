@@ -21,7 +21,7 @@ told me to record nothing. See "The row this review typed".
 | a Write-less reviewer can record | none | Rung 5, twice in round 1 and again in this pass. |
 | lint-plugin passes, frontmatter unchanged | `./bin/mstack lint-plugin .` | Rung 4, run below; frontmatter proven byte-identical to `main`. |
 
-No test file is touched by `git diff 3b4e131..HEAD` and the suite count is unchanged at 258 in
+No test file is touched by `git diff 88ecfb4..HEAD` and the suite count is unchanged at 258 in
 both runtimes, so nothing was weakened to obtain green. All three round-2 hunks in shipped files
 (`@@ -71 +71,6`, `@@ -84,2 +89,3`, `@@ -89,2 +95,2` in `agents/reviewer.md`; `@@ -41 +41,2`,
 `@@ -51 +52,3` in `skills/review/SKILL.md`; `@@ -42,0 +43,4` in `evidence-ladder.md`) sit below
@@ -185,7 +185,7 @@ A rejected item walked `reviewing -> verifying -> done` and the gate ended green
    line 30:
 
    ```
-   verification-never-runs  aaac9612  live-verified  .mstack/progress/review_verification-never-runs_r4.md  reviewer
+   verification-never-runs  b49604b3  live-verified  .mstack/progress/review_verification-never-runs_r4.md  reviewer
    ```
 
    That is the row that closed item 14, typed by a solo round-4 reviewer, citing a `_r4` path.
@@ -271,15 +271,15 @@ false sentences, because no suite can read an instruction file.
 ```
 $ ./bin/mstack ledger record reviewer-writes-the-verdict "$(git rev-parse HEAD)" verifier-failed \
     --evidence ".mstack/progress/review_reviewer-writes-the-verdict_r2.md" --verifier reviewer
-recorded verifier-failed for reviewer-writes-the-verdict at 1f45f5ce
+recorded verifier-failed for reviewer-writes-the-verdict at a359ee17
 
 $ ./bin/mstack ledger check reviewer-writes-the-verdict
-FAIL best verdict at 1f45f5ce is verifier-failed, which does not clear test-verified
+FAIL best verdict at a359ee17 is verifier-failed, which does not clear test-verified
 EXIT=1
 ```
 
 This FAIL is honest only because the implementer's `test-verified` row for round 2 sits at
-`cbe680b`, one commit back, while HEAD is `1f45f5ce`. Put both rows at one sha - which is what
+`9864d36`, one commit back, while HEAD is `a359ee17`. Put both rows at one sha - which is what
 any item looks like before its ledger is committed - and probe `revF` from round 1 shows the
 same rejection reading `PASS test-verified` and turning the close audit green. That is item 18's
 ground and correctly out of scope here; recorded so the next round does not mistake this FAIL

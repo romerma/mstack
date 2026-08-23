@@ -72,13 +72,13 @@ withdrawn.
 
 ## Revert matrix (round 2)
 
-Worktree at HEAD `0a4ea73`, `node --test tests/gate.test.ts tests/roles.test.ts`, 70 tests in
+Worktree at HEAD `f0c96c1`, `node --test tests/gate.test.ts tests/roles.test.ts`, 70 tests in
 those two files.
 
-**src reverted to `b16aa45^` (pre-item):** 70 tests, 63 pass, **7 fail** - the same seven as
+**src reverted to `0f6d972^` (pre-item):** 70 tests, 63 pass, **7 fail** - the same seven as
 round 1. Nothing in the item's test surface survives a full revert.
 
-**src reverted to `dfa78f0` (round-1 src)** - the sharper question, because it isolates what
+**src reverted to `a87a493` (round-1 src)** - the sharper question, because it isolates what
 round 2 bought: 70 tests, 67 pass, **3 fail**.
 
 | Round-2 test / assertion | vs. round-1 src | Why |
@@ -145,9 +145,9 @@ Ran 284 tests across 16 files. [36.10s]
   284, up 1 from round 1's 283 - the single new test is `tests/gate.test.ts:651`. The
   other round-2 additions are probes and assertions inside existing tests, which is why the
   count moved by one and not by six.
-- `git diff b27240e HEAD -- tests/`: **still zero deleted lines.** The two originally
+- `git diff b446aa5 HEAD -- tests/`: **still zero deleted lines.** The two originally
   committed red tests (`tests/gate.test.ts:568`, `:609`) took additions only.
-- `git diff dfa78f0 HEAD -- tests/` does delete 19 lines, and I checked each. Eighteen are
+- `git diff a87a493 HEAD -- tests/` does delete 19 lines, and I checked each. Eighteen are
   the `roles.test.ts` array refactor from `string[]` to `[string, role][]`, plus the two
   assertions moving from `true`/`false` to a role name/`undefined` (`tests/roles.test.ts:67`,
   `:70`) - strictly stronger, and I verified programmatically that **all 15 round-1 probe
@@ -157,7 +157,7 @@ Ran 284 tests across 16 files. [36.10s]
   Nothing was weakened to get green.
 - No `.only`, `.skip`, `TODO`, `FIXME` or `XXX` anywhere in `tests/gate.test.ts` or
   `tests/roles.test.ts`.
-- `./bin/mstack gate --full` at `0a4ea73`: `[ok] 18 closed item(s) carry a ledger verdict`,
+- `./bin/mstack gate --full` at `f0c96c1`: `[ok] 18 closed item(s) carry a ledger verdict`,
   verification `[ok] npm test && npm run typecheck && ./bin/mstack lint-plugin .`,
   `PASSED - 0 failures, 1 warning` (the warning is the mid-session uncommitted tree),
   exit 0.
@@ -276,11 +276,11 @@ test and one both-kinds tuple in the unit table, closes all three.
   as open residual (`src/roles.ts:143-151`), which is the honest place to leave it, but the
   boundary of `\p{Cf}` itself is a rung-3 reading of the Unicode category on my part, not
   something I ran exhaustively. Security lens' territory; flagging rather than settling.
-- `./bin/mstack ledger check closing-row-cites-own-report` at `0a4ea73`:
-  `FAIL no verdict at 0a4ea73c; 2 row(s) exist at other SHAs and a new head SHA voids them`.
-  Both existing rows are the implementer's own (`b16aa45`, `5b2ec33`) and commit `0a4ea73`
+- `./bin/mstack ledger check closing-row-cites-own-report` at `f0c96c1`:
+  `FAIL no verdict at f0c96c1a; 2 row(s) exist at other SHAs and a new head SHA voids them`.
+  Both existing rows are the implementer's own (`0f6d972`, `6dfc21d`) and commit `f0c96c1`
   moved head past the second. Expected mid-panel and the coordinator's to resolve; per my
-  instructions I recorded no row. Whatever the panel lands must be recorded at `0a4ea73` or
+  instructions I recorded no row. Whatever the panel lands must be recorded at `f0c96c1` or
   later, and the implementer's row needs re-recording at head if anything downstream reads it.
 
 ## What I checked that was clean

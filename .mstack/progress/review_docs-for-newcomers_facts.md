@@ -3,7 +3,7 @@
 **Verdict:** CHANGES_REQUESTED
 
 Panel lens, so this pass records **no ledger row** (`agents/reviewer.md:99-102`). Head SHA at
-review time: `2a4c17c7e2fe07613213acec2cecca4aa124285a`.
+review time: `fe50a071718dbf8bb55a15392cb5d7c93a3f2d29`.
 
 Scope: every claim on the touched pages is true of the shipped code at this commit. Reader
 experience belongs to the sibling lens. Four claims do not reproduce; the rest of the page
@@ -248,10 +248,10 @@ Ledger, at the current head:
 
 ```console
 $ ./bin/mstack ledger check docs-for-newcomers
-FAIL no verdict at 2a4c17c7; 1 row(s) exist at other SHAs and a new head SHA voids them
+FAIL no verdict at fe50a071; 1 row(s) exist at other SHAs and a new head SHA voids them
 ```
 
-The only row is `test-verified` by `implementer` at `7d84e0d6`, and `git diff 7d84e0d 2a4c17c`
+The only row is `test-verified` by `implementer` at `6c9cb07e`, and `git diff 6c9cb07 fe50a07`
 is `.mstack/ledger.tsv | 1 +` - the ledger row commit itself. Benign, but the closing pass owes
 a fresh verdict at whatever head it closes on. Recording it is not mine (panel lens).
 

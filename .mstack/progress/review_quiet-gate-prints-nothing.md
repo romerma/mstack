@@ -2,7 +2,7 @@
 
 **Verdict:** CHANGES_REQUESTED
 
-Item 16, branch `fix/quiet-gate-prints-nothing`, head `7493037`. I did not write this code.
+Item 16, branch `fix/quiet-gate-prints-nothing`, head `54d55c3`. I did not write this code.
 The code and the tests are sound and I could not break them. Everything below is documentation
 accuracy plus the ledger, and every one of them is a text edit.
 
@@ -79,9 +79,9 @@ PASSED - 0 failures, 0 warnings
 
 ```console
 $ git rev-parse HEAD
-74930373bf41e0f51f968de71c51bc286d01b9e8
+54d55c359a3f23a7baf1a37ad26c33038d011b38
 $ ./bin/mstack ledger check quiet-gate-prints-nothing
-FAIL no verdict at 74930373; 1 row(s) exist at other SHAs and a new head SHA voids them
+FAIL no verdict at 54d55c35; 1 row(s) exist at other SHAs and a new head SHA voids them
 ```
 
 ### The new tests against `main:src/report.ts`
@@ -222,7 +222,7 @@ No assertion was weakened:
    model; what nobody received was human-visible output on a stream. The same sentence lives in
    three more places and should move with it: `src/report.ts:68-70`, `tests/gate.test.ts:292`,
    `.mstack/progress/current.md:24` (the Plan section, still uncorrected while the item's
-   `description` was fixed in `7493037`).
+   `description` was fixed in `54d55c3`).
 
 2. **`docs/wiki/Gates-and-Hooks.md:20`** states as fact the single claim the implementation report
    marks rung 2: "The failures also go to stderr, so the session shows them rather than only an
@@ -242,8 +242,8 @@ No assertion was weakened:
    this fix reaches anyone, and it is asserted without evidence.
 
 3. **No ledger verdict at head.** `./bin/mstack ledger check quiet-gate-prints-nothing` at
-   `74930373` returns `FAIL no verdict at 74930373; 1 row(s) exist at other SHAs and a new head SHA
-   voids them`. The only row is the implementer's, keyed to `2ebd5c5`, and `3c0db43` and `7493037`
+   `54d55c35` returns `FAIL no verdict at 54d55c35; 1 row(s) exist at other SHAs and a new head SHA
+   voids them`. The only row is the implementer's, keyed to `5360fd1`, and `615b969` and `54d55c3`
    landed after it. The item cannot close until a reviewer row exists at the head SHA, and it must
    not be the implementer's row re-pointed.
 
@@ -282,13 +282,13 @@ No assertion was weakened:
   this item, but `useColor` remains keyed to the wrong fd for anything that later wants colour on
   stderr.
 
-All five were recorded at `10:23:55Z`–`10:24:10Z`, six minutes before the fix commit `40c37cf`
+All five were recorded at `10:23:55Z`–`10:24:10Z`, six minutes before the fix commit `9a1e275`
 (`12:30:25+02:00`), so "recorded before the code was written" is true.
 
 ## Minor
 
 1. `.mstack/progress/current.md:24` — the Plan still says the pre-correction sentence. The item's
-   `description` was corrected in `7493037`; the checkpoint that a resuming session reads first was
+   `description` was corrected in `54d55c3`; the checkpoint that a resuming session reads first was
    not.
 2. `.mstack/progress/impl_quiet-gate-prints-nothing.md:53-54` cites the decision rows as
    "`2026-08-21T13:2*`". They are at `10:23:55.039Z` and `10:24:*Z`; `13:2*` is neither UTC nor
