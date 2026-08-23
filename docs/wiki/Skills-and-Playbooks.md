@@ -4,7 +4,7 @@ Skills are the commands you type; playbooks are the step lists they follow. When
 work with `/mstack <what you want done>`, a router matches your request to one of seven
 playbooks, or sends it straight to a single skill when one command covers the whole job. A
 matched playbook's steps are copied into the todo list before any reasoning happens, and each
-step either runs or is skipped out loud with a reason. This page introduces all twelve skills
+step either runs or is skipped out loud with a reason. This page introduces all thirteen skills
 and all seven playbooks, says what each one leaves on disk, and explains the one routing
 decision that matters: whether your work takes the direct path or the spec path.
 
@@ -17,7 +17,7 @@ alias. So the router answers three spellings: `/mstack:router` from its director
 `/mstack:mstack` from its declared name, and plain `/mstack` from the alias. The last is the
 front door everything else sits behind.
 
-## The twelve skills
+## The thirteen skills
 
 | Skill | What it does | Reach for it when |
 |---|---|---|
@@ -33,6 +33,7 @@ front door everything else sits behind.
 | `/mstack:orchestrate` | Runs a program of work across many changes, tracks and sessions, with isolated [worktrees](The-CLI.md) (each its own checkout of the repository) | Multi-session programs only; single-session work takes the feature route |
 | `/mstack:reflect` | Reviews a finished session for what should change in the workflow itself | After closing an item, or after something went wrong |
 | `/mstack:unslop` | Cuts the tells that make writing read as machine-generated | Writing anything a human will read |
+| `/mstack:commit` | Holds a commit message to Conventional Commits 1.0.0: the type the change earns, an imperative description, breaking changes marked | Before a commit, an amend, a squash, or a PR title |
 
 ## What each skill leaves on disk
 
@@ -53,6 +54,7 @@ window, so most of them write something durable. Per skill:
 | `/mstack:orchestrate` | One item per unit in `state.json`, a worktree (its own checkout of the repository) per concurrent unit with the base SHA recorded in that worktree's `current.md`, and a report from every worker |
 | `/mstack:reflect` | An appended entry in `.mstack/progress/history.md`; changes to the workflow itself are proposed to the human, never applied unilaterally |
 | `/mstack:unslop` | Nothing of its own. It shapes the prose you were already writing |
+| `/mstack:commit` | Nothing of its own. It shapes the commit message you were already writing |
 
 The files themselves are read column by column on [State-Files](State-Files.md).
 
@@ -82,6 +84,8 @@ Most skills also carry a prohibition, and they are worth knowing before you run 
   append-only.
 - `unslop` is itself a list of prohibitions; the rule above them all is to not generate the
   bad sentence in the first place.
+- `commit` never claims its house rules are the specification: imperative mood, lower case
+  and the 72-character subject are this repository's, not Conventional Commits'.
 
 ## The router
 

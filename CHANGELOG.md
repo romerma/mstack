@@ -1,5 +1,24 @@
 # Changelog
 
+## Unreleased
+
+- **A thirteenth skill, `/mstack:commit`, holds a commit message to Conventional Commits
+  1.0.0.** It carries the shape, the two types the specification actually fixes (`feat` and
+  `fix`, everything else is convention), how a breaking change is marked in the prefix or the
+  footer, and the SemVer consequence of getting the type wrong. It also separates this
+  repository's house rules from the standard: imperative mood, lower case, a 72-character
+  subject and one change per commit are enforced here and appear nowhere in the specification,
+  which is silent on all four and on merge commits besides. The router routes commit-message
+  work to it. Not released: `plugin.json` still reads 0.2.1 and no tag was cut.
+- **This repository's 201 commits were rewritten to that standard.** 143 subjects were noun
+  phrases or declarative sentences (`chore: the reviewer's round-4 report and its row at the
+  final head`) and are now imperative; the other 58 already were. Trees, authors and both
+  timestamps are byte-identical across all 201, so only messages changed. The 303 commit SHAs
+  cited in the ledger, the decision rows, the progress reports and `state.json` were translated
+  through the rewrite map, and `mstack gate` still finds a ledger verdict for all 20 closed
+  items. The three `Merge pull request` subjects are left alone: Conventional Commits does not
+  cover merge commits and commitlint ignores them by default.
+
 ## 0.2.1
 
 Two corrections to what 0.2.0 shipped. No behaviour changed.

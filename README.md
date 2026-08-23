@@ -23,11 +23,11 @@ router reads what you wrote, matches it to a playbook, and copies that playbook'
 the todo list **before** it reasons about your task, so you see the plan it intends to follow
 while arguing with it is still cheap.
 
-Eleven other `/mstack:<name>` commands exist. You type one of them yourself: `/mstack:setup`,
-once per repository, below. Five are steps the router calls for you as a playbook needs them,
-so you never have to type `understand`, `design`, `verify`, `review` or `ship`. The last five,
-`implement`, `spec`, `orchestrate`, `reflect` and `unslop`, are there for when you already know
-exactly what you want.
+Twelve other `/mstack:<name>` commands exist. You type one of them yourself: `/mstack:setup`,
+once per repository, below. Six are steps the router calls for you as a playbook needs them,
+so you never have to type `understand`, `design`, `verify`, `review`, `ship` or `commit`. The
+last five, `implement`, `spec`, `orchestrate`, `reflect` and `unslop`, are there for when you
+already know exactly what you want.
 
 ## Install
 
@@ -127,7 +127,7 @@ strength of the claim, and it is worth having.
 
 Who does what, in full, is [docs/wiki/The-Agents.md](docs/wiki/The-Agents.md).
 
-## The twelve skills
+## The thirteen skills
 
 You need the first one. The router calls five of the others for you; the rest are there for
 when you want them.
@@ -146,6 +146,7 @@ when you want them.
 | `/mstack:orchestrate` | A program of work across many changes and sessions |
 | `/mstack:reflect` | What should change in the workflow itself after a session |
 | `/mstack:unslop` | Cuts the tells that make writing read as machine-generated |
+| `/mstack:commit` | Holds a commit message to Conventional Commits 1.0.0, with the type the change earns |
 
 The router answers plain `/mstack` because its front matter says `name: mstack`: Claude Code
 registers a skill under `/<plugin>:<directory>` and, when the declared name carries no colon,
@@ -456,7 +457,7 @@ publish route is [docs/wiki/Publishing-the-Wiki.md](docs/wiki/Publishing-the-Wik
 | [The-Story](docs/wiki/The-Story.md) | pstack, the harness, where they agree, and what the join fixed |
 | [How-A-Work-Item-Flows](docs/wiki/How-A-Work-Item-Flows.md) | The lifecycle, the two paths, and the walkthrough of the example repo |
 | [The-Agents](docs/wiki/The-Agents.md) | The five agents: who builds, who judges, and why nobody approves their own work |
-| [Skills-and-Playbooks](docs/wiki/Skills-and-Playbooks.md) | The twelve `/mstack` commands, the route table, and the seven playbooks |
+| [Skills-and-Playbooks](docs/wiki/Skills-and-Playbooks.md) | The thirteen `/mstack` commands, the route table, and the seven playbooks |
 | [Gates-and-Hooks](docs/wiki/Gates-and-Hooks.md) | The five hooks, every gate check, and the merge gate's rules |
 | [The-CLI](docs/wiki/The-CLI.md) | Every subcommand with real output, exit codes, the verdict enum |
 | [State-Files](docs/wiki/State-Files.md) | The anatomy of `.mstack/` column by column, and the evidence ladder |

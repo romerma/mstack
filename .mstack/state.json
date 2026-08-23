@@ -479,6 +479,19 @@
         "a decision row records whether mstack keeps the bare aliases or drops them, noting that dropping one means deleting the name: field, because prefixing it yields a userFacingName of mstack:mstack:<skill>"
       ],
       "status": "pending"
+    },
+    {
+      "id": 34,
+      "slug": "commit-message-standard",
+      "title": "A commit skill that holds every commit to Conventional Commits",
+      "acceptance": [
+        "skills/commit/SKILL.md exists, declares name commit, and passes mstack lint-plugin",
+        "the router's route table sends commit-message work to the skill",
+        "every twelve-skills claim in README and the wiki reads thirteen, and the new row is in both tables",
+        "CHANGELOG records the skill under a new version heading",
+        "both runtimes stay green and mstack gate passes"
+      ],
+      "status": "pending"
     }
   ]
 }

@@ -35,6 +35,7 @@ the list with a one-line `skip: <reason>`. Skipping silently is not allowed.
 | Proving a change actually works | `/mstack:verify` |
 | Judging work that already exists | `/mstack:review` |
 | Getting a change merged | `/mstack:ship` |
+| Writing the commit message, or a PR title | `/mstack:commit` |
 | A program of work across many changes | [orchestrate](playbooks/orchestrate.md) |
 | Picking up an interrupted session | [resume](playbooks/resume.md) |
 | Clearing out dead branches and worktrees | [cleanup](playbooks/cleanup.md) |

@@ -60,7 +60,7 @@ If you want to know why the plugin is shaped the way it is before you run anythi
 | [The-Story](The-Story.md) | pstack and its author, the unnamed harness, where the two agree, where they disagree, and what the port fixed |
 | [How-A-Work-Item-Flows](How-A-Work-Item-Flows.md) | The lifecycle and its legal transitions, direct path versus spec path, the decision gate, and the example repo's three seeded items |
 | [The-Agents](The-Agents.md) | The five agents: who builds, who judges, which report each one writes, and why nobody approves their own work |
-| [Skills-and-Playbooks](Skills-and-Playbooks.md) | The twelve `/mstack` commands, the router's route table, the seven playbooks, and the two paths |
+| [Skills-and-Playbooks](Skills-and-Playbooks.md) | The thirteen `/mstack` commands, the router's route table, the seven playbooks, and the two paths |
 | [Gates-and-Hooks](Gates-and-Hooks.md) | The five hooks and what each one enforces, every check `mstack gate` runs, and the merge gate's decision rules |
 | [The-CLI](The-CLI.md) | Every subcommand with a real example and its output, the exit codes, and the verdict enum |
 | [State-Files](State-Files.md) | The anatomy of `.mstack/`: state.json fields, ledger and decisions columns, the progress-file disciplines, and the evidence ladder |

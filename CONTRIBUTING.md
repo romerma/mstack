@@ -68,7 +68,9 @@ this repository drew a false conclusion from a reviewer subagent that was runnin
 
 ## Commits
 
-Conventional commits (`feat:`, `fix:`, `docs:`, `chore:`), in the style `git log` shows.
+Conventional Commits 1.0.0, in the style `git log` shows. `/mstack:commit` carries the
+rules, including the four this repository adds on top of the standard: imperative mood,
+lower case, a subject of 72 characters or fewer, and one change per commit.
 
 ## Where things are decided
 
