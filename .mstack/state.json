@@ -413,6 +413,18 @@
       "description": "checkClosedItems refuses correctly when a forged passing row is appended after a genuine reviewer failure, but prints 'most recent closing verdict is verifier-failed' while the ledger's literal last closing-role row is a passing one, and forgedEvidence stays silent because a legitimate closing row exists. The refusal is right; the diagnosis is partial. Found as correctness round-1 finding 5, re-confirmed in round 2 as strictly truer but still silent about the forged row.",
       "source": "item 18 correctness review, finding 5, 2026-08-22",
       "verification": "npm test && npm run typecheck && ./bin/mstack lint-plugin ."
+    },
+    {
+      "id": 28,
+      "slug": "mstack-front-door",
+      "title": "The documented front door /mstack is not a registered command",
+      "acceptance": [
+        "the plugin's skill inventory lists a skill named mstack, so /mstack <prose> is a real command",
+        "the router's directory name and its frontmatter name agree, so no naming rule can resolve it to anything but mstack",
+        "lint-plugin turns red when a doc names a /mstack:<x> command that no skill directory provides",
+        "every doc reference to skills/router/ points at the new path"
+      ],
+      "status": "pending"
     }
   ]
 }

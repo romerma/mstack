@@ -96,7 +96,7 @@ test("a reference to an agent that does not exist is caught", () => {
 test("a broken relative link is caught", () => {
   const c = copy();
   try {
-    const file = join(c.root, "skills", "router", "SKILL.md");
+    const file = join(c.root, "skills", "mstack", "SKILL.md");
     writeFileSync(file, `${readFileSync(file, "utf8")}\n\n[gone](playbooks/deleted.md)\n`);
     expectFail(c.root, /broken link/, "broken link");
   } finally {
@@ -166,7 +166,7 @@ test("a broken link in a reference file is caught, not just in a SKILL.md", () =
     // Links were validated in skills and agents and nowhere else, which left
     // the playbooks and references unchecked. That is more than half the prose,
     // and it is the exact defect this plugin was written in response to.
-    const target = join(c.root, "skills", "router", "references", "evidence-ladder.md");
+    const target = join(c.root, "skills", "mstack", "references", "evidence-ladder.md");
     writeFileSync(target, `${readFileSync(target, "utf8")}\n\nSee [nothing](./no-such-file.md).\n`);
     expectFail(c.root, /evidence-ladder\.md: broken link to \.\/no-such-file\.md/, "reference link");
   } finally {
@@ -177,7 +177,7 @@ test("a broken link in a reference file is caught, not just in a SKILL.md", () =
 test("a broken link in a playbook is caught too", () => {
   const c = copy();
   try {
-    const target = join(c.root, "skills", "router", "playbooks", "feature.md");
+    const target = join(c.root, "skills", "mstack", "playbooks", "feature.md");
     writeFileSync(target, `${readFileSync(target, "utf8")}\n\n[gone](../references/gone.md)\n`);
     expectFail(c.root, /feature\.md: broken link to \.\.\/references\/gone\.md/, "playbook link");
   } finally {
@@ -192,7 +192,7 @@ test("a shipped command with no path is caught, because it hangs the agent that 
     // blocks forever when stdin is not a terminal, which is how every subagent
     // runs a command. One shipped in the playbook whose job is to *start* an
     // investigation, and only a reviewer running it found out.
-    const target = join(c.root, "skills", "router", "playbooks", "investigate.md");
+    const target = join(c.root, "skills", "mstack", "playbooks", "investigate.md");
     writeFileSync(target, `${readFileSync(target, "utf8")}\n\`\`\`bash\nrg -l -i 'adr' --glob '*.md'\n\`\`\`\n`);
     expectFail(c.root, /has no path, so it reads stdin and hangs/, "stdin form");
   } finally {
@@ -241,7 +241,7 @@ test("removing the front door skill is caught", () => {
 test("the same command with a path is left alone", () => {
   const c = copy();
   try {
-    const target = join(c.root, "skills", "router", "playbooks", "investigate.md");
+    const target = join(c.root, "skills", "mstack", "playbooks", "investigate.md");
     writeFileSync(
       target,
       `${readFileSync(target, "utf8")}\n\`\`\`bash\nrg -l -i 'adr' --glob '*.md' .\nrg -n 'TODO' <file>\nrg -c 'x' src/\n\`\`\`\n`,

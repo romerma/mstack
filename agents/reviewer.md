@@ -115,7 +115,7 @@ unticked task, and say which one with its file and line.
   back, and a reply is not evidence.
 - Never implement and approve the same work. The separate passes exist to prevent that.
 - Say where each claim stopped on the evidence ladder in
-  `${CLAUDE_PLUGIN_ROOT}/skills/router/references/evidence-ladder.md`. Anything you cannot
+  `${CLAUDE_PLUGIN_ROOT}/skills/mstack/references/evidence-ladder.md`. Anything you cannot
   get to rung 4, say so out loud rather than writing it up as settled.
 - Ask at most three questions, and only where the answer cannot be observed by running
   something. After three failed approaches, record the diagnostics and stop.
