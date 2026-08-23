@@ -49,7 +49,7 @@ Present it in this order, and omit any section with nothing in it:
 
 The failure mode of an explanation is that it reads as authoritative whether or not it is true.
 Mark every claim with where it stopped on the
-[evidence ladder](../router/references/evidence-ladder.md). A claim about structure needs a real
+[evidence ladder](../mstack/references/evidence-ladder.md). A claim about structure needs a real
 `file:line`. A claim about behaviour needs rung 4: you ran it.
 
 Anything you inferred but did not confirm gets said out loud as an inference.
