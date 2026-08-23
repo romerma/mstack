@@ -725,3 +725,131 @@ of my scope beyond confirming it left this item's evidence intact, which it did.
 
 APPROVED at rung 4. Recording `test-verified`, per `skills/review/SKILL.md:50`: the rung the
 verification reached, not rung 5, because nothing here was proven in a live session.
+
+---
+
+# Re-review, round 4
+
+**Verdict:** APPROVED
+
+Head is `ccccd38dc6a3c9a17e01a189efdae6a5ff9812a5`. The row moved because the SHA moved, not
+because the work did. This round re-establishes the verdict at the current head and checks one
+claim: that nothing reviewable changed since `a84950b`.
+
+## The claim, checked
+
+```
+$ git diff --stat a84950b ccccd38 -- . ':!.mstack'
+(no output)
+
+$ git diff --name-status a84950b ccccd38
+M	.mstack/ledger.tsv
+M	.mstack/progress/current.md
+M	.mstack/progress/review_readme-leads-with-use_readme-leads-with-use.md
+M	.mstack/state.json
+```
+
+Empty outside `.mstack/`, and the four files that did move are the ledger, the checkpoint, this
+report and the queue. Every byte I reviewed in rounds 1 to 3 is byte-identical at this head, so
+the round-3 findings carry without re-derivation.
+
+I checked the specific hazard that topology creates rather than inferring it from the empty
+diff. `origin/main` carries the refuted work (`git ls-tree origin/main skills/` lists
+`skills/mstack`), and `6624bf9` merged that main back into this branch. A merge that resurrected
+`skills/mstack/` is exactly the accident this situation invites. It did not happen:
+
+```
+$ ls -d skills/router skills/mstack
+skills/mstack: No such file or directory
+skills/router
+```
+
+The revert survived the merge, and the three commits since are bookkeeping.
+
+## Verification at this head
+
+```
+$ ./bin/mstack gate
+[ok]    on branch fix/mstack-front-door
+[ok]    working tree is clean
+PASSED - 0 failures, 0 warnings
+
+$ npm test
+ℹ pass 286
+ℹ fail 0
+
+$ npm run typecheck
+typecheck OK
+
+$ ./bin/mstack lint-plugin .
+PASSED - 0 failures, 0 warnings
+
+$ node scripts/check-doc-links.mjs README.md docs/wiki/*.md
+93 relative links checked, 0 broken
+```
+
+Said plainly, because it is a difference from round 3: I ran the four commands of the item's
+`verification` string **individually**, not through `mstack gate --full`, which exceeded the
+tool timeout twice at this head and produced no output. The commands are the same commands and
+they pass. What running them by hand does not do is write a row to `.mstack/verification.tsv`,
+and the last recorded run is still at `a84950b`:
+
+```
+$ tail -2 .mstack/verification.tsv
+(project)               a84950b1... passed  clean
+readme-leads-with-use   a84950b1... npm test && ... && node scripts/check-doc-links.mjs R...
+```
+
+**So one mechanical step remains before this item can close.** From `verifying` on, the gate
+demands a passing run at the current commit and working tree; a run at `a84950b` will not
+satisfy a close at `ccccd38`. Whoever closes item 29 has to run `./bin/mstack gate --full` at
+the head it closes on. That is a close-time chore, not a defect, and it does not touch the
+verdict on the work.
+
+## The two follow-ups
+
+**1. The "both" sentence: follow-up, not this PR.** Your instinct was right and I would not
+spend a review round on it. `docs/wiki/Skills-and-Playbooks.md:16` still reads "answers both
+`/mstack:router` and plain `/mstack`", which is incomplete rather than wrong, about a spelling
+(`/mstack:mstack`) nobody will type. More to the point, item 33's first criterion is going to
+rewrite that exact paragraph: it is the only place in the wiki that explains skill naming, so it
+is where "a colon-free front-matter name registers as a bare alias" belongs. Fixing one word now,
+voiding a verdict, and then rewriting the paragraph again under item 33 is churn.
+
+One gap worth closing in the item rather than the branch: acceptance 1 says the behaviour must be
+stated "somewhere a user reads", which the README could satisfy while leaving "both" standing in
+the wiki. If you want the fix guaranteed, name that paragraph in the criterion.
+
+**2. Item 33 says what I meant.** The title is accurate: eleven bare names, the eleven skills
+other than the router, each declaring a colon-free name. Both criteria are the right pair,
+because they separate stating the behaviour from deciding what to do about it, and the decision
+is a product fork rather than a bug.
+
+One thing the implementer should know before choosing the "drop them" branch, since acceptance 2
+frames it as "prefixing each declared name". I ran that route through the same expressions:
+
+```
+today             {"name":"mstack:verify","userFacingName":"mstack:verify","aliases":["verify"]}
+prefixed name     {"name":"mstack:verify","userFacingName":"mstack:mstack:verify"}
+```
+
+Setting `name: mstack:verify` does kill the bare alias, because `R` requires a colon-free name.
+It also doubles the prefix in `userFacingName`, since `A = k + C` prepends `mstack:` to a value
+that already carries it, so the skill would display as `/mstack:mstack:verify`. The clean way to
+drop a bare alias is to delete the `name:` field, which makes `C` undefined, `A` fall back to
+`e`, and `R` undefined. Worth putting in front of whoever takes item 33, so the decision is made
+knowing what each branch costs.
+
+## One thing outside this item, said once
+
+`origin/main` currently serves the refuted mechanism: `skills/mstack/`, the inverted wiki
+sentence and the name/directory lint check all landed there with PR #1. Until PR #2 lands, the
+published front page describes naming behaviour this branch has already disproved against the
+2.1.241 bundle. That is item 28's mess and not item 29's verdict, but it is the state a reader
+meets today, so it belongs in the record.
+
+## Verdict
+
+APPROVED at rung 4, unchanged from round 3 and re-established at `ccccd38`. The evidence is the
+same evidence: rounds 1 to 3 verified content that is byte-identical at this head, and this round
+proved that identity rather than assuming it.
