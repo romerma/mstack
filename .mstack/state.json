@@ -468,6 +468,16 @@
         "reverting src/lint.ts lintReferences to resolve front-matter-name-first turns at least one test red"
       ],
       "status": "pending"
+    },
+    {
+      "id": 33,
+      "slug": "bare-skill-names-collide",
+      "title": "Every mstack skill resolves without the mstack: prefix, so the plugin squats eleven bare command names",
+      "acceptance": [
+        "the naming behaviour is stated somewhere a user reads: a colon-free front-matter name registers as a bare alias, so /setup, /verify and /design resolve to mstack",
+        "a decision row records whether mstack keeps the bare aliases or drops them by prefixing each declared name"
+      ],
+      "status": "pending"
     }
   ]
 }
