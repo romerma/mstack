@@ -23,8 +23,11 @@ router reads what you wrote, matches it to a playbook, and copies that playbook'
 the todo list **before** it reasons about your task, so you see the plan it intends to follow
 while arguing with it is still cheap.
 
-Eleven other `/mstack:<name>` commands exist. They are the machinery the router chains, and you
-can call one directly once you know exactly what you want. You never have to.
+Eleven other `/mstack:<name>` commands exist. You type one of them yourself: `/mstack:setup`,
+once per repository, below. Five are steps the router calls for you as a playbook needs them,
+so you never have to type `understand`, `design`, `verify`, `review` or `ship`. The last five,
+`implement`, `spec`, `orchestrate`, `reflect` and `unslop`, are there for when you already know
+exactly what you want.
 
 ## Install
 
@@ -86,13 +89,17 @@ drops its named steps.
 
 | When your request sounds like | Playbook | What it forces |
 |---|---|---|
-| "how does X work", "why is it like this" | **investigate** | Splits how-it-works from why-it-is. Fans out narrow readers instead of one broad one, and says where each claim's evidence stopped |
+| "how does X work", "why is it like this" | **investigate** | Splits how-it-works from why-it-is. Past three moving parts, fans out narrow readers instead of one broad one, and says where each claim's evidence stopped |
 | "X is broken, wrong, or slow" | **bug-fix** | Reproduce it first or stop, no repro no fix. Failing test before the fix, and the repro commit lands **before** the fix in history so the broken state stays checkoutable |
-| "build X" | **feature** | Understand the subsystem before adding a parallel one. Two structurally distinct designs before picking. A throughput checkpoint that says what can actually run in parallel |
+| "build X" | **feature** | Understand the subsystem before adding a parallel one. Two structurally distinct designs before picking, or a stated reason the constraints forced the answer. A throughput checkpoint that says what can actually run in parallel |
 | "clean this up without changing behaviour" | **refactor** | Characterization tests committed *before* anything is touched. Migrate callers and delete the old path in the same change. Verify by re-running those tests unedited |
-| "run this whole program of work" | **orchestrate** | Many changes, several tracks, more than one session, isolated worktrees. It opens by telling you not to use it: in one measured head-to-head the ceremony turned a twelve-unit job into one landed unit while a plain agent landed all twelve |
+| "run this whole program of work" | **orchestrate** | Many changes, several tracks, more than one session, isolated worktrees |
 | "pick up where we left off" | **resume** | Read the checkpoint and the reports that already ran rather than redoing them. Where the record and the repository disagree, the repository wins |
 | "delete the dead branches" | **cleanup** | Lists candidates and removes nothing until you have read the list. Deletes with `git branch -d`, never `-D`, because the refusal is the safety mechanism |
+
+The orchestrate playbook opens by telling you not to use it. In one measured head-to-head its
+ceremony turned a twelve-unit job into one landed unit while a plain agent landed all twelve,
+so anything one agent could finish in a session goes to **feature** instead.
 
 Three requests skip the playbooks, because one skill is the whole answer: proving a change
 works is `/mstack:verify`, judging work that already exists is `/mstack:review`, and getting it
@@ -450,7 +457,7 @@ publish route is [docs/wiki/Publishing-the-Wiki.md](docs/wiki/Publishing-the-Wik
 | [Skills-and-Playbooks](docs/wiki/Skills-and-Playbooks.md) | The twelve `/mstack` commands, the route table, and the seven playbooks |
 | [Gates-and-Hooks](docs/wiki/Gates-and-Hooks.md) | The five hooks, every gate check, and the merge gate's rules |
 | [The-CLI](docs/wiki/The-CLI.md) | Every subcommand with real output, exit codes, the verdict enum |
-| [State-Files](docs/wiki/State-Files.md) | The anatomy of `.mstack/`, column by column |
+| [State-Files](docs/wiki/State-Files.md) | The anatomy of `.mstack/` column by column, and the evidence ladder |
 | [Status-Line](docs/wiki/Status-Line.md) | Wiring, the stale-verdict signal, degradation rules |
 | [Publishing-the-Wiki](docs/wiki/Publishing-the-Wiki.md) | How these files become the GitHub wiki |
 
