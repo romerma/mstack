@@ -424,7 +424,7 @@
         "lint-plugin turns red when a doc names a /mstack:<x> command that no skill directory provides",
         "every doc reference to skills/router/ points at the new path"
       ],
-      "status": "pending"
+      "status": "reviewing"
     }
   ]
 }

@@ -6,9 +6,9 @@
 > On close: append the summary to `history.md` and reset this file to the
 > empty template below.
 
-- **Item:** none yet (investigation, pre-intake)
-- **Status:** investigating the entry-point surface
-- **Branch:** main
+- **Item:** 28 mstack-front-door
+- **Status:** reviewing (implemented; needs a pass that did not write it)
+- **Branch:** fix/mstack-front-door
 - **Base:** main
 - **Worktree:** none
 
@@ -72,11 +72,41 @@ Findings, with where the evidence stopped:
   `.mstack/decisions.tsv` holds no row for either. This was never a decision, so there is no
   rationale to argue with.
 
-Waiting on: the user's answer to the one product fork, recorded below. The shape of "one
-entry point" has materially different user-visible outcomes and is not observable by running
-anything, so it is theirs.
+The fork I drafted was the wrong question and the user said so. They wanted one thing:
+`/mstack <what you want done>`, the way `/poteto-mode <request>` works. Scoped to that.
+
+Bug-fix playbook, steps copied verbatim:
+
+1. **Reproduce it yourself**, on the surface where it actually happens. — DONE.
+   `claude plugin details mstack` lists the skill as `router`; the session transcript's
+   `lastPrompt` is `/mstack:router ...`.
+2. Binary-search the cause. Confirm the *mechanism* with runtime evidence before designing
+   anything. — DONE. Cause is one line: `skills/router/SKILL.md` declared `name: mstack`
+   while the directory said `router`, and the directory is what the command is named after.
+3. Write the failing test first. — DONE, three of them, red on the unmodified tree, committed
+   in `d38e0ef` before the fix.
+4. `/mstack:design` only if the fix crosses a function boundary.
+   — skip: the fix is a directory rename plus two checks in one module.
+5. Delegate the fix to `mstack:implementer` so a different pass reviews the diff.
+   — **skip: this session carries a standing instruction not to launch subagents the user did
+   not ask for.** The separation is not waived, only deferred: the item stays at `reviewing`
+   and no ledger verdict was written, so the gate will refuse `done` until a pass that did not
+   write this code approves it.
+6. Verify on the same surface as step 1. — PARTIAL, see Verification.
+7. Stage the commits so the failing repro lands **before** the fix in history. — DONE:
+   `d38e0ef` (red) then `4eefde6` (green).
+8. `/mstack:review`, then `/mstack:ship`. — pending, blocked on step 5's deferral.
 
 ## Verification
 
-- `mstack gate`: PASSED, 0 failures, 1 warning (on main, no feature branch yet).
-- No code changed this session.
+- `mstack lint-plugin .`: PASSED, 0 failures, 0 warnings, including the new line
+  `[ok] front door: /mstack resolves to skills/mstack/SKILL.md`. Rung 4.
+- `npm test`: 289 pass, 0 fail on node and 289 pass, 0 fail on bun. Rung 4.
+- `npm run typecheck`: clean.
+- `mstack gate`: PASSED, 0 failures.
+- **Not closed:** typing `/mstack` in a live session still has no rung-4 observation. The
+  installed copy comes from the `romerma/mstack` GitHub marketplace, so `claude plugin details`
+  cannot see this branch, and the headless probe could not run on this machine's auth. What is
+  proven is structural, at rung 2: directory and front matter now both read `mstack`, so both
+  candidate resolution rules yield `/mstack`. Confirming it costs one session started with
+  `claude --plugin-dir .` and the marketplace copy disabled.
