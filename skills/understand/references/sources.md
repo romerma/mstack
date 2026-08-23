@@ -34,7 +34,7 @@ sentence someone actually wrote, with a link and a date, so they can disagree wi
 ## What these sources can prove
 
 Every playbook ends with the highest rung of the
-[evidence ladder](../../mstack/references/evidence-ladder.md) that source can reach. Read that
+[evidence ladder](../../router/references/evidence-ladder.md) that source can reach. Read that
 line before you believe your own write-up.
 
 **No source here can get a claim about *why* past rung 2.** Someone said so, or you pointed at

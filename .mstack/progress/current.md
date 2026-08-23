@@ -12,9 +12,8 @@
 - **Base:** main
 - **Worktree:** none
 
-Item 28 mstack-front-door is parked at `blocked` on the same branch: implemented, green, and
-waiting on a review pass this session is not permitted to launch. It is not abandoned, it is
-one reviewer away from `done`.
+Item 28 mstack-front-door is **cancelled and reverted**. Its premise was false; see the
+section below. Items 31 and 32 carry the two findings from its review that were worth keeping.
 
 ## Plan
 
@@ -113,7 +112,7 @@ What changed:
   so it is gone.
 - New `## The seven playbooks`, `## The five agents` and `## The twelve skills` sections. The
   playbook and agent rows were written from the files themselves, not from memory:
-  `skills/mstack/playbooks/*.md` and the `description:`/`tools:` front matter in `agents/*.md`.
+  `skills/router/playbooks/*.md` and the `description:`/`tools:` front matter in `agents/*.md`.
 - Dropped `## The map`, whose nine rows pointed at the same wiki pages the `## Documentation`
   table at the bottom already lists, and `### A router, not an orchestrator`, which repeated
   the new `## One command` section.
@@ -162,21 +161,41 @@ Consequences, all of which block the release:
 
 Ledger at this head: both items `verifier-failed`. Nothing is close-worthy.
 
-Recommended next step: revert item 28 entirely rather than repair it, keep item 29, and file
-the one thing worth keeping from it, which is that nothing lints the docs' `/mstack:<x>`
-references.
+Done, in that order. `git revert` of `4eefde6` then `d38e0ef`, resolving the `.mstack/`
+conflicts in favour of the live store so the append-only records and items 29 to 32 survived.
+The result is byte-identical to `61fdd04` across `src`, `tests`, `skills`, `agents`,
+`CHANGELOG.md` and `docs/wiki`, confirmed with `git diff --stat 61fdd04 -- ...` returning
+empty. Item 28 is `cancelled` with a row in `decisions.tsv`.
+
+Two corrections the revert alone did not make, because the text they restore was written
+before anyone understood the mechanism:
+
+- `README.md` now says the router answers `/mstack` because its front matter declares
+  `name: mstack`, and that Claude Code registers `/<plugin>:<directory>` plus the bare
+  declared name as an alias when it carries no colon.
+- `docs/wiki/Skills-and-Playbooks.md` says the same thing, so both name the alias rather than
+  leaving "its skill is named `mstack`, so it is invoked as plain `/mstack`" as an assertion
+  with no mechanism behind it. That sentence was correct all along; it was the one I replaced
+  with something false.
+
+Kept from item 29: the whole README restructure. What it lost: nothing, since the only line
+that depended on the rename was the naming paragraph, now rewritten.
 
 ## Verification
 
+Against the reverted tree, item 29 only:
+
 - `node scripts/check-doc-links.mjs README.md docs/wiki/*.md`: 93 relative links, 0 broken.
-- `mstack lint-plugin .`: PASSED, 0 failures, 0 warnings, including the new line
-  `[ok] front door: /mstack resolves to skills/mstack/SKILL.md`. Rung 4.
-- `npm test`: 289 pass, 0 fail on node and 289 pass, 0 fail on bun. Rung 4.
+- `./bin/mstack lint-plugin .`: PASSED, 0 failures, 0 warnings.
+- `npm test`: 286 pass, 0 fail on node, and 286 pass, 0 fail on bun. Back to 286 from 289
+  because the three tests item 28 added went with it.
 - `npm run typecheck`: clean.
-- `mstack gate`: PASSED, 0 failures.
-- **Not closed:** typing `/mstack` in a live session still has no rung-4 observation. The
-  installed copy comes from the `romerma/mstack` GitHub marketplace, so `claude plugin details`
-  cannot see this branch, and the headless probe could not run on this machine's auth. What is
-  proven is structural, at rung 2: directory and front matter now both read `mstack`, so both
-  candidate resolution rules yield `/mstack`. Confirming it costs one session started with
-  `claude --plugin-dir .` and the marketplace copy disabled.
+- `git diff --stat 61fdd04 -- src tests skills agents CHANGELOG.md docs/wiki`: empty, which is
+  the revert being byte-clean rather than approximately clean.
+
+**Rung note on the alias finding.** Both the reviewer's refutation and item 28's original
+claim are rung 3: each walks a resolution path, neither typed `/mstack` in a live session. The
+refutation wins anyway because it reads the resolver itself, `JUS`, and shows an alias branch
+that the original evidence never accounted for, while `claude plugin details` printing `router`
+and a transcript `lastPrompt` of `/mstack:router` are consistent with both stories. Rung 4 is
+still open and still cheap: type `/mstack` in a session running this checkout.
