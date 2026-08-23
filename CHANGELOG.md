@@ -13,9 +13,10 @@ The docs round, and the front page rewritten around the one command.
 - The router's naming is stated with its mechanism instead of asserted. A plugin skill is
   registered under `/<plugin>:<directory>` and, when its declared `name` carries no colon, that
   bare name is registered as an alias too. So `skills/router/` declaring `name: mstack` answers
-  `/mstack:router`, `/mstack:mstack` and plain `/mstack`. This is documented in neither Claude
-  Code's skill docs nor this project's research, and it was established by reading the loader
-  and running its own expressions against this repository's twelve skill directories.
+  `/mstack:router`, `/mstack:mstack` and plain `/mstack`. This project's research had not
+  recorded it, which `rg -ni 'alias' docs/research/pstack-port.md` returning nothing confirms,
+  and it was established here by reading the loader in the installed binary and running its own
+  expressions against this repository's twelve skill directories.
 - **Withdrawn before release:** a change that renamed `skills/router/` to `skills/mstack/` on
   the premise that `/mstack` was not a registered command. It was, via that alias. The rename
   was also net negative, moving the canonical name to `mstack:mstack` and costing

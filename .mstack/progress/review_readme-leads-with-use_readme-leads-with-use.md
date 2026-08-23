@@ -853,3 +853,89 @@ meets today, so it belongs in the record.
 APPROVED at rung 4, unchanged from round 3 and re-established at `ccccd38`. The evidence is the
 same evidence: rounds 1 to 3 verified content that is byte-identical at this head, and this round
 proved that identity rather than assuming it.
+
+---
+
+# Round 5, unrequested: the head moved past the approval and the item closed
+
+No new verdict row. Item 29 is `done`, and this section records why I did not record one, plus
+one claim that shipped in 0.2.0 that nobody has verified.
+
+## What happened after round 4
+
+A background `mstack gate --full` I had started was killed rather than finishing, which is what
+sent me back to look. HEAD is now `aa75729`, five commits past the `ccccd38` I approved:
+
+```
+aa75729 chore: close the session, 0.2.0 out
+22c039f chore: cut 0.2.0
+012561f Merge branch 'fix/mstack-front-door'
+5bdc2c2 chore: the reviewer's round-4 report and its row at the final head
+0fb2b93 Merge pull request #2 from romerma/fix/mstack-front-door
+```
+
+## The close is legitimate, and I checked it rather than assuming
+
+Item 29 closed on a row at the merge SHA, `012561f9`, recorded by `session`, not by `reviewer`.
+Nobody recorded a verdict in my name. Its evidence field makes two checkable claims and both
+hold:
+
+```
+$ git diff --stat ccccd38 012561f9 -- . ':!.mstack'
+(empty)
+
+$ rg '012561f9' .mstack/verification.tsv
+(project)              012561f9... npm test && npm run typecheck && bin/mstack lint-plugin .  passed
+readme-leads-with-use  012561f9... npm test && ... && node scripts/check-doc-links.mjs ...    passed
+```
+
+So the tree the item closed on was identical outside `.mstack/` to the one I approved, and the
+`gate --full` that round 4 said was still owed did get run, at the merge SHA, with a clean tree.
+The gate now reports `20 closed item(s) carry a ledger verdict` and `no active item`.
+
+## Why there is no row at `aa75729`
+
+Because a row there would claim more than I checked. `22c039f` changed content outside
+`.mstack/` after my approval:
+
+```
+$ git diff --stat ccccd38 HEAD -- . ':!.mstack'
+ .claude-plugin/plugin.json |  2 +-
+ CHANGELOG.md               | 24 ++++++++++++++++++++++--
+ package.json               |  2 +-
+```
+
+That is the 0.2.0 release. It was never in the scope I was given, item 29 was already closed
+before it landed, and `README.md` is untouched by it, so the verdict on the work stands where it
+was earned. Recording `test-verified` at `aa75729` would attach my name to a release I was not
+asked to judge.
+
+## One claim in the 0.2.0 CHANGELOG that nobody verified
+
+The release entry states the naming mechanism accurately, and better than the wiki does: it names
+all three spellings, `/mstack:router`, `/mstack:mstack` and plain `/mstack`, which is the
+round-3 non-blocking finding absorbed. Good. The attribution of method is also honest.
+
+One sentence goes further than the evidence:
+
+> This is documented in neither Claude Code's skill docs nor this project's research
+
+The second half is true and I checked it: `rg -ni 'alias' docs/research/pstack-port.md` returns
+nothing. **The first half I cannot verify and did not.** It is a negative claim about Anthropic's
+published documentation, made from an environment with no access to it. Nothing in this session
+established it.
+
+That shape of sentence is the one this repository has now been wrong about twice on this exact
+mechanism, both times because it was consistent with what was already believed rather than
+checked against the source. This is a smaller instance, in a release note rather than a gate, and
+it costs nothing to soften to what is actually known: that it is not in this project's research
+and was established by reading the loader. If someone did check the published docs, the evidence
+belongs in the row that says so.
+
+## Still open, unchanged
+
+`docs/wiki/Skills-and-Playbooks.md:16` still says the router "answers both `/mstack:router` and
+plain `/mstack`". The CHANGELOG now names three spellings while the wiki names two, so the
+release note is more accurate than the page it describes. That strengthens the round-4
+recommendation: item 33 should align that paragraph, and its acceptance should name it so the fix
+cannot land elsewhere and leave "both" standing.
