@@ -17,7 +17,7 @@ Choosing this is a decision worth recording, including why the simpler route was
 mstack decide --phase frame --decision "run as a program" --why "..." --evidence "..." --result open
 ```
 
-The full procedure is in [the orchestrate playbook](../mstack/playbooks/orchestrate.md). Three
+The full procedure is in [the orchestrate playbook](../router/playbooks/orchestrate.md). Three
 things carry most of the weight.
 
 ## Isolation is what makes parallelism legal

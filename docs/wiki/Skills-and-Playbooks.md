@@ -10,10 +10,11 @@ decision that matters: whether your work takes the direct path or the spec path.
 
 A skill here is a `/mstack:<name>` command: a set of instructions Claude Code reads into the
 conversation when you invoke it. Each lives in `skills/<name>/SKILL.md`, and its frontmatter
-description says when to use it. The `<name>` is the **directory**, not the frontmatter `name:`
-field, which is why the router lives in `skills/mstack/` and is typed as plain `/mstack`: a
-directory called anything else would leave `/mstack` unanswered no matter what its frontmatter
-claimed. `mstack lint-plugin` fails on that disagreement now, because it shipped once.
+description says when to use it. The router is the exception in naming only: it sits in
+`skills/router/` but declares `name: mstack`, and Claude Code registers a skill under
+`/<plugin>:<directory>` plus, when the declared name carries no colon, that bare name as an
+alias. So the router answers both `/mstack:router` and plain `/mstack`, and the second is the
+front door everything else sits behind.
 
 ## The twelve skills
 
@@ -83,7 +84,7 @@ Most skills also carry a prohibition, and they are worth knowing before you run 
 
 ## The router
 
-`skills/mstack/SKILL.md` is what `/mstack` runs. It orients first (`mstack gate`, the
+`skills/router/SKILL.md` is what `/mstack` runs. It orients first (`mstack gate`, the
 session gate described on [Gates-and-Hooks](Gates-and-Hooks.md), then the active item and
 its recorded next step), then matches the request against a route table:
 
@@ -112,7 +113,7 @@ The shape of one request flowing through router, playbook, agents and merge gate
 
 ## The seven playbooks
 
-Playbooks live in `skills/mstack/playbooks/`, one file each. A playbook is a short numbered
+Playbooks live in `skills/router/playbooks/`, one file each. A playbook is a short numbered
 step list plus the reply it owes the user, and each one carries a discipline that is the
 reason it exists:
 
@@ -158,7 +159,7 @@ The full lifecycle, with the statuses the gate enforces, is in
 ## The evidence ladder
 
 Every claim any pass makes is placed on the ladder in
-`skills/mstack/references/evidence-ladder.md`, and the pass says where its claim stopped:
+`skills/router/references/evidence-ladder.md`, and the pass says where its claim stopped:
 
 | Rung | What it means |
 |---|---|

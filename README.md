@@ -147,8 +147,9 @@ when you want them.
 | `/mstack:reflect` | What should change in the workflow itself after a session |
 | `/mstack:unslop` | Cuts the tells that make writing read as machine-generated |
 
-A skill's command is named after its **directory**, so the router lives in `skills/mstack/` and
-answers plain `/mstack`. The route table and the playbooks are in
+The router answers plain `/mstack` because its front matter says `name: mstack`: Claude Code
+registers a skill under `/<plugin>:<directory>` and, when the declared name carries no colon,
+registers that name as a bare alias too. The route table and the playbooks are in
 [docs/wiki/Skills-and-Playbooks.md](docs/wiki/Skills-and-Playbooks.md).
 
 ## Why the rules are code
