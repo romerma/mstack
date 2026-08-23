@@ -6,11 +6,15 @@
 > On close: append the summary to `history.md` and reset this file to the
 > empty template below.
 
-- **Item:** 28 mstack-front-door
-- **Status:** reviewing (implemented; needs a pass that did not write it)
+- **Item:** 29 readme-leads-with-use
+- **Status:** reviewing (written; needs a pass that did not write it)
 - **Branch:** fix/mstack-front-door
 - **Base:** main
 - **Worktree:** none
+
+Item 28 mstack-front-door is parked at `blocked` on the same branch: implemented, green, and
+waiting on a review pass this session is not permitted to launch. It is not abandoned, it is
+one reviewer away from `done`.
 
 ## Plan
 
@@ -97,8 +101,32 @@ Bug-fix playbook, steps copied verbatim:
    `d38e0ef` (red) then `4eefde6` (green).
 8. `/mstack:review`, then `/mstack:ship`. — pending, blocked on step 5's deferral.
 
+### Item 29, the README
+
+The complaint: the README explained the machinery before it showed anyone how to use the
+thing, and it never named the playbooks or the agents at all. Both were wiki-only.
+
+What changed:
+
+- Opens with `## One command` and four real `/mstack <request>` lines, before any mechanism.
+  Install moved up under it; the old `## Quickstart` further down was the same content twice,
+  so it is gone.
+- New `## The seven playbooks`, `## The five agents` and `## The twelve skills` sections. The
+  playbook and agent rows were written from the files themselves, not from memory:
+  `skills/mstack/playbooks/*.md` and the `description:`/`tools:` front matter in `agents/*.md`.
+- Dropped `## The map`, whose nine rows pointed at the same wiki pages the `## Documentation`
+  table at the bottom already lists, and `### A router, not an orchestrator`, which repeated
+  the new `## One command` section.
+- Dropped `## Where this comes from`, which shared its pstack attribution and its "44 skills,
+  23 playbooks and zero hooks" statistic with two other sections; its two unique links moved
+  into `## Credit`.
+
+Net 439 -> 473 lines: about 65 lines of new playbook and agent tables against about 30 lines
+of removed duplication.
+
 ## Verification
 
+- `node scripts/check-doc-links.mjs README.md docs/wiki/*.md`: 93 relative links, 0 broken.
 - `mstack lint-plugin .`: PASSED, 0 failures, 0 warnings, including the new line
   `[ok] front door: /mstack resolves to skills/mstack/SKILL.md`. Rung 4.
 - `npm test`: 289 pass, 0 fail on node and 289 pass, 0 fail on bun. Rung 4.
