@@ -475,6 +475,7 @@
       "title": "Every mstack skill resolves without the mstack: prefix, so the plugin squats eleven bare command names",
       "acceptance": [
         "the paragraph above '## The twelve skills' in docs/wiki/Skills-and-Playbooks.md states the rule, including that the router answers three spellings and not two, and the README paragraph under its twelve-skills table agrees with it",
+        "settle first, because it decides the rest: yb gives an exact name match absolute precedence over aliases, so read the user- and project-command loaders and establish whether their names are unprefixed. If they are, a user's own /verify displaces mstack's /verify alias outright",
         "a decision row records whether mstack keeps the bare aliases or drops them, noting that dropping one means deleting the name: field, because prefixing it yields a userFacingName of mstack:mstack:<skill>"
       ],
       "status": "pending"

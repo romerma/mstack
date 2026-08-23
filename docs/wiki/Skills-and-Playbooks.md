@@ -13,7 +13,8 @@ conversation when you invoke it. Each lives in `skills/<name>/SKILL.md`, and its
 description says when to use it. The router is the exception in naming only: it sits in
 `skills/router/` but declares `name: mstack`, and Claude Code registers a skill under
 `/<plugin>:<directory>` plus, when the declared name carries no colon, that bare name as an
-alias. So the router answers both `/mstack:router` and plain `/mstack`, and the second is the
+alias. So the router answers three spellings: `/mstack:router` from its directory,
+`/mstack:mstack` from its declared name, and plain `/mstack` from the alias. The last is the
 front door everything else sits behind.
 
 ## The twelve skills

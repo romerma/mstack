@@ -2,7 +2,7 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "mstack",
   "displayName": "mstack",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Rigorous, verifiable agent workflows for Claude Code. A router over playbooks, an opt-in spec path, durable state on disk, and gates that are code rather than prose.",
   "author": {
     "name": "Maycol Romero"

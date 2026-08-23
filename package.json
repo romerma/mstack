@@ -1,6 +1,6 @@
 {
   "name": "mstack",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "type": "module",
   "description": "Dev tooling for the mstack Claude Code plugin. There is no build step: src/ is what ships and what runs.",
