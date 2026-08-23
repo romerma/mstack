@@ -522,3 +522,206 @@ and `README.md`. Nothing was weakened to obtain green.
    `spec`, `orchestrate`, `reflect` and `unslop`, and contradicts the corrected `README.md:28`.
    Rewrite it to agree with `:26-30`. This is the only blocker; everything else on this branch is
    confirmed done.
+
+---
+
+# Re-review, round 3
+
+**Verdict:** APPROVED
+
+Head is `a84950b15128de9dbc7ab717f4b7a4db0663e2c1`, resolved with `git rev-parse HEAD`, over
+`e3521d7` (the round-2 blocker) and `a84950b` (the item-28 revert). Item 29 is close-worthy.
+
+## The round-2 blocker
+
+Fixed at `README.md:132-133`, now "You need the first one. The router calls five of the others
+for you; the rest are there for when you want them." It agrees with `README.md:26-30`, and the
+five-chained arithmetic still holds at the restored path:
+
+```
+$ rg -o 'mstack:[a-z-]+' skills/router | sed 's/.*://' | sort -u
+design implementer review reviewer ship spec-author spec-reviewer understand verify
+```
+
+Five skills (`understand`, `design`, `verify`, `review`, `ship`); the other four tokens are
+agents under `agents/`. The `spec` count of 2 is the hyphen-boundary artifact again, and the
+distinct-token list shows no bare `mstack:spec`.
+
+It was the last instance. `rg -n 'eleven|chain' README.md` now returns nothing at all.
+
+## The naming claim, checked against the bundle
+
+I was asked not to trust the summary, so I did not. I read
+`/Users/romerma/.local/share/claude/versions/2.1.241` directly, then executed its own logic
+against this repository.
+
+The skills loader, `opf`, at byte offset 291949765. For each subdirectory of a plugin's
+`skillsPath` it builds the id from the **directory**:
+
+```js
+y = `${t}:${d.name.replace(/[^a-zA-Z0-9_-]/g,"-")}`,   // t = plugin name, d.name = directory
+b = RVn(y, _, r, n, o, !0, {isSkillMode:!0})
+```
+
+The command builder, `RVn`, at byte offset 291944381. The three lines that matter, and the two
+places they land in the returned object:
+
+```js
+C = a.name != null ? String(a.name) : void 0,   // declared front-matter name
+k = e.slice(0, e.lastIndexOf(":") + 1),          // namespace prefix, "mstack:"
+A = C ? `${k}${C}` : e,                          // -> userFacingName()
+R = C && !C.includes(":") ? [C] : void 0         // -> aliases
+...
+return { type:"prompt", name:e, ..., userFacingName(){return A}, aliases:R, ... }
+```
+
+And the resolver:
+
+```js
+function Vf(e){return e.userFacingName?.()??e.name}
+function JUS(e,t){return e.name===t||Vf(e)===t||(e.aliases?.includes(t)??!1)}
+function al(e,t){return e.name===t||(e.aliases?.includes(t)??!1)}
+```
+
+Then I ran those expressions, copied verbatim, over this repository's twelve skill directories
+and their real front matter:
+
+```
+skills/router/  name: mstack
+   registered name : mstack:router
+   userFacingName  : mstack:mstack
+   aliases         : ["mstack"]
+
+/mstack         -> skills/router/
+/mstack:router  -> skills/router/
+/mstack:mstack  -> skills/router/
+/mstack:verify  -> skills/verify/
+```
+
+**Both halves of the new sentence are true.** A plugin skill is registered under
+`<plugin>:<directory>`, and a declared name with no colon becomes a bare alias that `JUS` and
+`al` both honour. `README.md:150-152` and `docs/wiki/Skills-and-Playbooks.md:13-17` are accurate,
+and they agree with each other. The premise of item 28 was indeed false: `/mstack` resolved to
+`skills/router/` before the rename.
+
+Where it stopped: **rung 4**, and per the ladder's own obligation, what I ran it on. I executed
+the shipped 2.1.241 expressions against this checkout's real directory names and real
+`SKILL.md` front matter. I did not launch Claude Code with the plugin loaded and type `/mstack`,
+which would be rung 5, so what I have proven is that the resolver's algorithm maps `/mstack` to
+`skills/router/` on these inputs, not that a live session does. Given the algorithm is the whole
+mechanism, I am comfortable; given this repository has now been wrong about it twice, I would
+not describe it as settled beyond that line.
+
+## What I got wrong in round 1, and why
+
+My round-1 report examined `README.md:141-143`, "A skill's command is named after its
+**directory**, so the router lives in `skills/mstack/`", and passed it as "consistent and, as far
+as this repository can establish, accurate". The first half of that verdict was worthless and the
+second half was doing all the work.
+
+"Consistent" was a weak test: I checked the README against `docs/wiki/Skills-and-Playbooks.md`
+and against `src/lint.ts`, and all three traced back to the same unverified belief. Agreement
+between two documents with one source is not corroboration, it is the same claim counted twice.
+The bundle was sitting on this machine the whole time and I did not open it.
+
+What kept it honest was the rung. I labelled it rung 2 and wrote "I cannot reach rung 4 on it
+from here", which is exactly the sentence that let a later pass know where to push. The ladder
+did its job even though I did not do mine, and that is the argument for the ladder.
+
+## The revert's blast radius on this item
+
+The revert restored `skills/router/`, so I re-checked everything my earlier rounds verified at
+the old paths:
+
+- `git diff --stat 61fdd04 HEAD -- skills/router/playbooks agents/` is empty. The seven playbooks
+  and five agent definitions are byte-identical to their pre-item-28 state, so every fact-check
+  in rounds 1 and 2 carries over unchanged; only the path in my citations moved from
+  `skills/mstack/...` to `skills/router/...`.
+- The two corrected rows still match their sources: `investigate.md:8` "more than three moving
+  parts" and `feature.md:5` "or a stated reason the constraints forced the answer".
+- Seven playbook files against seven README rows, five agent files against five README rows,
+  twelve skill directories against the twelve-skill table.
+- `rg -n 'skills/mstack' README.md docs/ CLAUDE.md CONTRIBUTING.md` returns nothing, so the
+  revert left no stale path in any prose this item touches.
+- `README.md:150-152` and `docs/wiki/Skills-and-Playbooks.md:13-17` are the only two places in
+  README or the wiki that state the naming mechanism, so there is no third copy still asserting
+  the refuted version.
+
+## Acceptance, final
+
+1. **"the README shows a real /mstack <request> example before any mechanism prose"** - met.
+   `README.md:15-18`, four requests routing to four different playbooks.
+2. **"all seven playbooks are named in the README with what each one does"** - met. Seven rows,
+   seven files, every row checked against its file; the two defective rows fixed in `b4894a7`.
+3. **"all five subagents are named in the README with what each does and what it cannot do"** -
+   met. Five rows against five unchanged `agents/*.md`, descriptions and `tools:` both verified
+   in round 1.
+4. **"the entry point section says there is one command and how its argument works"** - met.
+   `README.md:12`, `:21-24`, `:26-30`, and now `:132-133` agreeing with them.
+5. **"node scripts/check-doc-links.mjs README.md docs/wiki/*.md passes and lint-plugin stays
+   green"** - met, and now enforced: item 29 carries the command in its `verification`, and
+   `mstack gate --full` executes it at close.
+
+## Non-blocking, for the record
+
+- `docs/wiki/Skills-and-Playbooks.md:16` says the router "answers both `/mstack:router` and plain
+  `/mstack`". There is a third spelling: `userFacingName()` returns `mstack:mstack`, `JUS` tests
+  it, and my probe confirms `/mstack:mstack` resolves. The word "both" implies exactly two. Not
+  false about what it lists, and `/mstack:mstack` is a curiosity nobody will type, but this is
+  the one place either paragraph could be read as exhaustive and is not. Dropping "both" costs
+  a word.
+- A property neither document mentions, surfaced by the probe: **every** mstack skill gets a bare
+  alias, because every one declares a colon-free `name`. `/setup`, `/understand`, `/design`,
+  `/spec`, `/implement`, `/verify`, `/review`, `/ship`, `/orchestrate`, `/reflect` and `/unslop`
+  all resolve without the `mstack:` prefix. That is a real property of the shipped plugin and a
+  cross-plugin collision surface, and it is documented nowhere. Not this item's job. Worth an
+  item of its own if the owner wants the front page to be complete about what a user can type.
+- Round-1 items 6 and 7 stand: item 30 covers the counts check, and the long table cells at
+  `README.md:93` and `:110` are unchanged.
+
+## Verification I ran, round 3
+
+```
+$ git rev-parse HEAD
+a84950b15128de9dbc7ab717f4b7a4db0663e2c1
+
+$ ./bin/mstack gate --full
+PASSED - 0 failures, 0 warnings
+93 relative links checked, 0 broken
+[ok]    npm test && npm run typecheck && ./bin/mstack lint-plugin . && node scripts/check-doc-links.mjs README.md docs/wiki/*.md
+
+PASSED - 0 failures, 0 warnings
+
+$ npm test
+ℹ pass 286
+ℹ fail 0
+
+$ node scripts/check-doc-links.mjs README.md docs/wiki/*.md
+93 relative links checked, 0 broken
+
+$ ./bin/mstack lint-plugin .
+PASSED - 0 failures, 0 warnings
+
+$ rg -n 'eleven|chain' README.md
+(no output)
+
+$ git diff --stat 61fdd04 HEAD -- skills/router/playbooks agents/
+(no output)
+
+$ ./bin/mstack ledger check readme-leads-with-use
+FAIL no verdict at a84950b1; 2 row(s) exist at other SHAs and a new head SHA voids them
+```
+
+286 rather than 289 is item 28's three lint tests leaving with the revert, as expected. Both
+earlier rows are voided by the new head, which is the stale-verdict mechanic working; this pass
+records its own at `a84950b`.
+
+No test was weakened for this item: across `5ea9110`, `b4894a7` and `e3521d7` no test file is
+touched. `a84950b` removes tests, and it removes them as part of reverting the change that added
+them, byte-clean against `61fdd04`. That is item 28's revert, not item 29's doing, and it is out
+of my scope beyond confirming it left this item's evidence intact, which it did.
+
+## Verdict
+
+APPROVED at rung 4. Recording `test-verified`, per `skills/review/SKILL.md:50`: the rung the
+verification reached, not rung 5, because nothing here was proven in a live session.
