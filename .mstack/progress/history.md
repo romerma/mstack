@@ -499,3 +499,46 @@ Process notes: ship ran without a PR - this repo has zero PRs and every prior br
 as a fast-forward, so the PR and merge-gate steps were skipped for the repo's real
 convention and CI was watched on main's own run. The panel grammar held: lenses recorded no
 rows across five reports, the coordinator recorded one verdict per terminal round.
+
+## 2026-08-23 — items 28, 29; 0.2.0 tagged
+
+Started from "mstack needs one entry point like pstack's /poteto-mode".
+
+**Item 28 `mstack-front-door`: cancelled, reverted, and the most useful thing that
+happened.** It was filed on the finding that `/mstack` was not a registered command, evidenced
+by `claude plugin details` listing the skill as `router` and a transcript `lastPrompt` of
+`/mstack:router`. Both observations were real and both were consistent with the opposite
+conclusion, which is the lesson: three documents agreeing is one claim counted three times, not
+corroboration. The reviewer read the loader in the installed `claude 2.1.241` binary and found
+that a declared `name` with no colon is registered as a bare alias. `/mstack` had always
+worked. Reverted byte-clean against `61fdd04`; the item carries its reasoning in
+`decisions.tsv`.
+
+Two process facts worth keeping. The reviewer's round-1 pass had *approved* the same false
+mechanism, and what made it recoverable was that it labelled the claim rung 2 and said out loud
+it could not reach rung 4. That sentence is what told a later pass where to push. And the
+review was launched only because a release was requested; had the branch been tagged when it
+was green, the refuted claim would have been the headline of 0.2.0.
+
+**PR #1 was merged by hand at `5ea9110` while the branch was still under review**, so `main`
+carried the refuted work for about three hours. Recovery was PR #2 with the three missing
+commits, no history rewritten. This is the one time in this repository that a merge got ahead
+of its review, and it is named in the 0.2.0 tag rather than left out.
+
+**Item 29 `readme-leads-with-use`: done.** The README explained the machinery for 84 lines
+before showing anyone a command, and named neither the seven playbooks nor the five agents.
+Rewritten to open on `/mstack <request>`, then install, then the flow, with new sections for
+every playbook, every agent with what it cannot do, and all twelve skills. Three rounds of
+review found: a claim that contradicted the README twenty lines later, a playbook row that
+deleted its playbook's escape hatch sixty lines from where the README criticises pstack for
+exactly that, an unconditional claim the playbook conditions, and an acceptance criterion whose
+command nothing executed at close. Approved at `ccccd38`, closed at `012561f`.
+
+**Released 0.2.0**, annotated tag on `22c039f`, CI green on main. Follow-ups filed: **31**
+`lint-plugin` never scans README or the wiki, so a dead `/mstack:<x>` reference there stays
+green; **32** the `lintReferences` name-resolution line is uncovered; **33** every mstack skill
+declares a colon-free name, so `/setup`, `/verify` and `/design` resolve with no prefix, which
+is an undocumented cross-plugin collision surface.
+
+Still at rung 3, and cheap to close: nobody typed `/mstack` in a live session. Every claim here
+about the resolver comes from reading it and running its expressions, not from using it.
