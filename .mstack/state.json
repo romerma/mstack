@@ -491,6 +491,17 @@
         "CHANGELOG records the skill under a new version heading",
         "both runtimes stay green and mstack gate passes"
       ],
+      "status": "reviewing"
+    },
+    {
+      "id": 35,
+      "slug": "commit-guard-in-hooks",
+      "title": "A pre-tool-use guard that refuses a malformed git commit message",
+      "acceptance": [
+        "a git commit -m whose subject breaks the type grammar is refused by hooks/, not merely discouraged by the skill",
+        "merge commits and git commit without -m are not caught by the guard",
+        "the guard has tests on both runtimes"
+      ],
       "status": "pending"
     }
   ]
