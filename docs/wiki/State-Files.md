@@ -75,7 +75,7 @@ the default path, which is the one everybody takes.
 
 ### The verdict enum and the evidence ladder
 
-The ladder, from `skills/router/references/evidence-ladder.md`: for every fact the safety of a
+The ladder, from `skills/mstack/references/evidence-ladder.md`: for every fact the safety of a
 change depends on, get it as far down this list as is cheap, and **say where it stopped**.
 
 | Rung | What it means | Verdict it maps to |

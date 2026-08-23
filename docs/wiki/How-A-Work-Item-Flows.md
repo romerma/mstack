@@ -93,7 +93,7 @@ discipline the session did not have.
 
 Most work takes the direct path: the item's `acceptance` array is the contract, and the
 implementer must not widen it. The spec path turns on when any of three things is true
-(`skills/router/SKILL.md`):
+(`skills/mstack/SKILL.md`):
 
 - the item has `sdd: true`,
 - the item carries a `decision_required` field,
@@ -171,7 +171,7 @@ see the enforcement plane work.
 ## How a session closes
 
 Closing is a checklist, and the gate checks the parts that can be checked
-(`skills/router/SKILL.md`):
+(`skills/mstack/SKILL.md`):
 
 1. `mstack gate` green.
 2. The report files for every pass that ran exist and say something. A file under 40 bytes is

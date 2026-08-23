@@ -4,6 +4,22 @@
 
 The docs round, before publication.
 
+- **`/mstack` is a command you can actually type.** The router shipped in `skills/router/`
+  while declaring `name: mstack`, and Claude Code names a plugin skill's command after its
+  *directory*, so the front door was `/mstack:router` and `/mstack` answered nothing. README,
+  CLAUDE.md and four wiki pages had been telling newcomers to type it since the first commit;
+  `docs/wiki/Skills-and-Playbooks.md` even explained the mechanism, and explained it wrong.
+  The skill had carried `argument-hint: [what you want done]` and `$ARGUMENTS` all along, so
+  the `/mstack <what you want done>` shape was designed and one directory name withheld it.
+  The router now lives in `skills/mstack/`, where directory and front matter agree and no
+  resolution rule can pick a different command.
+- `mstack lint-plugin` fails a skill whose front-matter `name` disagrees with its directory,
+  and fails a plugin with no `skills/<plugin name>/` to answer its own front door. The
+  cross-reference check also resolved names front-matter-first, which is the opposite of what
+  the harness does, so it would clear a `mstack:<x>` the harness cannot resolve; it now keys
+  off the directory. This is the class of bug the linter exists for and it had a blind spot
+  shaped exactly like it.
+
 - A verification nobody ran is no longer treated as a check. `state.verify` and an item's
   `verification` were executed by nothing but a human typing `mstack gate --full`; in one real
   session an item's field held a non-executable string from intake and stayed red for 230

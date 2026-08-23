@@ -108,6 +108,7 @@ export function lintPlugin(root: string): Report {
   const skills = collect(join(dir, "skills"), "SKILL.md");
   if (skills.length === 0) report.warn("no skills found");
   for (const file of skills) lintSkill(dir, file, report);
+  lintFrontDoor(dir, report);
 
   report.section("agents");
   const agents = existsSync(join(dir, "agents"))
@@ -173,6 +174,36 @@ function lintManifest(dir: string, report: Report): void {
   }
 }
 
+/**
+ * A plugin's front door is `/<plugin>`, and that is only typable when a skill
+ * directory carries the plugin's own name.
+ *
+ * The alternative was scanning the docs for `/mstack` and checking each hit
+ * resolves. That misses the case the docs are silent, and this repository's docs
+ * were not silent, they were confidently wrong. Anchoring to plugin.json makes
+ * the front door a property of the plugin rather than of whoever wrote the
+ * README last.
+ */
+function lintFrontDoor(dir: string, report: Report): void {
+  const manifest = join(dir, ".claude-plugin", "plugin.json");
+  if (!existsSync(manifest)) return;
+  let name: unknown;
+  try {
+    name = (JSON.parse(readFileSync(manifest, "utf8")) as Record<string, unknown>)["name"];
+  } catch {
+    return; // lintManifest already failed on this.
+  }
+  if (typeof name !== "string" || name === "") return;
+  if (existsSync(join(dir, "skills", name, "SKILL.md"))) {
+    report.ok(`front door: /${name} resolves to skills/${name}/SKILL.md`);
+    return;
+  }
+  report.fail(
+    `the docs name /${name} as the front door, but there is no skills/${name}/ to answer it`,
+    `move the entry skill to skills/${name}/, or stop telling people to type /${name}`,
+  );
+}
+
 function lintSkill(root: string, file: string, report: Report): void {
   const label = relative(root, file);
   const source = readFileSync(file, "utf8");
@@ -188,6 +219,19 @@ function lintSkill(root: string, file: string, report: Report): void {
   const description = String(data["description"] ?? "");
   if (description === "") {
     report.fail(`${label}: no description`, "without one Claude has nothing to match the skill against");
+  }
+  // Claude Code names a plugin skill's command after its *directory*. A `name:`
+  // that disagrees names a command nobody can type, and the docs then describe
+  // the frontmatter spelling. This shipped: the router sat in skills/router/
+  // calling itself `mstack`, six doc references promised `/mstack`, and the only
+  // command that existed was `/mstack:router`.
+  const declared = String(data["name"] ?? "");
+  const directory = basename(dirname(file));
+  if (declared !== "" && declared !== directory) {
+    report.fail(
+      `${label}: declares name '${declared}' but its directory is '${directory}'`,
+      `the command is /<plugin>:${directory}, so rename the directory to '${declared}' or the name to '${directory}'`,
+    );
   }
   const combined = description.length + String(data["when_to_use"] ?? "").length;
   if (combined > DESCRIPTION_CAP) {
@@ -277,7 +321,12 @@ function lintReferences(
   report: Report,
 ): void {
   const known = new Set<string>();
-  for (const file of skillFiles) known.add(nameOf(file) ?? basename(dirname(file)));
+  // Directory, not front matter. This resolved the frontmatter name first, which
+  // is the opposite of what Claude Code does, so it would clear a reference the
+  // harness cannot resolve and flag one it can. `lintSkill` now forces the two
+  // to agree; this stays keyed to the directory so the check keeps telling the
+  // truth in the window where they do not.
+  for (const file of skillFiles) known.add(basename(dirname(file)));
   for (const file of agentFiles) known.add(nameOf(file) ?? basename(file, ".md"));
 
   // Playbooks and references are where these names are actually written — the
