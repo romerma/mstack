@@ -2,34 +2,57 @@
 
 Rigorous, verifiable agent workflows for Claude Code.
 
-mstack makes agent work inspectable. You ask for something in plain words; a router turns
-the request into a plan with named steps; agents that cannot approve their own work build
-and judge it; and nothing closes until a gate that is code has seen the proof. Everything
-the workflow knows lives in files in your repository, so a crashed session, or you, can
-always see where things stand.
+You type one command and say what you want in plain words. mstack turns it into a plan with
+named steps, hands the building to an agent that cannot approve its own work, and refuses to
+call anything done until a check that is code has seen the proof. Everything it knows lives in
+files in your repository, so a crashed session, or you, can always see where things stand.
 
-In practice that means three things: work items live in a durable store on disk, every claim
-about the work carries a typed verdict keyed to a commit SHA, and the rules that must hold
-are enforced by hooks and gates that are code rather than prose. The rest of this README is
-those three things, shown running.
+## One command
 
-## The map
+That is the whole interface:
 
-Each concept, in one plain sentence, and the page that owns it:
+```
+/mstack the login form accepts an empty password
+/mstack add a --json flag to the export command
+/mstack why does the cache invalidate twice on startup
+/mstack pick up whatever I left running yesterday
+```
 
-| Concept | In one sentence | The page |
-|---|---|---|
-| Work items and the lifecycle | One unit of work, with acceptance criteria and a status machine the gate enforces | [How-A-Work-Item-Flows](docs/wiki/How-A-Work-Item-Flows.md) |
-| The five agents | The roles that coordinate, specify, build and judge, so nobody approves their own work | [The-Agents](docs/wiki/The-Agents.md) |
-| The twelve skills | The `/mstack:<name>` commands, with the router as the front door | [Skills-and-Playbooks](docs/wiki/Skills-and-Playbooks.md) |
-| The seven playbooks | The step lists the router copies into the todo list before any reasoning | [Skills-and-Playbooks](docs/wiki/Skills-and-Playbooks.md) |
-| Gates and hooks | The checks that run by themselves and refuse things | [Gates-and-Hooks](docs/wiki/Gates-and-Hooks.md) |
-| The ledger and the evidence ladder | Typed verdicts keyed to a commit, and the five rungs a claim can reach | [State-Files](docs/wiki/State-Files.md) |
-| The CLI | Every `mstack` command, shown with its real output | [The-CLI](docs/wiki/The-CLI.md) |
-| The status line | One line per turn, carrying the verdict-went-stale signal | [Status-Line](docs/wiki/Status-Line.md) |
-| First run | Install to first closed item, every command with its output | [Getting-Started](docs/wiki/Getting-Started.md) |
+Whatever follows `/mstack` is the request. You do not pick a mode, a phase, or an agent. The
+router reads what you wrote, matches it to a playbook, and copies that playbook's steps into
+the todo list **before** it reasons about your task, so you see the plan it intends to follow
+while arguing with it is still cheap.
 
-One request, end to end:
+Eleven other `/mstack:<name>` commands exist. They are the machinery the router chains, and you
+can call one directly once you know exactly what you want. You never have to.
+
+## Install
+
+Nothing to build: the TypeScript in `src/` is what runs.
+
+```
+/plugin marketplace add romerma/mstack
+/plugin install mstack@mstack
+```
+
+Or point Claude Code at a clone:
+
+```bash
+git clone https://github.com/romerma/mstack.git
+claude --plugin-dir "$PWD/mstack"
+```
+
+Then once per repository, to create the durable store:
+
+```
+/mstack:setup
+```
+
+After that, `/mstack <what you want done>` is the only command you need. The first run
+command by command, with real output, is
+[docs/wiki/Getting-Started.md](docs/wiki/Getting-Started.md).
+
+## What happens when you type it
 
 ```mermaid
 flowchart TD
@@ -54,20 +77,73 @@ One box is deliberately missing: the session gate, `mstack gate`, is not a step 
 The `Stop` hook runs the fast gate at the end of every turn, and every pass runs `mstack gate`
 before it acts, so it can go red at any point in the picture.
 
-## Where this comes from
+## The seven playbooks
 
-mstack is a port of the ideas in [`pstack`](https://github.com/cursor/plugins/tree/main/pstack)
-by [Lauren Tan](https://github.com/poteto), the only plugin in Cursor's `cursor/plugins`
-monorepo not authored by Cursor itself; the name follows her convention, `poteto` → `pstack`.
-pstack contributed the router, the playbooks, the evidence ladder, the TSV decision log and the
-typed verification ledger; it ships 44 skills, 23 playbooks and zero hooks, so nearly every rule
-it has lives in prose. mstack joins that with the enforcement machinery of a spec-driven harness
-that had been running in production: a lifecycle gate, hooks, roles whose tool lists are the
-permission, and state that survives a dead context window. The full story is in [docs/wiki/The-Story.md](docs/wiki/The-Story.md), and the
-research behind the port, with sources, is in
-[docs/research/pstack-port.md](docs/research/pstack-port.md).
+A playbook is a short numbered step list. The router picks one from your request and copies its
+steps into the todo list verbatim. A step it declines stays in the list as `skip: <reason>`,
+because the failure mode is reading a playbook and then writing a bespoke plan that quietly
+drops its named steps.
 
-## The one idea
+| When your request sounds like | Playbook | What it forces |
+|---|---|---|
+| "how does X work", "why is it like this" | **investigate** | Splits how-it-works from why-it-is. Fans out narrow readers instead of one broad one, and says where each claim's evidence stopped |
+| "X is broken, wrong, or slow" | **bug-fix** | Reproduce it first or stop, no repro no fix. Failing test before the fix, and the repro commit lands **before** the fix in history so the broken state stays checkoutable |
+| "build X" | **feature** | Understand the subsystem before adding a parallel one. Two structurally distinct designs before picking. A throughput checkpoint that says what can actually run in parallel |
+| "clean this up without changing behaviour" | **refactor** | Characterization tests committed *before* anything is touched. Migrate callers and delete the old path in the same change. Verify by re-running those tests unedited |
+| "run this whole program of work" | **orchestrate** | Many changes, several tracks, more than one session, isolated worktrees. It opens by telling you not to use it: in one measured head-to-head the ceremony turned a twelve-unit job into one landed unit while a plain agent landed all twelve |
+| "pick up where we left off" | **resume** | Read the checkpoint and the reports that already ran rather than redoing them. Where the record and the repository disagree, the repository wins |
+| "delete the dead branches" | **cleanup** | Lists candidates and removes nothing until you have read the list. Deletes with `git branch -d`, never `-D`, because the refusal is the safety mechanism |
+
+Three requests skip the playbooks, because one skill is the whole answer: proving a change
+works is `/mstack:verify`, judging work that already exists is `/mstack:review`, and getting it
+merged is `/mstack:ship`.
+
+## The five agents
+
+The router does not do the work. It delegates, so that the pass which judges a change is never
+the pass that wrote it. Each agent runs in its own context and its deliverable is a file on
+disk, not a reply, because a reply is not evidence.
+
+| Agent | What it does | What it cannot do |
+|---|---|---|
+| **implementer** | Implements exactly one item, writes the tests that prove it, records the requirement-to-test map | Cannot mark its own work approved or done |
+| **reviewer** | Judges one implementation against its requirements, its tests and the real diff. Runs the verification itself and returns `APPROVED` or `CHANGES_REQUESTED` | Ships **without `Write` and without `Edit`** |
+| **spec-author** | Writes proposal, design, tasks and requirements with stable R-ids on the spec path | Cannot review its own spec |
+| **spec-reviewer** | Grills a spec adversarially before a line of code exists | No `Write`, no `Edit`, and never reviews a spec it wrote |
+| **orchestrator** | Owns one item from intake to close, picks the next role, monitors every launched agent to a terminal result | No `Write`, no `Edit`: never writes application code |
+
+For the three roles without `Write` and `Edit`, the rule is not "please do not edit the code you
+are reviewing". The tool is not there. They do carry `Bash`, because a reviewer has to run the
+verification itself, so this is a speed bump with an audit trail rather than a sandbox: editing
+a file still takes a visible shell command a human reads in the transcript. That is the honest
+strength of the claim, and it is worth having.
+
+Who does what, in full, is [docs/wiki/The-Agents.md](docs/wiki/The-Agents.md).
+
+## The twelve skills
+
+You need the first one. The other eleven are what it chains.
+
+| | |
+|---|---|
+| `/mstack <request>` | **The front door.** Matches your request to a playbook and routes the work end to end |
+| `/mstack:setup` | Creates `.mstack/` and seeds the queue from what the repository already tells you |
+| `/mstack:understand` | How a subsystem works now, and why it ended up that way |
+| `/mstack:design` | Structurally distinct candidates, judged against criteria fixed in advance, with the rejected ones recorded |
+| `/mstack:spec` | Requirements with stable ids, then an adversarial review, before any code |
+| `/mstack:implement` | One item, with the tests that prove it |
+| `/mstack:verify` | Proves one claim on the surface where it is actually true or false, and records a typed verdict |
+| `/mstack:review` | Judges existing work using reviewers that did not write it |
+| `/mstack:ship` | Review threads, CI and the merge gate, to merged |
+| `/mstack:orchestrate` | A program of work across many changes and sessions |
+| `/mstack:reflect` | What should change in the workflow itself after a session |
+| `/mstack:unslop` | Cuts the tells that make writing read as machine-generated |
+
+A skill's command is named after its **directory**, so the router lives in `skills/mstack/` and
+answers plain `/mstack`. The route table and the playbooks are in
+[docs/wiki/Skills-and-Playbooks.md](docs/wiki/Skills-and-Playbooks.md).
+
+## Why the rules are code
 
 Claude Code's documentation states the constraint plainly:
 
@@ -81,34 +157,6 @@ a design pass is required and then supplies the escape hatch two lines later.
 
 mstack splits the two. Judgment lives in skills. Anything that must hold whether or not the
 model remembers it lives in a hook or in a gate that is code.
-
-## Quickstart
-
-There is nothing to install and no build step; the TypeScript in `src/` is what runs.
-
-1. Point Claude Code at a clone:
-
-   ```bash
-   git clone https://github.com/romerma/mstack.git
-   claude --plugin-dir "$PWD/mstack"
-   ```
-
-   Or skip the clone and install through the marketplace:
-
-   ```bash
-   /plugin marketplace add romerma/mstack
-   /plugin install mstack@mstack
-   ```
-
-2. In the repository you want to work on, create the durable store, then start work:
-
-   ```
-   /mstack:setup
-   /mstack <what you want done>
-   ```
-
-The step-by-step version, with the output of every command, is
-[docs/wiki/Getting-Started.md](docs/wiki/Getting-Started.md).
 
 ## Your first item, in five commands
 
@@ -156,13 +204,6 @@ gate goes green. The whole walkthrough, including the product-fork refusal, is
 [docs/wiki/How-A-Work-Item-Flows.md](docs/wiki/How-A-Work-Item-Flows.md).
 
 ## What you get
-
-### A router, not an orchestrator
-
-`/mstack` matches the request to a playbook and copies its steps into the todo list **verbatim**
-before reasoning about the task. A step you decline stays in the list with `skip: <reason>`.
-Skipping silently is not allowed, because the failure mode is reading a playbook and then
-writing a bespoke plan that quietly drops its named steps.
 
 ### A product fork is a gate, not a note
 
@@ -244,16 +285,6 @@ work is planned. It never changes what counts as evidence.
 | `SubagentStop` | Confirms the subagent left its report on disk. **A reply is not evidence, the file is** |
 | `Stop` | Runs the fast gate. Returns feedback rather than a block: the same loop protections apply, including the eight-continuation cap, but the transcript labels it feedback and no hook error is raised. The failures go into that feedback, and onto the hook's stderr |
 | `PreToolUse` | Denies force-push, hard reset, `branch -D`, `pr merge --admin`. PreToolUse hooks run before the permission prompt, and it follows from that ordering that the deny holds even under `bypassPermissions` |
-
-### Roles that cannot quietly approve themselves
-
-`orchestrator`, `spec-reviewer` and `reviewer` ship **without `Write` and without `Edit`**. The
-rule is not "please do not edit the code you are reviewing". The tool is not there.
-
-They do carry `Bash`, because a reviewer has to run the verification itself — so this is a speed
-bump with an audit trail, not an impossibility. Editing a file still takes a visible shell command
-that a human reads in the transcript, rather than an edit that looks like ordinary work. That is
-the honest strength of the claim, and it is worth having; it is not a sandbox.
 
 ### State that survives a dead context window
 
@@ -433,6 +464,10 @@ ledger. From a spec-driven harness of my own that had been running in production
 gate, hooks that enforce, tool-list-as-permission roles, the progress-file discipline,
 `decision_required` as a data field, and the fast/slow gate split. What is new here is joining
 them and making the gates executable on Claude Code's primitives.
+
+The full story of the port is in [docs/wiki/The-Story.md](docs/wiki/The-Story.md), and the
+research behind it, with sources, is in
+[docs/research/pstack-port.md](docs/research/pstack-port.md).
 
 ## License
 
