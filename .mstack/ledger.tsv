@@ -60,3 +60,4 @@ mstack-front-door	5ea911045c38b9ee7da097372ae2091434ad23fc	verifier-failed	.msta
 readme-leads-with-use	b4894a788a87347b032e996a083c7f3cd6ec96c5	verifier-failed	.mstack/progress/review_readme-leads-with-use_readme-leads-with-use.md	reviewer	2026-08-23T08:04:17.912Z
 readme-leads-with-use	a84950b15128de9dbc7ab717f4b7a4db0663e2c1	test-verified	.mstack/progress/review_readme-leads-with-use_readme-leads-with-use.md	reviewer	2026-08-23T09:29:23.538Z
 readme-leads-with-use	ccccd38dc6a3c9a17e01a189efdae6a5ff9812a5	test-verified	.mstack/progress/review_readme-leads-with-use_readme-leads-with-use.md	reviewer	2026-08-23T09:41:12.763Z
+readme-leads-with-use	012561f91c2e25d8d47382cecd5c3e7ef3827608	test-verified	merge SHA carries a tree identical outside .mstack/ to reviewer-approved ccccd38 (git diff --stat ccccd38 HEAD -- . ':!.mstack' empty); gate --full passed here with a clean tree; CI green on PR #2	session	2026-08-23T09:54:50.549Z

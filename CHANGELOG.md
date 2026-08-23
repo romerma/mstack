@@ -1,8 +1,28 @@
 # Changelog
 
-## Unreleased
+## 0.2.0
 
-The docs round, before publication.
+The docs round, and the front page rewritten around the one command.
+
+- **The README leads with how to use mstack, not with how it works.** It explained the
+  machinery for 84 lines before showing anyone a command, and it never named the seven
+  playbooks or the five agents at all, both of which existed only in the wiki. It now opens on
+  `/mstack <request>` with four real examples, then install, then what happens when you type
+  it. New sections cover every playbook, every agent with what it cannot do, and all twelve
+  skills with the front door marked. Three duplications this exposed are gone.
+- The router's naming is stated with its mechanism instead of asserted. A plugin skill is
+  registered under `/<plugin>:<directory>` and, when its declared `name` carries no colon, that
+  bare name is registered as an alias too. So `skills/router/` declaring `name: mstack` answers
+  `/mstack:router`, `/mstack:mstack` and plain `/mstack`. This is documented in neither Claude
+  Code's skill docs nor this project's research, and it was established by reading the loader
+  and running its own expressions against this repository's twelve skill directories.
+- **Withdrawn before release:** a change that renamed `skills/router/` to `skills/mstack/` on
+  the premise that `/mstack` was not a registered command. It was, via that alias. The rename
+  was also net negative, moving the canonical name to `mstack:mstack` and costing
+  `/mstack:router` for nothing, and it shipped a `lint-plugin` check that failed any
+  name/directory disagreement, which would have rejected any plugin legitimately declaring a
+  short alias. Reverted byte-clean. It reached `main` before the review that refuted it, which
+  is the failure worth naming: the merge happened while the branch was still under review.
 
 - A verification nobody ran is no longer treated as a check. `state.verify` and an item's
   `verification` were executed by nothing but a human typing `mstack gate --full`; in one real
