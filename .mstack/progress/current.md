@@ -7,7 +7,7 @@
 > empty template below.
 
 - **Item:** 29 readme-leads-with-use
-- **Status:** reviewing (written; needs a pass that did not write it)
+- **Status:** reviewing, APPROVED at a84950b; awaiting a fresh row at the final head
 - **Branch:** fix/mstack-front-door
 - **Base:** main
 - **Worktree:** none
@@ -199,3 +199,23 @@ refutation wins anyway because it reads the resolver itself, `JUS`, and shows an
 that the original evidence never accounted for, while `claude plugin details` printing `router`
 and a transcript `lastPrompt` of `/mstack:router` are consistent with both stories. Rung 4 is
 still open and still cheap: type `/mstack` in a session running this checkout.
+
+## PR #1 was merged early, and main carries the refuted work
+
+At 07:00Z PR #1 was merged by hand at `5ea9110`, three commits before this branch finished.
+`main` therefore carries every part of item 28: the `skills/mstack/` rename, the false
+`CHANGELOG` line, the wiki sentence asserting the inverse of the truth, and the lint check that
+would reject any plugin declaring a short alias. `git show origin/main:CHANGELOG.md | grep -c
+'answered nothing'` returns 1, and `git ls-tree -d origin/main skills/` lists `skills/mstack`.
+
+Recovery, not a rewrite of history: `origin/main` merged into this branch (its tree was
+identical to `5ea9110`, so the merge added nothing), and PR #2 carries the three commits main
+is missing. Nothing outside `.mstack/` moved between the approved `a84950b` and the current
+head, checked with `git diff --stat a84950b HEAD -- . ':!.mstack'` returning empty.
+
+**No release until PR #2 lands.** Tagging main as it stands would publish the refuted claim as
+the headline of the version.
+
+Item 33 filed from the reviewer's round-3 note: every mstack skill declares a colon-free name,
+so `/setup`, `/verify`, `/design` and the rest resolve with no `mstack:` prefix. That is a
+property of the shipped plugin, documented nowhere, and a cross-plugin collision surface.
