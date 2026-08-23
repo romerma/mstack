@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -96,7 +96,7 @@ test("a reference to an agent that does not exist is caught", () => {
 test("a broken relative link is caught", () => {
   const c = copy();
   try {
-    const file = join(c.root, "skills", "router", "SKILL.md");
+    const file = join(c.root, "skills", "mstack", "SKILL.md");
     writeFileSync(file, `${readFileSync(file, "utf8")}\n\n[gone](playbooks/deleted.md)\n`);
     expectFail(c.root, /broken link/, "broken link");
   } finally {
@@ -166,7 +166,7 @@ test("a broken link in a reference file is caught, not just in a SKILL.md", () =
     // Links were validated in skills and agents and nowhere else, which left
     // the playbooks and references unchecked. That is more than half the prose,
     // and it is the exact defect this plugin was written in response to.
-    const target = join(c.root, "skills", "router", "references", "evidence-ladder.md");
+    const target = join(c.root, "skills", "mstack", "references", "evidence-ladder.md");
     writeFileSync(target, `${readFileSync(target, "utf8")}\n\nSee [nothing](./no-such-file.md).\n`);
     expectFail(c.root, /evidence-ladder\.md: broken link to \.\/no-such-file\.md/, "reference link");
   } finally {
@@ -177,7 +177,7 @@ test("a broken link in a reference file is caught, not just in a SKILL.md", () =
 test("a broken link in a playbook is caught too", () => {
   const c = copy();
   try {
-    const target = join(c.root, "skills", "router", "playbooks", "feature.md");
+    const target = join(c.root, "skills", "mstack", "playbooks", "feature.md");
     writeFileSync(target, `${readFileSync(target, "utf8")}\n\n[gone](../references/gone.md)\n`);
     expectFail(c.root, /feature\.md: broken link to \.\.\/references\/gone\.md/, "playbook link");
   } finally {
@@ -192,9 +192,47 @@ test("a shipped command with no path is caught, because it hangs the agent that 
     // blocks forever when stdin is not a terminal, which is how every subagent
     // runs a command. One shipped in the playbook whose job is to *start* an
     // investigation, and only a reviewer running it found out.
-    const target = join(c.root, "skills", "router", "playbooks", "investigate.md");
+    const target = join(c.root, "skills", "mstack", "playbooks", "investigate.md");
     writeFileSync(target, `${readFileSync(target, "utf8")}\n\`\`\`bash\nrg -l -i 'adr' --glob '*.md'\n\`\`\`\n`);
     expectFail(c.root, /has no path, so it reads stdin and hangs/, "stdin form");
+  } finally {
+    c.dispose();
+  }
+});
+
+test("a skill whose front-matter name disagrees with its directory is caught", () => {
+  // Claude Code resolves a plugin skill's command from the *directory*, so
+  // `name:` disagreeing with it names a command nobody can type. The docs then
+  // describe the frontmatter name and are wrong with nothing to catch them.
+  const c = copy();
+  try {
+    const target = join(c.root, "skills", "verify", "SKILL.md");
+    writeFileSync(target, readFileSync(target, "utf8").replace(/^name: verify$/m, "name: prove"));
+    expectFail(c.root, /name 'prove' but its directory is 'verify'/, "name/dir disagreement");
+  } finally {
+    c.dispose();
+  }
+});
+
+test("the front door the docs name is a command the plugin actually ships", () => {
+  // README, CLAUDE.md and the wiki all tell a newcomer to type `/mstack`. That
+  // is only true while a skills/mstack/ directory exists to answer it, because
+  // the directory is what the command is named after.
+  const c = copy();
+  try {
+    const front = join(c.root, "skills", "mstack", "SKILL.md");
+    assert.ok(existsSync(front), "skills/mstack/SKILL.md is what makes /mstack typable");
+    assert.match(readFileSync(front, "utf8"), /^name: mstack$/m);
+  } finally {
+    c.dispose();
+  }
+});
+
+test("removing the front door skill is caught", () => {
+  const c = copy();
+  try {
+    rmSync(join(c.root, "skills", "mstack"), { recursive: true, force: true });
+    expectFail(c.root, /docs name \/mstack .* no skills\/mstack\//, "missing front door");
   } finally {
     c.dispose();
   }
@@ -203,7 +241,7 @@ test("a shipped command with no path is caught, because it hangs the agent that 
 test("the same command with a path is left alone", () => {
   const c = copy();
   try {
-    const target = join(c.root, "skills", "router", "playbooks", "investigate.md");
+    const target = join(c.root, "skills", "mstack", "playbooks", "investigate.md");
     writeFileSync(
       target,
       `${readFileSync(target, "utf8")}\n\`\`\`bash\nrg -l -i 'adr' --glob '*.md' .\nrg -n 'TODO' <file>\nrg -c 'x' src/\n\`\`\`\n`,
