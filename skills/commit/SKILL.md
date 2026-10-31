@@ -42,16 +42,18 @@ A scope is optional. Use one when the repository has real sections a reader woul
 
 ## Write the description
 
-The spec says only that a description follows the colon and space. These are this repository's
-rules on top of it, and calling them "the standard" would be wrong:
+The spec says only that a description follows the colon and space, and that it is a short
+summary of the change. Write it so a stranger can read it from the log:
 
-1. **Imperative mood.** "add the receipt", not "adds", "added" or "the receipt". Read it as
+1. **Imperative mood** reads best: "add the receipt", not "adds" or "added". Read it as
    *this commit will* `<description>`.
-2. **Lower case** after the colon, and **no full stop** at the end.
-3. **72 characters or fewer** for the whole subject line, type included.
-4. **Name the change, not the file.** "fix the gate" says nothing that `--stat` does not.
-5. **One commit, one change.** If the description needs an "and" joining two unrelated things,
+2. **Name the change, not the file.** "fix the gate" says nothing that `--stat` does not.
+3. **One commit, one change.** If the description needs an "and" joining two unrelated things,
    it is two commits.
+
+Keep the subject short enough to read in `git log --oneline`. A repository's own rules, in its
+`CLAUDE.md` or `CONTRIBUTING.md`, extend or override this skill, including any length limit,
+casing or trailer policy; read them before you commit.
 
 ## Breaking changes
 
@@ -81,12 +83,11 @@ Tokens use `-` instead of spaces, so `Reviewed-by`, `Refs: #33`, `Closes #12`.
 1. `git diff --staged`. Commit what is staged, not what you remember doing.
 2. Say the subject out loud after "this commit will". If it does not parse, rewrite it.
 3. Check the type against what actually changed, not against what you set out to do.
-4. Never add AI attribution or a `Co-Authored-By` trailer for a model.
+4. Check the repository's `CLAUDE.md` or `CONTRIBUTING.md` for rules of its own.
 
 ## What the standard does not say
 
 Do not claim otherwise when explaining a rejection. Conventional Commits 1.0.0 does not require
 imperative mood, lower case, a subject length limit, or any particular type beyond `feat` and
-`fix`. It is also silent on merge commits, which is why `Merge pull request #2 from ...` is left
-alone here and why commitlint ignores them by default. Everything in that list is a house rule,
-enforceable and worth enforcing, but it is not the specification.
+`fix`. It is also silent on merge commits. A repository may enforce any of these as a house
+rule, but a house rule is not the specification.

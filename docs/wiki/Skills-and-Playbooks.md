@@ -102,6 +102,7 @@ its recorded next step), then matches the request against a route table:
 | Proving a change actually works | `/mstack:verify` |
 | Judging work that already exists | `/mstack:review` |
 | Getting a change merged | `/mstack:ship` |
+| Writing the commit message, or a PR title | `/mstack:commit` |
 | A program of work across many changes | the orchestrate playbook |
 | Picking up an interrupted session | the resume playbook |
 | Clearing out dead branches and worktrees | the cleanup playbook |

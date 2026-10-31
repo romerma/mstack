@@ -10,6 +10,11 @@ Start work with `/mstack`. Durable state is in `.mstack/`; `mstack gate` must be
 before a session closes. One item active at a time, a verdict from a pass that did not
 write the code to close it, and product forks answered through `mstack decide --resolves`.
 
+## Commits
+
+Conventional Commits, imperative and lower case. No AI attribution and no `Co-Authored-By`
+trailer. Details in [CONTRIBUTING.md](CONTRIBUTING.md#commits).
+
 ## Development
 
 The dev loop, the runtime rules (no build step, no runtime dependencies, both runtimes

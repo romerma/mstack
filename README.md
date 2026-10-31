@@ -24,9 +24,9 @@ the todo list **before** it reasons about your task, so you see the plan it inte
 while arguing with it is still cheap.
 
 Twelve other `/mstack:<name>` commands exist. You type one of them yourself: `/mstack:setup`,
-once per repository, below. Six are steps the router calls for you as a playbook needs them,
-so you never have to type `understand`, `design`, `verify`, `review`, `ship` or `commit`. The
-last five, `implement`, `spec`, `orchestrate`, `reflect` and `unslop`, are there for when you
+once per repository, below. Five are steps the router calls for you as a playbook needs them,
+so you never have to type `understand`, `design`, `verify`, `review` or `ship`. The last six,
+`implement`, `spec`, `orchestrate`, `reflect`, `unslop` and `commit`, are there for when you
 already know exactly what you want.
 
 ## Install
@@ -101,9 +101,9 @@ The orchestrate playbook opens by telling you not to use it. In one measured hea
 ceremony turned a twelve-unit job into one landed unit while a plain agent landed all twelve,
 so anything one agent could finish in a session goes to **feature** instead.
 
-Three requests skip the playbooks, because one skill is the whole answer: proving a change
-works is `/mstack:verify`, judging work that already exists is `/mstack:review`, and getting it
-merged is `/mstack:ship`.
+Four requests skip the playbooks, because one skill is the whole answer: proving a change
+works is `/mstack:verify`, judging work that already exists is `/mstack:review`, getting it
+merged is `/mstack:ship`, and writing the commit message or a PR title is `/mstack:commit`.
 
 ## The five agents
 

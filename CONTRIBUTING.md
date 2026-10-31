@@ -69,8 +69,9 @@ this repository drew a false conclusion from a reviewer subagent that was runnin
 ## Commits
 
 Conventional Commits 1.0.0, in the style `git log` shows. `/mstack:commit` carries the
-rules, including the four this repository adds on top of the standard: imperative mood,
-lower case, a subject of 72 characters or fewer, and one change per commit.
+standard. This repository adds rules of its own on top of it: imperative mood, lower case, a
+subject of 72 characters or fewer, one change per commit, no AI attribution and no
+`Co-Authored-By` trailer.
 
 ## Where things are decided
 
