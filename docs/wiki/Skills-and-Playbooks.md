@@ -33,7 +33,7 @@ front door everything else sits behind.
 | `/mstack:orchestrate` | Runs a program of work across many changes, tracks and sessions, with isolated [worktrees](The-CLI.md) (each its own checkout of the repository) | Multi-session programs only; single-session work takes the feature route |
 | `/mstack:reflect` | Reviews a finished session for what should change in the workflow itself | After closing an item, or after something went wrong |
 | `/mstack:unslop` | Cuts the tells that make writing read as machine-generated | Writing anything a human will read |
-| `/mstack:commit` | Holds a commit message to Conventional Commits 1.0.0: the type the change earns, an imperative description, breaking changes marked | Before a commit, an amend, a squash, or a PR title |
+| `/mstack:commit` | Holds a commit message to Conventional Commits 1.0.0: the type the change earns, the description, breaking changes marked | Before a commit, an amend, a squash, or a PR title |
 
 ## What each skill leaves on disk
 
@@ -84,8 +84,8 @@ Most skills also carry a prohibition, and they are worth knowing before you run 
   append-only.
 - `unslop` is itself a list of prohibitions; the rule above them all is to not generate the
   bad sentence in the first place.
-- `commit` never claims its house rules are the specification: imperative mood, lower case
-  and the 72-character subject are this repository's, not Conventional Commits'.
+- `commit` states Conventional Commits only and never presents a house rule as the
+  specification; it defers to a repository's own `CLAUDE.md` or `CONTRIBUTING.md` for those.
 
 ## The router
 

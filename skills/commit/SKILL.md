@@ -45,8 +45,8 @@ A scope is optional. Use one when the repository has real sections a reader woul
 The spec says only that a description follows the colon and space, and that it is a short
 summary of the change. Write it so a stranger can read it from the log:
 
-1. **Imperative mood** reads best: "add the receipt", not "adds" or "added". Read it as
-   *this commit will* `<description>`.
+1. **Imperative mood** is a common habit, not a rule: "add the receipt" rather than "adds" or
+   "added". Follow it where the repository does.
 2. **Name the change, not the file.** "fix the gate" says nothing that `--stat` does not.
 3. **One commit, one change.** If the description needs an "and" joining two unrelated things,
    it is two commits.
@@ -81,9 +81,8 @@ Tokens use `-` instead of spaces, so `Reviewed-by`, `Refs: #33`, `Closes #12`.
 ## Before you commit
 
 1. `git diff --staged`. Commit what is staged, not what you remember doing.
-2. Say the subject out loud after "this commit will". If it does not parse, rewrite it.
-3. Check the type against what actually changed, not against what you set out to do.
-4. Check the repository's `CLAUDE.md` or `CONTRIBUTING.md` for rules of its own.
+2. Check the type against what actually changed, not against what you set out to do.
+3. Check the repository's `CLAUDE.md` or `CONTRIBUTING.md` for rules of its own.
 
 ## What the standard does not say
 
