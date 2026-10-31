@@ -490,8 +490,10 @@
         "skills/commit/SKILL.md exists, declares name commit, and passes mstack lint-plugin",
         "the router's route table sends commit-message work to the skill",
         "every twelve-skills claim in README and the wiki reads thirteen, and the new row is in both tables",
-        "CHANGELOG records the skill under a new version heading",
-        "both runtimes stay green and mstack gate passes"
+        "CHANGELOG records the skill under ## Unreleased, which the 0.3.0 release renames",
+        "both runtimes stay green and mstack gate passes",
+        "the shipped skill states Conventional Commits rules only; this repository's house rules live in CONTRIBUTING.md and CLAUDE.md, not in the skill",
+        "every count and route table in README and the wiki matches the skills and playbooks on disk, and pasted lint output is from a real run at the commit that edits it"
       ],
       "status": "reviewing"
     },
