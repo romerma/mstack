@@ -306,10 +306,12 @@
     {
       "id": 20,
       "slug": "fanout-worker-can-forge-a-round-marker",
-      "title": "fanout plan will allocate a lens the shape that means 'solo, record'",
+      "title": "Round markers are classified in one place, and fanout cannot hand a lens a round-marker name",
       "acceptance": [
         "A worker name that would produce a round-marker path is refused or renamed at allocation time, not left to the reviewer to notice",
-        "Proven by running fanout plan with such a worker and showing what it does before and after"
+        "Proven by running fanout plan with such a worker and showing what it does before and after",
+        "src/roles.ts exports roundOf(file, kind, slug) returning {round, lens}: unmarked is round 1, _r<N> and _r<N>-<lens> give N, any other remainder is round 1 with that lens; a test table covers every real report name in .mstack/progress, including review_readme-leads-with-use_readme-leads-with-use.md",
+        "MIN_REPORT_BYTES has one definition: src/fanout.ts imports it from src/roles.ts instead of redefining it"
       ],
       "status": "pending",
       "description": "Item 15 reserved _r<digits> as a round marker in agents/reviewer.md, the file that parses report names, but not in skills/review/SKILL.md step 2, the file that hands them out. 'mstack fanout plan --kind review --worker r2' allocates review_<slug>_r2.md to a lens, which then reads its own path as solo and records a row a panel member must not record. Zero real occurrences today; found as a non-blocking note in the item 15 round-3 review, which judged one clause in step 2 sufficient.",
@@ -396,7 +398,7 @@
         "mstack ledger record warns or refuses when a closing-role row's evidence cites an implementing role's report for the same target, proven through the shipped CLI",
         "Legitimate implementer rows citing their own report are unaffected, proven against the recording patterns in this repo's ledger"
       ],
-      "status": "pending",
+      "status": "cancelled",
       "description": "Item 18 tightened the post-hoc audit only: checkClosedItems refuses the forged row at gate time, but 'mstack ledger record <target> <sha> live-verified --evidence .mstack/progress/impl_<target>.md --verifier reviewer' still records without a word. Raised as an open question in design_closing-row-cites-own-report_candidate-a.md and as hole 5 of the judge report; deferred out of item 18's scope. citesImplementingReport in src/roles.ts is the reusable predicate.",
       "source": "item 18 design record and judge report, 2026-08-22",
       "verification": "npm test && npm run typecheck && ./bin/mstack lint-plugin ."
@@ -409,7 +411,7 @@
         "On the forged-pass-after-genuine-fail shape the gate's output either says the most recent legitimate closing verdict is verifier-failed or also reports the forged row, and the wiki paste matches a real run",
         "The existing refusal behaviour is unchanged, proven by the test at the forged-supersession shape staying green"
       ],
-      "status": "pending",
+      "status": "cancelled",
       "description": "checkClosedItems refuses correctly when a forged passing row is appended after a genuine reviewer failure, but prints 'most recent closing verdict is verifier-failed' while the ledger's literal last closing-role row is a passing one, and forgedEvidence stays silent because a legitimate closing row exists. The refusal is right; the diagnosis is partial. Found as correctness round-1 finding 5, re-confirmed in round 2 as strictly truer but still silent about the forged row.",
       "source": "item 18 correctness review, finding 5, 2026-08-22",
       "verification": "npm test && npm run typecheck && ./bin/mstack lint-plugin ."
@@ -501,6 +503,126 @@
         "a git commit -m whose subject breaks the type grammar is refused by hooks/, not merely discouraged by the skill",
         "merge commits and git commit without -m are not caught by the guard",
         "the guard has tests on both runtimes"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": 36,
+      "slug": "shared-runner-and-closing",
+      "title": "One command runner, one closing-problems aggregator, one path classifier",
+      "acceptance": [
+        "src/run.ts exports runCommand(cmd, {cwd, timeoutMs, output}) returning {code, signal, timedOut, tail}; output goes through a temp-file fd so grandchildren cannot block it, and a timeout test proves it returns",
+        "runVerification in src/gate.ts runs on runCommand with output inherited, and every existing gate --full test passes unedited",
+        "headSha and defaultBranch live in src/git.ts and src/worktree.ts no longer imports src/gate.ts",
+        "closingProblems(store, state, item) lives in a module that does not import gate.ts; the gate calls it for the active item and state set --status done refuses on any problem it returns, overridable only by --force --closed-by; the verification receipt check is its first member",
+        "src/pathclass.ts classifies a repo-relative path as test, doc or code with a hand-written ** and * matcher (no path.matchesGlob), covered by a table test"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": 37,
+      "slug": "cost-ledger",
+      "title": "Tokens per item, per role and per model, recorded without slowing a hook",
+      "acceptance": [
+        "Before building: a rung-4 note in the impl report answers whether cost-state is written before or after SessionEnd, whether it includes subagents, what --resume does to the transcript, and where /compact usage appears",
+        ".mstack/costs.tsv (committed) holds ts run target role agent_id model input cache_write cache_read output messages cost_usd source, one row per model, with (none) as the no-item sentinel",
+        "SessionStart and Stop write marks under git rev-parse --git-path mstack/, Stop only when the active item changed; a flush at SessionEnd, at SessionStart for leftover runs and inside mstack cost dedupes usage by message.id, skips isSidechain, scans the session's subagents and appends only the delta per key, so flushing twice changes nothing",
+        "When a cost-state line exists, a role=unattributed source=cost-state row per model reconciles the transcript sum to it",
+        "SubagentStop requires a report modified after the agent transcript's first timestamp, so a later-round subagent that writes nothing is caught",
+        "mstack cost [slug] [--by role|item|model] [--json] prints tokens, review rounds via roundOf and verifier-failed rows; rules.record_costs false turns recording off; .mstack/.gitattributes sets merge=union on costs.tsv, ledger.tsv and decisions.tsv",
+        "Hook paths stay within budget on a 50 MB synthetic transcript and a throwing parser never changes another hook's output"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": 38,
+      "slug": "benchmark-harness",
+      "title": "A sandbox benchmark that compares plain Claude Code, mstack before and mstack after on hidden tests",
+      "acceptance": [
+        "A rung-4 spike note shows /mstack invoked from claude -p, the fields of the -p JSON result, that the plain arm does not load the installed mstack plugin, and how the PreToolUse guard behaves under bypassPermissions",
+        "sandbox/bench (gitignored, never pushed) holds a Python stdlib project whose visible tests pass, and six tasks, each an issue prompt plus hidden tests where every hidden test traces to a sentence of the issue",
+        "sandbox/bench/run.mjs runs arm x task x repetition in a fresh copy and appends hidden-test pass ratio, visible regressions, tokens, cost, turns and wall time to sandbox/bench/results/*.tsv; arms are plain, mstack-before (git archive of main when this item starts) and mstack-after (the checkout)",
+        "The baseline (plain and mstack-before on all six tasks, repetitions chosen from the spike's measured cost and recorded with mstack decide) is summarised in the impl report, with a stop-or-continue checkpoint recorded with mstack decide"
+      ],
+      "status": "pending",
+      "decision_required": "Which repositories and which bug-fix commits make the pilot's three tasks? The answer decides the languages, the test commands and the budget cap per run.",
+      "decision_resolved": "2026-10-31T14:50:48.944Z"
+    },
+    {
+      "id": 39,
+      "slug": "role-models",
+      "title": "Sonnet implements, Opus reviews",
+      "acceptance": [
+        "agents/implementer.md and agents/spec-author.md declare model: sonnet; agents/reviewer.md and agents/spec-reviewer.md declare model: opus; agents/orchestrator.md stays inherit",
+        "lint-plugin rejects a model value outside inherit, sonnet, opus, haiku, fable or a claude-* id, with a test",
+        "The router, review and design skills say what is now true about cross-model second opinions, and docs/wiki/The-Agents.md shows each agent's model",
+        "A live subagent transcript shows message.model sonnet for the implementer and opus for the reviewer, pasted in the impl report"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": 40,
+      "slug": "item-fields-base-size",
+      "title": "Items carry a size and the commit they started from",
+      "acceptance": [
+        "size s|m|l is accepted by state add and state set, clearable (absent means m), and an invalid value is refused rather than dropped",
+        "base is recorded automatically on the first move to in_progress only, editable with --base, and refused by --clear",
+        "The gate fails an item with base and size s whose code diff from base exceeds 60 lines or 3 files, and sdd with size s is refused"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": 41,
+      "slug": "r-to-test-check",
+      "title": "The gate reads the requirement-to-test table instead of trusting it",
+      "acceptance": [
+        "src/rtable.ts parses the last | R | Test | Where | table of the highest-round impl report, splitting cells on unescaped pipes outside backticks",
+        "For the active item with base, from reviewing and at the done transition, every acceptance index A<n> or spec R<n> has a row, and every Where cites existing test-classified files at in-range lines or says n/a: with a reason of at least 12 characters",
+        "Closed items and items without base are never checked, and the implementer prose defines the one table header"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": 42,
+      "slug": "mutation-check",
+      "title": "mstack verify --mutation proves the tests fail without the change",
+      "acceptance": [
+        "verify --mutation reverts the code part of base..HEAD in place (store, tests and docs excluded), confirms a green baseline first, runs the obligations and records mutation-killed, mutation-survived or mutation-blocked in verification.tsv keyed by code tree",
+        "A lock under the git dir holds the restore list; restore runs in finally and on SIGINT/SIGTERM, the tree is clean afterwards, verify --restore repairs a SIGKILLed run, PreToolUse denies git commit/add/stash while the lock exists, and the gate fails on a lock",
+        "From verifying, an item with base, size other than s and a code diff needs a killed receipt at the current code tree, enforced in the gate and at the done transition"
+      ],
+      "status": "pending",
+      "sdd": true
+    },
+    {
+      "id": 43,
+      "slug": "review-budget",
+      "title": "Review rounds, report sizes and spec sizes have a budget",
+      "acceptance": [
+        "decisions.tsv gains a trailing item column; fanout plan --kind review --solo allocates review_<slug>_r<N>.md, requires --justify from round 3 and writes the review-r<N> decision row, and prints the last reviewed sha that is still an ancestor of HEAD",
+        "The gate fails the active item with base when a round-3-or-later review report has no matching decision row, or when any of its reports exceeds 24 KB",
+        "Implementer rounds after the first write impl_<slug>_r<N>.md deltas carrying the full R-to-test table",
+        "specifying to spec_ready is refused when spec.md declares more requirements than its size allows (m 12, l 30) unless forced with a decision row"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": 44,
+      "slug": "size-tiers",
+      "title": "The ceremony scales with the item's size",
+      "acceptance": [
+        "The router, the feature and bug-fix playbooks and the design, review and implement skills carry one matrix: s skips design candidates and the panel, m adds mutation, l adds understand, design twice and a lens panel; delegation and an independent review hold at every size",
+        "The router assigns a size at intake, and the gate fails an l item at verifying with no review round of two or more lens reports"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": 45,
+      "slug": "benchmark-rerun-and-release",
+      "title": "Rerun the benchmark on the improved workflow and cut 0.3.0",
+      "acceptance": [
+        "The mstack arm reruns on the pilot tasks and the before-and-after table of hidden-test passes, regressions and tokens is in the README with real numbers",
+        "CHANGELOG, plugin.json and marketplace.json carry 0.3.0, history.md has the entry, and the tag is pushed"
       ],
       "status": "pending"
     }
