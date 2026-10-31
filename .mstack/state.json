@@ -495,7 +495,7 @@
         "the shipped skill states Conventional Commits rules only; this repository's house rules live in CONTRIBUTING.md and CLAUDE.md, not in the skill",
         "every count and route table in README and the wiki matches the skills and playbooks on disk, and pasted lint output is from a real run at the commit that edits it"
       ],
-      "status": "reviewing"
+      "status": "done"
     },
     {
       "id": 35,
@@ -627,6 +627,18 @@
         "CHANGELOG, plugin.json and marketplace.json carry 0.3.0, history.md has the entry, and the tag is pushed"
       ],
       "status": "pending"
+    },
+    {
+      "id": 46,
+      "slug": "npm-test-misses-strip-types",
+      "title": "npm test fails on node 22.6, the floor the README claims, because package.json omits --experimental-strip-types",
+      "acceptance": [
+        "npm test passes with node 22.6.0 first on PATH, shown with real output",
+        "the README's 22.6 floor claim names the command that proves it"
+      ],
+      "status": "pending",
+      "description": "With node 22.6.0 on PATH, npm test fails before any test runs: 0/16 files, ERR_UNKNOWN_FILE_EXTENSION. CI passes the flag itself at .github/workflows/ci.yml:56, so CI is green while the documented local command is red on the documented floor.",
+      "source": "item 34 round-3 review, non-blocking note 1, 2026-10-31"
     }
   ]
 }

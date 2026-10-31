@@ -574,3 +574,27 @@ Item 33 gained the sharpest form of its question, and the reviewer flagged it **
 rather than assuming it: an exact `name` match outranks any alias in `yb`, so if the user- and
 project-command loaders use unprefixed names, a user's own `/verify` displaces mstack's
 `/verify` alias outright. That has to be settled before the keep-or-drop decision, not after.
+
+## 2026-10-31 — item 34 commit-message-standard, closed; validation program filed
+
+Three review rounds, each by a reviewer that did not write the change, on Opus; rounds 2 and 3
+implemented on Sonnet, the first items built under the role split the user chose (Sonnet
+implements, Opus reviews; item 39 makes it the agents' default).
+
+- Round 1 (CHANGES_REQUESTED): bullet 4 unmet (`## Unreleased`, settled by decision row), README
+  counts disagreeing, a stale wiki route table and lint paste, a CHANGELOG overclaim, and the
+  finding that mattered: the shipped skill imposed this repository's trailer policy on every
+  user. The user chose to generalize; the house rules now live in CONTRIBUTING.md and CLAUDE.md.
+- Round 2 (CHANGES_REQUESTED): imperative mood was still a mandatory step in the shipped skill.
+- Round 3, authorized by a `review-r3` decision row scoped to two line edits: APPROVED.
+  `gate --full` green with node 24.14 on PATH.
+
+Cost, from the task notifications (subagent tokens, not yet from costs.tsv, which item 37
+builds): reviewer r1 71k, implementer r2 29k, reviewer r2 74k, implementer r3 21k, reviewer r3
+51k. The delta reports were 2.8 KB and similar, against 24-98 KB for earlier single-file
+reports. Reviewers cost 2.5x the implementer per round, mostly re-running both suites.
+
+Also this session: items 26 and 27 cancelled by decision row (forgery hardening, no verdict
+changes); items 36-45 filed from the approved plan; item 38 re-scoped by the user to a local
+sandbox benchmark comparing plain, mstack-before and mstack-after; item 46 filed (npm test
+fails on node 22.6 because package.json omits the strip-types flag CI adds).
