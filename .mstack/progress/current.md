@@ -6,39 +6,33 @@
 > On close: append the summary to `history.md` and reset this file to the
 > empty template below.
 
-- **Item:** 34 commit-message-standard
-- **Status:** reviewing
-- **Branch:** main
-- **Base:** main
+- **Item:** 48 benchmark-hard-tier (next, not started)
+- **Status:** pending
+- **Branch:** main (deliverables live in sandbox/bench, gitignored, never pushed)
+- **Base:** none yet
 - **Worktree:** none
 
 ## Plan
 
-Two halves, both landed:
+1. Hard-tier template in sandbox/bench (about 2k or more lines). Symptom-style issues, hidden
+   tests that cover both the reported behaviour and documented regressions, and at least one
+   trap.
+2. Calibrate with plain until it fails some tasks over 2 or more reps.
+3. Run the hard-tier baseline for plain and mstack-before, with the reps recorded by
+   mstack decide.
 
-1. Rewrite the 143 non-imperative commit subjects to Conventional Commits form,
-   and repoint every SHA the store cites at the rewritten commits.
-2. Ship `/mstack:commit` so future messages stay there, and point the router,
-   the README, the wiki and CONTRIBUTING at it.
-
-Pushed. `main`, `fix/mstack-front-door` and all three annotated tags were
-force-pushed with `--force-with-lease`, so no old commit is referenced on the
-remote any more. The plugin's own pre-tool-use guard refused a bare `--force`
-and made that the lease-checked push instead, which is the hook working.
-
-Open: a reviewer that did not write this has to judge item 34. Nothing else.
+Then items 20, 36, 37, 39-44. Before item 39, relaunch with `claude --plugin-dir .`.
+Item 45 reruns mstack-after on both tiers.
 
 ## Log
 
-History rewritten, verified and pushed; skill shipped and lint-clean; item at
-reviewing with an implementer row at `a83b23dd`. If this session dies now, the next one
-picks up at the review, and the pre-rewrite history is a mirror clone in the
-session scratchpad, not in this repository.
+- Item 38 closed 2026-11-01. Easy-tier baseline: plain 12/12 at $0.24 and 46 s per run;
+  mstack-before 12/12 at $1.49 and 403 s.
+  - Full write-up: `impl_benchmark-harness_baseline.md`.
+
+Headless runs: `env -i` clean env built by run.mjs, claude.ai login, never bypassPermissions.
+Program plan: ~/.claude/plans/perfecto-ahora-haz-el-dynamic-pie.md.
 
 ## Verification
 
-- `./bin/mstack lint-plugin .` PASSED, 0 failures, 0 warnings.
-- `npm test` 286 tests, 286 pass, 0 fail, bun and node.
-- `./bin/mstack gate` PASSED, 0 failures, 1 warning (on main).
-- All 201 trees, authors and both timestamps byte-identical to the pre-rewrite
-  mirror; 303 SHA citations translated, 0 ambiguous, 0 left behind.
+None yet for item 48.

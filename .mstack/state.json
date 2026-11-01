@@ -324,7 +324,8 @@
       "title": "One suite run failed 273/1 and was never identified",
       "acceptance": [
         "Either the failing test is identified and made deterministic, or the suite is run enough times under load to bound the rate and the finding is closed with that number",
-        "Whatever is found is recorded where the next person hitting a red suite will look"
+        "Whatever is found is recorded where the next person hitting a red suite will look",
+        "tests/gate.test.ts:1618 hung about 608 s twice in a full bun test tests/ run during item 38's round-3 review (291/1) and passes alone in 387 ms; the cause is identified or the hang reproduced"
       ],
       "status": "pending",
       "description": "During the item 17 round-3 review a single 'npm test' run reported 273 pass, 1 fail. Nineteen subsequent runs were clean: 12 plain, 3 npm test, 6 under saturating load. The failing test name was not captured, which the reviewer recorded as its own error rather than dropping. The obvious suspect was ruled out: the fifo manifest test's 10s guard has 26x headroom at a 0.38s mean. Rung 5 that it happened, rung 1 for the cause. Filed so that a one-in-twenty red suite is a tracked fact rather than a sentence in one report.",
@@ -544,9 +545,10 @@
         "A rung-4 spike note shows /mstack invoked from claude -p, the fields of the -p JSON result, that the plain arm does not load the installed mstack plugin, and how the PreToolUse guard behaves under bypassPermissions",
         "sandbox/bench (gitignored, never pushed) holds a Python stdlib project whose visible tests pass, and six tasks, each an issue prompt plus hidden tests where every hidden test traces to a sentence of the issue",
         "sandbox/bench/run.mjs runs arm x task x repetition in a fresh copy and appends hidden-test pass ratio, visible regressions, tokens, cost, turns and wall time to sandbox/bench/results/*.tsv; arms are plain, mstack-before (git archive of main when this item starts) and mstack-after (the checkout)",
-        "The baseline (plain and mstack-before on all six tasks, repetitions chosen from the spike's measured cost and recorded with mstack decide) is summarised in the impl report, with a stop-or-continue checkpoint recorded with mstack decide"
+        "The baseline (plain and mstack-before on all six tasks, repetitions chosen from the spike's measured cost and recorded with mstack decide) is summarised in the impl report, with a stop-or-continue checkpoint recorded with mstack decide",
+        "every arm runs with --permission-mode auto and no allowlist, so one classifier applies to all arms alike"
       ],
-      "status": "pending",
+      "status": "done",
       "decision_required": "Which repositories and which bug-fix commits make the pilot's three tasks? The answer decides the languages, the test commands and the budget cap per run.",
       "decision_resolved": "2026-10-31T14:50:48.944Z"
     },
@@ -634,11 +636,36 @@
       "title": "npm test fails on node 22.6, the floor the README claims, because package.json omits --experimental-strip-types",
       "acceptance": [
         "npm test passes with node 22.6.0 first on PATH, shown with real output",
-        "the README's 22.6 floor claim names the command that proves it"
+        "the README's 22.6 floor claim names the command that proves it",
+        "the bun half of npm test scopes to ./tests/ so a local gitignored sandbox/ cannot add or fail tests (today 'bun test tests/' also runs sandbox/clima-portable/tests)"
       ],
       "status": "pending",
       "description": "With node 22.6.0 on PATH, npm test fails before any test runs: 0/16 files, ERR_UNKNOWN_FILE_EXTENSION. CI passes the flag itself at .github/workflows/ci.yml:56, so CI is green while the documented local command is red on the documented floor.",
       "source": "item 34 round-3 review, non-blocking note 1, 2026-10-31"
+    },
+    {
+      "id": 47,
+      "slug": "ledger-check-hides-a-rejection",
+      "title": "ledger check reports PASS while the latest closing-role row at the same sha is verifier-failed",
+      "acceptance": [
+        "ledger check exits non-zero and names the rejection when a reviewer's verifier-failed row is the latest closing-role row at the checked sha, even if an implementer row at that sha ranks higher",
+        "a test reproduces the benchmark-harness case: implementer test-verified then reviewer verifier-failed at one sha"
+      ],
+      "status": "pending",
+      "description": "Reproduced at rung 4: rows 70 (implementer test-verified) and 71 (reviewer verifier-failed) at a4e6c784; './bin/mstack ledger check benchmark-harness' prints 'PASS test-verified at a4e6c784 by implementer', exit 0. check() keeps the best row by rank, so the implementer's self-assessment hides the independent rejection. Closing is unaffected (checkClosedItems filters closing roles); reviewers, briefs and the status line that call ledger check are misled.",
+      "source": "item 38 round-1 review, 2026-10-31"
+    },
+    {
+      "id": 48,
+      "slug": "benchmark-hard-tier",
+      "title": "A hard benchmark tier where plain Claude Code does not solve every task",
+      "acceptance": [
+        "3-4 tasks on a larger template (at least ~2k lines, more than one plausible place to fix), written as symptoms a user would report, with hidden tests for the reported behaviour plus regression tests on existing documented behaviour, and at least one trap where the obvious fix breaks something else",
+        "every hidden test traces to the issue or to behaviour the template's README or visible tests already document; reference patches pass them and the pristine template fails them",
+        "a calibration run shows plain does not solve every hard task (solved rate below 1 across at least two repetitions), otherwise the tier is made harder before any comparison",
+        "the hard-tier baseline (plain and mstack-before, repetitions recorded with mstack decide) is summarised with solved rate first, then cost"
+      ],
+      "status": "pending"
     }
   ]
 }

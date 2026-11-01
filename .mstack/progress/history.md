@@ -598,3 +598,45 @@ Also this session: items 26 and 27 cancelled by decision row (forgery hardening,
 changes); items 36-45 filed from the approved plan; item 38 re-scoped by the user to a local
 sandbox benchmark comparing plain, mstack-before and mstack-after; item 46 filed (npm test
 fails on node 22.6 because package.json omits the strip-types flag CI adds).
+
+## 2026-11-01 — item 38 benchmark-harness, closed; easy-tier baseline recorded
+
+The harness lives in `sandbox/bench/` (gitignored, local, never pushed). It has:
+- a Python stdlib bookings app;
+- six tasks, each with an issue, hidden tests and a reference patch;
+- `run.mjs` for three arms (plain, mstack-before, mstack-after);
+- `summary.mjs`, `verify.mjs` and `check.mjs`.
+
+The brief was built on Sonnet and reviewed on Opus over four rounds; rounds 3 and 4 were
+authorized by decision rows. What the reviewers caught, and why it took four rounds:
+- **Round 1:** 8 blockers. They were contamination, answers reachable from the run directory,
+  the parent env leaking into the child, and scoring that ranked a partial fix over a full one.
+- **Round 2:** two remaining paths to the answers. Finished runs sat as siblings, and `.mstack`
+  was inside the plugin archives.
+- **Round 3:** the permission flags were not tested. Reverting to the allowlist left
+  `check.mjs` green.
+- **Round 4:** APPROVED.
+
+Every arm runs `--permission-mode auto` in a rebuilt `env -i`, from a run directory under
+`/private/tmp/mstack-bench-home` that is deleted after the diff is saved.
+
+Easy-tier baseline: T1–T6 × 2 reps × plain and mstack-before, opus, 24 runs.
+
+| arm | solved | regressions | cost/run | tokens/run | wall/run |
+|---|---|---|---|---|---|
+| plain | 12/12 | 0 | $0.24 | 149k | 46 s |
+| mstack-before | 12/12 | 0 | $1.49 | 1.33M | 403 s |
+
+What the table says:
+- **No quality separation.** Both arms hit the ceiling.
+- **The overhead is measured:** 6.2× cost, 8.9× tokens and 8.8× time, with 2–4 subagents per run.
+- **Checkpoint decision:** continue. Quality is judged on the hard tier (item 48). Items 39,
+  43 and 44 must bring this overhead down and keep the 12/12.
+
+Three report lines quoted concrete hidden-test values. They were redacted in place, and the
+full text moved to `sandbox/bench/evidence/` (decision row).
+
+Found along the way:
+- **Item 47:** `ledger check` hides a reviewer's verifier-failed row behind the implementer's row
+  at the same sha.
+- **Item 21 note:** a full-suite hang at `tests/gate.test.ts:1618`.
