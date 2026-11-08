@@ -71,7 +71,6 @@ export const HEADER = [
 ] as const;
 
 const MARKS_FILE = "costs-marks.jsonl";
-const ENDED_KEEP_MS = 14 * 24 * 3600 * 1000;
 const MISSING_KEEP_MS = 24 * 3600 * 1000;
 const CHUNK = 1 << 20;
 
@@ -425,12 +424,15 @@ export function prune(file: string, beforeLock?: () => void): void {
         const when = Date.parse(ts);
         return Number.isNaN(when) ? 0 : Date.now() - when;
       };
-      // A missing transcript is not proof of a dead session: in a fresh one it
-      // is not on disk yet. Only a mark old enough that it would exist by now
-      // is dropped for that.
-      if (!existsSync(lastMark.transcript_path) && age(lastMark.ts) > MISSING_KEEP_MS) return false;
-      if (s.ended === undefined) return true;
-      return age(s.ended.ts) < ENDED_KEEP_MS;
+      // A session's flushed totals are the only thing that stops a later
+      // `--resume` writing the session again, so they are kept for as long as
+      // the transcript exists (Claude Code keeps one for weeks, and a resume
+      // can come on any of those days). Age alone never drops a session; the
+      // transcript being gone does, after a grace period, because in a fresh
+      // session it is not on disk yet and a session that just ended may still be
+      // looked at.
+      if (existsSync(lastMark.transcript_path)) return true;
+      return age(s.ended === undefined ? lastMark.ts : s.ended.ts) < MISSING_KEEP_MS;
     });
     if (keep.length === sessions.length) return;
     const lines = keep.flatMap((s) => [
@@ -727,14 +729,27 @@ export function flushSession(store: Store, s: SessionMarks, marks: string): numb
     }
   }
 
-  // Every mark of the session, not just those on this transcript: "one item" is
-  // a statement about the whole session.
-  const items = new Set(s.marks.map((m) => m.slug ?? NONE));
-  const multi = items.size > 1;
+  // Which real items carried usage in this session. Decided from the stretches
+  // that hold usage, not from the marks: a Stop after the last turn closes the
+  // item and leaves a trailing `(none)` mark whose range is empty, and a session
+  // can open with no item at all. Neither is a second item.
+  const carried = new Set(
+    rows.filter((r) => r.target !== NONE && COLUMNS.some((c) => r.usage[c] > 0)).map((r) => r.target),
+  );
+  const costTarget = carried.size === 1 ? ([...carried][0] as string) : carried.size === 0 ? NONE : MULTI;
 
+  mkdirSync(dirname(marks), { recursive: true });
   return withLock(
     store.costs,
-    () => {
+    () =>
+      // The marks lock is taken *before* any row is written, and the rows and the
+      // `flushed` record are written inside it with nothing that can wait between
+      // them. Taking it afterwards (through `appendLine`) left up to two seconds
+      // between the two writes, and a hook killed in that wait had written rows
+      // that nothing recorded: the next flush wrote them again. `withLock` is not
+      // re-entrant, so the lines are appended directly rather than through
+      // `appendLine`.
+      withLock(marks, () => {
       // Re-read under the lock: another process may have flushed this session
       // since `s` was read, and its record is the only thing that stops this
       // flush writing the same delta again.
@@ -780,10 +795,11 @@ export function flushSession(store: Store, s: SessionMarks, marks: string): numb
       // is the model's whole real cost for the session, so summing the column
       // gives what was actually spent.
       //
-      // The cost goes to an item only when the whole session worked on one item.
-      // A session that spanned items has one cost and no honest way to split it:
-      // token share is not cost share (cache reads and output price very
-      // differently), so it is reported on its own line under `(multi-item)`.
+      // The cost goes to the one real item that carried usage, to `(none)` when
+      // none did, and to `(multi-item)` when two or more did. A session that
+      // spanned items has one cost and no honest way to split it: token share is
+      // not cost share (cache reads and output price very differently). Tokens
+      // stay with the stretch they were spent in.
       const usageByModel = main.costState?.["modelUsage"];
       if (typeof usageByModel === "object" && usageByModel !== null) {
         for (const [model, raw] of Object.entries(usageByModel as Record<string, Record<string, unknown>>)) {
@@ -805,22 +821,26 @@ export function flushSession(store: Store, s: SessionMarks, marks: string): numb
           for (const c of COLUMNS) have[c] += delta[c];
           have.cost = round6(have.cost + (costDelta ?? 0));
           const base = { run: last.run, role: "unattributed", agent_id: NONE, model, messages: null, source: "cost-state" as const };
-          if (!multi) {
-            emit({ ...base, target: last.slug ?? NONE, usage: delta, cost: costDelta });
+          const tokenTarget = last.slug ?? NONE;
+          if (tokenTarget === costTarget) {
+            emit({ ...base, target: tokenTarget, usage: delta, cost: costDelta });
           } else {
-            if (tokens) emit({ ...base, target: last.slug ?? NONE, usage: { ...delta }, cost: null });
-            if (costDelta !== null && costDelta > 0) emit({ ...base, target: MULTI, usage: blank(), cost: costDelta });
+            if (tokens) emit({ ...base, target: tokenTarget, usage: { ...delta }, cost: null });
+            if (costDelta !== null && costDelta > 0) emit({ ...base, target: costTarget, usage: blank(), cost: costDelta });
           }
         }
       }
 
       for (const values of written) append(store.costs, HEADER, values);
       // Rows first, record second: a crash between them writes a delta twice,
-      // which is the smaller sin than losing one.
-      if (written.length > 0) appendLine(marks, { session: s.session, flushed, ts });
-      appendLine(marks, { session: s.session, ended: true, size, ts } satisfies Ended);
+      // which is the smaller sin than losing one (it makes mstack look dearer,
+      // never cheaper). The window is two adjacent writes under a held lock.
+      const lines: unknown[] = [];
+      if (written.length > 0) lines.push({ session: s.session, flushed, ts });
+      lines.push({ session: s.session, ended: true, size, ts } satisfies Ended);
+      appendFileSync(marks, lines.map((l) => `${JSON.stringify(l)}\n`).join(""), "utf8");
       return written.length;
-    },
+    }),
     { timeoutMs: 2_000 },
   );
 }

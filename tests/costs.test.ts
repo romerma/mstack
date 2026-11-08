@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { execFileSync, spawnSync } from "node:child_process";
+import { execFileSync, spawn, spawnSync } from "node:child_process";
 import {
   appendFileSync,
   closeSync,
@@ -936,10 +936,10 @@ test("prune re-reads the marks file under its lock, so a mark written after the 
     active(box);
     const file = marksFile(box);
     mkdirSync(dirname(file), { recursive: true });
-    // A settled session far past the retention window: this is what makes prune rewrite at all.
+    // A settled session whose transcript is gone and past the grace period: this is what makes prune rewrite at all.
     const longAgo = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString();
     const lines = [
-      { run: `${old.session}@0`, session: old.session, transcript_path: old.transcript, offset: 0, slug: null, ts: longAgo },
+      { run: `${old.session}@0`, session: old.session, transcript_path: join(old.dir, "gone.jsonl"), offset: 0, slug: null, ts: longAgo },
       { session: old.session, ended: true, size: 1, ts: longAgo },
     ];
     writeFileSync(file, lines.map((l) => `${JSON.stringify(l)}\n`).join(""));
@@ -969,11 +969,11 @@ test("the flushed totals survive a prune, so a pruned-then-resumed session is no
     appendFileSync(f.transcript, assistant("m1", SONNET, { input: 10, out: 1 }));
     sessionEnd(input);
     const before = rows(box).length;
-    // A long-settled session beside it, so that prune really rewrites the file.
+    // A session whose transcript is gone beside it, so that prune really rewrites the file.
     const longAgo = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString();
     appendFileSync(
       marksFile(box),
-      `${JSON.stringify({ run: "old@0", session: "old", transcript_path: f.transcript, offset: 0, slug: null, ts: longAgo })}\n${JSON.stringify({ session: "old", ended: true, size: 1, ts: longAgo })}\n`,
+      `${JSON.stringify({ run: "old@0", session: "old", transcript_path: join(f.dir, "gone.jsonl"), offset: 0, slug: null, ts: longAgo })}\n${JSON.stringify({ session: "old", ended: true, size: 1, ts: longAgo })}\n`,
     );
     costs.prune(marksFile(box));
     assert.deepEqual(costs.readSessions(marksFile(box)).map((x) => x.session), [f.session], "the rewrite happened");
@@ -1000,6 +1000,159 @@ test("GIT_DIR is honoured: the marks directory is whatever git says, with it set
     if (saved === undefined) delete process.env["GIT_DIR"];
     else process.env["GIT_DIR"] = saved;
     rmSync(elsewhere, { recursive: true, force: true });
+    box.dispose();
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Round 3
+// ---------------------------------------------------------------------------
+
+/** Make every record in the marks file look as if it was written `days` ago. */
+function ageMarks(box: Sandbox, days: number): void {
+  const file = marksFile(box);
+  const past = new Date(Date.now() - days * 24 * 3600 * 1000).toISOString();
+  const aged = readFileSync(file, "utf8")
+    .split("\n")
+    .filter((l) => l !== "")
+    .map((l) => ({ ...JSON.parse(l), ts: past }));
+  writeFileSync(file, aged.map((l) => `${JSON.stringify(l)}\n`).join(""));
+}
+
+test("a session resumed after its marks were more than 14 days old is not written twice", () => {
+  const box = sandbox();
+  const f = fake();
+  const other = fake("12121212-0000-0000-0000-000000000012", true);
+  try {
+    active(box);
+    const input = begin(box, f);
+    appendFileSync(f.transcript, assistant("m1", SONNET, { input: 100, out: 10 }));
+    const later = new Date(Date.now() + 5_000);
+    writeFileSync(join(f.subagents, "agent-sub1.jsonl"), assistant("s1", HAIKU, { input: 40, out: 4 }, { isSidechain: true }, later));
+    appendFileSync(f.transcript, costState({ [SONNET]: { i: 110, cw: 0, cr: 0, o: 11, usd: 1 }, [HAIKU]: { i: 40, cw: 0, cr: 0, o: 4, usd: 0.2 } }));
+    sessionEnd(input);
+
+    ageMarks(box, 20);
+    begin(box, other); // another session's start runs prune
+    assert.ok(
+      costs.readSessions(marksFile(box)).some((x) => x.session === f.session && Object.keys(x.flushed).length > 0),
+      "the transcript still exists, so its flushed totals are kept",
+    );
+
+    // --resume: same file, cumulative cost-state.
+    appendFileSync(f.transcript, assistant("m2", SONNET, { input: 50, out: 5 }));
+    appendFileSync(f.transcript, costState({ [SONNET]: { i: 160, cw: 0, cr: 0, o: 16, usd: 1.5 }, [HAIKU]: { i: 40, cw: 0, cr: 0, o: 4, usd: 0.2 } }));
+    sessionStart(input);
+    sessionEnd(input);
+
+    const got = rows(box);
+    assert.deepEqual([sum(got, "input"), sum(got, "output"), sum(got, "cost_usd")], [200, 20, 1.7]);
+    assert.equal(got.filter((r) => r["agent_id"] === "sub1").length, 1, "the subagent is not re-emitted");
+  } finally {
+    f.dispose();
+    other.dispose();
+    box.dispose();
+  }
+});
+
+test("a session is multi-item only when two real items carried usage; a trailing or leading (none) stretch is not an item", () => {
+  const box = sandbox();
+  const mk = (n: number) => fake(`aaaa000${n}-0000-0000-0000-00000000000${n}`);
+  const [one, two, three] = [mk(1), mk(2), mk(3)];
+  const twoItems = (a: string, b: string) => state([item({ slug: "alpha", id: 1, status: a }), item({ slug: "beta", id: 2, status: b })]);
+  try {
+    // 1. Works alpha, closes it in the last turn: the Stop after leaves a trailing (none) mark.
+    box.writeState(twoItems("in_progress", "pending"));
+    trackCurrent(box);
+    const a = begin(box, one);
+    appendFileSync(one.transcript, assistant("a1", SONNET, { input: 70, out: 7 }));
+    box.writeState(twoItems("done", "pending"));
+    stop(a);
+    appendFileSync(one.transcript, costState({ [SONNET]: { i: 70, cw: 0, cr: 0, o: 7, usd: 0.7 } }));
+    sessionEnd(a);
+
+    // 2. Starts with no item, then picks alpha.
+    box.writeState(twoItems("done", "pending"));
+    const b = begin(box, two);
+    appendFileSync(two.transcript, assistant("b1", SONNET, { input: 10, out: 1 }));
+    box.writeState(twoItems("in_progress", "pending"));
+    stop(b);
+    appendFileSync(two.transcript, assistant("b2", SONNET, { input: 90, out: 9 }));
+    appendFileSync(two.transcript, costState({ [SONNET]: { i: 100, cw: 0, cr: 0, o: 10, usd: 1 } }));
+    sessionEnd(b);
+
+    // 3. Real usage on alpha and on beta.
+    const c = begin(box, three);
+    appendFileSync(three.transcript, assistant("c1", SONNET, { input: 20, out: 2 }));
+    box.writeState(twoItems("done", "in_progress"));
+    stop(c);
+    appendFileSync(three.transcript, assistant("c2", SONNET, { input: 30, out: 3 }));
+    appendFileSync(three.transcript, costState({ [SONNET]: { i: 50, cw: 0, cr: 0, o: 5, usd: 2 } }));
+    sessionEnd(c);
+
+    const usd = (session: string) =>
+      rows(box)
+        .filter((r) => r["run"]?.startsWith(session) && r["cost_usd"] !== "(none)")
+        .map((r) => [r["target"], Number(r["cost_usd"])]);
+    assert.deepEqual(usd(one.session), [["alpha", 0.7]], "closing the item in the last turn keeps its cost on it");
+    assert.deepEqual(usd(two.session), [["alpha", 1]], "a (none) stretch before the item is not a second item");
+    assert.deepEqual(usd(three.session), [[costs.MULTI, 2]], "alpha and beta both carried usage");
+
+    // Tokens stay per stretch: session 2's first ten tokens are (none)'s.
+    const tokens = (session: string, target: string) =>
+      sum(rows(box).filter((r) => r["run"]?.startsWith(session) && r["target"] === target), "input");
+    assert.equal(tokens(two.session, "(none)"), 10);
+    assert.equal(tokens(two.session, "alpha"), 90);
+    assert.equal(costs.total(costs.summarize(box.store, "item")).cost_usd, 3.7, "the column still sums to real spend");
+  } finally {
+    one.dispose();
+    two.dispose();
+    three.dispose();
+    box.dispose();
+  }
+});
+
+test("a session with no real item carrying usage puts its cost on (none)", () => {
+  const box = sandbox();
+  const f = fake();
+  try {
+    box.writeState(state([]));
+    const input = begin(box, f);
+    appendFileSync(f.transcript, assistant("m1", SONNET, { input: 5, out: 1 }));
+    appendFileSync(f.transcript, costState({ [SONNET]: { i: 5, cw: 0, cr: 0, o: 1, usd: 0.3 } }));
+    sessionEnd(input);
+    const withCost = rows(box).filter((r) => r["cost_usd"] !== "(none)");
+    assert.deepEqual(withCost.map((r) => [r["target"], r["cost_usd"]]), [["(none)", "0.3"]]);
+  } finally {
+    f.dispose();
+    box.dispose();
+  }
+});
+
+test("a hook killed while it waits on a leftover lock leaves no rows that the next flush writes again", { timeout: 30_000 }, async () => {
+  const box = sandbox();
+  const f = fake();
+  try {
+    active(box);
+    const input = begin(box, f);
+    appendFileSync(f.transcript, assistant("m1", SONNET, { input: 100, out: 10 }));
+    appendFileSync(f.transcript, costState({ [SONNET]: { i: 100, cw: 0, cr: 0, o: 10, usd: 1 } }));
+    // A lock left by a process that died: nothing will ever release it.
+    writeFileSync(`${marksFile(box)}.lock`, "");
+
+    const child = spawn(BIN, ["hook", "session-end"], { cwd: box.store.root, stdio: ["pipe", "ignore", "ignore"] });
+    child.stdin.end(JSON.stringify({ ...input, hook_event_name: "SessionEnd", reason: "other" }));
+    await new Promise((r) => setTimeout(r, 1000)); // inside the 2 s wait for the lock
+    child.kill("SIGKILL");
+    await new Promise((r) => child.once("exit", r));
+
+    assert.equal(rows(box).length, 0, "nothing is written before the lock that protects the record is held");
+
+    const out = spawnSync(BIN, ["cost", "--json"], { cwd: box.store.root, encoding: "utf8" });
+    const total = JSON.parse(out.stdout).total;
+    assert.deepEqual([total.input, total.output, total.cost_usd], [100, 10, 1], "counted once, not twice");
+  } finally {
+    f.dispose();
     box.dispose();
   }
 });

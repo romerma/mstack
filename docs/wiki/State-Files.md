@@ -251,15 +251,24 @@ keep both. That is why the flushed totals are machine-local state and not a read
 test runs exactly that scenario and the merged table equals the session's real usage and cost.
 Run `mstack setup` once on an older store to get the file.
 
-**Per-item `cost_usd`.** A session's cost goes to an item only when every mark of that session
-names the same item; otherwise it is written on a `target=(multi-item)` row, never split by
-token share. Tokens stay per item. See [The-CLI](The-CLI.md#cost).
+**Per-item `cost_usd`.** A session's cost goes to the one real item that carried usage, to
+`(none)` when none did, and to a `target=(multi-item)` row when two or more did; never split by
+token share. The decision comes from the stretches that carry usage, not from the marks, so a
+trailing `(none)` mark left by closing the item, or a leading one before it was picked, does
+not make a session multi-item. Tokens stay per stretch. See [The-CLI](The-CLI.md#cost).
+
+The marks file keeps a session's flushed totals for as long as its transcript exists, however
+old; they are dropped only once the transcript is gone, plus a day. Dropping them earlier
+re-emitted the whole session on a `--resume` after two weeks.
 
 **Known limits.** A subagent panel: `SubagentStop` passes a lens that wrote nothing once a
 sibling's report is newer than its start (`mstack fanout check` is the guard that names the
 lens); a subagent resumed later keeps its first timestamp. The Stop hook's `stat` can land one
 message before the turn's last line, so an item boundary can wobble by one message. A crash
-between appending rows and recording the flushed totals writes that delta twice.
+between appending the rows and recording the flushed totals writes that delta twice. The
+marks lock is taken before the rows, and both writes happen inside it with nothing that can wait
+between them, so what is left is two adjacent writes; a hook killed while it waits for a lock
+writes nothing.
 
 ## Reading the store
 

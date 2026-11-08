@@ -360,18 +360,21 @@ What the columns are:
   Claude Code itself wrote into the transcript (`cost-state`, `costUSD` per model), and it is
   attached to the `unattributed` row, so the column's *sum* is what the session really cost
   while the per-role split is tokens only. `(none)` means no real figure exists for the group.
-  **Per item**, the cost of a session goes to an item only when every mark of that session
-  names the same item. A session that worked on `alpha` and then `beta` has one cost and no
-  honest way to split it (token share is not cost share: cache reads and output are priced
-  very differently), so `--by item` prints it as its own line, `multi-item sessions`, carrying
-  the whole session cost, while the tokens stay with the item each stretch belonged to.
+  **Per item**, the cost of a session goes to the one real item that carried usage in it, to
+  `(none)` when no item did, and to `multi-item sessions` when two or more did. It is decided
+  from the stretches that hold usage, not from the marks: a session that closes its item in the
+  last turn leaves a trailing `(none)` stretch with nothing in it, and a session can open with
+  no item, and neither is a second item. A session that really worked on `alpha` and then
+  `beta` has one cost and no honest way to split it (token share is not cost share: cache reads
+  and output are priced very differently), so `--by item` prints it as its own line carrying the
+  whole session cost, while the tokens stay with the item each stretch belonged to.
   `mstack cost alpha` therefore shows alpha's tokens and no `usd` for that session, and the
   column still sums to real spend.
-- **`unattributed`** is the part of the real total that no transcript line accounts for: in
-  practice calls a transcript never records (about 20% of the cache reads in one measured
-  session with a subagent) and whatever a `/compact` spent (its usage appears in `cost-state`
-  and in no transcript). A session whose usage predates its first mark, such as one resumed
-  from before mstack was installed, shows up here too.
+- **`unattributed`** is the part of the real total that no transcript line accounts for: calls
+  a transcript never records (an internal subagent call with no transcript file, seen in
+  interactive sessions) and whatever a `/compact` spent (its usage appears in `cost-state` and
+  in no transcript). A session whose usage predates its first mark, such as one resumed from
+  before mstack was installed, shows up here too.
 - **`rounds`** (and `review rounds:` for one item) is the highest review round on disk,
   read with `roundOf` from the report names: `review_<slug>.md` is round 1, `_r2` the next.
   **`failed`** counts `verifier-failed` rows in `ledger.tsv`. Both are what a cost number needs
