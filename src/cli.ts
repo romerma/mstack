@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
 
+import * as costs from "./costs.ts";
 import * as decisions from "./decisions.ts";
 import * as fanout from "./fanout.ts";
 import { EXIT, evaluate, fetchPr } from "./mergegate.ts";
@@ -47,7 +48,9 @@ const USAGE = `mstack - durable state and gates for the mstack Claude Code plugi
   worktree list
   worktree prune [--yes]
   merge-gate <pr> [--target <slug>] [--min <verdict>]
-  hook <session-start|post-edit|subagent-stop|stop|pre-tool-use>
+  cost [slug] [--by role|item|model] [--json]
+                                      tokens, review rounds and failed verdicts, from .mstack/costs.tsv
+  hook <session-start|post-edit|subagent-stop|stop|pre-tool-use|session-end>
   fanout plan --kind K --worker W...  allocate one report path per parallel worker
   fanout check --kind K --worker W... name the workers that did not report back
   statusline [--subagent]             render status rows from the JSON on stdin
@@ -90,6 +93,8 @@ async function main(argv: readonly string[]): Promise<number> {
       return cmdStatusline(rest);
     case "version":
       return cmdVersion(rest);
+    case "cost":
+      return cmdCost(rest);
     case "lint-plugin":
       return cmdLint(rest);
     default:
@@ -934,6 +939,74 @@ function cmdMergeGate(argv: readonly string[]): number {
   return EXIT[verdict.decision];
 }
 
+function cmdCost(argv: readonly string[]): number {
+  const { values, positionals } = parseArgs({
+    args: [...argv],
+    options: { by: { type: "string" }, json: { type: "boolean" } },
+    allowPositionals: true,
+    strict: true,
+  });
+  if (positionals.length > 1) throw new UserError("cost takes at most one item", "mstack cost [slug] [--by role|item|model]");
+  const slug = positionals[0];
+  const by = values.by ?? (slug === undefined ? "item" : "role");
+  if (by !== "role" && by !== "item" && by !== "model") {
+    throw new UserError(`--by takes role, item or model, not '${by}'`);
+  }
+  const store = requireStore();
+  const state = parseState(store.state);
+  if (slug !== undefined && slug !== costs.NONE && findItem(state, slug) === undefined) {
+    throw new UserError(`no item '${slug}'`, "run 'mstack state list' for the slugs");
+  }
+  const target = slug === undefined || slug === costs.NONE ? slug : (findItem(state, slug) as Item).slug;
+
+  // Settle first, so the numbers include the session that is running. A flush
+  // that fails leaves the table as it was; reading it is still worth doing.
+  if (state.rules.record_costs) {
+    try {
+      costs.flushAll(store);
+    } catch (error) {
+      console.error(`warning: could not flush the current transcripts (${(error as Error).message}); showing what is recorded`);
+    }
+  } else {
+    console.error("note: rules.record_costs is false, so nothing new is recorded; showing the rows already on disk");
+  }
+
+  const rows = costs.summarize(store, by, target);
+  const total = costs.total(rows);
+  const perItem = (key: string) =>
+    by === "item" && key !== costs.NONE
+      ? { review_rounds: costs.reviewRounds(store, key), verifier_failed: costs.verifierFailed(store, key) }
+      : {};
+  const single =
+    target !== undefined && target !== costs.NONE
+      ? { review_rounds: costs.reviewRounds(store, target), verifier_failed: costs.verifierFailed(store, target) }
+      : {};
+
+  if (values.json === true) {
+    console.log(
+      JSON.stringify(
+        {
+          by,
+          item: target ?? null,
+          recording: state.rules.record_costs,
+          rows: rows.map((r) => ({ ...r, ...perItem(r.key) })),
+          total,
+          ...single,
+        },
+        null,
+        2,
+      ),
+    );
+    return 0;
+  }
+  console.log(costs.render(by, rows, total, target === undefined && by === "item" ? perItem : undefined));
+  if (single.review_rounds !== undefined) {
+    console.log(`review rounds: ${single.review_rounds}`);
+    console.log(`verifier-failed rows: ${single.verifier_failed}`);
+  }
+  return 0;
+}
+
 async function cmdHook(argv: readonly string[]): Promise<number> {
   const [event] = argv;
   const input = hooks.readInput(await readStdin());
@@ -957,6 +1030,8 @@ function handleHook(event: string | undefined, input: ReturnType<typeof hooks.re
       return hooks.subagentStop(input);
     case "stop":
       return hooks.stop(input);
+    case "session-end":
+      return hooks.sessionEnd(input);
     case "pre-tool-use":
       return hooks.preToolUse(input);
     default:

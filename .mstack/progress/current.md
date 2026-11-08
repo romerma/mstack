@@ -6,10 +6,10 @@
 > On close: append the summary to `history.md` and reset this file to the
 > empty template below.
 
-- **Item:** none active (36 closed 2026-11-08; next 37 cost-ledger)
-- **Status:** -
-- **Branch:** main
-- **Base:** -
+- **Item:** 37 cost-ledger
+- **Status:** in_progress
+- **Branch:** feat/cost-ledger
+- **Base:** 0a45b4d
 - **Worktree:** none
 
 ## Plan
@@ -31,6 +31,7 @@ and takes 5–9× the wall time. mstack-after must keep 16/16 and cut that.
 
 - Item 20 closed 2026-11-08 (2 rounds; merged ff to main locally).
 - Item 36 closed 2026-11-08 (4 rounds; macOS only, Linux unproven until CI).
+- Item 37 implementer (Sonnet): rung-4 facts done (cost-state precedes SessionEnd; includes subagents; resume appends and is cumulative; compact only in cost-state). Built src/costs.ts, hooks, cli cost, setup, docs, tests/costs.test.ts. Next: full suites, lint, doc links, plugin validate, report, commit, ledger row.
 
 Headless runs: `run.mjs` builds a clean `env -i` env, uses the claude.ai login, and never
 passes bypassPermissions. Do not run `check.mjs` or `verify.mjs` while a batch is running

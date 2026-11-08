@@ -113,7 +113,7 @@ parent had:
 
 | Fix | The gap it closes |
 |---|---|
-| Real hooks, five of them | pstack has zero; every non-negotiable was prose |
+| Real hooks, six of them | pstack has zero; every non-negotiable was prose |
 | Merge gate as code, exit 0/1/2 | the harness had the policy as prose an agent had to choose to obey |
 | `mstack worktree new/list/prune` | the harness had none, and twelve stale worktrees to show for it |
 | Lifecycle enum in one source file, linted against duplication | the harness carried six copies |

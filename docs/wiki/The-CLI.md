@@ -51,13 +51,15 @@ $ mstack setup
 [ok]    progress/history.md written
 [ok]    ledger.tsv ready
 [ok]    decisions.tsv ready
+[ok]    costs.tsv ready
+[ok]    .mstack/.gitattributes ready (the append-only tables merge as a union)
 [ok]    .mstack/.gitignore ready (verification.tsv is machine-local)
 
 PASSED - 0 failures, 0 warnings
 ```
 
 Never overwrites an existing file unless you pass `--force`. The store's own `.gitignore` is
-the one exception, rewritten every run: an older store predates it, and a store that silently
+one of two exceptions, rewritten every run (the other is `.gitattributes`, below): an older store predates it, and a store that silently
 loses that rule starts committing verification receipts, which void themselves the moment they
 are committed.
 
@@ -323,6 +325,51 @@ The row is keyed by `(target, sha)`, so a new commit voids it:
 $ mstack ledger check greet-flag        # after one more commit
 FAIL no verdict at 542ac0cf; 2 row(s) exist at other SHAs and a new head SHA voids them
 ```
+
+## cost
+
+```console
+$ mstack cost
+item   input  cache_write  cache_read  output  messages     usd  rounds  failed
+demo      18       25,391     144,650   2,300         6  0.0068       0       0
+total     18       25,391     144,650   2,300         6  0.0068
+
+$ mstack cost demo
+role             input  cache_write  cache_read  output  messages     usd
+main                12        3,793     112,503   2,173         5  (none)
+unattributed         4        9,910      32,147     123         0  0.0068
+general-purpose      2       11,688           0       4         1  (none)
+total               18       25,391     144,650   2,300         6  0.0068
+review rounds: 0
+verifier-failed rows: 0
+```
+
+Both outputs are from a real `claude -p` session with one subagent, the `SessionEnd` hook wired
+to `mstack hook session-end`, and `cost` run afterwards. `mstack cost [slug] [--by role|item|model]
+[--json]`: with no slug the rows are items (default `--by item`), with a slug they are roles
+(default `--by role`). `--json` prints the same rows plus `total`, and for one item
+`review_rounds` and `verifier_failed`.
+
+What the columns are:
+
+- **tokens** come from `.mstack/costs.tsv`, which `cost` first brings up to date by flushing every
+  session whose transcript has grown since its last flush, the live one included. The shape of
+  the file and the recording rules are in [State-Files](State-Files.md#coststsv).
+- **`usd`** is not computed. There is no price table in this repository. The figure is the one
+  Claude Code itself wrote into the transcript (`cost-state`, `costUSD` per model), and it is
+  attached to the `unattributed` row, so the column's *sum* is what the session really cost
+  while the per-role split is tokens only. `(none)` means no real figure exists for the group.
+- **`unattributed`** is the part of the real total that no transcript line accounts for: here
+  about 20% of the cache reads, plus whatever a `/compact` spent (its usage appears in
+  `cost-state` and in no transcript).
+- **`rounds`** (and `review rounds:` for one item) is the highest review round on disk,
+  read with `roundOf` from the report names: `review_<slug>.md` is round 1, `_r2` the next.
+  **`failed`** counts `verifier-failed` rows in `ledger.tsv`. Both are what a cost number needs
+  beside it: tokens spent per round that did not close the item.
+
+`rules.record_costs: false` in `state.json` turns recording off: no marks, no flushes, and
+`cost` says so on stderr and shows only the rows already on disk. Any value that is not a
+boolean is an error, not a silent default.
 
 ## decide
 

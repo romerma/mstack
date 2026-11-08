@@ -42,6 +42,8 @@ export interface State {
     one_active_item: boolean;
     require_verdict_to_close: boolean;
     require_spec_for_sdd_items: boolean;
+    /** `false` turns token recording off (marks, flushes and `mstack cost`'s flush). Absent means on. */
+    record_costs: boolean;
   };
   items: Item[];
 }
@@ -127,9 +129,27 @@ export function parseState(file: string): State {
       one_active_item: rules["one_active_item"] !== false,
       require_verdict_to_close: rules["require_verdict_to_close"] !== false,
       require_spec_for_sdd_items: rules["require_spec_for_sdd_items"] !== false,
+      record_costs: parseRecordCosts(rules["record_costs"], file),
     },
     items,
   };
+}
+
+/**
+ * `rules.record_costs` is the one rule that is read by a hook that must never
+ * throw, so it is also the one where a typo is most tempting to swallow. A
+ * string `"false"` read as "on" would leave recording running for someone who
+ * asked it off, so anything that is not a boolean is an error, not a default.
+ */
+function parseRecordCosts(value: unknown, file: string): boolean {
+  if (value === undefined) return true;
+  if (typeof value !== "boolean") {
+    throw new UserError(
+      `${file} .rules.record_costs must be true or false, got ${describe(value)}`,
+      "false turns token recording off; leave it out to keep it on",
+    );
+  }
+  return value;
 }
 
 function parseItem(value: unknown, index: number, file: string): Item {

@@ -6,7 +6,7 @@ or when you want to know what is actually enforced rather than merely written do
 short version: hooks watch the session, `mstack gate` audits the store, and the merge gate
 decides whether a change may land.
 
-The enforcement plane has three parts: five hooks that run on Claude Code's events
+The enforcement plane has three parts: six hooks that run on Claude Code's events
 (`hooks/hooks.json`, handlers in `src/hooks.ts`), the session gate (`mstack gate`,
 `src/gate.ts`), and the merge gate (`mstack merge-gate`, `src/mergegate.ts`). Skills ask;
 these enforce.
@@ -16,14 +16,15 @@ Two facts about Claude Code hooks shape every handler, both from the hooks refer
 blocks through the code alone, so a hook that means to enforce cannot rely on exit 1; and a
 timed-out hook renders no decision at all, so a gate must never depend on being slow.
 
-## The five hooks
+## The six hooks
 
 | Event | When Claude Code fires it | What mstack's handler does |
 |---|---|---|
 | `SessionStart` | A session starts, including on `--resume` | Prints the active item, its open `decision_required` if any, and the last checkpoint from `progress/current.md` back into context. Resume is the case that matters: a session that resumes without its checkpoint restarts work that was already done |
 | `PostToolUse` | After a matched tool call succeeds (a failed call fires `PostToolUseFailure` instead); mstack matches `Edit\|Write` | The cheapest useful check and nothing more. Re-validates `state.json` after an edit to it, and reminds that `history.md` is append-only after an edit to that. Exits 0 unconditionally: it nudges, it never blocks, because a hook that runs the test suite on every edit is a hook someone switches off |
-| `SubagentStop` | A subagent finishes | Checks that the subagent left its report file on disk, and that the file says something: under 40 bytes is a stub, judged per file so one substantial lens does not excuse an empty sibling. Exists because a review subagent once returned a confident summary having written nothing. A reply is not evidence, the file is |
+| `SubagentStop` | A subagent finishes | Checks that the subagent left its report file on disk, and that the file says something: under 40 bytes is a stub, judged per file so one substantial lens does not excuse an empty sibling. Exists because a review subagent once returned a confident summary having written nothing. A reply is not evidence, the file is. The report must also be **newer than the subagent**: at least one `<kind>_<slug>*.md` must have been modified after the first timestamp of the agent's own transcript (`agent_transcript_path`, derived from `transcript_path` and `agent_id` when it is `""`). Before this, any earlier report for the slug passed, so a round-two reviewer that wrote nothing was excused by round one's file. With no transcript to read there is no start time and the answer stays what it was: fail open. Writes no cost rows |
 | `Stop` | The main agent is about to end its turn | Runs the fast gate, quiet — never `--full`, and [never a test suite](#verification-that-actually-ran). On failures it returns feedback (`additionalContext`) rather than a block: the same loop protections apply, including the eight-continuation cap, but the transcript labels it feedback and no hook error is raised. That `additionalContext` is how the failures reach the model, and it always was. The failures are *also* written to the hook process's stderr, which Claude Code captures as its own field — what it does with that field is the client's business, not this plugin's; the measurements are [below](#what-the-stop-hook-prints-on-a-red-gate) |
+| `SessionEnd` | A session ends (`reason` says why) | Flushes the session's token usage into `.mstack/costs.tsv`; see [costs.tsv](State-Files.md#coststsv). Prints nothing, fails open, 5-second timeout. Also: `SessionStart` writes a mark and settles sessions that never reached `SessionEnd`, and `Stop` writes a mark only when the active item changed |
 | `PreToolUse` | Before a matched tool call; mstack matches `Bash` | Denies the handful of commands that are hard or impossible to walk back. This is the only hook that blocks |
 
 ### What the Stop hook prints on a red gate

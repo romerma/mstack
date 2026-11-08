@@ -1,6 +1,7 @@
-import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { readFileSync, statSync } from "node:fs";
+import { basename, dirname, join } from "node:path";
 
+import * as costs from "./costs.ts";
 import { runGate } from "./gate.ts";
 import { isActive } from "./lifecycle.ts";
 import { findStore, type Store } from "./paths.ts";
@@ -25,14 +26,20 @@ import { activeItem, parseState, type Item } from "./state.ts";
 
 const OUTPUT_CAP = 9_000;
 
-export type HookEvent = "SessionStart" | "PostToolUse" | "SubagentStop" | "Stop" | "PreToolUse";
+export type HookEvent = "SessionStart" | "PostToolUse" | "SubagentStop" | "Stop" | "PreToolUse" | "SessionEnd";
 
 interface HookInput {
   hook_event_name?: string;
   session_id?: string;
   cwd?: string;
   stop_hook_active?: boolean;
+  transcript_path?: string;
+  agent_id?: string;
   agent_type?: string;
+  /** Empty for a subagent whose transcript the harness never wrote, e.g. a compaction. */
+  agent_transcript_path?: string;
+  /** SessionEnd only: why the session ended. */
+  reason?: string;
   tool_name?: string;
   tool_input?: Record<string, unknown>;
 }
@@ -65,6 +72,14 @@ function clamp(text: string): string {
 export function sessionStart(input: HookInput): string | null {
   const store = findStore(input.cwd ?? process.cwd());
   if (store === null) return null;
+  const text = sessionStartContext(store);
+  // After the output exists, and fenced: cost recording is not allowed to change
+  // what the model is told, however it fails.
+  safely(() => costs.onSessionStart(store, input));
+  return text;
+}
+
+function sessionStartContext(store: Store): string {
 
   const lines: string[] = ["mstack state for this repository:"];
   const item = activeItem(store);
@@ -82,6 +97,21 @@ export function sessionStart(input: HookInput): string | null {
     lines.push("", "Last recorded checkpoint (.mstack/progress/current.md):", "", current.trim());
   }
   return context("SessionStart", lines.join("\n"));
+}
+
+/**
+ * Run cost work whose failure must be invisible.
+ *
+ * A transcript parser, a full disk, a corrupt marks file: none of those is
+ * worth a visible hook error or a different answer from the hook that called
+ * this. The cost is a missing row, which the next flush recomputes.
+ */
+function safely(fn: () => void): void {
+  try {
+    fn();
+  } catch {
+    // by design
+  }
 }
 
 /**
@@ -153,7 +183,48 @@ export function subagentStop(input: HookInput): string | null {
       `${empty.join(", ")} exists but is essentially empty. Treat that as no report.`,
     );
   }
+
+  // Existing is not the same as written by this subagent. A round-2 reviewer
+  // that returns without writing left round 1's report in place, and the
+  // existence check above passed on it. The agent's own transcript says when it
+  // started, so at least one report has to be newer than that. When the
+  // transcript cannot be found or read there is no start time to compare, and
+  // the answer stays what it was: fail open, never accuse on a guess.
+  const startedAt = agentStartedAt(input);
+  if (startedAt !== null) {
+    const fresh = found.some((file) => {
+      try {
+        return statSync(file).mtimeMs > startedAt;
+      } catch {
+        return false;
+      }
+    });
+    if (!fresh) {
+      return context(
+        "SubagentStop",
+        `The ${role} subagent finished, but every ${kind}_${item.slug} report on disk (${found.map((f) => f.split("/").pop()).join(", ")}) is older than the subagent itself. Those are an earlier round's, not this one's. Re-run it with instructions to write its own report (a later round writes ${kind}_${item.slug}_r<N>.md) before returning.`,
+      );
+    }
+  }
   return null;
+}
+
+/**
+ * When the subagent began, from the first timestamp of its own transcript.
+ *
+ * `agent_transcript_path` can be an empty string, so the path is derived from
+ * the parent transcript and the agent id when it is: the layout measured on
+ * this machine is `<session>.jsonl` beside a `<session>/subagents/agent-<id>.jsonl`.
+ */
+function agentStartedAt(input: HookInput): number | null {
+  let path = input.agent_transcript_path ?? "";
+  if (path === "") {
+    const parent = input.transcript_path ?? "";
+    const id = input.agent_id ?? "";
+    if (parent === "" || id === "") return null;
+    path = join(dirname(parent), basename(parent, ".jsonl"), "subagents", `agent-${id}.jsonl`);
+  }
+  return costs.firstTimestamp(path);
 }
 
 /**
@@ -165,16 +236,35 @@ export function subagentStop(input: HookInput): string | null {
  * the eight-consecutive-block budget on something the model can simply fix.
  */
 export function stop(input: HookInput): string | null {
-  if (input.stop_hook_active === true) return null;
   const store = findStore(input.cwd ?? process.cwd());
   if (store === null) return null;
+  const output = input.stop_hook_active === true ? null : gateFeedback(store);
+  // A stat and a compare: a mark is written only when the active item changed.
+  safely(() => costs.onStop(store, input));
+  return output;
+}
 
+function gateFeedback(store: Store): string | null {
   const report = runGate(store, { quiet: true });
   if (!report.failed) return null;
   return context(
     "Stop",
     ["The mstack gate is red. Fix these before closing:", ...report.failures.map((f) => `- ${f}`)].join("\n"),
   );
+}
+
+/**
+ * SessionEnd: settle this session's token usage into `.mstack/costs.tsv`.
+ *
+ * Says nothing, whatever happens. The transcript's cost-state line is already
+ * on disk when this runs (measured, not assumed), so this is where the
+ * reconciliation against the real figure can happen.
+ */
+export function sessionEnd(input: HookInput): string | null {
+  const store = findStore(input.cwd ?? process.cwd());
+  if (store === null) return null;
+  safely(() => costs.onSessionEnd(store, input));
+  return null;
 }
 
 interface Guard {

@@ -37,7 +37,7 @@ The marketplace route works too:
 /plugin install mstack@mstack
 ```
 
-Either way, `mstack` is now on `PATH` for every Bash call Claude Code makes, and the five hooks
+Either way, `mstack` is now on `PATH` for every Bash call Claude Code makes, and the six hooks
 in `hooks/hooks.json` are active.
 
 ## Create the store

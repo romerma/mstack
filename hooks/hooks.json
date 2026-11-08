@@ -56,6 +56,19 @@
         ]
       }
     ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/bin/mstack",
+            "args": ["hook", "session-end"],
+            "timeout": 5,
+            "description": "Settle the session's token usage into .mstack/costs.tsv. Says nothing and fails open: a cost row that is missing now is recomputed by the next flush, so it must never be worth a visible error."
+          }
+        ]
+      }
+    ],
     "PreToolUse": [
       {
         "matcher": "Bash",

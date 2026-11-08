@@ -17,6 +17,8 @@ export interface Store {
   readonly state: string;
   readonly ledger: string;
   readonly decisions: string;
+  /** Tokens per run, role and model. Committed; see `src/costs.ts`. */
+  readonly costs: string;
   /**
    * Which verification command ran here, at which commit, and how it went.
    *
@@ -42,6 +44,7 @@ export function storeAt(root: string): Store {
     state: join(dir, "state.json"),
     ledger: join(dir, "ledger.tsv"),
     decisions: join(dir, "decisions.tsv"),
+    costs: join(dir, "costs.tsv"),
     verification: join(dir, "verification.tsv"),
     progress,
     current: join(progress, "current.md"),

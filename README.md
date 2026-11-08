@@ -292,8 +292,9 @@ work is planned. It never changes what counts as evidence.
 |---|---|
 | `SessionStart` | Puts the active item and the last checkpoint back in context. Runs again on `--resume`, which is the case that matters |
 | `PostToolUse` | The cheapest useful check. Exits 0 unconditionally: it nudges, it never blocks |
-| `SubagentStop` | Confirms the subagent left its report on disk. **A reply is not evidence, the file is** |
+| `SubagentStop` | Confirms the subagent left its report on disk, and that the report is newer than the subagent. **A reply is not evidence, the file is** |
 | `Stop` | Runs the fast gate. Returns feedback rather than a block: the same loop protections apply, including the eight-continuation cap, but the transcript labels it feedback and no hook error is raised. The failures go into that feedback, and onto the hook's stderr |
+| `SessionEnd` | Settles the session's token usage into `.mstack/costs.tsv`. Says nothing and fails open |
 | `PreToolUse` | Denies force-push, hard reset, `branch -D`, `pr merge --admin`. PreToolUse hooks run before the permission prompt, and it follows from that ordering that the deny holds even under `bypassPermissions` |
 
 ### State that survives a dead context window
@@ -303,7 +304,9 @@ work is planned. It never changes what counts as evidence.
 ├── state.json        work items and the lifecycle the gate enforces
 ├── ledger.tsv        target · sha · verdict · evidence · verifier · ts
 ├── decisions.tsv     ts · phase · decision · why · evidence · result · resolves
+├── costs.tsv         ts · run · target · role · agent_id · model · input · cache_write · cache_read · output · messages · cost_usd · source
 ├── verification.tsv  target · sha · command · outcome · ts   (machine-local, gitignored)
+├── .gitattributes    merge=union for the three append-only tables
 ├── progress/         current.md (live) · history.md (append-only) · <kind>_<slug>.md
 └── specs/<slug>/     proposal · design · tasks · spec
 ```
@@ -322,6 +325,7 @@ append-only and never edited; if an entry turned out to be wrong, a later one sa
 | `mstack state add\|set\|list\|active` | The work queue |
 | `mstack ledger record\|check\|summary` | Typed verdicts keyed by `(target, sha)` |
 | `mstack decide` | One row per decision, append-only |
+| `mstack cost [slug] [--by role\|item\|model] [--json]` | Tokens per item, role and model, with review rounds and failed verdicts beside them |
 | `mstack worktree new\|list\|prune` | Including the prune that nobody ever gets round to |
 | `mstack merge-gate <pr>` | Exit 0 go, 1 wait, 2 stop |
 | `mstack fanout plan\|check` | Allocates a report path per parallel worker, then names the ones that did not return |
@@ -458,7 +462,7 @@ publish route is [docs/wiki/Publishing-the-Wiki.md](docs/wiki/Publishing-the-Wik
 | [How-A-Work-Item-Flows](docs/wiki/How-A-Work-Item-Flows.md) | The lifecycle, the two paths, and the walkthrough of the example repo |
 | [The-Agents](docs/wiki/The-Agents.md) | The five agents: who builds, who judges, and why nobody approves their own work |
 | [Skills-and-Playbooks](docs/wiki/Skills-and-Playbooks.md) | The thirteen `/mstack` commands, the route table, and the seven playbooks |
-| [Gates-and-Hooks](docs/wiki/Gates-and-Hooks.md) | The five hooks, every gate check, and the merge gate's rules |
+| [Gates-and-Hooks](docs/wiki/Gates-and-Hooks.md) | The six hooks, every gate check, and the merge gate's rules |
 | [The-CLI](docs/wiki/The-CLI.md) | Every subcommand with real output, exit codes, the verdict enum |
 | [State-Files](docs/wiki/State-Files.md) | The anatomy of `.mstack/` column by column, and the evidence ladder |
 | [Status-Line](docs/wiki/Status-Line.md) | Wiring, the stale-verdict signal, degradation rules |

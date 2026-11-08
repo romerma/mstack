@@ -6,6 +6,7 @@ import { Report } from "./report.ts";
 import { ensureHeader } from "./tsv.ts";
 import { HEADER as LEDGER_HEADER } from "./ledger.ts";
 import { HEADER as DECISIONS_HEADER } from "./decisions.ts";
+import { HEADER as COSTS_HEADER } from "./costs.ts";
 
 /**
  * `progress/current.md` is live state, overwritten every session.
@@ -71,6 +72,20 @@ export const STORE_GITIGNORE = `# Machine-local: which verification command ran 
 verification.tsv
 `;
 
+/**
+ * The three append-only tables, each row independent of the others.
+ *
+ * Two branches that both append to `costs.tsv` (or the ledger, or the
+ * decisions) conflict on the last line under git's default merge, though nothing
+ * is actually in dispute: every row stands alone. `merge=union` keeps both
+ * sides' lines. It is wrong for any file whose lines depend on each other, which
+ * is why it is listed by name and not by glob.
+ */
+export const STORE_GITATTRIBUTES = `costs.tsv merge=union
+ledger.tsv merge=union
+decisions.tsv merge=union
+`;
+
 export const HISTORY_TEMPLATE = `# Session history (append-only)
 
 > One entry per closed session, appended at the end. Never edit an earlier
@@ -88,6 +103,7 @@ export function seedState(project: string): string {
         one_active_item: true,
         require_verdict_to_close: true,
         require_spec_for_sdd_items: true,
+        record_costs: true,
       },
       items: [],
     },
@@ -125,6 +141,10 @@ export function setup(root: string, options: { force?: boolean } = {}): Report {
   report.ok("ledger.tsv ready");
   ensureHeader(store.decisions, DECISIONS_HEADER);
   report.ok("decisions.tsv ready");
+  ensureHeader(store.costs, COSTS_HEADER);
+  report.ok("costs.tsv ready");
+  writeFileSync(join(store.dir, ".gitattributes"), STORE_GITATTRIBUTES, "utf8");
+  report.ok(".mstack/.gitattributes ready (the append-only tables merge as a union)");
   // Rewritten even when it exists, and it is the only file here that is: an
   // older store predates it, and one that silently loses the rule starts
   // committing receipts that void themselves.

@@ -15,7 +15,9 @@ The store is small enough to read in one sitting, and that is deliberate.
 ├── state.json        work items and the lifecycle the gate enforces
 ├── ledger.tsv        target · sha · verdict · evidence · verifier · ts
 ├── decisions.tsv     ts · phase · decision · why · evidence · result · resolves
+├── costs.tsv         ts · run · target · role · agent_id · model · input · cache_write · cache_read · output · messages · cost_usd · source
 ├── verification.tsv  target · sha · command · outcome · ts   (machine-local, gitignored)
+├── .gitattributes    merge=union for costs.tsv, ledger.tsv and decisions.tsv
 ├── .gitignore        one line, and the reason it is there
 ├── progress/         current.md (live) · history.md (append-only) · <kind>_<slug>.md
 └── specs/<slug>/     proposal · design · tasks · spec
@@ -28,8 +30,10 @@ claim is about *this* checkout. See [below](#verificationtsv).
 
 The schema lives in one place, `src/state.ts`, and the gate checks the shape, not just that
 the file parses. Top level: `version`, `project`, an optional `verify` command (what `mstack
-gate --full` runs), the three `rules` booleans (`one_active_item`,
-`require_verdict_to_close`, `require_spec_for_sdd_items`), and `items`.
+gate --full` runs), the four `rules` booleans (`one_active_item`,
+`require_verdict_to_close`, `require_spec_for_sdd_items`, `record_costs`), and `items`.
+`record_costs` is the only one that is an error rather than a default when it is not a boolean,
+because a `"false"` string read as "on" would keep recording for someone who asked it off.
 
 An item's fields (`src/state.ts:6-33`):
 
@@ -179,6 +183,61 @@ Requirements carry stable ids (`R1`, `R2`, ...) in EARS form (Easy Approach to R
 Syntax), every task names the
 requirements it covers, and the implementation report maps each requirement to the test that
 proves it. The chain is greppable end to end: requirement to task to test to review.
+
+## costs.tsv
+
+Tokens per run, role and model, one row per model per key:
+
+```
+ts	run	target	role	agent_id	model	input	cache_write	cache_read	output	messages	cost_usd	source
+```
+
+- `(none)` is the sentinel for "no item" (`target`), "no agent" (`agent_id`) and "no figure"
+  (`messages`, `cost_usd`). It is never `-`, because `cell()` in `src/tsv.ts` rewrites a leading
+  `-` to `'-` as a formula guard. No cell is ever negative.
+- `run` is `<session>@<byte offset>`: the stretch of one session's transcript that one mark
+  opened. `role` is `main`, a subagent's role read from its `meta.json` (`mstack:reviewer`
+  becomes `reviewer`), or `unattributed`. `source` is `transcript` or `cost-state`.
+- `cost_usd` is filled only on `source=cost-state` rows, and holds the model's whole real cost
+  for the session, minus what earlier rows already carried. There is no price table here.
+
+**How rows get there.** Nothing parses a transcript on a hot path. Two kinds of record make
+that possible:
+
+- A **mark** says "from this byte offset of this transcript, usage belongs to this item". Marks
+  are machine-local: they live in `costs-marks.jsonl` under `git rev-parse --git-path mstack/`
+  (per worktree, inside `.git`), never in `.mstack/`, because an offset into a file on one
+  machine means nothing on another. `SessionStart` writes one at the transcript's current size.
+  `Stop` writes one only when the active item changed; the unchanged case is the marks file, a
+  parse of `state.json` and a compare, and the transcript is not opened.
+- A **flush** reads the transcript from the mark's offset by streaming (never the whole file),
+  counts usage once per `message.id` (the API response's usage repeats on each content block),
+  skips sidechain lines, scans the session's `subagents/` directory, and appends only
+  `total - sum(existing rows)` per key. Flushing twice changes nothing. It runs at `SessionEnd`,
+  at the next `SessionStart` for a session that never reached one (a crash), and inside
+  `mstack cost`.
+
+**Reconciliation.** When the transcript carries a `cost-state` line, an `unattributed` row per
+model holds the difference between that and the transcript sum. It is the honest place for the
+calls a transcript never records and for compactions.
+
+**What was measured before this was built** (real `claude -p --model haiku` sessions on this
+machine): the `cost-state` line is already on disk when the `SessionEnd` hook runs; its
+`modelUsage` includes subagent usage (main plus subagent transcript sums matched it to the
+token); `--resume` appends to the same file and session id and `cost-state` is cumulative,
+so the last line is the whole session; `/compact` writes no usage to any transcript, only to
+`cost-state`. Interactive sessions were not run, so the first of those is rung 4 for `-p` only.
+
+**Budget.** On a 50 MB synthetic transcript the `SessionEnd` flush took 29 ms on a realistic mix (tool
+results dominate the bytes, 11,400 assistant turns) and 82 ms on 74,500 assistant turns, every
+one of them parsed (bun; node measured 33 and 109 ms), an unchanged re-flush 0.2 ms,
+and the cost part of `Stop` 0.11 ms. All cost work in a hook is wrapped so that a throw is
+swallowed: the cost of a failure is a missing row, which the next flush recomputes, and it
+never changes what another hook says.
+
+`.gitattributes` gives the three append-only tables `merge=union`. Two branches that both
+append to one of them conflict on the last line under git's default merge though nothing is in
+dispute; every row stands alone. Run `mstack setup` once on an older store to get the file.
 
 ## Reading the store
 
