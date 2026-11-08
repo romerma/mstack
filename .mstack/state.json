@@ -537,7 +537,7 @@
         "mstack cost [slug] [--by role|item|model] [--json] prints tokens, review rounds via roundOf and verifier-failed rows; rules.record_costs false turns recording off; .mstack/.gitattributes sets merge=union on costs.tsv, ledger.tsv and decisions.tsv",
         "Hook paths stay within budget on a 50 MB synthetic transcript and a throwing parser never changes another hook's output"
       ],
-      "status": "reviewing"
+      "status": "done"
     },
     {
       "id": 38,

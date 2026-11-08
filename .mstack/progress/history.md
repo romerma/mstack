@@ -769,3 +769,56 @@ and 42 run on this path. On a leaf change they would not have been.
 **Carried forward:**
 - The item 21 hang has a second observed site, `tests/launcher.test.ts`, on a statusline child.
 - `closing.ts` checks are one-line `CLOSING_CHECKS` entries. Items 41 and 42 add theirs there.
+
+## 2026-11-08 — item 37 cost-ledger, closed
+
+**What it does.** `.mstack/costs.tsv` records tokens per item, role and model. The pieces:
+- marks under the git dir;
+- idempotent flushes at SessionEnd, at SessionStart for leftover runs, and in `mstack cost`;
+- reconciliation to cost-state;
+- `merge=union` via `.mstack/.gitattributes`;
+- a `rules.record_costs` switch.
+
+It also fixes the SubagentStop hole: a stale report no longer passes. Sonnet implemented it in
+three rounds and Opus reviewed each one. A `review-r3` decision row authorized round 3.
+
+**Rung-4 facts** (real haiku sessions):
+- cost-state is written before SessionEnd: with `-p`, `/exit`, Ctrl-C and a closed terminal;
+- it includes subagents;
+- it is cumulative across `--resume`;
+- `/compact` usage appears only in cost-state.
+
+**What the reviewer caught** with real sessions and the real CLI hooks, not the suite:
+- **Round 1.**
+  - Fresh sessions have no transcript at SessionStart, so the first turn was lost. Single-turn
+    `-p` sessions (the benchmark's shape) had no `main` rows.
+  - A session with no Stop recorded nothing.
+  - `merge=union` double counted a session flushed on two branches.
+  - Per-item usd went to the last item.
+- **Round 2.**
+  - The 14-day prune dropped flushed totals while transcripts live 30 days, so a resume
+    counted the session twice.
+  - The multi-item rule misfired on every item-closing session.
+  - The lock wait sat inside the crash window.
+- **Round 3:** APPROVED. Every reproduction gives the real figures, and a live session matches
+  cost-state to the token and the cent.
+
+**Two decision rows set the money rule.** A session's usd goes to the one real item that
+carried usage. It goes to `(multi-item)` when two or more did. Stretches with no item never
+count. No split is made by token share, and no price table is kept.
+
+**Cost** (subagent tokens, cumulative per agent):
+- implementer 261k;
+- reviewer 253k;
+- real-session probes: about $0.05 in total.
+
+**Not yet exercised:**
+- **Recording itself.** This session runs the cached plugin, so its own hooks write no costs.
+  Recording starts once the session is relaunched with `claude --plugin-dir .`, which item 39
+  needs anyway.
+- **Linux.** Unproven, as for item 36.
+
+**Filed:**
+- item 50: `plugin validate --strict` is red on two warnings that claude 2.1.316 added. This
+  predates item 37.
+- item 51: a single-append flush and marks compaction.

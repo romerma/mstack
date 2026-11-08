@@ -6,10 +6,10 @@
 > On close: append the summary to `history.md` and reset this file to the
 > empty template below.
 
-- **Item:** 37 cost-ledger
-- **Status:** in_progress
-- **Branch:** feat/cost-ledger
-- **Base:** 0a45b4d
+- **Item:** none active (37 closed 2026-11-08; next 39 role-models after relaunch)
+- **Status:** -
+- **Branch:** main
+- **Base:** -
 - **Worktree:** none
 
 ## Plan
