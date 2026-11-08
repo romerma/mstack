@@ -28,6 +28,15 @@ const table: [string, "test" | "doc" | "code"][] = [
   ["src/docs/a.ts", "code"],
   ["./src/gate.ts", "code"],
   ["scripts/check.mjs", "code"],
+  // `*` stays inside one segment
+  ["LICENSE/x.ts", "code"],
+  ["src/a.test.dir/x.ts", "code"],
+  // a test path wins over the doc pattern it also matches
+  ["tests/README.md", "test"],
+  ["docs/a.test.ts", "test"],
+  // the ./ prefix is stripped before matching
+  ["./tests/a.ts", "test"],
+  ["./README.md", "doc"],
 ];
 
 for (const [path, expected] of table) {

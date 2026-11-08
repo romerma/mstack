@@ -5,7 +5,7 @@ import { parseArgs } from "node:util";
 import * as decisions from "./decisions.ts";
 import * as fanout from "./fanout.ts";
 import { EXIT, evaluate, fetchPr } from "./mergegate.ts";
-import { closingProblems, isUnreadable } from "./closing.ts";
+import { closingProblems, VERIFICATION_CHECK } from "./closing.ts";
 import { itemLabel, runGate } from "./gate.ts";
 import { defaultBranch, headSha } from "./git.ts";
 import * as hooks from "./hooks.ts";
@@ -522,19 +522,24 @@ function cmdState(argv: readonly string[]): number {
       // before this guard existed.
       if (values.status === "done" && item.status !== "done") {
         const problems = closingProblems(store, state, item);
-        const unreadable = problems.find(isUnreadable);
-        if (unreadable !== undefined) {
+        const stuck = problems.find((p) => !p.overridable);
+        if (stuck !== undefined) {
           // Never overridable: --force vouches for a finding, not for a failure to look.
-          throw new UserError(
-            `${item.slug}'s ${unreadable.slice("its ".length)}`,
-            "fix the file or delete it and re-run 'mstack gate --full'; an unreadable record of what ran is not a record that anything did",
-          );
+          throw new UserError(`${item.slug} cannot close: ${stuck.message}`, stuck.hint);
         }
+        // The wording stays specific while the only problems are verification
+        // ones, which is what every message here said before there was a second check.
+        const verificationOnly = problems.every((p) => p.check === VERIFICATION_CHECK);
+        const summary = problems.map((p) => p.message).join("; ");
         if (problems.length > 0) {
           if (values.force !== true) {
             throw new UserError(
-              `${item.slug} cannot close on a verification that has not run: ${problems.join("; ")}`,
-              "run 'mstack gate --full' at this commit; closing is the one moment the run has to be real, and --force closes it unverified",
+              verificationOnly
+                ? `${item.slug} cannot close on a verification that has not run: ${summary}`
+                : `${item.slug} cannot close: ${summary}`,
+              verificationOnly
+                ? "run 'mstack gate --full' at this commit; closing is the one moment the run has to be real, and --force closes it unverified"
+                : `${problems[0]?.hint ?? ""}; --force closes it anyway`,
             );
           }
           // The forced line used to be pushed into `changes` and nothing else,
@@ -551,11 +556,13 @@ function cmdState(argv: readonly string[]): number {
           // justify is the escape hatch with better manners.
           if (values["closed-by"] === undefined) {
             throw new UserError(
-              `--force would close ${item.slug} on a verification that has not run, and that has to be on the record`,
+              verificationOnly
+                ? `--force would close ${item.slug} on a verification that has not run, and that has to be on the record`
+                : `--force would close ${item.slug} past a failed closing check, and that has to be on the record`,
               `add --closed-by "<why closing unverified is right here>"; it is stored in state.json as "${FORCED_UNVERIFIED}...", where the next reader will find it`,
             );
           }
-          forcedUnverified = problems.join("; ");
+          forcedUnverified = summary;
         }
       }
       if (item.status !== values.status) changes.push(...fieldChange("status", item.status, values.status));

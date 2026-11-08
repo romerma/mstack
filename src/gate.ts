@@ -2,7 +2,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 import { all as decisionsFor } from "./decisions.ts";
-import { closingProblems, isUnreadable } from "./closing.ts";
+import { gateProblems, VERIFICATION_CHECK } from "./closing.ts";
 import { defaultBranch, git, headSha } from "./git.ts";
 import { runCommand } from "./run.ts";
 import { entries as ledgerEntries } from "./ledger.ts";
@@ -586,15 +586,23 @@ function checkVerificationRuns(store: Store, state: State, report: Report): void
     report.ok("no active item, so no verification run is due");
     return;
   }
+  const required = obligations(state, active);
+  const sha = headSha(store);
+  // The tree is the costly part, so it is only computed when something will be
+  // compared against it, and then once: it feeds both the check and the warning.
+  const tree = requiresVerification(active.status) && required.length > 0 && sha !== null ? treeId(store) : undefined;
+  // Asked before the verification-specific early outs below, and of the same
+  // function `state set --status done` asks, so a second closing check cannot be
+  // invisible here while it refuses there. An unreadable receipt file is a
+  // problem it reports, not a throw: `cmdHook` catches every throw and returns 0
+  // by design, which made an unreadable file byte-identical to a green gate.
+  const problems = gateProblems(store, state, active, tree);
+
   if (!requiresVerification(active.status)) {
     report.ok(
       `${active.slug} is ${active.status}; a verification run is due at ${VERIFICATION_REQUIRED_FROM.join(", ")}`,
     );
-    return;
-  }
-
-  const required = obligations(state, active);
-  if (required.length === 0) {
+  } else if (required.length === 0) {
     // A warning rather than a failure, and the boundary is deliberate. This
     // check is about an item *whose* verification never ran; whether one has to
     // exist at all is `require_verdict_to_close`'s question, and its answer for
@@ -604,48 +612,25 @@ function checkVerificationRuns(store: Store, state: State, report: Report): void
     report.warn(
       `${active.slug} is ${active.status} and nothing verifies it: state.json has no 'verify' command and the item has no 'verification' command`,
     );
-    return;
-  }
-
-  const sha = headSha(store);
-  if (sha === null) {
+  } else if (sha === null) {
     report.warn(
       "no commit to check a verification run against; run 'mstack gate --full' and read the result yourself",
     );
-    return;
-  }
-
-  // Computed once and handed to the check. It used to be computed here and
-  // again inside `status()`, which doubled the whole content-hashing cost on
-  // the one path that runs at the end of every turn.
-  const tree = treeId(store);
-  // The same function `state set --status done` asks, so the two cannot
-  // disagree. It reads a file and a read can throw, and `cmdHook` catches every
-  // throw and returns 0 by design, so an unreadable receipt file used to make
-  // `mstack hook stop` emit nothing and exit 0 — byte-identical to a green gate.
-  // `closingProblems` reports that case as a problem instead of throwing.
-  const problems = closingProblems(store, state, active, tree);
-  // `unknown` is the one tree value that turns half the key off: both sides
-  // compute it identically, so a receipt written while git could not be asked
-  // is satisfied by a check while git could not be asked, with nothing compared.
-  // Saying so is the whole fix — the gate printed "verification ran and passed"
-  // over the top of it, which is the mechanism claiming a check it did not make.
-  if (tree === UNKNOWN_TREE) {
-    report.warn(
-      "git could not describe the working tree, so only the commit half of the verification key was checked; an uncommitted change since the run would not be noticed",
-    );
-  }
-  if (problems.length === 0) {
-    report.ok(`verification ran and passed at ${sha.slice(0, 8)}: ${required.map((r) => r.command).join(", ")}`);
-    return;
+  } else {
+    // `unknown` is the one tree value that turns half the key off: both sides
+    // compute it identically, so a receipt written while git could not be asked
+    // is satisfied by a check while git could not be asked, with nothing compared.
+    if (tree === UNKNOWN_TREE) {
+      report.warn(
+        "git could not describe the working tree, so only the commit half of the verification key was checked; an uncommitted change since the run would not be noticed",
+      );
+    }
+    if (!problems.some((p) => p.check === VERIFICATION_CHECK)) {
+      report.ok(`verification ran and passed at ${sha.slice(0, 8)}: ${required.map((r) => r.command).join(", ")}`);
+    }
   }
   for (const problem of problems) {
-    report.fail(
-      `${itemLabel(active)} is one step from done, and ${problem}`,
-      isUnreadable(problem)
-        ? "fix the file or delete it and re-run 'mstack gate --full'; an unreadable record of what ran is not a record that anything did"
-        : "run 'mstack gate --full'; nothing else executes it, and a verification nobody runs is not a check",
-    );
+    report.fail(`${itemLabel(active)} is one step from done, and ${problem.message}`, problem.hint);
   }
 }
 

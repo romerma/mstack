@@ -1,10 +1,13 @@
 import { spawnSync } from "node:child_process";
 import { closeSync, mkdtempSync, openSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+
+import { UserError } from "./paths.ts";
 
 /**
- * Run a shell command to completion. A leaf module: it imports only `node:`.
+ * Run a shell command to completion.
  *
  * `capture` writes stdout and stderr to a temp file, never to a pipe. npm and bun
  * leave grandchildren holding the pipe they inherited, and `spawnSync` does not
@@ -12,69 +15,107 @@ import { join } from "node:path";
  * command look hung. A file has no such reader to wait for.
  */
 
-export interface RunOptions {
+interface BaseOptions {
   readonly cwd: string;
-  /** Kill the command (and its whole process group) after this long. No limit when absent. */
+}
+
+/** `capture` keeps the last lines in `tail`. Only this mode can have a timeout. */
+export interface CaptureOptions extends BaseOptions {
+  readonly output: "capture";
+  /** Kill the command and its whole process group after this long. No limit when absent. */
   readonly timeoutMs?: number;
-  /** `capture` keeps the last lines in `tail`; `inherit` streams to the terminal. */
-  readonly output: "capture" | "inherit";
   /** How many trailing lines `tail` keeps. Defaults to 40. */
   readonly tailLines?: number;
 }
 
+/**
+ * Streams to the terminal. No timeout: a command that reads the terminal, or
+ * writes with `tostop`, would stop in a background group and be reported as timed
+ * out after the full wait.
+ */
+export interface InheritOptions extends BaseOptions {
+  readonly output: "inherit";
+  readonly timeoutMs?: never;
+}
+
+export type RunOptions = CaptureOptions | InheritOptions;
+
 export interface RunResult {
-  /** Exit code, or null when the command was killed by a signal or never started. */
+  /**
+   * The exit code, or null when the command was killed or never started.
+   *
+   * Best effort for signals: a shell that ends because a child died of signal n
+   * exits 128+n, so `code` is 143 and `signal` is null, indistinguishable from
+   * `exit 143`. Only a timeout is reliable: `timedOut` is true, `code` is null and
+   * `signal` is "SIGKILL".
+   */
   readonly code: number | null;
   readonly signal: string | null;
   readonly timedOut: boolean;
   /** The last lines of combined stdout and stderr. Empty under `inherit`. */
   readonly tail: string;
+  /** Set when the command could not be started (for example, a missing cwd). */
+  readonly error?: string;
 }
 
 const DEFAULT_TAIL_LINES = 40;
-
-/**
- * Runs the command as a job of its own under job control, so it leads a process
- * group, and writes that group's id where the caller can read it. `detached` is
- * the obvious tool and bun's `spawnSync` ignores it, so this is plain `sh`.
- * Cost: a command killed by a signal reports 128+n as its exit code, since the
- * wrapper's `wait` is what exits.
- */
-const GROUP_WRAPPER = 'set -m; /bin/sh -c "$1" & echo $! > "$2"; wait $!';
+const HELPER = join(dirname(fileURLToPath(import.meta.url)), "run-helper.mjs");
 
 export function runCommand(cmd: string, options: RunOptions): RunResult {
-  const needsDir = options.output === "capture" || options.timeoutMs !== undefined;
-  const dir = needsDir ? mkdtempSync(join(tmpdir(), "mstack-run-")) : undefined;
-  const file = dir !== undefined && options.output === "capture" ? join(dir, "out") : undefined;
-  const pidFile = dir === undefined ? undefined : join(dir, "pgid");
-  const fd = file === undefined ? undefined : openSync(file, "w");
+  // The type already says so; this is for callers that are not typed.
+  if (options.output === "inherit" && options.timeoutMs !== undefined) {
+    throw new UserError(
+      "runCommand: output 'inherit' cannot have a timeout",
+      "use output 'capture' to bound a command; an inherited terminal stops a background group",
+    );
+  }
+  if (options.output === "inherit") {
+    const r = spawnSync("/bin/sh", ["-c", cmd], { cwd: options.cwd, stdio: "inherit" });
+    return result(r.status, r.signal, r.error, false, "");
+  }
+
+  const dir = mkdtempSync(join(tmpdir(), "mstack-run-"));
+  const out = join(dir, "out");
+  const fd = openSync(out, "w");
   try {
-    const argv = options.timeoutMs === undefined || pidFile === undefined
-      ? ["-c", cmd]
-      : ["-c", GROUP_WRAPPER, "sh", cmd, pidFile];
-    const result = spawnSync("/bin/sh", argv, {
-      cwd: options.cwd,
-      stdio: fd === undefined ? "inherit" : ["ignore", fd, fd],
-      ...(options.timeoutMs === undefined ? {} : { timeout: options.timeoutMs, killSignal: "SIGKILL" }),
-    });
-    const timedOut = (result.error as NodeJS.ErrnoException | undefined)?.code === "ETIMEDOUT";
-    // spawnSync's own timeout kills the wrapper only; the command's group keeps running.
-    if (timedOut && pidFile !== undefined) killGroup(pidFile);
-    if (fd !== undefined) closeSync(fd);
-    const tail = file === undefined ? "" : lastLines(readFileSync(file, "utf8"), options.tailLines ?? DEFAULT_TAIL_LINES);
-    return { code: result.status, signal: result.signal, timedOut, tail };
+    const timeout = options.timeoutMs;
+    const r =
+      timeout === undefined
+        ? spawnSync("/bin/sh", ["-c", cmd], { cwd: options.cwd, stdio: ["ignore", fd, fd] })
+        : spawnSync(process.execPath, [HELPER, join(dir, "result.json"), String(timeout), options.cwd, cmd], {
+            cwd: options.cwd,
+            stdio: ["ignore", fd, fd],
+          });
+    const tail = lastLines(readFileSync(out, "utf8"), options.tailLines ?? DEFAULT_TAIL_LINES);
+    if (timeout === undefined) return result(r.status, r.signal, r.error, false, tail);
+    try {
+      const h = JSON.parse(readFileSync(join(dir, "result.json"), "utf8")) as RunResult;
+      return result(h.code, h.signal, h.error === undefined ? undefined : new Error(h.error), h.timedOut, tail);
+    } catch {
+      // The helper never reported: it could not start, or it died.
+      return result(null, r.signal, r.error ?? new Error("the timeout helper did not report a result"), false, tail);
+    }
   } finally {
-    if (dir !== undefined) rmSync(dir, { recursive: true, force: true });
+    closeSync(fd);
+    rmSync(dir, { recursive: true, force: true });
   }
 }
 
-function killGroup(pidFile: string): void {
-  try {
-    const pgid = Number(readFileSync(pidFile, "utf8").trim());
-    if (Number.isInteger(pgid) && pgid > 1) process.kill(-pgid, "SIGKILL");
-  } catch {
-    // No pid was written, or the group is already gone.
-  }
+/** bun reports `undefined` where node reports `null`; the contract is `null`. */
+function result(
+  code: number | null | undefined,
+  signal: string | null | undefined,
+  error: Error | undefined,
+  timedOut: boolean,
+  tail: string,
+): RunResult {
+  return {
+    code: code ?? null,
+    signal: signal ?? null,
+    timedOut,
+    tail,
+    ...(error === undefined ? {} : { error: error.message }),
+  };
 }
 
 function lastLines(text: string, n: number): string {
