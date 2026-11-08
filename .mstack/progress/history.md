@@ -722,3 +722,50 @@ The mutation the reviewer ran by hand is the check item 42 automates.
 **Carried to item 43 as an acceptance bullet.** `roundOf` reads `_r2x` as a lens, while
 `agents/reviewer.md:77` reserves any leading `r<digit>`. Those two rules must become one before
 `roundOf` decides solo versus panel.
+
+## 2026-11-08 — item 36 shared-runner-and-closing, closed
+
+**Delivered:**
+- `src/run.ts` with `runCommand`;
+- the `node:`-only helper `src/run-helper.mjs`, which does a detached spawn, a group kill
+  with a second kill on exit, and signal forwarding;
+- `src/git.ts`;
+- `src/closing.ts`, holding structured `closingProblems` with per-check `reportedAt`, which
+  the gate and `state set --status done` both call;
+- `src/pathclass.ts`.
+
+Implemented by Sonnet over four rounds, each reviewed by Opus. Rounds 3 and 4 were authorized
+by `review-r3` and `review-r4` decision rows.
+
+The suite was green from round 1. Every blocker came from the reviewer's probes and mutations,
+never from the suite itself:
+- **Round 1.** `set -m` job control does nothing under dash without a tty, and CI's `/bin/sh`
+  is dash. The reviewer simulated this on macOS. Two more problems:
+  - a pgid race at timeouts of 2–5 ms;
+  - job-control noise in the captured tail.
+
+  The gate and `state set` would also have disagreed as soon as a second closing check
+  existed, and three pathclass mutants survived.
+- **Round 2.** The node helper fixed all six blockers, but brought four defects of its own:
+  - a child forked at kill time survived;
+  - bun loaded the target directory's `bunfig.toml` and `.env`;
+  - invalid `timeoutMs` was not rejected;
+  - Ctrl-C dropped the timeout bound.
+- **Round 3.** On the signal path, the second kill never ran.
+- **Round 4.** APPROVED. Forking probes left 0/10 survivors on each runtime, and every change
+  has a test that goes red without it.
+
+**Not proven:** everything ran on macOS only. The Linux claim rests on swapping in `/bin/dash`,
+so the first CI run on ubuntu is the real check, and nothing has been pushed yet.
+
+**Cost** (subagent tokens, cumulative per agent):
+- implementer 131k;
+- reviewer 222k.
+
+The reviewer cost about 1.7× the implementer, but found every defect. This is the item the
+plan's review budget (43) is about. Four rounds were worth paying here because items 37, 41
+and 42 run on this path. On a leaf change they would not have been.
+
+**Carried forward:**
+- The item 21 hang has a second observed site, `tests/launcher.test.ts`, on a statusline child.
+- `closing.ts` checks are one-line `CLOSING_CHECKS` entries. Items 41 and 42 add theirs there.

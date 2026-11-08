@@ -521,7 +521,7 @@
         "closingProblems(store, state, item) lives in a module that does not import gate.ts; the gate calls it for the active item and state set --status done refuses on any problem it returns, overridable only by --force --closed-by; the verification receipt check is its first member",
         "src/pathclass.ts classifies a repo-relative path as test, doc or code with a hand-written ** and * matcher (no path.matchesGlob), covered by a table test"
       ],
-      "status": "reviewing"
+      "status": "done"
     },
     {
       "id": 37,
