@@ -630,7 +630,10 @@ function checkVerificationRuns(store: Store, state: State, report: Report): void
     }
   }
   for (const problem of problems) {
-    report.fail(`${itemLabel(active)} is one step from done, and ${problem.message}`, problem.hint);
+    // "One step from done" is only true at the statuses that are; a check that
+    // reports earlier (`reportedAt`) says what is true there instead.
+    const lead = requiresVerification(active.status) ? "is one step from done" : "cannot close as it stands";
+    report.fail(`${itemLabel(active)} ${lead}, and ${problem.message}`, problem.hint);
   }
 }
 

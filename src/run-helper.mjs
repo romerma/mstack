@@ -36,10 +36,16 @@ const timer = setTimeout(() => {
 
 // The command is detached, so the terminal's Ctrl-C reaches this process and not
 // the command, which would then run on with no bound. Take the group down with us.
+// Exit only after the child's `exit` event, which sends the second kill: leaving
+// at once skips it, and a child that was mid-fork survives the first. The timer
+// is a fallback for an `exit` that never comes.
+let signalExit = null;
 for (const [name, number] of [["SIGINT", 2], ["SIGTERM", 15], ["SIGHUP", 1]]) {
   process.on(name, () => {
+    signalExit = 128 + number;
+    clearTimeout(timer);
     killGroup();
-    process.exit(128 + number);
+    setTimeout(() => process.exit(signalExit), 2000).unref();
   });
 }
 
@@ -51,6 +57,7 @@ child.on("exit", (code, signal) => {
   clearTimeout(timer);
   // A second kill: the first can land while the command is mid-fork, and the
   // child it was creating is born into the group after the signal went out.
-  if (timedOut) killGroup();
+  if (timedOut || signalExit !== null) killGroup();
+  if (signalExit !== null) process.exit(signalExit);
   finish({ code, signal, timedOut });
 });

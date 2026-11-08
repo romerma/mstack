@@ -20,7 +20,11 @@ interface BaseOptions {
 /** `capture` keeps the last lines in `tail`. Only this mode can have a timeout. */
 export interface CaptureOptions extends BaseOptions {
   readonly output: "capture";
-  /** Kill the command and its whole process group after this long. No limit when absent. */
+  /**
+   * Kill the command and its whole process group after this long. No limit when absent.
+   * A grandchild that detaches into a session of its own (setsid, or `spawn` with
+   * `detached: true`) is out of reach of any group kill and outlives this.
+   */
   readonly timeoutMs?: number;
   /** How many trailing lines `tail` keeps. Defaults to 40. */
   readonly tailLines?: number;

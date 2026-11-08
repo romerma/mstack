@@ -173,3 +173,18 @@ test("at verifying the gate reports every check, whatever its reportedAt says", 
     sb.dispose();
   }
 });
+
+test("a check reporting before verifying does not claim the item is one step from done", () => {
+  const sb = sandbox();
+  try {
+    sb.writeState(state([item({ status: "in_progress" })], { verify: "" }));
+    trackCurrent(sb);
+    quiesce(sb);
+    const gate = cliWithSecondCheck(sb.store.root, ["gate"], true, ["in_progress"]);
+    assert.equal(gate.code, 1, gate.stdout);
+    assert.match(gate.stdout, /\(in_progress\) cannot close as it stands, and a second closing check is not satisfied/);
+    assert.doesNotMatch(gate.stdout, /one step from done/);
+  } finally {
+    sb.dispose();
+  }
+});

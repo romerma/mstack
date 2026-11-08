@@ -229,3 +229,45 @@ runCommand(${JSON.stringify(`sleep 31.9 & echo $! > ${pidFile}; wait`)}, { cwd: 
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+/**
+ * The signal path has the fork race the timeout path had: the first group kill
+ * misses a child that is being forked, and only the helper's `exit` handler sends
+ * the second. Before it waited for that, 8/10 (bun) and 5/10 (node) runs of this
+ * left a survivor.
+ */
+test("a SIGINT while the command is forking leaves no survivor", async () => {
+  const marker = `sleep 7.9${process.pid % 1000}`;
+  const flags = typeof (globalThis as { Bun?: unknown }).Bun === "undefined"
+    ? ["--experimental-strip-types", "--disable-warning=ExperimentalWarning"]
+    : [];
+  try {
+    for (let run = 0; run < 4; run++) {
+      const dir = mkdtempSync(join(tmpdir(), "mstack-sigint-fork-"));
+      try {
+        const started = join(dir, "started");
+        const command = `touch ${started}; i=0; while [ $i -lt 1000 ]; do ${marker} & i=$((i+1)); done; wait`;
+        const script = join(dir, "victim.mts");
+        writeFileSync(
+          script,
+          `import { runCommand } from ${JSON.stringify(join(cwd, "src", "run.ts"))};
+runCommand(${JSON.stringify(command)}, { cwd: ${JSON.stringify(dir)}, output: "capture", timeoutMs: 60000 });
+`,
+        );
+        const victim = spawn(process.execPath, [...flags, script], { detached: true, stdio: "ignore" });
+        for (let i = 0; i < 100 && !existsSync(started); i++) await new Promise((res) => setTimeout(res, 20));
+        assert.ok(existsSync(started), "the command never started");
+        await new Promise((res) => setTimeout(res, 30));
+        process.kill(-victim.pid!, "SIGINT");
+        await new Promise((res) => setTimeout(res, 700));
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+      assert.deepEqual(survivors(marker), [], `run ${run}: children survived the Ctrl-C`);
+    }
+  } finally {
+    for (const pid of survivors(marker)) {
+      try { process.kill(pid, "SIGKILL"); } catch { /* gone */ }
+    }
+  }
+});
