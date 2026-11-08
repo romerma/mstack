@@ -93,3 +93,4 @@ shared-runner-and-closing	c1520684efced14d7e5b9a1da1e157557bd5376f	test-verified
 cost-ledger	d8e694a66f2ec6bc620f52a0b03400d60d01b91c	test-verified	.mstack/progress/impl_cost-ledger.md	implementer	2026-11-08T13:10:07.438Z
 cost-ledger	8aca613208d47257989b35830d88a2122795217a	verifier-failed	.mstack/progress/review_cost-ledger.md	reviewer	2026-11-08T13:29:16.816Z
 cost-ledger	0b0c48441e9ab70df218be0b813e139f1daf89f4	test-verified	.mstack/progress/impl_cost-ledger_r2.md	implementer	2026-11-08T13:38:08.860Z
+cost-ledger	67a25b4ae504b15d6bf0982ba81107b93b50f54a	verifier-failed	.mstack/progress/review_cost-ledger_r2.md	reviewer	2026-11-08T13:51:57.896Z
