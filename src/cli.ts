@@ -5,7 +5,9 @@ import { parseArgs } from "node:util";
 import * as decisions from "./decisions.ts";
 import * as fanout from "./fanout.ts";
 import { EXIT, evaluate, fetchPr } from "./mergegate.ts";
-import { defaultBranch, headSha, itemLabel, runGate } from "./gate.ts";
+import { closingProblems, isUnreadable } from "./closing.ts";
+import { itemLabel, runGate } from "./gate.ts";
+import { defaultBranch, headSha } from "./git.ts";
 import * as hooks from "./hooks.ts";
 import * as ledger from "./ledger.ts";
 import {
@@ -519,23 +521,19 @@ function cmdState(argv: readonly string[]): number {
       // is the requirement-with-an-escape-hatch shape, and it was reproduced
       // before this guard existed.
       if (values.status === "done" && item.status !== "done") {
-        const sha = headSha(store);
-        let proof: verification.RunStatus | undefined;
-        try {
-          proof = sha === null ? undefined : verification.status(store, state, item, sha);
-        } catch (error) {
-          // Fails closed either way — the raw error would reach the top-level
-          // handler and exit 2 — but "EACCES: permission denied" tells the
-          // reader nothing about what it is stopping or how to get past it.
+        const problems = closingProblems(store, state, item);
+        const unreadable = problems.find(isUnreadable);
+        if (unreadable !== undefined) {
+          // Never overridable: --force vouches for a finding, not for a failure to look.
           throw new UserError(
-            `${item.slug}'s verification runs could not be read, so nothing here can say whether it was verified: ${(error as Error).message}`,
+            `${item.slug}'s ${unreadable.slice("its ".length)}`,
             "fix the file or delete it and re-run 'mstack gate --full'; an unreadable record of what ran is not a record that anything did",
           );
         }
-        if (proof !== undefined && !proof.satisfied) {
+        if (problems.length > 0) {
           if (values.force !== true) {
             throw new UserError(
-              `${item.slug} cannot close on a verification that has not run: ${proof.problems.join("; ")}`,
+              `${item.slug} cannot close on a verification that has not run: ${problems.join("; ")}`,
               "run 'mstack gate --full' at this commit; closing is the one moment the run has to be real, and --force closes it unverified",
             );
           }
@@ -557,7 +555,7 @@ function cmdState(argv: readonly string[]): number {
               `add --closed-by "<why closing unverified is right here>"; it is stored in state.json as "${FORCED_UNVERIFIED}...", where the next reader will find it`,
             );
           }
-          forcedUnverified = proof.problems.join("; ");
+          forcedUnverified = problems.join("; ");
         }
       }
       if (item.status !== values.status) changes.push(...fieldChange("status", item.status, values.status));

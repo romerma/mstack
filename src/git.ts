@@ -74,3 +74,16 @@ export function git(store: Store, args: readonly string[], options: GitOptions =
     return null;
   }
 }
+
+export function headSha(store: Store): string | null {
+  return git(store, ["rev-parse", "HEAD"]);
+}
+
+export function defaultBranch(store: Store): string {
+  const remote = git(store, ["symbolic-ref", "--quiet", "--short", "refs/remotes/origin/HEAD"]);
+  if (remote !== null && remote.startsWith("origin/")) return remote.slice("origin/".length);
+  for (const candidate of ["main", "master"]) {
+    if (git(store, ["rev-parse", "--verify", "--quiet", candidate]) !== null) return candidate;
+  }
+  return "main";
+}

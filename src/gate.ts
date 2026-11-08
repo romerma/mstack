@@ -1,9 +1,10 @@
-import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 import { all as decisionsFor } from "./decisions.ts";
-import { git } from "./git.ts";
+import { closingProblems, isUnreadable } from "./closing.ts";
+import { defaultBranch, git, headSha } from "./git.ts";
+import { runCommand } from "./run.ts";
 import { entries as ledgerEntries } from "./ledger.ts";
 import {
   isActive,
@@ -614,32 +615,16 @@ function checkVerificationRuns(store: Store, state: State, report: Report): void
     return;
   }
 
-  // Wrapped for the reason its sibling twenty lines up is wrapped, and the
-  // comment there names this exact bug. `receipts` reads a file, a read throws,
-  // and `cmdHook` catches every throw and returns 0 by design — so an
-  // unreadable receipt file made `mstack hook stop` emit zero bytes and exit 0,
-  // which is byte-identical to "the gate is green, close away", and made
-  // `mstack gate` throw out of the middle so the workspace section and the
-  // summary never ran. Reproduced one `chmod` apart.
-  //
-  // The trigger is not exotic: this is the one store file a clone never
-  // recreates and whose ownership is purely local, so one `mstack` run as root
-  // in a container produces it. The gate reports; it does not become the
-  // failure, and it never reads an I/O error as a pass.
   // Computed once and handed to the check. It used to be computed here and
   // again inside `status()`, which doubled the whole content-hashing cost on
   // the one path that runs at the end of every turn.
   const tree = treeId(store);
-  let result: ReturnType<typeof verificationStatus>;
-  try {
-    result = verificationStatus(store, state, active, sha, tree);
-  } catch (error) {
-    report.fail(
-      `${itemLabel(active)} is one step from done, and its verification runs could not be read: ${(error as Error).message}`,
-      "fix the file or delete it and re-run 'mstack gate --full'; an unreadable record of what ran is not a record that anything did",
-    );
-    return;
-  }
+  // The same function `state set --status done` asks, so the two cannot
+  // disagree. It reads a file and a read can throw, and `cmdHook` catches every
+  // throw and returns 0 by design, so an unreadable receipt file used to make
+  // `mstack hook stop` emit nothing and exit 0 — byte-identical to a green gate.
+  // `closingProblems` reports that case as a problem instead of throwing.
+  const problems = closingProblems(store, state, active, tree);
   // `unknown` is the one tree value that turns half the key off: both sides
   // compute it identically, so a receipt written while git could not be asked
   // is satisfied by a check while git could not be asked, with nothing compared.
@@ -650,14 +635,16 @@ function checkVerificationRuns(store: Store, state: State, report: Report): void
       "git could not describe the working tree, so only the commit half of the verification key was checked; an uncommitted change since the run would not be noticed",
     );
   }
-  if (result.satisfied) {
+  if (problems.length === 0) {
     report.ok(`verification ran and passed at ${sha.slice(0, 8)}: ${required.map((r) => r.command).join(", ")}`);
     return;
   }
-  for (const problem of result.problems) {
+  for (const problem of problems) {
     report.fail(
       `${itemLabel(active)} is one step from done, and ${problem}`,
-      "run 'mstack gate --full'; nothing else executes it, and a verification nobody runs is not a check",
+      isUnreadable(problem)
+        ? "fix the file or delete it and re-run 'mstack gate --full'; an unreadable record of what ran is not a record that anything did"
+        : "run 'mstack gate --full'; nothing else executes it, and a verification nobody runs is not a check",
     );
   }
 }
@@ -686,11 +673,10 @@ function runVerification(store: Store, state: State, report: Report): void {
   const outcomes: { command: string; target: string; outcome: Outcome }[] = [];
   for (const { command, target } of required) {
     let outcome: Outcome;
-    try {
-      execFileSync("/bin/sh", ["-c", command], { cwd: store.root, stdio: "inherit" });
+    if (runCommand(command, { cwd: store.root, output: "inherit" }).code === 0) {
       outcome = "passed";
       report.ok(`${command}`);
-    } catch {
+    } else {
       outcome = "failed";
       report.fail(`${command} failed`, "fix it; a red verification is not a partial pass");
     }
@@ -727,19 +713,6 @@ function runVerification(store: Store, state: State, report: Report): void {
       );
     }
   }
-}
-
-export function headSha(store: Store): string | null {
-  return git(store, ["rev-parse", "HEAD"]);
-}
-
-export function defaultBranch(store: Store): string {
-  const remote = git(store, ["symbolic-ref", "--quiet", "--short", "refs/remotes/origin/HEAD"]);
-  if (remote !== null && remote.startsWith("origin/")) return remote.slice("origin/".length);
-  for (const candidate of ["main", "master"]) {
-    if (git(store, ["rev-parse", "--verify", "--quiet", candidate]) !== null) return candidate;
-  }
-  return "main";
 }
 
 export function itemLabel(item: Item): string {
