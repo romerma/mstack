@@ -415,6 +415,15 @@ $ mstack fanout check --kind review --worker correctness --worker security --wor
         fix: its reply is not evidence; re-run it and have it write the file before returning
 ```
 
+Worker names are lowercase words joined by hyphens, and a name starting `r<digits>` is refused
+because it would be read as a review round marker:
+
+```console
+$ mstack fanout plan --kind review --worker r2
+mstack: 'r2' is not a usable worker name: it would be read as a round marker
+        names starting r<digits> are reserved for review rounds; pick a lens name like 'reader' or 'security'
+```
+
 `plan` allocates one report path per parallel worker **before** launch and refuses a fan-out
 past the session's concurrency cap, because spawning past it fails outright rather than
 queueing. `check` names the workers that did not report, rather than counting them: "security

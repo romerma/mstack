@@ -4,6 +4,7 @@ import { writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
 
 import { CONCURRENCY_CAP, check, concurrencyCap, plan } from "../src/fanout.ts";
+import { roundOf } from "../src/roles.ts";
 import { UserError } from "../src/paths.ts";
 import { sandbox, state, item, expectFail, expectPass } from "./helpers.ts";
 
@@ -208,6 +209,25 @@ test("a worker name that would not survive a filename is refused", () => {
         `'${name}' should not be accepted as a worker name`,
       );
     }
+  } finally {
+    box.dispose();
+  }
+});
+
+test("a worker named like a round marker is refused, because roundOf would read it as one", () => {
+  const box = active();
+  try {
+    for (const name of ["r2", "r10", "r2-facts"]) {
+      assert.throws(
+        () => plan(box.store, { kind: "review", workers: [name] }),
+        (error: unknown) => error instanceof UserError && /round marker/.test(error.message),
+        name,
+      );
+    }
+    // Lenses that only begin with r are fine, and read back as lenses.
+    const p = plan(box.store, { kind: "review", workers: ["reader", "r", "rust2"] });
+    assert.equal(p.workers.length, 3);
+    for (const w of p.workers) assert.equal(roundOf(w.report, "review", "storage-layer").lens, w.name);
   } finally {
     box.dispose();
   }

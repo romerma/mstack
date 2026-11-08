@@ -2,7 +2,7 @@ import { statSync } from "node:fs";
 import { basename, join } from "node:path";
 
 import { activeItem } from "./state.ts";
-import { FANOUT_KINDS, reportFiles } from "./roles.ts";
+import { FANOUT_KINDS, MIN_REPORT_BYTES, reportFiles } from "./roles.ts";
 import { Report } from "./report.ts";
 import { UserError, type Store } from "./paths.ts";
 
@@ -46,6 +46,9 @@ export const CONCURRENCY_CAP = 20;
 /** A worker name has to survive being part of a filename, and stay readable. */
 const WORKER = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
+/** What `roundOf` reads as a round marker once the name is in a filename. */
+const ROUND_LIKE = /^r\d+(-|$)/;
+
 export interface FanoutPlan {
   kind: string;
   slug: string;
@@ -81,6 +84,14 @@ export function plan(
     if (!WORKER.test(name)) {
       throw new UserError(`'${name}' is not a usable worker name`, "lowercase words joined by hyphens");
     }
+    // `r2` or `r2-x` becomes `..._r2.md`, which every reader of the progress
+    // directory takes for round 2 of a lone reviewer, never a lens.
+    if (ROUND_LIKE.test(name)) {
+      throw new UserError(
+        `'${name}' is not a usable worker name: it would be read as a round marker`,
+        "names starting r<digits> are reserved for review rounds; pick a lens name like 'reader' or 'security'",
+      );
+    }
     // The whole point of allocating up front: two workers with one filename is
     // silent data loss, and it is the failure the first real run hit.
     if (seen.has(name)) throw new UserError(`two workers both named '${name}'`);
@@ -91,9 +102,6 @@ export function plan(
 
   return { kind, slug: item.slug, workers };
 }
-
-/** A report under this floor is a stub. Same threshold the SubagentStop hook uses. */
-const MIN_REPORT_BYTES = 40;
 
 /**
  * Which workers came back.

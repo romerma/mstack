@@ -1,5 +1,5 @@
 import { readdirSync, statSync } from "node:fs";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 
 /**
  * Which file on disk proves a given role actually did its work.
@@ -62,6 +62,28 @@ export function reportFiles(progressDir: string, kind: string, slug: string): st
  * two files, with the comparisons pointing in opposite directions.
  */
 export const MIN_REPORT_BYTES = 40;
+
+/**
+ * Which round of a review, and which lens, a report file belongs to.
+ *
+ * What follows `<kind>_<slug>` and precedes `.md` is `_r<N>` or `_r<N>-<lens>`
+ * for a later round, and a bare `_<lens>` for round one. Nothing at all is a
+ * lone reviewer in round one. Anything that is not a round marker is a lens,
+ * which is why `fanout plan` refuses a worker name that looks like one.
+ */
+export function roundOf(file: string, kind: string, slug: string): { round: number; lens?: string } {
+  let rest = basename(file);
+  const prefix = `${kind}_${slug}`;
+  if (rest.startsWith(prefix)) rest = rest.slice(prefix.length);
+  if (rest.endsWith(".md")) rest = rest.slice(0, -".md".length);
+  if (rest === "") return { round: 1 };
+  const marker = /^_r(\d+)(?:-(.+))?$/.exec(rest);
+  if (marker !== null) {
+    const round = Number.parseInt(marker[1] ?? "", 10);
+    return marker[2] === undefined ? { round } : { round, lens: marker[2] };
+  }
+  return { round: 1, lens: rest.replace(/^_/, "") };
+}
 
 /**
  * The reports that actually say something.
