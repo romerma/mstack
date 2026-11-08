@@ -1,11 +1,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, readdirSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
+import { join } from "node:path";
 
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawn, spawnSync } from "node:child_process";
 
-import { UserError } from "../src/paths.ts";
 import { runCommand, type RunOptions } from "../src/run.ts";
 
 const cwd = process.cwd();
@@ -110,7 +110,7 @@ test("the tail of a timed run is only the command's output", () => {
 
 test("inherit with a timeout is refused", () => {
   const untyped = { cwd, output: "inherit", timeoutMs: 100 } as unknown as RunOptions;
-  assert.throws(() => runCommand("true", untyped), UserError);
+  assert.throws(() => runCommand("true", untyped), TypeError);
 });
 
 test("a signal that ends the shell itself is reported; one that ends a child of it is 128+n", () => {
@@ -126,5 +126,106 @@ test("a command that cannot start gives code null and an error, on both paths", 
     assert.equal(r.code, null);
     assert.equal(r.timedOut, false);
     assert.equal(typeof r.error, "string");
+  }
+});
+
+test("timeoutMs must be an integer from 1 to 2^31-1; anything else throws", () => {
+  for (const bad of [Number.NaN, Number.POSITIVE_INFINITY, -5, 0, 1.5, 2 ** 31]) {
+    assert.throws(() => runCommand("true", { cwd, output: "capture", timeoutMs: bad }), TypeError, String(bad));
+  }
+  for (const good of [2 ** 31 - 1]) {
+    const r = runCommand("true", { cwd, output: "capture", timeoutMs: good });
+    assert.equal(r.timedOut, false, String(good));
+    assert.equal(r.code, 0, String(good));
+  }
+});
+
+function survivors(marker: string): number[] {
+  const r = spawnSync("pgrep", ["-f", marker], { encoding: "utf8" });
+  return r.stdout.split("\n").filter((l) => l !== "").map(Number).filter((p) => p !== process.pid);
+}
+
+/**
+ * One kill of the group misses a child that is mid-fork at that instant; it is
+ * born into the group after the signal went out. Measured before the fix with
+ * 400 forks and a 40 ms timeout: 4/10 runs (bun) and 7/10 runs (node) left a
+ * survivor. Five runs here, because each costs the timeout plus a settle.
+ */
+test("a timeout kills children that are being forked at that moment", async () => {
+  const marker = `sleep 7.8${process.pid % 1000}`;
+  let left: number[] = [];
+  try {
+    for (let run = 0; run < 5; run++) {
+      const r = runCommand(`i=0; while [ $i -lt 400 ]; do ${marker} & i=$((i+1)); done; wait`, {
+        cwd,
+        output: "capture",
+        timeoutMs: 40,
+      });
+      assert.equal(r.timedOut, true);
+    }
+    await new Promise((res) => setTimeout(res, 300));
+    left = survivors(marker);
+    assert.deepEqual(left, [], "children survived the timeout");
+  } finally {
+    for (const pid of survivors(marker)) {
+      try { process.kill(pid, "SIGKILL"); } catch { /* gone */ }
+    }
+  }
+});
+
+/**
+ * bun loads `bunfig.toml` and `.env` from its cwd. The helper is started
+ * elsewhere, so the timed path sees what the untimed one sees.
+ */
+test("the timed path does not load the target directory's bunfig.toml or .env", () => {
+  const target = mkdtempSync(join(tmpdir(), "mstack-target-"));
+  try {
+    writeFileSync(join(target, "pre.mjs"), 'console.log("PRELOAD RAN");\n');
+    writeFileSync(join(target, "bunfig.toml"), 'preload = ["./pre.mjs"]\n');
+    writeFileSync(join(target, ".env"), "MSTACK_PROBE_ENV=from-dotenv\n");
+    const cmd = 'echo "env=${MSTACK_PROBE_ENV:-unset}"';
+    const untimed = runCommand(cmd, { cwd: target, output: "capture" });
+    const timed = runCommand(cmd, { cwd: target, output: "capture", timeoutMs: 5_000 });
+    assert.equal(untimed.tail, "env=unset");
+    assert.equal(timed.tail, "env=unset");
+  } finally {
+    rmSync(target, { recursive: true, force: true });
+  }
+});
+
+/**
+ * Ctrl-C reaches the terminal's foreground group: the caller and the helper, not
+ * the detached command. The victim stands for the caller, in a group of its own
+ * so this test runner is not signalled; `kill(-victim)` is what the terminal does.
+ */
+test("a SIGINT to the caller's group takes the timed command down with it", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "mstack-sigint-"));
+  try {
+    const script = join(dir, "victim.mts");
+    const pidFile = join(dir, "pid");
+    writeFileSync(
+      script,
+      `import { runCommand } from ${JSON.stringify(join(cwd, "src", "run.ts"))};
+runCommand(${JSON.stringify(`sleep 31.9 & echo $! > ${pidFile}; wait`)}, { cwd: ${JSON.stringify(dir)}, output: "capture", timeoutMs: 60000 });
+`,
+    );
+    const flags = typeof (globalThis as { Bun?: unknown }).Bun === "undefined"
+      ? ["--experimental-strip-types", "--disable-warning=ExperimentalWarning"]
+      : [];
+    const victim = spawn(process.execPath, [...flags, script], { detached: true, stdio: "ignore" });
+    let pid = 0;
+    for (let i = 0; i < 50 && pid === 0; i++) {
+      await new Promise((res) => setTimeout(res, 100));
+      if (existsSync(pidFile)) pid = Number(readFileSync(pidFile, "utf8").trim()) || 0;
+    }
+    assert.ok(pid > 1, "the command never started");
+    process.kill(-victim.pid!, "SIGINT");
+    await new Promise((res) => setTimeout(res, 800));
+    let alive = true;
+    try { process.kill(pid, 0); } catch { alive = false; }
+    if (alive) process.kill(pid, "SIGKILL");
+    assert.equal(alive, false, "the command outlived the Ctrl-C");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
   }
 });

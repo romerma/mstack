@@ -1,5 +1,5 @@
 import { headSha } from "./git.ts";
-import { VERIFICATION_REQUIRED_FROM, type Status } from "./lifecycle.ts";
+import { requiresVerification, VERIFICATION_REQUIRED_FROM, type Status } from "./lifecycle.ts";
 import type { Store } from "./paths.ts";
 import type { Item, State } from "./state.ts";
 import * as verification from "./verification.ts";
@@ -27,7 +27,12 @@ export interface ClosingProblem {
 
 export interface ClosingCheck {
   readonly name: string;
-  /** The statuses at which the gate reports this check. `state set` always runs it. */
+  /**
+   * Statuses to report at *in addition to* `verifying`. At `verifying` the gate
+   * reports every check, because that is one step from done and `state set`
+   * would refuse on it; this can only add earlier statuses. `state set` always
+   * runs every check.
+   */
   readonly reportedAt: readonly Status[];
   readonly run: (store: Store, state: State, item: Item, tree: string | undefined) => ClosingProblem[];
 }
@@ -78,7 +83,8 @@ export function closingProblems(store: Store, state: State, item: Item, tree?: s
 
 /** The subset the gate reports for an item at its current status. */
 export function gateProblems(store: Store, state: State, item: Item, tree?: string): ClosingProblem[] {
-  return CLOSING_CHECKS.filter((check) => check.reportedAt.includes(item.status)).flatMap((check) =>
+  const atTheDoor = requiresVerification(item.status);
+  return CLOSING_CHECKS.filter((check) => atTheDoor || check.reportedAt.includes(item.status)).flatMap((check) =>
     check.run(store, state, item, tree),
   );
 }

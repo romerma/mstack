@@ -4,8 +4,6 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { UserError } from "./paths.ts";
-
 /**
  * Run a shell command to completion.
  *
@@ -59,15 +57,21 @@ export interface RunResult {
 }
 
 const DEFAULT_TAIL_LINES = 40;
+const MAX_TIMEOUT_MS = 2 ** 31 - 1;
 const HELPER = join(dirname(fileURLToPath(import.meta.url)), "run-helper.mjs");
 
 export function runCommand(cmd: string, options: RunOptions): RunResult {
   // The type already says so; this is for callers that are not typed.
   if (options.output === "inherit" && options.timeoutMs !== undefined) {
-    throw new UserError(
-      "runCommand: output 'inherit' cannot have a timeout",
-      "use output 'capture' to bound a command; an inherited terminal stops a background group",
+    throw new TypeError(
+      "runCommand: output 'inherit' cannot have a timeout; use 'capture' to bound a command, since an inherited terminal stops a background group",
     );
+  }
+  const limit = options.timeoutMs;
+  // Node and bun both turn an out-of-range timer into a 1 ms one and print a
+  // warning, which would read as a command that timed out at once.
+  if (limit !== undefined && !(Number.isInteger(limit) && limit >= 1 && limit <= MAX_TIMEOUT_MS)) {
+    throw new TypeError(`runCommand: timeoutMs must be an integer from 1 to ${MAX_TIMEOUT_MS}, got ${String(limit)}`);
   }
   if (options.output === "inherit") {
     const r = spawnSync("/bin/sh", ["-c", cmd], { cwd: options.cwd, stdio: "inherit" });
@@ -83,7 +87,10 @@ export function runCommand(cmd: string, options: RunOptions): RunResult {
       timeout === undefined
         ? spawnSync("/bin/sh", ["-c", cmd], { cwd: options.cwd, stdio: ["ignore", fd, fd] })
         : spawnSync(process.execPath, [HELPER, join(dir, "result.json"), String(timeout), options.cwd, cmd], {
-            cwd: options.cwd,
+            // Not the target directory: bun loads that directory's bunfig.toml and
+            // .env into whatever it starts there, and the command's cwd is passed
+            // to the helper as an argument instead.
+            cwd: dir,
             stdio: ["ignore", fd, fd],
           });
     const tail = lastLines(readFileSync(out, "utf8"), options.tailLines ?? DEFAULT_TAIL_LINES);

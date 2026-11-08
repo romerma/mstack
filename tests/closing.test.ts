@@ -78,7 +78,7 @@ test("an unreadable receipt file is a problem, not a throw, and is the one --for
  * (the CLI is a program, not a library) and asks both surfaces about an item that
  * has no verification command at all, where the old gate went quiet.
  */
-function cliWithSecondCheck(cwd: string, args: string[], overridable: boolean) {
+function cliWithSecondCheck(cwd: string, args: string[], overridable: boolean, reportedAt = ["verifying"]) {
   const dir = mkdtempSync(join(tmpdir(), "mstack-closing-"));
   const boot = join(dir, "boot.mts");
   const root = join(dirname(fileURLToPath(import.meta.url)), "..", "src");
@@ -87,7 +87,7 @@ function cliWithSecondCheck(cwd: string, args: string[], overridable: boolean) {
     `import { CLOSING_CHECKS } from ${JSON.stringify(join(root, "closing.ts"))};
 CLOSING_CHECKS.push({
   name: "second",
-  reportedAt: ["verifying"],
+  reportedAt: ${JSON.stringify(reportedAt)},
   run: () => [{ check: "second", message: "a second closing check is not satisfied", hint: "satisfy the second check", overridable: ${overridable} }],
 });
 await import(${JSON.stringify(join(root, "cli.ts"))});
@@ -152,6 +152,23 @@ test("a check that is not overridable stays closed under --force", () => {
     assert.equal(forced.code, 2, forced.stdout);
     assert.match(forced.stderr, /cannot close: a second closing check is not satisfied/);
     assert.equal(parseState(sb.store.state).items[0]?.status, "verifying");
+  } finally {
+    sb.dispose();
+  }
+});
+
+test("at verifying the gate reports every check, whatever its reportedAt says", () => {
+  const sb = sandbox();
+  try {
+    sb.writeState(state([item({ status: "verifying" })], { verify: "" }));
+    trackCurrent(sb);
+    quiesce(sb);
+    const gate = cliWithSecondCheck(sb.store.root, ["gate"], true, ["reviewing"]);
+    assert.equal(gate.code, 1, gate.stdout);
+    assert.match(gate.stdout, /one step from done, and a second closing check is not satisfied/);
+    const refused = cliWithSecondCheck(sb.store.root, ["state", "set", "storage-layer", "--status", "done"], true, ["reviewing"]);
+    assert.equal(refused.code, 2, refused.stdout);
+    assert.match(refused.stderr, /cannot close: a second closing check is not satisfied/);
   } finally {
     sb.dispose();
   }

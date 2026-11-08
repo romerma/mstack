@@ -21,14 +21,27 @@ const finish = (result) => {
   process.exit(0);
 };
 
-const timer = setTimeout(() => {
-  timedOut = true;
+const killGroup = () => {
   try {
     process.kill(-child.pid, "SIGKILL");
   } catch {
     // The group is already gone.
   }
+};
+
+const timer = setTimeout(() => {
+  timedOut = true;
+  killGroup();
 }, Number(timeoutMs));
+
+// The command is detached, so the terminal's Ctrl-C reaches this process and not
+// the command, which would then run on with no bound. Take the group down with us.
+for (const [name, number] of [["SIGINT", 2], ["SIGTERM", 15], ["SIGHUP", 1]]) {
+  process.on(name, () => {
+    killGroup();
+    process.exit(128 + number);
+  });
+}
 
 child.on("error", (error) => {
   clearTimeout(timer);
@@ -36,5 +49,8 @@ child.on("error", (error) => {
 });
 child.on("exit", (code, signal) => {
   clearTimeout(timer);
+  // A second kill: the first can land while the command is mid-fork, and the
+  // child it was creating is born into the group after the signal went out.
+  if (timedOut) killGroup();
   finish({ code, signal, timedOut });
 });
