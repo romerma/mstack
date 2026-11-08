@@ -693,6 +693,17 @@
       ],
       "status": "pending",
       "source": "item 37 implementer round 1, verified at base 0a45b4d by the coordinator in a temporary worktree, 2026-11-08"
+    },
+    {
+      "id": 51,
+      "slug": "cost-ledger-followups",
+      "title": "Cost ledger follow-ups from the item 37 round-3 review",
+      "acceptance": [
+        "the cost rows and the flushed record of one flush are a single append, so a kill between rows cannot leave a partial delta that the next flush writes again; the docs' 'two adjacent writes' wording becomes true, with a kill-between-rows test",
+        "the marks file is compacted on a bound (size or age), not only when prune drops a session, and a test shows a long-lived machine with transcript cleanup off stays bounded; SessionStart and Stop stay within the item 37 budget"
+      ],
+      "status": "pending",
+      "source": "item 37 round-3 review, non-blocking, 2026-11-08"
     }
   ]
 }
