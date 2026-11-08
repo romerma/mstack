@@ -313,7 +313,7 @@
         "src/roles.ts exports roundOf(file, kind, slug) returning {round, lens}: unmarked is round 1, _r<N> and _r<N>-<lens> give N, any other remainder is round 1 with that lens; a test table covers every real report name in .mstack/progress, including review_readme-leads-with-use_readme-leads-with-use.md",
         "MIN_REPORT_BYTES has one definition: src/fanout.ts imports it from src/roles.ts instead of redefining it"
       ],
-      "status": "in_progress",
+      "status": "reviewing",
       "description": "Item 15 reserved _r<digits> as a round marker in agents/reviewer.md, the file that parses report names, but not in skills/review/SKILL.md step 2, the file that hands them out. 'mstack fanout plan --kind review --worker r2' allocates review_<slug>_r2.md to a lens, which then reads its own path as solo and records a row a panel member must not record. Zero real occurrences today; found as a non-blocking note in the item 15 round-3 review, which judged one clause in step 2 sufficient.",
       "source": "item 15 round-3 review, non-blocking note, 2026-08-21",
       "verification": "npm test && npm run typecheck && ./bin/mstack lint-plugin ."
