@@ -82,3 +82,4 @@ fanout-worker-can-forge-a-round-marker	84e0e9e09a7b09056170e44615a1067e921eb67c	
 fanout-worker-can-forge-a-round-marker	d3aa2a8144de9505b9219db2a890003798569b60	verifier-failed	.mstack/progress/review_fanout-worker-can-forge-a-round-marker.md	reviewer	2026-11-08T11:46:39.780Z
 fanout-worker-can-forge-a-round-marker	c059e03488e88fc46121dcfbdd6e7d0ba785442b	test-verified	.mstack/progress/impl_fanout-worker-can-forge-a-round-marker_r2.md	implementer	2026-11-08T11:48:53.354Z
 fanout-worker-can-forge-a-round-marker	919e768c65658563d91b45f64533d3ab4e5cceaa	test-verified	.mstack/progress/review_fanout-worker-can-forge-a-round-marker_r2.md	reviewer	2026-11-08T11:51:21.784Z
+shared-runner-and-closing	7f5e67a9130c406d6724dfea0c326faa18cb31ba	test-verified	.mstack/progress/impl_shared-runner-and-closing.md	implementer	2026-11-08T11:58:49.213Z

@@ -6,10 +6,10 @@
 > On close: append the summary to `history.md` and reset this file to the
 > empty template below.
 
-- **Item:** none active (20 closed 2026-11-08; next 36 shared-runner-and-closing)
-- **Status:** -
-- **Branch:** main
-- **Base:** -
+- **Item:** 36 shared-runner-and-closing
+- **Status:** in_progress
+- **Branch:** feat/shared-runner-and-closing
+- **Base:** 2e975da
 - **Worktree:** none
 
 ## Plan
@@ -30,6 +30,7 @@ and takes 5–9× the wall time. mstack-after must keep 16/16 and cut that.
 - Hard tier: `impl_benchmark-hard-tier_baseline.md`.
 
 - Item 20 closed 2026-11-08 (2 rounds; merged ff to main locally).
+- Item 36 implementer (Sonnet) running.
 
 Headless runs: `run.mjs` builds a clean `env -i` env, uses the claude.ai login, and never
 passes bypassPermissions. Do not run `check.mjs` or `verify.mjs` while a batch is running
