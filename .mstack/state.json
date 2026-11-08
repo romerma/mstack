@@ -6,7 +6,8 @@
   "rules": {
     "one_active_item": true,
     "require_verdict_to_close": true,
-    "require_spec_for_sdd_items": true
+    "require_spec_for_sdd_items": true,
+    "record_costs": true
   },
   "items": [
     {
@@ -536,7 +537,7 @@
         "mstack cost [slug] [--by role|item|model] [--json] prints tokens, review rounds via roundOf and verifier-failed rows; rules.record_costs false turns recording off; .mstack/.gitattributes sets merge=union on costs.tsv, ledger.tsv and decisions.tsv",
         "Hook paths stay within budget on a 50 MB synthetic transcript and a throwing parser never changes another hook's output"
       ],
-      "status": "in_progress"
+      "status": "reviewing"
     },
     {
       "id": 38,
@@ -680,6 +681,18 @@
         "README v1 discount wording vs the v1 fixture (finding 2) and the cosmetic items (finding 3) are fixed only if the hard tier is re-baselined; otherwise a decision row records leaving them"
       ],
       "status": "pending"
+    },
+    {
+      "id": 50,
+      "slug": "plugin-validate-strict-red",
+      "title": "claude plugin validate --strict fails on two warnings claude 2.1.316 added: root CLAUDE.md and no icon",
+      "acceptance": [
+        "claude plugin validate . --strict passes, or a decision row records why one warning is accepted and CONTRIBUTING's verification list says which flag to use instead",
+        "the root CLAUDE.md warning is resolved without losing the dev instructions (they are this repo's, not the plugin's): e.g. moved under .claude/ or excluded from the shipped plugin, with the choice recorded",
+        "an icon decision: a square PNG at .claude-plugin/icon.png (512-2048 px, under 2 MB) or a recorded decision to ship without one; the validator notes the first saved icon becomes the listing icon permanently, so this is the user's call"
+      ],
+      "status": "pending",
+      "source": "item 37 implementer round 1, verified at base 0a45b4d by the coordinator in a temporary worktree, 2026-11-08"
     }
   ]
 }
