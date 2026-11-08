@@ -39,12 +39,17 @@ interface Fake {
   dispose(): void;
 }
 
-function fake(session = "11111111-2222-3333-4444-555555555555"): Fake {
+/**
+ * `seed` pre-creates the transcript. Real fresh sessions do not have one at
+ * SessionStart (observed in every fresh session, `-p` and interactive), so the
+ * default is the shape that happens; a resumed session is the seeded one.
+ */
+function fake(session = "11111111-2222-3333-4444-555555555555", seed = false): Fake {
   const dir = mkdtempSync(join(tmpdir(), "mstack-transcripts-"));
   const transcript = join(dir, `${session}.jsonl`);
   const subagents = join(dir, session, "subagents");
   mkdirSync(subagents, { recursive: true });
-  writeFileSync(transcript, `${JSON.stringify({ type: "user", message: { role: "user", content: "hello" } })}\n`);
+  if (seed) writeFileSync(transcript, `${JSON.stringify({ type: "user", message: { role: "user", content: "hello" } })}\n`);
   return { dir, session, transcript, subagents, dispose: () => rmSync(dir, { recursive: true, force: true }) };
 }
 
@@ -180,7 +185,7 @@ test("marks live under git's own path for mstack/, in a plain repo and in a link
 
 test("SessionStart writes a mark at the transcript's current size; a repeat for the same item adds nothing", () => {
   const box = sandbox();
-  const f = fake();
+  const f = fake(undefined, true);
   try {
     active(box);
     const input = begin(box, f);
@@ -692,7 +697,7 @@ test("a cost layer that throws never changes what another hook says", () => {
 
 test("hook paths stay within budget on a 50 MB transcript", () => {
   const box = sandbox();
-  const f = fake();
+  const f = fake(undefined, true);
   try {
     active(box);
     const input = begin(box, f);
@@ -746,7 +751,7 @@ test("hook paths stay within budget on a 50 MB transcript", () => {
 
 test("the flush stays within budget on a 50 MB transcript made of nothing but assistant turns", () => {
   const box = sandbox();
-  const f = fake();
+  const f = fake(undefined, true);
   try {
     active(box);
     const input = begin(box, f);
@@ -769,6 +774,232 @@ test("the flush stays within budget on a 50 MB transcript made of nothing but as
     assert.ok(ms < 2_500, `SessionEnd flush took ${ms}ms against a 5 s hook timeout`);
   } finally {
     f.dispose();
+    box.dispose();
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Round 2
+// ---------------------------------------------------------------------------
+
+const sum = (rs: Record<string, string>[], col: string) => rs.reduce((a, r) => a + (r[col] === "(none)" ? 0 : Number(r[col])), 0);
+
+test("a single-turn session whose transcript appears after SessionStart still gets main rows that reconcile", () => {
+  const box = sandbox();
+  const f = fake(); // no transcript on disk at SessionStart, as in every fresh session
+  try {
+    active(box);
+    const input = begin(box, f);
+    const mark = JSON.parse(readFileSync(marksFile(box), "utf8").trim().split("\n")[0] as string);
+    assert.equal(mark.offset, 0, "a missing transcript is a mark at offset 0, not no mark");
+
+    // One turn, and no Stop hook ever runs (`--max-turns 1`, `error_max_turns`).
+    appendFileSync(f.transcript, assistant("m1", SONNET, { input: 10, cw: 100, cr: 1000, out: 50 }));
+    appendFileSync(f.transcript, costState({ [SONNET]: { i: 12, cw: 130, cr: 1400, o: 60, usd: 0.5 } }));
+    sessionEnd(input);
+
+    const got = rows(box);
+    assert.deepEqual(
+      got.filter((r) => r["role"] === "main").map((r) => [r["input"], r["cache_write"], r["cache_read"], r["output"]]),
+      [["10", "100", "1000", "50"]],
+      "the first turn is main, not unattributed",
+    );
+    assert.deepEqual([sum(got, "input"), sum(got, "cache_write"), sum(got, "cache_read"), sum(got, "output")], [12, 130, 1400, 60]);
+    assert.equal(sum(got, "cost_usd"), 0.5);
+  } finally {
+    f.dispose();
+    box.dispose();
+  }
+});
+
+test("SessionEnd marks a session nothing marked before, so it is never silently dropped", () => {
+  const box = sandbox();
+  const f = fake();
+  try {
+    active(box);
+    appendFileSync(f.transcript, assistant("m1", SONNET, { input: 7, out: 3 }));
+    appendFileSync(f.transcript, costState({ [SONNET]: { i: 7, cw: 0, cr: 0, o: 3, usd: 0.1 } }));
+    // No SessionStart ran and no Stop did: there is not one mark anywhere.
+    assert.throws(() => readFileSync(marksFile(box)));
+    sessionEnd({ cwd: box.store.root, session_id: f.session, transcript_path: f.transcript });
+    const got = rows(box);
+    assert.equal(got.find((r) => r["role"] === "main")?.["input"], "7");
+    assert.equal(sum(got, "cost_usd"), 0.1);
+  } finally {
+    f.dispose();
+    box.dispose();
+  }
+});
+
+test("a session that crashed in its first turn is settled by the next SessionStart", () => {
+  const box = sandbox();
+  const crashed = fake("eeeeeeee-0000-0000-0000-000000000005");
+  const next = fake("ffffffff-0000-0000-0000-000000000006", true);
+  try {
+    active(box);
+    begin(box, crashed); // transcript absent at this point
+    appendFileSync(crashed.transcript, assistant("m1", SONNET, { input: 5, out: 2 }));
+    begin(box, next);
+    assert.equal(rows(box).find((r) => r["role"] === "main")?.["input"], "5");
+  } finally {
+    crashed.dispose();
+    next.dispose();
+    box.dispose();
+  }
+});
+
+test("a session flushed on one branch and resumed on another does not double count once the branches merge", () => {
+  const box = sandbox();
+  const f = fake();
+  try {
+    const git = (...args: string[]) => execFileSync("git", args, { cwd: box.store.root, encoding: "utf8" }).trim();
+    active(box);
+    git("add", "-A");
+    git("commit", "-q", "-m", "base");
+    const base = git("rev-parse", "--abbrev-ref", "HEAD");
+
+    git("checkout", "-q", "-b", "feat/a");
+    const input = begin(box, f);
+    appendFileSync(f.transcript, assistant("m1", SONNET, { input: 100, out: 10 }));
+    appendFileSync(f.transcript, costState({ [SONNET]: { i: 110, cw: 0, cr: 0, o: 11, usd: 1 } }));
+    sessionEnd(input);
+    git("add", "-A");
+    git("commit", "-q", "-m", "costs on a");
+
+    // Back on the base branch, which has none of those rows: resume, use more, end.
+    git("checkout", "-q", base);
+    assert.equal(rows(box).length, 0, "the other branch's rows are not in this checkout");
+    sessionStart(input);
+    appendFileSync(f.transcript, assistant("m2", SONNET, { input: 50, out: 5 }));
+    appendFileSync(f.transcript, costState({ [SONNET]: { i: 165, cw: 0, cr: 0, o: 16, usd: 1.5 } }));
+    sessionEnd(input);
+    git("add", "-A");
+    git("commit", "-q", "-m", "costs on base");
+    git("merge", "-q", "--no-edit", "feat/a");
+
+    const merged = rows(box);
+    assert.deepEqual(
+      [sum(merged, "input"), sum(merged, "output"), sum(merged, "cost_usd")],
+      [165, 16, 1.5],
+      "the merged table equals what the session really used and cost",
+    );
+    const out = JSON.parse(spawnSync(BIN, ["cost", "--json"], { cwd: box.store.root, encoding: "utf8" }).stdout);
+    assert.equal(out.total.input, 165);
+    assert.equal(out.total.cost_usd, 1.5);
+  } finally {
+    f.dispose();
+    box.dispose();
+  }
+});
+
+test("cost_usd goes to an item only when the whole session worked on it; a session that spanned items is its own line", () => {
+  const box = sandbox();
+  const f = fake();
+  const solo = fake("99999999-0000-0000-0000-000000000009");
+  try {
+    box.writeState(state([item({ slug: "alpha", id: 1, status: "in_progress" }), item({ slug: "beta", id: 2 })]));
+    trackCurrent(box);
+    const input = begin(box, f);
+    appendFileSync(f.transcript, assistant("m1", SONNET, { input: 10, out: 1 }));
+    box.writeState(state([item({ slug: "alpha", id: 1, status: "done" }), item({ slug: "beta", id: 2, status: "in_progress" })]));
+    stop(input); // the item changed: a second mark
+    appendFileSync(f.transcript, assistant("m2", SONNET, { input: 30, out: 3 }));
+    appendFileSync(f.transcript, costState({ [SONNET]: { i: 40, cw: 0, cr: 0, o: 4, usd: 2 } }));
+    sessionEnd(input);
+
+    const soloInput = begin(box, solo); // beta only, for its whole life
+    appendFileSync(solo.transcript, assistant("s1", SONNET, { input: 5, out: 1 }));
+    appendFileSync(solo.transcript, costState({ [SONNET]: { i: 5, cw: 0, cr: 0, o: 1, usd: 0.25 } }));
+    sessionEnd(soloInput);
+
+    const byItem = costs.summarize(box.store, "item");
+    const get = (k: string) => byItem.find((r) => r.key === k);
+    assert.deepEqual([get("alpha")?.input, get("alpha")?.cost_usd], [10, null], "alpha has tokens and no cost");
+    assert.deepEqual([get("beta")?.input, get("beta")?.cost_usd], [35, 0.25], "beta is charged only the session that was all beta");
+    assert.deepEqual([get(costs.MULTI)?.input, get(costs.MULTI)?.cost_usd], [0, 2], "the spanning session's cost, whole, on its own line");
+    assert.equal(costs.total(byItem).cost_usd, 2.25, "the column still sums to real spend");
+
+    const text = spawnSync(BIN, ["cost"], { cwd: box.store.root, encoding: "utf8" }).stdout;
+    assert.match(text, /^multi-item sessions\s/m);
+  } finally {
+    f.dispose();
+    solo.dispose();
+    box.dispose();
+  }
+});
+
+test("prune re-reads the marks file under its lock, so a mark written after the caller's snapshot survives", () => {
+  const box = sandbox();
+  const old = fake("00000000-aaaa-0000-0000-000000000010", true);
+  const live = fake("00000000-bbbb-0000-0000-000000000011", true);
+  try {
+    active(box);
+    const file = marksFile(box);
+    mkdirSync(dirname(file), { recursive: true });
+    // A settled session far past the retention window: this is what makes prune rewrite at all.
+    const longAgo = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString();
+    const lines = [
+      { run: `${old.session}@0`, session: old.session, transcript_path: old.transcript, offset: 0, slug: null, ts: longAgo },
+      { session: old.session, ended: true, size: 1, ts: longAgo },
+    ];
+    writeFileSync(file, lines.map((l) => `${JSON.stringify(l)}\n`).join(""));
+
+    costs.prune(file, () => {
+      // Exactly where a snapshot-then-rewrite would already have read the file.
+      appendFileSync(
+        file,
+        `${JSON.stringify({ run: `${live.session}@0`, session: live.session, transcript_path: live.transcript, offset: 0, slug: "storage-layer", ts: new Date().toISOString() })}\n`,
+      );
+    });
+    const left = costs.readSessions(file).map((x) => x.session);
+    assert.deepEqual(left, [live.session], "the old session is pruned and the concurrent mark is kept");
+  } finally {
+    old.dispose();
+    live.dispose();
+    box.dispose();
+  }
+});
+
+test("the flushed totals survive a prune, so a pruned-then-resumed session is not written twice", () => {
+  const box = sandbox();
+  const f = fake(undefined, true);
+  try {
+    active(box);
+    const input = begin(box, f);
+    appendFileSync(f.transcript, assistant("m1", SONNET, { input: 10, out: 1 }));
+    sessionEnd(input);
+    const before = rows(box).length;
+    // A long-settled session beside it, so that prune really rewrites the file.
+    const longAgo = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString();
+    appendFileSync(
+      marksFile(box),
+      `${JSON.stringify({ run: "old@0", session: "old", transcript_path: f.transcript, offset: 0, slug: null, ts: longAgo })}\n${JSON.stringify({ session: "old", ended: true, size: 1, ts: longAgo })}\n`,
+    );
+    costs.prune(marksFile(box));
+    assert.deepEqual(costs.readSessions(marksFile(box)).map((x) => x.session), [f.session], "the rewrite happened");
+    forceFlush(box, f.session);
+    assert.equal(rows(box).length, before);
+    assert.ok(Object.keys(costs.readSessions(marksFile(box))[0]?.flushed ?? {}).length > 0);
+  } finally {
+    f.dispose();
+    box.dispose();
+  }
+});
+
+test("GIT_DIR is honoured: the marks directory is whatever git says, with it set", () => {
+  const box = sandbox();
+  const elsewhere = mkdtempSync(join(tmpdir(), "mstack-gitdir-"));
+  const saved = process.env["GIT_DIR"];
+  try {
+    execFileSync("git", ["init", "-q", "--bare", elsewhere]);
+    process.env["GIT_DIR"] = elsewhere;
+    const spawned = execFileSync("git", ["rev-parse", "--git-path", "mstack"], { cwd: box.store.root, encoding: "utf8", env: { ...process.env } }).trim();
+    assert.equal(costs.marksDir(box.store), resolve(box.store.root, spawned));
+    assert.equal(costs.marksDir(box.store), join(elsewhere, "mstack"));
+  } finally {
+    if (saved === undefined) delete process.env["GIT_DIR"];
+    else process.env["GIT_DIR"] = saved;
+    rmSync(elsewhere, { recursive: true, force: true });
     box.dispose();
   }
 });

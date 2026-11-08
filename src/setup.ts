@@ -73,13 +73,18 @@ verification.tsv
 `;
 
 /**
- * The three append-only tables, each row independent of the others.
+ * The three append-only tables.
  *
- * Two branches that both append to `costs.tsv` (or the ledger, or the
- * decisions) conflict on the last line under git's default merge, though nothing
- * is actually in dispute: every row stands alone. `merge=union` keeps both
- * sides' lines. It is wrong for any file whose lines depend on each other, which
- * is why it is listed by name and not by glob.
+ * Two branches that both append to one of them conflict on the last line under
+ * git's default merge, though nothing is in dispute. `merge=union` keeps both
+ * sides' lines. That is right only if a row means the same thing wherever it is
+ * read, and for `costs.tsv` that is a property the writer has to provide, not
+ * one the file has: a row there is a *delta* ("this much more since the last
+ * flush"), so it sums correctly across a union only if no delta is computed
+ * against a copy of the table that is missing some of the rows. `src/costs.ts`
+ * keeps what it has flushed in machine-local state for exactly that reason. The
+ * attribute is listed by file name, not by glob, because it is wrong for any
+ * table whose lines depend on each other.
  */
 export const STORE_GITATTRIBUTES = `costs.tsv merge=union
 ledger.tsv merge=union

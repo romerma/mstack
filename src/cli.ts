@@ -954,10 +954,10 @@ function cmdCost(argv: readonly string[]): number {
   }
   const store = requireStore();
   const state = parseState(store.state);
-  if (slug !== undefined && slug !== costs.NONE && findItem(state, slug) === undefined) {
+  if (slug !== undefined && slug !== costs.NONE && slug !== costs.MULTI && findItem(state, slug) === undefined) {
     throw new UserError(`no item '${slug}'`, "run 'mstack state list' for the slugs");
   }
-  const target = slug === undefined || slug === costs.NONE ? slug : (findItem(state, slug) as Item).slug;
+  const target = slug === undefined || slug === costs.NONE || slug === costs.MULTI ? slug : (findItem(state, slug) as Item).slug;
 
   // Settle first, so the numbers include the session that is running. A flush
   // that fails leaves the table as it was; reading it is still worth doing.
@@ -974,11 +974,11 @@ function cmdCost(argv: readonly string[]): number {
   const rows = costs.summarize(store, by, target);
   const total = costs.total(rows);
   const perItem = (key: string) =>
-    by === "item" && key !== costs.NONE
+    by === "item" && key !== costs.NONE && key !== costs.MULTI
       ? { review_rounds: costs.reviewRounds(store, key), verifier_failed: costs.verifierFailed(store, key) }
       : {};
   const single =
-    target !== undefined && target !== costs.NONE
+    target !== undefined && target !== costs.NONE && target !== costs.MULTI
       ? { review_rounds: costs.reviewRounds(store, target), verifier_failed: costs.verifierFailed(store, target) }
       : {};
 

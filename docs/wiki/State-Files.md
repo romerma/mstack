@@ -207,13 +207,17 @@ that possible:
 - A **mark** says "from this byte offset of this transcript, usage belongs to this item". Marks
   are machine-local: they live in `costs-marks.jsonl` under `git rev-parse --git-path mstack/`
   (per worktree, inside `.git`), never in `.mstack/`, because an offset into a file on one
-  machine means nothing on another. `SessionStart` writes one at the transcript's current size.
+  machine means nothing on another. `SessionStart` writes one at the transcript's current size, or at offset 0 when the file
+  does not exist yet, which it does not in a fresh session (everything later written to it
+  belongs to this one). `SessionEnd` marks a session that has no mark at all, from offset 0, so
+  one that ended before any `Stop` (`--max-turns 1`) is still recorded.
   `Stop` writes one only when the active item changed; the unchanged case is the marks file, a
   parse of `state.json` and a compare, and the transcript is not opened.
 - A **flush** reads the transcript from the mark's offset by streaming (never the whole file),
   counts usage once per `message.id` (the API response's usage repeats on each content block),
   skips sidechain lines, scans the session's `subagents/` directory, and appends only
-  `total - sum(existing rows)` per key. Flushing twice changes nothing. It runs at `SessionEnd`,
+  `total - flushed so far` per key, where "flushed so far" is kept in the same machine-local
+  marks file and **never read back from `costs.tsv`**. Flushing twice changes nothing. It runs at `SessionEnd`,
   at the next `SessionStart` for a session that never reached one (a crash), and inside
   `mstack cost`.
 
@@ -226,7 +230,8 @@ machine): the `cost-state` line is already on disk when the `SessionEnd` hook ru
 `modelUsage` includes subagent usage (main plus subagent transcript sums matched it to the
 token); `--resume` appends to the same file and session id and `cost-state` is cumulative,
 so the last line is the whole session; `/compact` writes no usage to any transcript, only to
-`cost-state`. Interactive sessions were not run, so the first of those is rung 4 for `-p` only.
+`cost-state`. The first was also observed for interactive `/exit`, Ctrl-C and a closed terminal (review of
+this item); a SIGKILL runs no `SessionEnd` at all and is what the next `SessionStart` settles.
 
 **Budget.** On a 50 MB synthetic transcript the `SessionEnd` flush took 29 ms on a realistic mix (tool
 results dominate the bytes, 11,400 assistant turns) and 82 ms on 74,500 assistant turns, every
@@ -237,7 +242,24 @@ never changes what another hook says.
 
 `.gitattributes` gives the three append-only tables `merge=union`. Two branches that both
 append to one of them conflict on the last line under git's default merge though nothing is in
-dispute; every row stands alone. Run `mstack setup` once on an older store to get the file.
+dispute, and the union keeps both sides' lines. For the ledger and the decisions that is
+enough. For `costs.tsv` it is only right because a row is a *delta*, and a delta is correct
+across a union only if it was never computed against a copy of the table missing some of the
+rows: flushing a session on `feat/a`, switching to `main` (which lacks those rows) and
+flushing the same session there would write its whole total a second time, and the merge would
+keep both. That is why the flushed totals are machine-local state and not a read of the file; a
+test runs exactly that scenario and the merged table equals the session's real usage and cost.
+Run `mstack setup` once on an older store to get the file.
+
+**Per-item `cost_usd`.** A session's cost goes to an item only when every mark of that session
+names the same item; otherwise it is written on a `target=(multi-item)` row, never split by
+token share. Tokens stay per item. See [The-CLI](The-CLI.md#cost).
+
+**Known limits.** A subagent panel: `SubagentStop` passes a lens that wrote nothing once a
+sibling's report is newer than its start (`mstack fanout check` is the guard that names the
+lens); a subagent resumed later keeps its first timestamp. The Stop hook's `stat` can land one
+message before the turn's last line, so an item boundary can wobble by one message. A crash
+between appending rows and recording the flushed totals writes that delta twice.
 
 ## Reading the store
 

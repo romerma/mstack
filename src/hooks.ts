@@ -190,6 +190,12 @@ export function subagentStop(input: HookInput): string | null {
   // started, so at least one report has to be newer than that. When the
   // transcript cannot be found or read there is no start time to compare, and
   // the answer stays what it was: fail open, never accuse on a guess.
+  //
+  // Known limits, stated rather than hidden. `some` means a panel lens that
+  // wrote nothing passes once a sibling's report is newer than its start;
+  // `mstack fanout check` is the guard that names the lens. And a subagent
+  // resumed later keeps its original first timestamp, so a report from before
+  // the resume still counts as fresh.
   const startedAt = agentStartedAt(input);
   if (startedAt !== null) {
     const fresh = found.some((file) => {

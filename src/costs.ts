@@ -72,6 +72,7 @@ export const HEADER = [
 
 const MARKS_FILE = "costs-marks.jsonl";
 const ENDED_KEEP_MS = 14 * 24 * 3600 * 1000;
+const MISSING_KEEP_MS = 24 * 3600 * 1000;
 const CHUNK = 1 << 20;
 
 export interface Mark {
@@ -92,11 +93,39 @@ interface Ended {
   readonly ts: string;
 }
 
+/**
+ * What this machine has already written to costs.tsv for one key.
+ *
+ * The delta of a flush is `total - flushed`, and `flushed` lives here, in the
+ * marks file under the git dir, and never in `costs.tsv`. The table is merged
+ * across branches (`merge=union`), so the checked-out copy knows only some of
+ * the rows this machine wrote: a flush that subtracted *those* wrote the whole
+ * total again after a branch switch, and the union kept both.
+ */
+export interface Flushed {
+  input: number;
+  cache_write: number;
+  cache_read: number;
+  output: number;
+  messages: number;
+  cost: number;
+}
+
+interface FlushedRecord {
+  readonly session: string;
+  readonly flushed: Record<string, Flushed>;
+  readonly ts: string;
+}
+
 export interface SessionMarks {
   readonly session: string;
   readonly marks: Mark[];
   readonly ended: Ended | undefined;
+  readonly flushed: Record<string, Flushed>;
 }
+
+/** The pseudo-item that carries the cost of sessions that worked on more than one item. */
+export const MULTI = "(multi-item)";
 
 interface Usage {
   input: number;
@@ -127,8 +156,11 @@ function blank(): Usage {
  * to the spawn.
  */
 export function marksDir(store: Store): string | null {
+  // GIT_DIR and GIT_COMMON_DIR move the repository away from where a walk would
+  // look. Only git knows what they mean, so ask it.
+  const overridden = process.env["GIT_DIR"] !== undefined || process.env["GIT_COMMON_DIR"] !== undefined;
   let dir = resolve(store.root);
-  for (;;) {
+  for (; !overridden;) {
     const dotGit = join(dir, ".git");
     try {
       const st = statSync(dotGit);
@@ -158,10 +190,17 @@ function marksFile(store: Store): string | null {
   return dir === null ? null : join(dir, MARKS_FILE);
 }
 
-function parseMarkLine(line: string): Mark | Ended | null {
+function parseMarkLine(line: string): Mark | Ended | FlushedRecord | null {
   try {
     const o = JSON.parse(line) as Record<string, unknown>;
     if (typeof o["session"] !== "string") return null;
+    if (typeof o["flushed"] === "object" && o["flushed"] !== null) {
+      return {
+        session: o["session"],
+        flushed: o["flushed"] as Record<string, Flushed>,
+        ts: typeof o["ts"] === "string" ? o["ts"] : "",
+      };
+    }
     if (o["ended"] === true) {
       return {
         session: o["session"],
@@ -197,6 +236,7 @@ export function readSessions(file: string): SessionMarks[] {
   const order: string[] = [];
   const marks = new Map<string, Mark[]>();
   const ended = new Map<string, Ended | undefined>();
+  const flushed = new Map<string, Record<string, Flushed>>();
   for (const line of text.split("\n")) {
     if (line === "") continue;
     const entry = parseMarkLine(line);
@@ -205,7 +245,9 @@ export function readSessions(file: string): SessionMarks[] {
       order.push(entry.session);
       marks.set(entry.session, []);
     }
-    if ("ended" in entry) {
+    if ("flushed" in entry) {
+      flushed.set(entry.session, entry.flushed);
+    } else if ("ended" in entry) {
       ended.set(entry.session, entry);
     } else {
       marks.get(entry.session)?.push(entry);
@@ -215,7 +257,7 @@ export function readSessions(file: string): SessionMarks[] {
   }
   return order.flatMap((session) => {
     const list = (marks.get(session) ?? []).slice().sort((a, b) => a.offset - b.offset || a.ts.localeCompare(b.ts));
-    return list.length === 0 ? [] : [{ session, marks: list, ended: ended.get(session) }];
+    return list.length === 0 ? [] : [{ session, marks: list, ended: ended.get(session), flushed: flushed.get(session) ?? {} }];
   });
 }
 
@@ -232,7 +274,7 @@ function lastMarkFor(file: string, session: string): Mark | undefined {
     const line = lines[i] as string;
     if (line === "" || !line.includes(session)) continue;
     const entry = parseMarkLine(line);
-    if (entry !== null && entry.session === session && !("ended" in entry)) return entry;
+    if (entry !== null && entry.session === session && "run" in entry) return entry;
   }
   return undefined;
 }
@@ -242,12 +284,21 @@ function appendLine(file: string, value: unknown): void {
   withLock(file, () => appendFileSync(file, `${JSON.stringify(value)}\n`, "utf8"));
 }
 
-function newMark(session: string, transcript: string, slug: string | null): Mark | null {
-  let size: number;
+/**
+ * A mark at the transcript's current size, or at 0 when it does not exist yet.
+ *
+ * In a fresh session the transcript is not on disk when SessionStart runs
+ * (observed in every fresh session, `-p` and interactive), so there is nothing
+ * to measure and everything that will ever be written to that file belongs to
+ * this session. Skipping the mark there left the whole first turn outside every
+ * range, and a single-turn `claude -p` run recorded no `main` row at all.
+ */
+function newMark(session: string, transcript: string, slug: string | null): Mark {
+  let size = 0;
   try {
     size = statSync(transcript).size;
   } catch {
-    return null;
+    // not created yet: offset 0
   }
   return {
     run: `${session}@${size}`,
@@ -283,8 +334,7 @@ export function onStop(store: Store, input: { session_id?: string; transcript_pa
   if (file === null) return;
   const last = lastMarkFor(file, session);
   if (last !== undefined && last.slug === slug) return;
-  const mark = newMark(session, transcript, slug);
-  if (mark !== null) appendLine(file, mark);
+  appendLine(file, newMark(session, transcript, slug));
 }
 
 /**
@@ -308,30 +358,37 @@ export function onSessionStart(
   if (session !== undefined && session !== "" && transcript !== undefined && transcript !== "") {
     const last = lastMarkFor(file, session);
     if (last === undefined || last.slug !== slug || last.transcript_path !== transcript) {
-      const mark = newMark(session, transcript, slug);
-      if (mark !== null) appendLine(file, mark);
+      appendLine(file, newMark(session, transcript, slug));
     }
   }
 
   const deadline = Date.now() + budgetMs;
-  const sessions = readSessions(file);
-  for (const s of sessions) {
+  for (const s of readSessions(file)) {
     if (s.session === session) continue;
     if (Date.now() > deadline) break;
     if (needsFlush(s)) flushSession(store, s, file);
   }
-  prune(file, sessions);
+  prune(file);
 }
 
 /** SessionEnd: the usual flush. cost-state is on disk by now (measured). */
-export function onSessionEnd(store: Store, input: { session_id?: string }): void {
+export function onSessionEnd(store: Store, input: { session_id?: string; transcript_path?: string }): void {
   const session = input.session_id;
   if (session === undefined || session === "") return;
-  const { on } = activeSlug(store);
+  const { on, slug } = activeSlug(store);
   if (!on) return;
   const file = marksFile(store);
   if (file === null) return;
-  const found = readSessions(file).find((s) => s.session === session);
+  let found = readSessions(file).find((s) => s.session === session);
+  // A session with no mark at all: it ended before any Stop (`--max-turns 1`
+  // ending in `error_max_turns`, an interrupt) and SessionStart could not mark it
+  // (the hook did not run, or the plugin was enabled mid-session). Its usage is
+  // real and cost-state is on disk, so mark it from offset 0 and flush.
+  const transcript = input.transcript_path;
+  if (found === undefined && transcript !== undefined && transcript !== "") {
+    appendLine(file, { ...newMark(session, transcript, slug), offset: 0, run: `${session}@0` });
+    found = readSessions(file).find((s) => s.session === session);
+  }
   // Nothing written since the last flush means nothing to read: a 50 MB
   // transcript is not re-scanned to learn that.
   if (found !== undefined && needsFlush(found)) flushSession(store, found, file);
@@ -348,17 +405,39 @@ function needsFlush(s: SessionMarks): boolean {
   return s.ended === undefined || s.ended.size !== size;
 }
 
-/** Drop sessions that are settled and old, or whose transcript is gone. */
-function prune(file: string, sessions: readonly SessionMarks[]): void {
-  const keep = sessions.filter((s) => {
-    if (!existsSync((s.marks.at(-1) as Mark).transcript_path)) return false;
-    if (s.ended === undefined) return true;
-    const when = Date.parse(s.ended.ts);
-    return Number.isNaN(when) || Date.now() - when < ENDED_KEEP_MS;
-  });
-  if (keep.length === sessions.length) return;
-  const lines = keep.flatMap((s) => [...s.marks, ...(s.ended === undefined ? [] : [s.ended])]);
+/**
+ * Drop sessions that are settled and old, or whose transcript is gone.
+ *
+ * Reads the file again *under the lock* and rewrites from that. The first
+ * version was handed the snapshot taken before the flush loop, which can run
+ * for seconds: it dropped the `ended` record that same pass had just appended,
+ * and any mark another live session wrote in the window. `beforeLock` is a seam
+ * for the test that writes a mark exactly there.
+ */
+export function prune(file: string, beforeLock?: () => void): void {
+  beforeLock?.();
+  mkdirSync(dirname(file), { recursive: true });
   withLock(file, () => {
+    const sessions = readSessions(file);
+    const keep = sessions.filter((s) => {
+      const lastMark = s.marks.at(-1) as Mark;
+      const age = (ts: string): number => {
+        const when = Date.parse(ts);
+        return Number.isNaN(when) ? 0 : Date.now() - when;
+      };
+      // A missing transcript is not proof of a dead session: in a fresh one it
+      // is not on disk yet. Only a mark old enough that it would exist by now
+      // is dropped for that.
+      if (!existsSync(lastMark.transcript_path) && age(lastMark.ts) > MISSING_KEEP_MS) return false;
+      if (s.ended === undefined) return true;
+      return age(s.ended.ts) < ENDED_KEEP_MS;
+    });
+    if (keep.length === sessions.length) return;
+    const lines = keep.flatMap((s) => [
+      ...s.marks,
+      ...(Object.keys(s.flushed).length === 0 ? [] : [{ session: s.session, flushed: s.flushed, ts: new Date().toISOString() }]),
+      ...(s.ended === undefined ? [] : [s.ended]),
+    ]);
     const tmp = `${file}.tmp`;
     writeFileSync(tmp, lines.map((l) => `${JSON.stringify(l)}\n`).join(""), "utf8");
     renameSync(tmp, file);
@@ -648,106 +727,102 @@ export function flushSession(store: Store, s: SessionMarks, marks: string): numb
     }
   }
 
-  const prefix = `${s.session}@`;
-  return withLock(store.costs, () => {
-    const existing = readRecords(store.costs).filter((r) => (r["run"] ?? "").startsWith(prefix));
-    const written: string[][] = [];
-    const ts = new Date().toISOString();
-    const emit = (r: NewRow): void => {
-      written.push([
-        ts,
-        r.run,
-        r.target,
-        r.role,
-        r.agent_id,
-        r.model,
-        String(r.usage.input),
-        String(r.usage.cache_write),
-        String(r.usage.cache_read),
-        String(r.usage.output),
-        r.messages === null ? NONE : String(r.messages),
-        r.cost === null ? NONE : String(r.cost),
-        r.source,
-      ]);
-    };
+  // Every mark of the session, not just those on this transcript: "one item" is
+  // a statement about the whole session.
+  const items = new Set(s.marks.map((m) => m.slug ?? NONE));
+  const multi = items.size > 1;
 
-    const transcriptRows: NewRow[] = [];
-    for (const r of rows) {
-      const same = existing.filter(
-        (e) =>
-          e["source"] === "transcript" &&
-          e["model"] === r.model &&
-          e["agent_id"] === r.agent_id &&
-          // A subagent is one key per session; a main thread is one per run.
-          (r.agent_id === NONE ? e["run"] === r.run && e["role"] === "main" : true),
-      );
-      const delta: Usage = blank();
-      for (const c of COLUMNS) delta[c] = Math.max(0, r.usage[c] - same.reduce((a, e) => a + toNumber(e[c]), 0));
-      const messages = Math.max(0, (r.messages ?? 0) - same.reduce((a, e) => a + toNumber(e["messages"]), 0));
-      if (COLUMNS.every((c) => delta[c] === 0) && messages === 0) continue;
-      const out: NewRow = { ...r, usage: delta, messages };
-      transcriptRows.push(out);
-      emit(out);
-    }
+  return withLock(
+    store.costs,
+    () => {
+      // Re-read under the lock: another process may have flushed this session
+      // since `s` was read, and its record is the only thing that stops this
+      // flush writing the same delta again.
+      const current = readSessions(marks).find((x) => x.session === s.session);
+      const flushed: Record<string, Flushed> = structuredClone(current?.flushed ?? s.flushed);
+      const written: string[][] = [];
+      const ts = new Date().toISOString();
+      const emit = (r: NewRow): void => {
+        written.push([
+          ts,
+          r.run,
+          r.target,
+          r.role,
+          r.agent_id,
+          r.model,
+          String(r.usage.input),
+          String(r.usage.cache_write),
+          String(r.usage.cache_read),
+          String(r.usage.output),
+          r.messages === null ? NONE : String(r.messages),
+          r.cost === null ? NONE : String(r.cost),
+          r.source,
+        ]);
+      };
+      const cellOf = (key: string): Flushed => (flushed[key] ??= { input: 0, cache_write: 0, cache_read: 0, output: 0, messages: 0, cost: 0 });
 
-    // Reconcile against cost-state: whatever it counts that no transcript line
-    // does (a compaction, a call the transcript never recorded) goes to one
-    // `unattributed` row per model. `cost_usd` lives here and only here, and it
-    // is the model's whole real cost for the session, so summing the column
-    // gives what was actually spent.
-    const state = main.costState;
-    const usageByModel = state?.["modelUsage"];
-    if (typeof usageByModel === "object" && usageByModel !== null) {
-      const sessionRows = existing.concat(
-        transcriptRows.map(
-          (r): Record<string, string> => ({
-            model: r.model,
-            input: String(r.usage.input),
-            cache_write: String(r.usage.cache_write),
-            cache_read: String(r.usage.cache_read),
-            output: String(r.usage.output),
-            cost_usd: NONE,
-          }),
-        ),
-      );
-      for (const [model, raw] of Object.entries(usageByModel as Record<string, Record<string, unknown>>)) {
-        const mine = sessionRows.filter((e) => e["model"] === model);
-        const total: Record<(typeof COLUMNS)[number], number> = {
-          input: num(raw["inputTokens"]),
-          cache_write: num(raw["cacheCreationInputTokens"]),
-          cache_read: num(raw["cacheReadInputTokens"]),
-          output: num(raw["outputTokens"]),
-        };
-        const delta = blank();
-        for (const c of COLUMNS) delta[c] = Math.max(0, total[c] - mine.reduce((a, e) => a + toNumber(e[c]), 0));
-        const realCost = typeof raw["costUSD"] === "number" && raw["costUSD"] >= 0 ? raw["costUSD"] : null;
-        const costDelta =
-          realCost === null ? null : Math.max(0, round6(realCost - mine.reduce((a, e) => a + toNumber(e["cost_usd"]), 0)));
-        if (COLUMNS.every((c) => delta[c] === 0) && (costDelta === null || costDelta === 0)) continue;
-        emit({
-          run: last.run,
-          target: last.slug ?? NONE,
-          role: "unattributed",
-          agent_id: NONE,
-          model,
-          usage: delta,
-          messages: null,
-          cost: costDelta,
-          source: "cost-state",
-        });
+      for (const r of rows) {
+        // A subagent is one key per session; a main thread is one per run.
+        const key = r.agent_id === NONE ? `main|${r.run}|${r.model}` : `sub|${r.agent_id}|${r.model}`;
+        const have = cellOf(key);
+        const delta: Usage = blank();
+        for (const c of COLUMNS) delta[c] = Math.max(0, r.usage[c] - have[c]);
+        const messages = Math.max(0, (r.messages ?? 0) - have.messages);
+        if (COLUMNS.every((c) => delta[c] === 0) && messages === 0) continue;
+        for (const c of COLUMNS) have[c] += delta[c];
+        have.messages += messages;
+        emit({ ...r, usage: delta, messages });
       }
-    }
 
-    for (const values of written) append(store.costs, HEADER, values);
-    return written.length;
-  }, { timeoutMs: 2_000 }) + settle(marks, s, size);
-}
+      // Reconcile against cost-state: whatever it counts that no transcript line
+      // does (a compaction, a call the transcript never recorded) goes to one
+      // `unattributed` row per model. `cost_usd` lives on these rows only, and it
+      // is the model's whole real cost for the session, so summing the column
+      // gives what was actually spent.
+      //
+      // The cost goes to an item only when the whole session worked on one item.
+      // A session that spanned items has one cost and no honest way to split it:
+      // token share is not cost share (cache reads and output price very
+      // differently), so it is reported on its own line under `(multi-item)`.
+      const usageByModel = main.costState?.["modelUsage"];
+      if (typeof usageByModel === "object" && usageByModel !== null) {
+        for (const [model, raw] of Object.entries(usageByModel as Record<string, Record<string, unknown>>)) {
+          const mine = Object.entries(flushed).filter(([k]) => k.endsWith(`|${model}`)).map(([, v]) => v);
+          const sum = (f: (v: Flushed) => number): number => mine.reduce((a, v) => a + f(v), 0);
+          const total = {
+            input: num(raw["inputTokens"]),
+            cache_write: num(raw["cacheCreationInputTokens"]),
+            cache_read: num(raw["cacheReadInputTokens"]),
+            output: num(raw["outputTokens"]),
+          };
+          const delta = blank();
+          for (const c of COLUMNS) delta[c] = Math.max(0, total[c] - sum((v) => v[c]));
+          const realCost = typeof raw["costUSD"] === "number" && raw["costUSD"] >= 0 ? raw["costUSD"] : null;
+          const costDelta = realCost === null ? null : Math.max(0, round6(realCost - sum((v) => v.cost)));
+          const tokens = COLUMNS.some((c) => delta[c] > 0);
+          if (!tokens && (costDelta === null || costDelta === 0)) continue;
+          const have = cellOf(`cs|${model}`);
+          for (const c of COLUMNS) have[c] += delta[c];
+          have.cost = round6(have.cost + (costDelta ?? 0));
+          const base = { run: last.run, role: "unattributed", agent_id: NONE, model, messages: null, source: "cost-state" as const };
+          if (!multi) {
+            emit({ ...base, target: last.slug ?? NONE, usage: delta, cost: costDelta });
+          } else {
+            if (tokens) emit({ ...base, target: last.slug ?? NONE, usage: { ...delta }, cost: null });
+            if (costDelta !== null && costDelta > 0) emit({ ...base, target: MULTI, usage: blank(), cost: costDelta });
+          }
+        }
+      }
 
-/** Record that the session was flushed at this size, so an unchanged file is not re-read. */
-function settle(file: string, s: SessionMarks, size: number): number {
-  const entry: Ended = { session: s.session, ended: true, size, ts: new Date().toISOString() };
-  appendLine(file, entry);
-  return 0;
+      for (const values of written) append(store.costs, HEADER, values);
+      // Rows first, record second: a crash between them writes a delta twice,
+      // which is the smaller sin than losing one.
+      if (written.length > 0) appendLine(marks, { session: s.session, flushed, ts });
+      appendLine(marks, { session: s.session, ended: true, size, ts } satisfies Ended);
+      return written.length;
+    },
+    { timeoutMs: 2_000 },
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -827,7 +902,7 @@ export function render(
   const fmt = (n: number): string => n.toLocaleString("en-US");
   const usd = (n: number | null): string => (n === null ? NONE : n.toFixed(4));
   const body = rows.map((r) => {
-    const line = [r.key, fmt(r.input), fmt(r.cache_write), fmt(r.cache_read), fmt(r.output), fmt(r.messages), usd(r.cost_usd)];
+    const line = [by === "item" && r.key === MULTI ? "multi-item sessions" : r.key, fmt(r.input), fmt(r.cache_write), fmt(r.cache_read), fmt(r.output), fmt(r.messages), usd(r.cost_usd)];
     if (extra !== undefined) {
       const e = extra(r.key);
       line.push(e.review_rounds === undefined ? NONE : String(e.review_rounds), e.verifier_failed === undefined ? NONE : String(e.verifier_failed));

@@ -331,24 +331,25 @@ FAIL no verdict at 542ac0cf; 2 row(s) exist at other SHAs and a new head SHA voi
 ```console
 $ mstack cost
 item   input  cache_write  cache_read  output  messages     usd  rounds  failed
-demo      18       25,391     144,650   2,300         6  0.0068       0       0
-total     18       25,391     144,650   2,300         6  0.0068
+demo      20       18,478     178,698   2,274         9  0.0066       0       0
+total     20       18,478     178,698   2,274         9  0.0066
 
 $ mstack cost demo
-role             input  cache_write  cache_read  output  messages     usd
-main                12        3,793     112,503   2,173         5  (none)
-unattributed         4        9,910      32,147     123         0  0.0068
-general-purpose      2       11,688           0       4         1  (none)
-total               18       25,391     144,650   2,300         6  0.0068
+role          input  cache_write  cache_read  output  messages     usd
+main             20       18,478     178,698   2,274         9  (none)
+unattributed      0            0           0       0         0  0.0066
+total            20       18,478     178,698   2,274         9  0.0066
 review rounds: 0
 verifier-failed rows: 0
 ```
 
-Both outputs are from a real `claude -p` session with one subagent, the `SessionEnd` hook wired
-to `mstack hook session-end`, and `cost` run afterwards. `mstack cost [slug] [--by role|item|model]
-[--json]`: with no slug the rows are items (default `--by item`), with a slug they are roles
-(default `--by role`). `--json` prints the same rows plus `total`, and for one item
-`review_rounds` and `verifier_failed`.
+Both outputs are from a real single-turn `claude -p --model haiku "say hi"` session, the
+`SessionStart`, `Stop` and `SessionEnd` hooks wired to this checkout's `mstack hook ...`, and `cost`
+run afterwards. The `main` row equals claude's own `modelUsage` for the session to the token
+(20 / 18,478 / 178,698 / 2,274) and `unattributed` carries no tokens and the whole `$0.006622`.
+`mstack cost [slug] [--by role|item|model] [--json]`: with no slug the rows are items (default
+`--by item`), with a slug they are roles (default `--by role`). `--json` prints the same rows
+plus `total`, and for one item `review_rounds` and `verifier_failed`.
 
 What the columns are:
 
@@ -359,9 +360,18 @@ What the columns are:
   Claude Code itself wrote into the transcript (`cost-state`, `costUSD` per model), and it is
   attached to the `unattributed` row, so the column's *sum* is what the session really cost
   while the per-role split is tokens only. `(none)` means no real figure exists for the group.
-- **`unattributed`** is the part of the real total that no transcript line accounts for: here
-  about 20% of the cache reads, plus whatever a `/compact` spent (its usage appears in
-  `cost-state` and in no transcript).
+  **Per item**, the cost of a session goes to an item only when every mark of that session
+  names the same item. A session that worked on `alpha` and then `beta` has one cost and no
+  honest way to split it (token share is not cost share: cache reads and output are priced
+  very differently), so `--by item` prints it as its own line, `multi-item sessions`, carrying
+  the whole session cost, while the tokens stay with the item each stretch belonged to.
+  `mstack cost alpha` therefore shows alpha's tokens and no `usd` for that session, and the
+  column still sums to real spend.
+- **`unattributed`** is the part of the real total that no transcript line accounts for: in
+  practice calls a transcript never records (about 20% of the cache reads in one measured
+  session with a subagent) and whatever a `/compact` spent (its usage appears in `cost-state`
+  and in no transcript). A session whose usage predates its first mark, such as one resumed
+  from before mstack was installed, shows up here too.
 - **`rounds`** (and `review rounds:` for one item) is the highest review round on disk,
   read with `roundOf` from the report names: `review_<slug>.md` is round 1, `_r2` the next.
   **`failed`** counts `verifier-failed` rows in `ledger.tsv`. Both are what a cost number needs
