@@ -6,33 +6,33 @@
 > On close: append the summary to `history.md` and reset this file to the
 > empty template below.
 
-- **Item:** 48 benchmark-hard-tier (next, not started)
-- **Status:** pending
-- **Branch:** main (deliverables live in sandbox/bench, gitignored, never pushed)
-- **Base:** none yet
+- **Item:** none active (48 closed 2026-11-08)
+- **Status:** -
+- **Branch:** main
+- **Base:** -
 - **Worktree:** none
 
 ## Plan
 
-1. Hard-tier template in sandbox/bench (about 2k or more lines). Symptom-style issues, hidden
-   tests that cover both the reported behaviour and documented regressions, and at least one
-   trap.
-2. Calibrate with plain until it fails some tasks over 2 or more reps.
-3. Run the hard-tier baseline for plain and mstack-before, with the reps recorded by
-   mstack decide.
+Program order (plan at `~/.claude/plans/perfecto-ahora-haz-el-dynamic-pie.md`):
 
-Then items 20, 36, 37, 39-44. Before item 39, relaunch with `claude --plugin-dir .`.
-Item 45 reruns mstack-after on both tiers.
+1. Items 20, 36, 37.
+2. Relaunch with `claude --plugin-dir .` and the marketplace mstack disabled. Then items 39–44.
+3. Item 49 (bench hygiene) before 45.
+4. Item 45: mstack-after rerun on both tiers, then release 0.3.0.
+
+The benchmark baseline is 16/16 solved per arm on both tiers. mstack-before costs 4.7–6.2× plain
+and takes 5–9× the wall time. mstack-after must keep 16/16 and cut that.
 
 ## Log
 
-- Item 38 closed 2026-11-01. Easy-tier baseline: plain 12/12 at $0.24 and 46 s per run;
-  mstack-before 12/12 at $1.49 and 403 s.
-  - Full write-up: `impl_benchmark-harness_baseline.md`.
+- Easy tier: `impl_benchmark-harness_baseline.md`.
+- Hard tier: `impl_benchmark-hard-tier_baseline.md`.
 
-Headless runs: `env -i` clean env built by run.mjs, claude.ai login, never bypassPermissions.
-Program plan: ~/.claude/plans/perfecto-ahora-haz-el-dynamic-pie.md.
+Headless runs: `run.mjs` builds a clean `env -i` env, uses the claude.ai login, and never
+passes bypassPermissions. Do not run `check.mjs` or `verify.mjs` while a batch is running
+(item 49).
 
 ## Verification
 
-None yet for item 48.
+-

@@ -640,3 +640,48 @@ Found along the way:
 - **Item 47:** `ledger check` hides a reviewer's verifier-failed row behind the implementer's row
   at the same sha.
 - **Item 21 note:** a full-suite hang at `tests/gate.test.ts:1618`.
+
+## 2026-11-08 — item 48 benchmark-hard-tier, closed; the quality ceiling, accepted
+
+The hard tier is `sandbox/bench/template-hard/`: a stockroom app with 1938 source lines and
+202 visible tests, and tasks H1–H4. Each task's hidden tests cover the reported behaviour and
+the documented behaviour next to it. Each task also ships a naive patch, which `verify.mjs`
+proves passes every test mapped to the issue and fails tests mapped to the README. It was
+built on Sonnet in two rounds and approved by an Opus review with no blockers.
+
+**Calibration never got plain below 1.0:**
+- Round 1: plain solved 8/8.
+  - It reads the whole README before touching code.
+  - One issue said which figure was correct.
+- One bounded hardening round followed:
+  - issues that describe only the symptom;
+  - reporter misdiagnoses;
+  - edge cases implied by the issue's general rule;
+  - shared-helper traps;
+  - a naive patch for every task.
+- After it, plain solved 4/4. It declined each misdiagnosis after reading the README rule it
+  broke.
+
+At about 2k lines with every rule documented, the fair traps are exactly the ones a model that
+reads the README avoids. The user accepted the ceiling. Acceptance A3 was amended to record
+that outcome (decision row), and the program's measurable claim is now *the same solved rate
+at much lower overhead*. Nothing claims "better quality" without proof.
+
+**Baseline on both tiers:** 16/16 solved in each arm, 0 regressions.
+
+| tier | plain cost/run | mstack-before cost/run | ratio | wall ratio |
+|---|---|---|---|---|
+| easy | $0.24 | $1.49 | 6.2× | 8.8× |
+| hard | $0.45 | $2.13 | 4.7× | 5.3× |
+
+The widest gap was on H4, the cross-cutting feature: $4.46 against $0.73, and 950 s against 114 s.
+
+**Leak rule widened** (decision row). Committed text now names no hidden values, no
+assertions, no patch contents, and not which side or fix is correct. Two uncommitted decision
+rows and one table were rewritten in structural terms; the full copies are in
+`sandbox/bench/evidence/`.
+
+**Review finding 5.** The reviewer's self-checks put answers under `/private/tmp` for a few
+minutes while the batch ran, three levels above every run copy, because `check.mjs` has used
+that root since item 38. Every stream was scanned and none reached an answer path. The root
+fix is item 49, which must land before the item 45 rerun.

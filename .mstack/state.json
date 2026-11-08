@@ -662,8 +662,20 @@
       "acceptance": [
         "3-4 tasks on a larger template (at least ~2k lines, more than one plausible place to fix), written as symptoms a user would report, with hidden tests for the reported behaviour plus regression tests on existing documented behaviour, and at least one trap where the obvious fix breaks something else",
         "every hidden test traces to the issue or to behaviour the template's README or visible tests already document; reference patches pass them and the pristine template fails them",
-        "a calibration run shows plain does not solve every hard task (solved rate below 1 across at least two repetitions), otherwise the tier is made harder before any comparison",
+        "a calibration run shows whether plain solves every hard task across at least two repetitions; if it does, the tier is made harder once and recalibrated, and if plain still solves every task the user decides how the tier is used (decision row)",
         "the hard-tier baseline (plain and mstack-before, repetitions recorded with mstack decide) is summarised with solved rate first, then cost"
+      ],
+      "status": "done"
+    },
+    {
+      "id": 49,
+      "slug": "bench-hygiene-followups",
+      "title": "Benchmark hygiene follow-ups from the item 48 review, before the item 45 rerun",
+      "acceptance": [
+        "check.mjs creates its scratch root outside every ancestor of a run copy (os.tmpdir() or under BENCH_HOME but not under runs/), and check.mjs asserts it",
+        "DESIGN.md states the widened leak rule: committed text names no hidden values, assertions, patch contents, nor which side or fix is correct; and states that self-checks are not run while a batch is running",
+        "the five hidden tests that check more than their mapped sentence get the extra README sentences in meta.json (review_benchmark-hard-tier.md finding 1), verify.mjs still green",
+        "README v1 discount wording vs the v1 fixture (finding 2) and the cosmetic items (finding 3) are fixed only if the hard tier is re-baselined; otherwise a decision row records leaving them"
       ],
       "status": "pending"
     }
