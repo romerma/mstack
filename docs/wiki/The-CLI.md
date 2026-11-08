@@ -415,13 +415,13 @@ $ mstack fanout check --kind review --worker correctness --worker security --wor
         fix: its reply is not evidence; re-run it and have it write the file before returning
 ```
 
-Worker names are lowercase words joined by hyphens, and a name starting `r<digits>` is refused
-because it would be read as a review round marker:
+Worker names are lowercase words joined by hyphens, and a name starting `r<digit>` (`r2`, `r2-facts`, `r2x`)
+is refused because it would be read as a review round marker:
 
 ```console
 $ mstack fanout plan --kind review --worker r2
 mstack: 'r2' is not a usable worker name: it would be read as a round marker
-        names starting r<digits> are reserved for review rounds; pick a lens name like 'reader' or 'security'
+        names starting r<digit> are reserved for review rounds; pick a lens name like 'reader' or 'security'
 ```
 
 `plan` allocates one report path per parallel worker **before** launch and refuses a fan-out

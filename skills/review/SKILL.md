@@ -17,8 +17,9 @@ The reviewer did not write the code. If that is not true, stop: fetch someone wh
 
    Give each reviewer the path it prints, and nothing else. Two reviewers handed one filename
    overwrite each other silently, which is the failure this command exists to prevent.
-   Worker names matching `r<digits>` (`r2`, `r2-facts`) are reserved for round markers, and
-   `plan` refuses them: such a report would be read as round 2 of a lone reviewer, never as a lens.
+   Worker names starting `r<digit>` (`r2`, `r2-facts`, `r2x`) are reserved, and `plan` refuses
+   them: `r2` would be read as round 2 of a lone reviewer, and `r2-facts` as round 2 with lens
+   `facts`, sharing a path with `plan --round 2 --worker facts`.
 3. Launch them in parallel, each with the full diff and a distinct lens. Give different lenses to
    different **models** where you can: models differ in blind spots, and agreement across models
    is signal in a way agreement across two runs of one model is not.

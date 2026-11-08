@@ -94,6 +94,9 @@ const REAL_REPORTS: [file: string, kind: string, slug: string, round: number, le
   ["impl_commit-message-standard_r3.md", "impl", "commit-message-standard", 3, undefined],
   ["impl_docs-for-newcomers.md", "impl", "docs-for-newcomers", 1, undefined],
   ["impl_editable-item-fields.md", "impl", "editable-item-fields", 1, undefined],
+  ["impl_fanout-worker-can-forge-a-round-marker.md", "impl", "fanout-worker-can-forge-a-round-marker", 1, undefined],
+  ["impl_fanout-worker-can-forge-a-round-marker_r2.md", "impl", "fanout-worker-can-forge-a-round-marker", 2, undefined],
+  ["review_fanout-worker-can-forge-a-round-marker.md", "review", "fanout-worker-can-forge-a-round-marker", 1, undefined],
   ["impl_path-mstack-is-the-installed-copy.md", "impl", "path-mstack-is-the-installed-copy", 1, undefined],
   ["impl_provenance-fixtures-lack-package-json.md", "impl", "provenance-fixtures-lack-package-json", 1, undefined],
   ["impl_quiet-gate-prints-nothing.md", "impl", "quiet-gate-prints-nothing", 1, undefined],
@@ -170,5 +173,6 @@ test("roundOf: a lens that merely starts with r is a lens, a marker is not", () 
   assert.deepEqual(roundOf("review_s_r2.md", "review", "s"), { round: 2 });
   assert.deepEqual(roundOf("review_s_r2-facts.md", "review", "s"), { round: 2, lens: "facts" });
   assert.deepEqual(roundOf("review_s_reader.md", "review", "s"), { round: 1, lens: "reader" });
+  assert.deepEqual(roundOf("review_s_r2x.md", "review", "s"), { round: 1, lens: "r2x" });
   assert.deepEqual(roundOf("review_s_r.md", "review", "s"), { round: 1, lens: "r" });
 });

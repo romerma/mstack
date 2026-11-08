@@ -217,7 +217,7 @@ test("a worker name that would not survive a filename is refused", () => {
 test("a worker named like a round marker is refused, because roundOf would read it as one", () => {
   const box = active();
   try {
-    for (const name of ["r2", "r10", "r2-facts"]) {
+    for (const name of ["r2", "r10", "r2-facts", "r2x", "r0"]) {
       assert.throws(
         () => plan(box.store, { kind: "review", workers: [name] }),
         (error: unknown) => error instanceof UserError && /round marker/.test(error.message),
@@ -225,8 +225,8 @@ test("a worker named like a round marker is refused, because roundOf would read 
       );
     }
     // Lenses that only begin with r are fine, and read back as lenses.
-    const p = plan(box.store, { kind: "review", workers: ["reader", "r", "rust2"] });
-    assert.equal(p.workers.length, 3);
+    const p = plan(box.store, { kind: "review", workers: ["reader", "r", "rust2", "r-team"] });
+    assert.equal(p.workers.length, 4);
     for (const w of p.workers) assert.equal(roundOf(w.report, "review", "storage-layer").lens, w.name);
   } finally {
     box.dispose();

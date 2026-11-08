@@ -46,8 +46,8 @@ export const CONCURRENCY_CAP = 20;
 /** A worker name has to survive being part of a filename, and stay readable. */
 const WORKER = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
-/** What `roundOf` reads as a round marker once the name is in a filename. */
-const ROUND_LIKE = /^r\d+(-|$)/;
+/** What the reviewer prose reserves: a leading `r<digit>` is never a lens. */
+const ROUND_LIKE = /^r\d/;
 
 export interface FanoutPlan {
   kind: string;
@@ -84,12 +84,14 @@ export function plan(
     if (!WORKER.test(name)) {
       throw new UserError(`'${name}' is not a usable worker name`, "lowercase words joined by hyphens");
     }
-    // `r2` or `r2-x` becomes `..._r2.md`, which every reader of the progress
-    // directory takes for round 2 of a lone reviewer, never a lens.
+    // `r2` becomes `..._r2.md`, which reads as round 2 of a lone reviewer, and
+    // `r2-x` becomes `..._r2-x.md`, round 2 with lens `x`, the very path that
+    // `--round 2 --worker x` allocates. Any `r<digit>` start is refused, which
+    // is the literal rule in agents/reviewer.md, so `r2x` goes with them.
     if (ROUND_LIKE.test(name)) {
       throw new UserError(
         `'${name}' is not a usable worker name: it would be read as a round marker`,
-        "names starting r<digits> are reserved for review rounds; pick a lens name like 'reader' or 'security'",
+        "names starting r<digit> are reserved for review rounds; pick a lens name like 'reader' or 'security'",
       );
     }
     // The whole point of allocating up front: two workers with one filename is
