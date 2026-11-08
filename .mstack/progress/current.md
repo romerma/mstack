@@ -6,10 +6,10 @@
 > On close: append the summary to `history.md` and reset this file to the
 > empty template below.
 
-- **Item:** none active (48 closed 2026-11-08)
-- **Status:** -
-- **Branch:** main
-- **Base:** -
+- **Item:** 20 fanout-worker-can-forge-a-round-marker
+- **Status:** in_progress
+- **Branch:** feat/fanout-worker-can-forge-a-round-marker
+- **Base:** 528cfb7
 - **Worktree:** none
 
 ## Plan
@@ -28,6 +28,8 @@ and takes 5–9× the wall time. mstack-after must keep 16/16 and cut that.
 
 - Easy tier: `impl_benchmark-harness_baseline.md`.
 - Hard tier: `impl_benchmark-hard-tier_baseline.md`.
+
+- 2026-11-08: item 20 implementer (Sonnet) running; then Opus reviewer, gate --full, merge.
 
 Headless runs: `run.mjs` builds a clean `env -i` env, uses the claude.ai login, and never
 passes bypassPermissions. Do not run `check.mjs` or `verify.mjs` while a batch is running

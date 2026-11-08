@@ -48,7 +48,7 @@ Rung: test-verified (both runtimes green). The new tests were not separately run
 ## R to test
 | R | Test | Where |
 |---|------|-------|
-| A1 refuse round-marker names | a worker named like a round marker is refused... | tests/fanout.test.ts (last test) |
-| A2 error says why | same test asserts `/round marker/` in message; before/after output above | tests/fanout.test.ts (last test) |
-| A3 roundOf | roundOf reads the round and lens of every real report name; roundOf: a lens that merely starts with r... | tests/roles.test.ts (appended tables) |
+| A1 refuse round-marker names | a worker named like a round marker is refused... | tests/fanout.test.ts:217 |
+| A2 error says why | same test asserts `/round marker/` in message; before/after output above | tests/fanout.test.ts:217 |
+| A3 roundOf | roundOf reads the round and lens of every real report name; roundOf: a lens that merely starts with r... | tests/roles.test.ts:161, :169 |
 | A4 shared MIN_REPORT_BYTES | no redefinition; existing check tests exercise the import | src/fanout.ts:5, tests/fanout.test.ts (check tests) |

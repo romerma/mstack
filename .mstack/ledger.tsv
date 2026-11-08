@@ -78,3 +78,4 @@ benchmark-harness	a4e6c784d99536d39c132cb0d5e4d634ad34e9f2	test-verified	.mstack
 benchmark-hard-tier	d6cc37b714cf53d4d8609a6bfb37f1137f874101	test-verified	.mstack/progress/impl_benchmark-hard-tier.md	implementer	2026-11-01T21:59:03.594Z
 benchmark-hard-tier	d6cc37b714cf53d4d8609a6bfb37f1137f874101	test-verified	.mstack/progress/impl_benchmark-hard-tier_r2.md	implementer	2026-11-01T22:35:39.849Z
 benchmark-hard-tier	d6cc37b714cf53d4d8609a6bfb37f1137f874101	test-verified	.mstack/progress/review_benchmark-hard-tier.md	reviewer	2026-11-08T11:20:15.427Z
+fanout-worker-can-forge-a-round-marker	84e0e9e09a7b09056170e44615a1067e921eb67c	test-verified	.mstack/progress/impl_fanout-worker-can-forge-a-round-marker.md	implementer	2026-11-08T11:38:56.023Z
