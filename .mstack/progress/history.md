@@ -685,3 +685,40 @@ rows and one table were rewritten in structural terms; the full copies are in
 minutes while the batch ran, three levels above every run copy, because `check.mjs` has used
 that root since item 38. Every stream was scanned and none reached an answer path. The root
 fix is item 49, which must land before the item 45 rerun.
+
+## 2026-11-08 — item 20 fanout-worker-can-forge-a-round-marker, closed
+
+Two rounds. Sonnet implemented, and each round was reviewed on Opus.
+
+**What changed:**
+- `fanout plan` refuses any worker name that starts with `r<digit>`.
+- `roundOf(file, kind, slug)` lives in `src/roles.ts`, with a table test over every report
+  name in `.mstack/progress/`.
+- `MIN_REPORT_BYTES` has one definition.
+
+**Round 1 (CHANGES_REQUESTED).** The reviewer made two one-character mutations, and the suite
+stayed green through both:
+- dropping the `$` anchor in `roundOf` brought the forgery back;
+- widening the name check went unnoticed.
+
+The stated rule was also wider than the code, and two descriptions were wrong.
+
+**Round 2 (APPROVED).** Each mutation fails a named test, on both runtimes. The fanout rule was
+widened to `/^r\d/` on the reviewer's recommendation.
+
+**Cost.**
+
+| | Round 1 | Round 2 |
+|---|---|---|
+| Implementer (Sonnet) | 32k | 44k |
+| Reviewer (Opus) | 74k | about 20k |
+
+The round-2 reviewer was resumed with its round-1 context and scoped to the delta and the
+touched test files, so it cost about a quarter of round 1. That is evidence for item 43's
+delta-review design.
+
+The mutation the reviewer ran by hand is the check item 42 automates.
+
+**Carried to item 43 as an acceptance bullet.** `roundOf` reads `_r2x` as a lens, while
+`agents/reviewer.md:77` reserves any leading `r<digit>`. Those two rules must become one before
+`roundOf` decides solo versus panel.

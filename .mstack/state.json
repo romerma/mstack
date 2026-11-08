@@ -313,7 +313,7 @@
         "src/roles.ts exports roundOf(file, kind, slug) returning {round, lens}: unmarked is round 1, _r<N> and _r<N>-<lens> give N, any other remainder is round 1 with that lens; a test table covers every real report name in .mstack/progress, including review_readme-leads-with-use_readme-leads-with-use.md",
         "MIN_REPORT_BYTES has one definition: src/fanout.ts imports it from src/roles.ts instead of redefining it"
       ],
-      "status": "reviewing",
+      "status": "done",
       "description": "Item 15 reserved _r<digits> as a round marker in agents/reviewer.md, the file that parses report names, but not in skills/review/SKILL.md step 2, the file that hands them out. 'mstack fanout plan --kind review --worker r2' allocates review_<slug>_r2.md to a lens, which then reads its own path as solo and records a row a panel member must not record. Zero real occurrences today; found as a non-blocking note in the item 15 round-3 review, which judged one clause in step 2 sufficient.",
       "source": "item 15 round-3 review, non-blocking note, 2026-08-21",
       "verification": "npm test && npm run typecheck && ./bin/mstack lint-plugin ."
@@ -606,7 +606,8 @@
         "decisions.tsv gains a trailing item column; fanout plan --kind review --solo allocates review_<slug>_r<N>.md, requires --justify from round 3 and writes the review-r<N> decision row, and prints the last reviewed sha that is still an ancestor of HEAD",
         "The gate fails the active item with base when a round-3-or-later review report has no matching decision row, or when any of its reports exceeds 24 KB",
         "Implementer rounds after the first write impl_<slug>_r<N>.md deltas carrying the full R-to-test table",
-        "specifying to spec_ready is refused when spec.md declares more requirements than its size allows (m 12, l 30) unless forced with a decision row"
+        "specifying to spec_ready is refused when spec.md declares more requirements than its size allows (m 12, l 30) unless forced with a decision row",
+        "before anything uses roundOf to decide solo versus panel, one rule covers a remainder like _r2x: roundOf reads it as round 1 with lens r2x (item 20's A3), while agents/reviewer.md:77 and the src/fanout.ts:49 comment treat any leading r<digit> as reserved; pick one and make code, prose and tests agree (item 20 round-2 review note)"
       ],
       "status": "pending"
     },
