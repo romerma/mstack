@@ -12,7 +12,10 @@ const [file, journal, name, rounds, start, roundMs, holdMs] = process.argv.slice
   string, string, string, string, string, string, string,
 ];
 const pause = new Int32Array(new SharedArrayBuffer(4));
-const wall = () => performance.timeOrigin + performance.now();
+// hrtime is one system clock for every process; `performance.timeOrigin` is sampled
+// once per process at start-up and can be off by however long that process was
+// descheduled, which would show as an overlap that never happened.
+const now = () => Number(process.hrtime.bigint()) / 1e6;
 const ownsLock = () => {
   try {
     return readFileSync(`${file}.lock`, "utf8").startsWith(`${process.pid} `);
@@ -27,12 +30,12 @@ for (let round = 0; round < Number(rounds); round++) {
   while (Date.now() < at) { /* spin the last two milliseconds */ }
   try {
     withLock(file, () => {
-      const enter = wall();
+      const enter = now();
       const ownedOnEntry = ownsLock();
       const until = enter + Number(holdMs);
-      while (wall() < until) { /* hold */ }
+      while (now() < until) { /* hold */ }
       const ownedOnExit = ownsLock();
-      appendFileSync(journal, `${round} ${name} ${enter} ${wall()} ${ownedOnEntry && ownedOnExit}\n`);
+      appendFileSync(journal, `${round} ${name} ${enter} ${now()} ${ownedOnEntry && ownedOnExit}\n`);
     }, { timeoutMs: 5_000 });
   } catch (error) {
     appendFileSync(journal, `${round} ${name} THREW ${(error as Error).message}\n`);

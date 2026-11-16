@@ -331,7 +331,7 @@ test("waiters that all see the same dead owner never hold the lock together", { 
     entries.sort((x, y) => x.enter - y.enter);
     for (let i = 1; i < entries.length; i++) {
       const [prev, next] = [entries[i - 1], entries[i]] as [(typeof entries)[number], (typeof entries)[number]];
-      assert.ok(next.enter >= prev.leave, `${prev.name} and ${next.name} were inside together`);
+      assert.ok(next.enter >= prev.leave, `${prev.name} [${prev.enter}, ${prev.leave}] and ${next.name} [${next.enter}, ${next.leave}] were inside together`);
     }
     assert.ok(!existsSync(bench.lock) && !existsSync(`${bench.lock}.break`));
   } finally {
