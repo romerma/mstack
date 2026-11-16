@@ -7,7 +7,7 @@
 > empty template below.
 
 - **Item:** 52 withlock-enters-without-the-lock
-- **Status:** reviewing, round 1 (bug-fix playbook step 8)
+- **Status:** in_progress, round 2 after CHANGES_REQUESTED
 - **Branch:** fix/withlock-enters-without-the-lock
 - **Base:** d34761e
 - **Worktree:** none
@@ -51,16 +51,18 @@ passes bypassPermissions. Do not run `check.mjs` or `verify.mjs` while a batch i
 
 ## Next step
 
-Round 1 review of item 52 is out to a lone reviewer on a different model from the implementer
-(implementer Sonnet, reviewer Opus, launched as general-purpose agents briefed with
-`agents/implementer.md` and `agents/reviewer.md`, because this session has no plugin loaded).
-Its report goes to `.mstack/progress/review_withlock-enters-without-the-lock.md` and it types
-its own ledger row.
+Round 1 review: CHANGES_REQUESTED, `review_withlock-enters-without-the-lock.md`, ledger row
+`verifier-failed` at 572ebbc. Three blockers and one missing test:
 
-- APPROVED: `./bin/mstack gate --full`, `state set 52 --status verifying`, then `done`, merge
-  the branch to main fast-forward, and start item 53.
-- CHANGES_REQUESTED: `state set 52 --status in_progress`, hand the findings to a fresh
-  implementer, review again as `_r2`.
+1. `withLock` spins forever when the lock cannot be created for a reason other than "exists"
+   (exFAT has no hard links, read-only `.mstack/`): `src/tsv.ts:131-132, 188-192, 223`.
+2. The live-holder tests give the waiter 100 to 200 ms, so a mutant that breaks a live holder's
+   lock once it is 2 s old passes all of them and brings the original defect back.
+3. The stale-break race test passes on a mutant that drops the re-check under the guard.
+4. No test breaks a guard left by a dead process (`src/tsv.ts:232-233`).
+
+A fresh implementer has the findings. When it returns: `state set 52 --status reviewing`, then a
+fresh reviewer writes `review_withlock-enters-without-the-lock_r2.md`.
 
 ## Verification
 
