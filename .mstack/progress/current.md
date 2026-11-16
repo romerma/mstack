@@ -64,3 +64,7 @@ verdict", one 7-character row in the ledger); in the gate a `verifier-blocked` a
 author-only verdict as green.
 
 After 47: 46, 50. Then phase 1 and item 69, which need the plugin really loaded.
+
+## Round 2 (implementer)
+
+All four findings fixed with red tests first; report `.mstack/progress/impl_ledger-check-hides-a-rejection_r2.md`. Next session: reviewer round 2 from a pass that did not write the code. Left undone: the other non-blocking review notes (queued follow-ups).
