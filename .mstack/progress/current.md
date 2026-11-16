@@ -7,7 +7,7 @@
 > empty template below.
 
 - **Item:** 53 state-json-loses-concurrent-writes
-- **Status:** in_progress (bug-fix playbook, steps 1 to 4 done)
+- **Status:** reviewing, round 1
 - **Branch:** fix/state-json-loses-concurrent-writes
 - **Base:** dce98cb
 - **Worktree:** none
@@ -45,9 +45,14 @@ passes bypassPermissions. Do not run `check.mjs` or `verify.mjs` while a batch i
 
 ## Next step
 
-Item 53 implemented (code head 454a02a): `updateState` in `src/state.ts`, three callers moved,
-`saveState` removed. Report at `.mstack/progress/impl_state-json-loses-concurrent-writes.md`
-(mutant table, load runs, limits). Next: `state set 53 --status reviewing`, then a fresh reviewer
-on a different model. Leftover temp files `state.json.tmp-*` are for item 66.
+Item 53, round 1 implementation is in: `impl_state-json-loses-concurrent-writes.md`, code head
+`454a02a`. `updateState` in `src/state.ts` holds `withLock` across parse, change and a temp file
+renamed over the target; unknown keys are preserved. Round 1 review is out to a fresh reviewer
+on a different model, which writes `review_state-json-loses-concurrent-writes.md` and types its
+own ledger row.
+
+- APPROVED: `state set 53 --status verifying`, then `done`, merge the branch to main
+  fast-forward, then item 54.
+- CHANGES_REQUESTED: `state set 53 --status in_progress`, a fresh implementer, review as `_r2`.
 
 After 53: 54, 47, 46, 50.
