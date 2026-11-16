@@ -1,4 +1,7 @@
-import { appendFileSync, closeSync, existsSync, openSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { randomUUID } from "node:crypto";
+import { appendFileSync, existsSync, linkSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+
+import { UserError } from "./paths.ts";
 
 /**
  * TSV because GitHub renders it as a sortable table, `column -s$'\t' -t` and
@@ -89,48 +92,169 @@ export function readRecords(file: string): Record<string, string>[] {
  * Checking a file for a value and then appending to it is two operations, and
  * fan-out means several `mstack` processes do it at once: twelve concurrent
  * `decide` calls produced eight distinct millisecond timestamps, because each
- * one read the file before any of them had written. `open` with `wx` is atomic
- * — exactly one process creates the lock and the rest wait.
+ * one read the file before any of them had written.
  *
- * A stale lock from a killed process is broken after the timeout rather than
- * deadlocking the workflow: losing serialisation is recoverable, a CLI that
- * hangs forever is not.
+ * The lock is a file that names its owner (`<pid> <token>`). It is created by
+ * writing a private temp file and `link`ing it into place: `link` is atomic and
+ * fails if the lock exists, and the content is complete before anyone can see
+ * the name, so a reader never meets a lock with no owner in it.
+ *
+ * A waiter never enters without holding the lock:
+ *  - owner dead: the lock is broken at once and taken again with the same
+ *    atomic create; breaking is never the same as holding.
+ *  - owner alive past the timeout: it THROWS (a `UserError` naming the lock, the
+ *    holder and the wait). The earlier "break it and proceed" let a waiter run
+ *    beside a live holder and then delete the holder's lock, which is losing
+ *    serialisation silently. Critical sections here are a read and an append, so
+ *    a live holder past the timeout is a fault; failing is visible and
+ *    retryable, and hooks (which fail open) lose one row instead of corrupting.
+ *  - owner unreadable (empty file from the previous format, foreign content):
+ *    treated as a holder of unknown liveness, waited on like a live one, and
+ *    broken only once the file is older than `UNKNOWN_OWNER_STALE_MS`.
+ *  - release removes the lock only while it still carries this caller's token.
+ *
+ * Known limits: a dead owner's pid reused by an unrelated live process reads as
+ * alive, so waiters fail at the timeout until it exits (fail-closed, and rare
+ * for critical sections that last milliseconds). Two waiters breaking the same
+ * dead lock are serialised by a `.break` guard, whose own staleness is decided
+ * the same way; a process killed inside the guard in the microseconds between
+ * its re-read and its remove, together with a second breaker, is the residual
+ * window.
  */
 export function withLock<T>(file: string, run: () => T, options: { timeoutMs?: number } = {}): T {
   const lock = `${file}.lock`;
   const timeout = options.timeoutMs ?? 2_000;
+  const token = randomUUID();
   const started = Date.now();
 
   for (;;) {
-    try {
-      closeSync(openSync(lock, "wx"));
-      break;
-    } catch {
-      if (Date.now() - started > timeout) {
-        // Break it and proceed. The alternative is a hang.
-        try {
-          rmSync(lock, { force: true });
-        } catch {
-          // Someone else broke it first, which is the outcome we wanted.
-        }
-        break;
-      }
-      // Busy-wait deliberately: these critical sections are a file read and one
-      // append, and pulling in async here would make every caller async.
-      const until = Date.now() + 2;
-      while (Date.now() < until) {
-        // spin
-      }
+    if (tryCreate(lock, token)) break;
+    if (tryBreakStale(lock, token)) continue;
+    if (Date.now() - started > timeout) {
+      const holder = readOwner(lock);
+      throw new UserError(
+        `${lock} is held ${holder === null ? "by a process that cannot be identified" : `by pid ${holder.pid}`} and did not let go in ${Date.now() - started} ms`,
+        holder === null
+          ? `if no mstack command is running, remove ${lock}`
+          : `wait for pid ${holder.pid} to finish, or stop it; if it is not an mstack process, remove ${lock}`,
+      );
     }
+    sleep(2);
   }
 
   try {
     return run();
   } finally {
-    try {
-      rmSync(lock, { force: true });
-    } catch {
-      // Nothing useful to do; the timeout above covers a leftover.
-    }
+    release(lock, token);
   }
+}
+
+// A lock with no readable owner is the previous format (an empty file) or foreign
+// content. Two seconds is the old default wait, so a legacy lock is broken after
+// the same time it always was; no critical section here lasts that long.
+const UNKNOWN_OWNER_STALE_MS = 2_000;
+const pause = new Int32Array(new SharedArrayBuffer(4));
+
+function sleep(ms: number): void {
+  // Synchronous on purpose: every caller is, and these critical sections are a
+  // file read and one append.
+  Atomics.wait(pause, 0, 0, ms);
+}
+
+interface Owner {
+  readonly pid: number;
+  readonly token: string;
+}
+
+function readOwner(path: string): Owner | null {
+  let text: string;
+  try {
+    text = readFileSync(path, "utf8");
+  } catch {
+    return null;
+  }
+  const match = /^(\d+) ([0-9a-f-]{36})\n$/.exec(text);
+  return match === null ? null : { pid: Number(match[1]), token: match[2] as string };
+}
+
+/** Atomic create-with-content: the name appears only once the owner is in it. */
+function tryCreate(path: string, token: string): boolean {
+  const temp = `${path}.${process.pid}.${token}.tmp`;
+  try {
+    writeFileSync(temp, `${process.pid} ${token}\n`, { encoding: "utf8", flag: "wx" });
+    try {
+      linkSync(temp, path);
+      return true;
+    } catch {
+      return false;
+    }
+  } catch {
+    return false;
+  } finally {
+    rmSync(temp, { force: true });
+  }
+}
+
+function alive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    // EPERM: the process exists and belongs to someone else.
+    return (error as NodeJS.ErrnoException).code === "EPERM";
+  }
+}
+
+function isStale(path: string, owner: Owner | null): boolean {
+  if (owner !== null) return !alive(owner.pid);
+  try {
+    return Date.now() - statSync(path).mtimeMs > UNKNOWN_OWNER_STALE_MS;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Remove a lock whose owner is gone. Returns true when the caller should try to
+ * take the lock again (it was removed by us or already gone), false when the
+ * lock is held by someone who may still be inside.
+ */
+function tryBreakStale(lock: string, token: string): boolean {
+  if (!existsSync(lock)) return true;
+  const observed = readOwner(lock);
+  if (!isStale(lock, observed)) return false;
+
+  // One breaker at a time: otherwise two waiters that saw the same dead owner
+  // can each remove the lock and each create their own, the second removing
+  // the first's live one.
+  const guard = `${lock}.break`;
+  if (!tryCreate(guard, token)) {
+    const holder = readOwner(guard);
+    if (isStale(guard, holder)) rmIfOwner(guard, holder?.token ?? null);
+    return false;
+  }
+  try {
+    // Re-read under the guard: it must still be the lock we judged dead.
+    const again = readOwner(lock);
+    if (!existsSync(lock)) return true;
+    const same = observed === null ? again === null : again !== null && again.token === observed.token;
+    if (!same || !isStale(lock, again)) return false;
+    rmSync(lock, { force: true });
+    return true;
+  } finally {
+    rmIfOwner(guard, token);
+  }
+}
+
+function rmIfOwner(path: string, token: string | null): void {
+  try {
+    const owner = readOwner(path);
+    if (token === null ? owner === null : owner?.token === token) rmSync(path, { force: true });
+  } catch {
+    // Nothing useful to do; a leftover is handled as a stale lock.
+  }
+}
+
+function release(lock: string, token: string): void {
+  rmIfOwner(lock, token);
 }
