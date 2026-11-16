@@ -7,7 +7,7 @@
 > empty template below.
 
 - **Item:** 54 hook-errors-leave-no-trace
-- **Status:** reviewing, round 1
+- **Status:** in_progress, round 2 after CHANGES_REQUESTED
 - **Branch:** fix/hook-errors-leave-no-trace
 - **Base:** 8dac2fd
 - **Worktree:** none
@@ -45,20 +45,23 @@ passes bypassPermissions. Do not run `check.mjs` or `verify.mjs` while a batch i
 
 ## Next step
 
-Item 54, round 1 implementation is in: `impl_hook-errors-leave-no-trace.md`, code head
-`66c9dc9`. Hook failures and unknown events append to `.mstack/hook-errors.log`, the gate warns
-on lines newer than `history.md`, and the lint checks the hook argument against one list of
-handled names. Acceptance 4: the header-only `costs.tsv` is not a bug in this checkout; no
-session since 2026-11-08 has loaded the plugin, and item 37's session ran a copy without the
-cost code. Recording in a real `claude --plugin-dir .` session is still unproven.
+Item 54, round 1 review: CHANGES_REQUESTED, `review_hook-errors-leave-no-trace.md`, ledger row
+`verifier-failed` at 9f96d9b. Two blockers:
 
-Round 1 review is out to a fresh reviewer on a different model, which writes
-`review_hook-errors-leave-no-trace.md` and types its own ledger row. The point it was asked to
-judge hardest: for stores created before this change the hook appends the log's name to
-`.git/info/exclude`, an edit outside `.mstack/`.
+1. `src/hooks.ts:197`: subagent-stop calls `activeItem`, which swallows the `state.json` parse
+   error, so on an unreadable store it skips its report check and logs nothing.
+2. `src/hooklog.ts:167-171`: no test pins the branch where `tolerateAbsence` records a fault;
+   mutant O1 ("never record") survives on both runtimes.
 
-- APPROVED: `state set 54 --status verifying`, then `done`, merge fast-forward, then item 47.
-- CHANGES_REQUESTED: `state set 54 --status in_progress`, a fresh implementer, review as `_r2`.
+Fail-open held in every case run; the `.git/info/exclude` edit was accepted after 12 layouts.
+A fresh implementer has the two blockers plus the exclude-path guard and its surviving mutants.
+When it returns: `state set 54 --status reviewing`, then a fresh reviewer writes
+`review_hook-errors-leave-no-trace_r2.md`.
 
-After 54: 47, 46, 50. Then phase 1, which needs the plugin really loaded for two acceptance
-lines (a request through `/mstack` in the sandbox, a subagent quoting a preloaded skill).
+Follow-ups to file when the item closes: the lint refuses a foreign hook whose args start with
+"hook"; a `hooks.json` containing `null` crashes the lint (base too); `tests/run.test.ts:239`
+is load-sensitive, add it to item 67; a gate warning for a store whose log is not ignored;
+`session-start` on an unreadable `state.json` still prints "No active work item"; recording in
+a real `claude --plugin-dir .` session is unproven.
+
+After 54: 47, 46, 50. Then phase 1.
