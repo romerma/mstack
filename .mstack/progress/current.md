@@ -80,3 +80,9 @@ UserError, release only with own token); new tsv tests; decisions concurrent tes
 `spawn`. Report: `.mstack/progress/impl_withlock-enters-without-the-lock.md`.
 If this session stops now: the coordinator reviews the item with a pass that did not write it,
 then moves the status.
+
+- Item 52, round 2 (implementer): exclusive create plus write replaces write-then-link; only EEXIST
+  is held, other create errors throw a UserError; loop cannot skip deadline and sleep. Race test,
+  live-holder age test, dead and live guard tests, EPERM test added. Report:
+  `impl_withlock-enters-without-the-lock_r2.md`. Next: an independent review round 2. Item status
+  not changed by the implementer.
