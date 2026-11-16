@@ -7,7 +7,7 @@
 > empty template below.
 
 - **Item:** 52 withlock-enters-without-the-lock
-- **Status:** in_progress, round 3 after CHANGES_REQUESTED
+- **Status:** reviewing, round 3
 - **Branch:** fix/withlock-enters-without-the-lock
 - **Base:** d34761e
 - **Worktree:** none
@@ -51,9 +51,19 @@ passes bypassPermissions. Do not run `check.mjs` or `verify.mjs` while a batch i
 
 ## Next step
 
-Round 3 implemented (report `impl_withlock-enters-without-the-lock_r3.md`, last code commit
-9499621): read-back by token, `options.step` seam, empty-guard test, M14 test through the seam,
-race test and `tests/lock-racer.ts` removed, timeouts and watchdog on every spawn test, notes c
-and d (second half). Next: independent round 3 review; the item stays `reviewing`, this pass does
-not change its status. Left undone: note d first half; unrelated flakes under heavy load in
-`tests/run.test.ts:54` and `tests/costs.test.ts:698`.
+Round 3 implementation is in: `impl_withlock-enters-without-the-lock_r3.md`, code head
+`9499621`. `tryCreate` reads the lock back by token, an `options.step` seam drives deterministic
+tests, the statistical race test and `tests/lock-racer.ts` are gone. Round 3 review is out to a
+fresh reviewer, which writes `review_withlock-enters-without-the-lock_r3.md` and types its own
+ledger row.
+
+- APPROVED: `./bin/mstack gate --full`, `state set 52 --status verifying`, then `done`, merge
+  the branch to main fast-forward, and start item 53.
+- CHANGES_REQUESTED: a fourth round needs a `review-r4` decision row, and first the question of
+  whether the seam is wrong rather than the patch (principle: redesign from first principles).
+
+Follow-ups to file when the item closes: ignore or sweep `*.lock` and `*.lock.break` in the
+store; under load `tests/costs.test.ts:698` and `tests/run.test.ts:54` fail on node and bun
+(compare with item 21); `withLock` measures its wait on the wall clock; the timeout message
+names the dead lock owner when the guard is what blocks; move `UserError` out of `src/paths.ts`
+with item 53.
