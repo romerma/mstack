@@ -6,10 +6,10 @@
 > On close: append the summary to `history.md` and reset this file to the
 > empty template below.
 
-- **Item:** none active (52 closed 2026-11-16; next 53 state-json-loses-concurrent-writes)
-- **Status:** -
-- **Branch:** main
-- **Base:** -
+- **Item:** 53 state-json-loses-concurrent-writes
+- **Status:** in_progress (bug-fix playbook, steps 1 to 4 done)
+- **Branch:** fix/state-json-loses-concurrent-writes
+- **Base:** dce98cb
 - **Worktree:** none
 
 ## Plan
@@ -45,7 +45,10 @@ passes bypassPermissions. Do not run `check.mjs` or `verify.mjs` while a batch i
 
 ## Next step
 
-Item 53, bug-fix playbook. Steps 1 and 2 are done (repro and mechanism above). Next is step 3:
-a failing test with real concurrent processes, committed before the fix, on its own branch. The
-lock it takes is `withLock` from item 52. The brief also carries the `UserError` move out of
-`src/paths.ts`. Then 54, 47, 46, 50.
+Item 53. Failing test committed (`tests/state.test.ts`, red on node and bun: 12 writers exit 0,
+8 or 9 items on disk). Design recorded (row of phase `design`): one locked read-modify-write
+function with a temp file renamed over the target, unknown keys preserved. An implementer has
+the brief; its report goes to `impl_state-json-loses-concurrent-writes.md`. When it returns:
+`state set 53 --status reviewing`, then a fresh reviewer on a different model.
+
+After 53: 54, 47, 46, 50.

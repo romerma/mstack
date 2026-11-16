@@ -730,7 +730,7 @@
         "every read-modify-write of state.json (state add, state set, decide --resolves and any other saveState caller) holds the lock across the read and the write",
         "a key the CLI does not know survives a state set instead of being dropped, or dropping it is refused with a message naming the key"
       ],
-      "status": "pending",
+      "status": "in_progress",
       "description": "Reproduced 2026-11-16 in a throwaway store: 12 parallel './bin/mstack state add', all exit 0, 8 items in state.json. saveState is one writeFileSync with no lock and no rename (src/state.ts:208-210), so every caller reads, modifies and overwrites independently. Builds on item 52: the lock it takes must be one that excludes.",
       "source": "reports/Mejoras mstack con skills Pocock.md, 2026-11-16"
     },
