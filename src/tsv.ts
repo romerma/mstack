@@ -88,6 +88,23 @@ export function readRecords(file: string): Record<string, string>[] {
 }
 
 /**
+ * Named points inside `withLock` where a test may stop a process, to make an
+ * interleaving that is otherwise a window of microseconds happen on purpose.
+ *  - `lock-created`: the lock exists and is still empty; the owner is not written.
+ *  - `guard-created`: the same for the `.break` guard.
+ *  - `judged-stale`: a waiter has judged the lock stale and has not taken the guard.
+ *  - `waiting`: a pass found the lock held and is about to sleep. It is the
+ *    positive signal that "nothing happened", for a test that must wait for that.
+ */
+export type LockStep = "lock-created" | "guard-created" | "judged-stale" | "waiting";
+
+export interface LockOptions {
+  readonly timeoutMs?: number;
+  /** A test seam, like `prune`'s `beforeLock` in costs.ts. Called at each named step, with no effect when absent. */
+  readonly step?: (name: LockStep) => void;
+}
+
+/**
  * Serialise a read-then-append across processes.
  *
  * Checking a file for a value and then appending to it is two operations, and
@@ -128,17 +145,18 @@ export function readRecords(file: string): Record<string, string>[] {
  * its re-read and its remove, together with a second breaker, is the residual
  * window.
  */
-export function withLock<T>(file: string, run: () => T, options: { timeoutMs?: number } = {}): T {
+export function withLock<T>(file: string, run: () => T, options: LockOptions = {}): T {
   const lock = `${file}.lock`;
   const timeout = options.timeoutMs ?? 2_000;
+  const step = options.step;
   const token = randomUUID();
   const started = Date.now();
 
   for (;;) {
-    if (tryCreate(lock, token)) break;
+    if (tryCreate(lock, token, "lock-created", step)) break;
     // Every pass reaches the deadline check or the sleep, or has just removed a
     // dead lock and so made progress: no path through here can spin unbounded.
-    const removed = tryBreakStale(lock, token);
+    const removed = tryBreakStale(lock, token, step);
     const waited = Date.now() - started;
     if (removed && waited <= timeout) continue;
     if (waited > timeout) {
@@ -150,6 +168,7 @@ export function withLock<T>(file: string, run: () => T, options: { timeoutMs?: n
           : `wait for pid ${holder.pid} to finish, or stop it; if it is not an mstack process, remove ${lock}`,
       );
     }
+    step?.("waiting");
     sleep(2);
   }
 
@@ -193,7 +212,7 @@ function readOwner(path: string): Owner | null {
  * already exists; any other failure throws, because "could not create" and "held
  * by someone" need opposite handling.
  */
-function tryCreate(path: string, token: string): boolean {
+function tryCreate(path: string, token: string, created: LockStep, step: LockOptions["step"]): boolean {
   let fd: number;
   try {
     fd = openSync(path, "wx");
@@ -202,6 +221,7 @@ function tryCreate(path: string, token: string): boolean {
     throw cannotCreate(path, error);
   }
   try {
+    step?.(created);
     writeSync(fd, `${process.pid} ${token}\n`);
   } catch (error) {
     rmSync(path, { force: true });
@@ -244,14 +264,15 @@ function isStale(path: string, owner: Owner | null): boolean {
  * held by someone who may still be inside, is already gone, or another waiter is
  * breaking it.
  */
-function tryBreakStale(lock: string, token: string): boolean {
+function tryBreakStale(lock: string, token: string, step: LockOptions["step"]): boolean {
   if (!isStale(lock, readOwner(lock))) return false;
+  step?.("judged-stale");
 
   // One breaker at a time: otherwise two waiters that saw the same dead owner
   // can each remove the lock and each create their own, the second removing
   // the first's live one.
   const guard = `${lock}.break`;
-  if (!tryCreate(guard, token)) {
+  if (!tryCreate(guard, token, "guard-created", step)) {
     const holder = readOwner(guard);
     if (isStale(guard, holder)) rmIfOwner(guard, holder?.token ?? null);
     return false;
