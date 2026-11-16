@@ -55,3 +55,7 @@ Seen on the way, not in this item: `ledger check <target> a4e6c784` with an abbr
 answers "no verdict at a4e6c784" although rows exist at that commit.
 
 After 47: 46, 50. Then phase 1 and item 69, which need the plugin really loaded.
+
+## Item 47 implementation (2026-11-17)
+
+Fix landed on fix/ledger-check-hides-a-rejection (bb21cf7 red, 4cd34e7 fix, docs dcbfe12, ebd8a6b). Report: `.mstack/progress/impl_ledger-check-hides-a-rejection.md`. Next: a reviewer pass that did not write the code; do not change status here.
