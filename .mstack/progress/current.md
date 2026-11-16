@@ -7,7 +7,7 @@
 > empty template below.
 
 - **Item:** 53 state-json-loses-concurrent-writes
-- **Status:** reviewing, round 1
+- **Status:** in_progress, round 2 after CHANGES_REQUESTED
 - **Branch:** fix/state-json-loses-concurrent-writes
 - **Base:** dce98cb
 - **Worktree:** none
@@ -45,14 +45,19 @@ passes bypassPermissions. Do not run `check.mjs` or `verify.mjs` while a batch i
 
 ## Next step
 
-Item 53, round 1 implementation is in: `impl_state-json-loses-concurrent-writes.md`, code head
-`454a02a`. `updateState` in `src/state.ts` holds `withLock` across parse, change and a temp file
-renamed over the target; unknown keys are preserved. Round 1 review is out to a fresh reviewer
-on a different model, which writes `review_state-json-loses-concurrent-writes.md` and types its
-own ledger row.
+Item 53, round 1 review: CHANGES_REQUESTED, `review_state-json-loses-concurrent-writes.md`,
+ledger row `verifier-failed` at ee2ad50. One blocker: `src/state.ts:274` writes once with
+`writeSync` and ignores the byte count, so a short write is renamed over `state.json` and the
+command exits 0 (`ulimit -f 2` with the real CLI leaves 1024 bytes of invalid JSON). Acceptance
+1, 3 and 4 are met; 2 is met for the kill case.
 
-- APPROVED: `state set 53 --status verifying`, then `done`, merge the branch to main
-  fast-forward, then item 54.
-- CHANGES_REQUESTED: `state set 53 --status in_progress`, a fresh implementer, review as `_r2`.
+A fresh implementer has the blocker and two cheap notes. When it returns: `state set 53 --status
+reviewing`, then a fresh reviewer writes `review_state-json-loses-concurrent-writes_r2.md`.
+
+Follow-ups to file when the item closes (from the round 1 review's non-blocking list): the
+`decide --resolves` message when the row is recorded and the pointer is not; a leftover temp
+file whose pid recurs fails one write; a symlinked `state.json` is replaced by a regular file
+and file mode is not kept; `--status done` does git work under the lock; the known-key lists
+are kept in step with `parseItem` by hand; surviving mutants M7b, M8, M16.
 
 After 53: 54, 47, 46, 50.
