@@ -73,3 +73,12 @@ step 4:
   (`'A enter\nB enter\nB leave\n'` against `'A enter\n'`), and `B is inside with no lock file`.
 - `bun test ./tests/tsv.test.ts`: 4 pass, 2 fail, same two assertions.
 - `bunx --bun tsc --noEmit`: exit 0. `./bin/mstack lint-plugin .`: PASSED.
+
+## Implementer, item 52 (withlock-enters-without-the-lock)
+
+Done on the branch: `src/tsv.ts` rewritten (owner-recording lock via write-then-link, dead owner
+broken under a `.break` guard and re-created atomically, live holder past timeout throws
+UserError, release only with own token); new tsv tests; decisions concurrent test now uses
+`spawn`. Report: `.mstack/progress/impl_withlock-enters-without-the-lock.md`.
+If this session stops now: the coordinator reviews the item with a pass that did not write it,
+then moves the status.
