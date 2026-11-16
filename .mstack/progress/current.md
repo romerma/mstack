@@ -45,13 +45,6 @@ passes bypassPermissions. Do not run `check.mjs` or `verify.mjs` while a batch i
 
 ## Next step
 
-Item 54. Reproduced in a throwaway store: `mstack hook sesion-start` exits 0 silently;
-`hook session-end` on a `state.json` that is not JSON exits 0 with no trace; `hook
-session-start` on the same store says "No active work item". Mechanism: the bare `catch` in
-`cmdHook` and `default: return null` in `handleHook` (`src/cli.ts:1019-1048`). Design recorded
-(row of phase `design`): `.mstack/hook-errors.log`, gitignored, capped, and a gate warning for
-lines newer than `history.md`. An implementer has the brief and writes the red tests first; its
-report goes to `impl_hook-errors-leave-no-trace.md`. Then a fresh reviewer on a different model.
-
-After 54: 47, 46, 50. Then phase 1, which needs the plugin really loaded for two acceptance
-lines (a request through `/mstack` in the sandbox, a subagent quoting a preloaded skill).
+Item 54 implemented (report `impl_hook-errors-leave-no-trace.md`, code at 66c9dc9, both suites 432/432).
+Next: an independent review pass (mutate every load-bearing line, run both suites), then close.
+Left for follow-up: session-start on an unreadable state.json still says "No active work item".

@@ -106,3 +106,4 @@ state-json-loses-concurrent-writes	454a02a4a2628df80ebb53a86af7b971b59c4bad	test
 state-json-loses-concurrent-writes	ee2ad50eca8ca4c174be0e71c3dd8ed15e53637f	verifier-failed	.mstack/progress/review_state-json-loses-concurrent-writes.md	reviewer	2026-11-16T20:37:05.102Z
 state-json-loses-concurrent-writes	4b533c87119a2daac8efbf2c0d356d7bd08c1e1f	test-verified	.mstack/progress/impl_state-json-loses-concurrent-writes_r2.md	implementer	2026-11-16T20:44:15.788Z
 state-json-loses-concurrent-writes	4092af5742a1ceec115e270e42514d1ed4b5dee3	live-verified	.mstack/progress/review_state-json-loses-concurrent-writes_r2.md	reviewer	2026-11-16T21:05:09.045Z
+hook-errors-leave-no-trace	66c9dc982b8d5176573cb2f28f6494d9764c69a1	test-verified	.mstack/progress/impl_hook-errors-leave-no-trace.md	implementer	2026-11-16T21:31:25.818Z
