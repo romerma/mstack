@@ -6,10 +6,10 @@
 > On close: append the summary to `history.md` and reset this file to the
 > empty template below.
 
-- **Item:** none active (53 closed 2026-11-16; next 54 hook-errors-leave-no-trace)
-- **Status:** -
-- **Branch:** main
-- **Base:** -
+- **Item:** 54 hook-errors-leave-no-trace
+- **Status:** in_progress (bug-fix playbook, steps 1, 2 and 4 done)
+- **Branch:** fix/hook-errors-leave-no-trace
+- **Base:** 8dac2fd
 - **Worktree:** none
 
 ## Plan
@@ -45,10 +45,13 @@ passes bypassPermissions. Do not run `check.mjs` or `verify.mjs` while a batch i
 
 ## Next step
 
-Phase 0 has 52 and 53 closed. Next: 54 (hook errors leave no trace), then 47, 46, 50. For 54,
-start from the item 37 history entry: that session ran the cached plugin and wrote no cost rows,
-which may be all there is behind the header-only `costs.tsv`.
+Item 54. Reproduced in a throwaway store: `mstack hook sesion-start` exits 0 silently;
+`hook session-end` on a `state.json` that is not JSON exits 0 with no trace; `hook
+session-start` on the same store says "No active work item". Mechanism: the bare `catch` in
+`cmdHook` and `default: return null` in `handleHook` (`src/cli.ts:1019-1048`). Design recorded
+(row of phase `design`): `.mstack/hook-errors.log`, gitignored, capped, and a gate warning for
+lines newer than `history.md`. An implementer has the brief and writes the red tests first; its
+report goes to `impl_hook-errors-leave-no-trace.md`. Then a fresh reviewer on a different model.
 
-Phase 1 (55 intake, 56 test-first reference) changes skills and agents and has acceptance lines
-that need the plugin really loaded (`claude --plugin-dir .`, or headless `claude -p` with it):
-a request driven through `/mstack` in the sandbox, and a subagent quoting a preloaded skill.
+After 54: 47, 46, 50. Then phase 1, which needs the plugin really loaded for two acceptance
+lines (a request through `/mstack` in the sandbox, a subagent quoting a preloaded skill).
