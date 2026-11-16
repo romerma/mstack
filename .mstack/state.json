@@ -704,6 +704,195 @@
       ],
       "status": "pending",
       "source": "item 37 round-3 review, non-blocking, 2026-11-08"
+    },
+    {
+      "id": 52,
+      "slug": "withlock-enters-without-the-lock",
+      "title": "withLock enters the critical section without the lock after its timeout, and removes a live holder's lock",
+      "acceptance": [
+        "a waiter whose timeout expires while a live holder is still inside never runs its critical section concurrently with that holder; a test with real concurrent processes (spawn, not spawnSync) shows it and fails on unmodified code",
+        "a process removes only a lock it created; breaking a stale lock is followed by re-acquiring it with the same atomic create before entering",
+        "a lock left by a killed process does not hang the CLI: it is detected as stale, broken, and the command completes",
+        "what a waiter does when a live holder outlasts the timeout (keep waiting, or exit non-zero naming the lock) is recorded with mstack decide",
+        "the 'concurrent decisions' test in tests/decisions.test.ts launches its processes concurrently, and removing the withLock call makes it fail (mutation shown in the report)"
+      ],
+      "status": "pending",
+      "description": "Reproduced 2026-11-16 with three node processes on one file: A holds 48-3549 ms, B waits 2 s, removes A's lock and enters at 2280 ms without creating its own, C then acquires a fresh lock at 2802 ms while A is still inside. src/tsv.ts:109-116 breaks the lock and falls through to run(); the finally at :129-135 removes whatever lock file exists, whoever owns it.",
+      "source": "reports/Mejoras mstack con skills Pocock.md, 2026-11-16"
+    },
+    {
+      "id": 53,
+      "slug": "state-json-loses-concurrent-writes",
+      "title": "state.json loses writes under concurrent state add: twelve exit 0, eight items on disk",
+      "acceptance": [
+        "twelve concurrent state add calls against one store leave twelve items on disk with twelve distinct ids; a test with real concurrent processes shows it and fails on unmodified code",
+        "a process killed mid-write cannot leave a truncated state.json: the write goes to a temporary file in the same directory and is renamed over the target",
+        "every read-modify-write of state.json (state add, state set, decide --resolves and any other saveState caller) holds the lock across the read and the write",
+        "a key the CLI does not know survives a state set instead of being dropped, or dropping it is refused with a message naming the key"
+      ],
+      "status": "pending",
+      "description": "Reproduced 2026-11-16 in a throwaway store: 12 parallel './bin/mstack state add', all exit 0, 8 items in state.json. saveState is one writeFileSync with no lock and no rename (src/state.ts:208-210), so every caller reads, modifies and overwrites independently. Builds on item 52: the lock it takes must be one that excludes.",
+      "source": "reports/Mejoras mstack con skills Pocock.md, 2026-11-16"
+    },
+    {
+      "id": 54,
+      "slug": "hook-errors-leave-no-trace",
+      "title": "A hook that throws exits 0 and leaves no trace, so nobody can say why costs.tsv holds only its header",
+      "acceptance": [
+        "an exception inside any mstack hook appends one line (timestamp, event, message) to a bounded log under .mstack/, and the hook still exits 0 inside its time budget",
+        "mstack gate reports hook errors recorded since the last session close as a warning naming the log",
+        "mstack hook with an event the CLI does not handle says so on stderr, and lint-plugin refuses a hooks.json entry that names one",
+        "the cause of the header-only .mstack/costs.tsv is identified with runtime evidence, or recorded as unknown together with what was tried"
+      ],
+      "status": "pending",
+      "description": "Hooks fail open by design and that stays. What is missing is the record: .mstack/costs.tsv has only its header although item 37 is closed, and no file says whether the cost hooks ran, threw or were never registered. An unknown event name passed to 'mstack hook' also exits 0 silently (src/cli.ts:1037-1038, per the 2026-11-16 audit).",
+      "source": "reports/Mejoras mstack con skills Pocock.md, 2026-11-16"
+    },
+    {
+      "id": 55,
+      "slug": "intake-step",
+      "title": "Nothing turns the user's prose into an item: the router has no intake step",
+      "acceptance": [
+        "the router runs intake between orient and copying the playbook, and it ends with mstack state add carrying acceptance derived from the request, a source, and the test seams",
+        "intake finds facts in the repository and its documents and never asks the user for one",
+        "a reversible decision is taken with its recommended answer and recorded with mstack decide: what was decided, why, and what it costs if wrong",
+        "a product fork or an irreversible choice becomes decision_required on the item, and all forks of one request reach the user once, late, each with a recommended answer",
+        "text derived from mattpocock/skills or obra/superpowers carries an origin header (repository, path, commit), and both MIT notices ship inside the plugin directory",
+        "one real request driven through /mstack in the sandbox produces an item with source, acceptance and seams; the transcript is pasted in the report"
+      ],
+      "status": "pending",
+      "description": "state add appears only in setup and in the orchestrate playbook, 20 of 51 items have no source, and --resolves was used in 2 of 112 decision rows because nothing raised decision_required in time. The intake is derived from the structure of mattpocock/skills grilling (design tree, frontier, recommended answer, 'finding facts is your job') and the 'rulings, not stalls' pattern of obra/superpowers. It is not grilling and must not be called that: its author says an agent that answers its own decisions has broken the skill. Runs in the main session, because a subagent has no AskUserQuestion.",
+      "decision_required": "A real grilling session is open-ended and waits for the user; the router says 'Ask at most three questions' and principles say 'Never block on the human'. Either intake is always autonomous under the three-question cap, or it is autonomous by default with an interactive mode (full rounds, no cap) that turns on only when the request asks for it, which needs a named exception to the cap.",
+      "source": "reports/Mejoras mstack con skills Pocock.md, 2026-11-16",
+      "decision_resolved": "2026-11-16T16:38:47.460Z"
+    },
+    {
+      "id": 56,
+      "slug": "test-first-reference",
+      "title": "feature.md has no test-first step and the implementer carries no test-first reference",
+      "acceptance": [
+        "an internal skill with user-invocable: false holds the test-first reference, self-contained in its SKILL.md, with origin headers",
+        "the implementer has that text in context when it starts: a subagent quotes a sentence from it without reading files. If skills: preload does not inject for plugin agents (claude-code issue 25834), a SubagentStart hook matched to the implementer delivers it and the failed attempt is recorded",
+        "feature.md names a test-first step before delegation, and the implementer brief declares the item's seams as pre-agreed",
+        "lint-plugin and both suites green"
+      ],
+      "status": "pending",
+      "description": "bug-fix.md and refactor.md name a failing test; feature.md does not, and test adequacy is found by the reviewer's mutations in rounds 2 to 4 (item 36: 'the suite was green from round 1'). The reference merges mattpocock/skills tdd (what a good test is: public interface, seams, independent expected values, vertical slices) with obra/superpowers test-driven-development (process: watch red for the expected reason, watch green, run the project suite). Refactoring stays out of the loop; review owns it. Seams come from the item, so no pass asks the user to confirm them (depends on item 55; the field lands with item 40).",
+      "source": "reports/Mejoras mstack con skills Pocock.md, 2026-11-16"
+    },
+    {
+      "id": 57,
+      "slug": "deep-module-vocabulary",
+      "title": "The design skill and the reviewer lack the deep-module vocabulary, and no playbook finds deepening candidates",
+      "acceptance": [
+        "the design skill references the vendored vocabulary, and the reviewer has it as a lens, with origin headers",
+        "a request such as '/mstack review the architecture' routes to a playbook that ends with candidates filed as pending items, each naming files, the deepening and its test surface, and asks the user nothing",
+        "that playbook run on this repository files its candidates, pasted in the report"
+      ],
+      "status": "pending",
+      "description": "skills/design/SKILL.md already speaks of shallow modules and designing it twice; mattpocock/skills codebase-design adds the precise tests (deletion test, the interface is the test surface, one adapter is a hypothetical seam, the four dependency categories). It is vocabulary and must never run as a process: its own docs record a session burning 100k tokens redesigning unasked things. The procedure with output is adapted from improve-codebase-architecture into a playbook that files candidates as pending items instead of an HTML report. First clients: src/cli.ts, src/costs.ts, src/gate.ts.",
+      "source": "reports/Mejoras mstack con skills Pocock.md, 2026-11-16"
+    },
+    {
+      "id": 58,
+      "slug": "glossary-and-adr",
+      "title": "The project has no glossary and no ADRs: decisions.tsv is the only record and 'Claude Code only' is in none",
+      "acceptance": [
+        "GLOSSARY.md exists with the terms the code and skills already use (item, verdict, closing role, receipt, fork, seam), each one or two sentences with no implementation detail",
+        "docs/adr/ exists and its first ADR records 'Claude Code only' with the date and the trade-off",
+        "intake and understand read the glossary; closing an item and reflect are where terms and ADRs are written, and only decisions meeting all three conditions become ADRs",
+        "mstack gate checks the glossary's entry format"
+      ],
+      "status": "pending",
+      "description": "Derived from mattpocock/skills domain-modeling (the writing half of grill-with-docs). Reading the glossary and settling terms against the code need no human. An ADR is written only when a decision is hard to reverse, surprising without context and the result of a real trade-off. Its docs warn that an unreviewed agent-authored glossary is worse than none; here the glossary diff is part of the item and passes a reviewer that did not write it.",
+      "source": "reports/Mejoras mstack con skills Pocock.md, 2026-11-16"
+    },
+    {
+      "id": 59,
+      "slug": "diagnosis-loop-in-bug-fix",
+      "title": "bug-fix.md is 22 lines and never says to build a feedback loop that can go red before hypothesising",
+      "acceptance": [
+        "bug-fix.md steps 1 and 2 carry the loop-first procedure, with an origin header on the derived text",
+        "the procedure is run on item 21 (unidentified-flaky-test) and either identifies the test or records the hypotheses ruled out"
+      ],
+      "status": "pending",
+      "description": "Adapted from mattpocock/skills diagnosing-bugs, which already has an unattended path ('proceed with your ranking if the user is AFK'): build the loop first, three to five falsifiable hypotheses ranked, instrument, fix, clean up. The router's three-attempt stop already exists and stays.",
+      "source": "reports/Mejoras mstack con skills Pocock.md, 2026-11-16"
+    },
+    {
+      "id": 60,
+      "slug": "ship-pr-body",
+      "title": "The ship skill gives the PR body one sentence: no before/after evidence and no merge danger",
+      "acceptance": [
+        "ship step 1 produces a PR body with before/after evidence from real runs and a merge-danger section (one-way or two-way door, blast radius)",
+        "the origin and both credits ship in the plugin's third-party notices, after the show-me licence is read",
+        "one real PR of this repository is written with it and linked in the report"
+      ],
+      "status": "pending",
+      "description": "Adapted from mattpocock/skills pr, which reproduces Humanlayer's show-me and credits it in CREDITS.md; that credit and its licence must be checked and carried.",
+      "source": "reports/Mejoras mstack con skills Pocock.md, 2026-11-16"
+    },
+    {
+      "id": 61,
+      "slug": "verify-claim-gate",
+      "title": "The verify skill does not spell out the five steps between running a command and claiming a result",
+      "acceptance": [
+        "the verify skill and the evidence ladder carry the five-step procedure with an origin header",
+        "the text adds no new stop and no question to the user"
+      ],
+      "status": "pending",
+      "description": "Adapted from obra/superpowers verification-before-completion (MIT, about 580 words, asks nothing): identify the command that proves the claim, run it, read the whole output, check it against the claim, and only then state it. It sharpens the evidence ladder rather than adding a gate.",
+      "source": "reports/Mejoras mstack con skills Pocock.md, 2026-11-16"
+    },
+    {
+      "id": 62,
+      "slug": "review-findings-verified-first",
+      "title": "Nothing tells the implementer to check a review finding against the code before applying it",
+      "acceptance": [
+        "the implementer's round 2+ instructions say to verify each finding against the code and to record a rebuttal with evidence instead of applying a wrong one",
+        "no step in it asks the user; a disputed finding becomes a mstack decide row the next reviewer reads"
+      ],
+      "status": "pending",
+      "description": "Adapted from obra/superpowers receiving-code-review: verify each finding, push back with reasons when it is wrong, and where the original says ASK, record a decision instead. Applies to implementer rounds 2 and later, where ten items spent three or four rounds.",
+      "source": "reports/Mejoras mstack con skills Pocock.md, 2026-11-16"
+    },
+    {
+      "id": 63,
+      "slug": "review-lenses-by-size",
+      "title": "The built-in /code-review, /simplify and /security-review are not lenses of review, and nothing ties a lens to the item's size",
+      "acceptance": [
+        "whether a plugin skill or agent can invoke /code-review, /simplify and /security-review is settled by running it, and the result is recorded",
+        "the review skill names each lens, the tier it starts at, and what is skipped below it",
+        "a small item's review costs no more than it does today, shown with mstack cost"
+      ],
+      "status": "pending",
+      "description": "Invoke, do not copy. Depends on item 44 (size tiers): a small item gets test first and the verify gate only; the extra lenses and /simplify (the home of the refactor that left the test-first loop) start at medium. /security-review needs an origin remote, and it is unconfirmed that a plugin can fire it through the Skill tool; mstack agents declare tools without Skill today.",
+      "source": "reports/Mejoras mstack con skills Pocock.md, 2026-11-16"
+    },
+    {
+      "id": 64,
+      "slug": "plans-for-a-contextless-executor",
+      "title": "tasks.md and orchestrate briefs have no rule for sizing a task",
+      "acceptance": [
+        "the spec skill and the orchestrate playbook carry the task-sizing rule with an origin header",
+        "one spec written with it has tasks a stranger could execute, judged by the spec-reviewer"
+      ],
+      "status": "pending",
+      "description": "Adapted from obra/superpowers writing-plans: a task is the unit that deserves a fresh reviewer's gate, written for an executor with no context. Applies to the spec path's tasks.md and to orchestrate briefs; the save path becomes .mstack/specs/.",
+      "source": "reports/Mejoras mstack con skills Pocock.md, 2026-11-16"
+    },
+    {
+      "id": 65,
+      "slug": "red-receipt",
+      "title": "Nothing proves the test failed before the change: verification.tsv records only the green run",
+      "acceptance": [
+        "for an item closed after this lands, mstack gate refuses the close when verification.tsv has no failed row of the item's test command before the passing row",
+        "the rule scales with the size tier and names which items are exempt",
+        "a test shows the refusal and the pass"
+      ],
+      "status": "pending",
+      "description": "A proposal of the 2026-11-16 report, not of its sources. Commit order does not prove a test failed. verification.tsv already records outcome and tree, so the gate can require, for an item with a test-first step, a failed row of the test command that predates the passing one. Belongs with items 41 and 42; a PreToolUse guard was rejected because mstack hooks nudge and do not block, and its own author documents the Bash bypass.",
+      "source": "reports/Mejoras mstack con skills Pocock.md, 2026-11-16"
     }
   ]
 }

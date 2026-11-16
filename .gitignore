@@ -18,3 +18,6 @@ dist/
 # Local dogfooding ground: a nested git repository where mstack gets run end to
 # end against a real project. Never pushed; its history and evidence stay local.
 sandbox/
+
+# Raw notes behind reports/: working material with local paths. The report is what is kept.
+research_notes/
