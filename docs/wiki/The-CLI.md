@@ -309,7 +309,7 @@ $ mstack ledger record greet-flag "$(git rev-parse HEAD)" test-verified \
 recorded test-verified for greet-flag at 4b63888b
 
 $ mstack ledger check greet-flag
-PASS test-verified at 4b63888b by implementer
+PASS test-verified at 4b63888b by implementer (the author's own verdict, not an independent approval)
 
 $ mstack ledger summary
 2026-08-19T21:08:48.016Z  greet-flag  4b63888b  test-verified  python3 -m unittest test_greet -v: 2 tests, OK
@@ -319,6 +319,11 @@ $ mstack ledger summary
 The SHA must name a commit that exists in this repository, and the evidence must be at least a
 phrase; forty zeros and a one-character evidence both used to record fine, and no longer do.
 `check` takes an optional SHA (default: the current head) and `--min <verdict>` for a floor.
+It judges a SHA by the latest row from a role that can close an item, the rows the gate's
+closing audit reads: a later `verifier-failed` or `verifier-blocked` from a reviewer fails the
+check and names itself, whatever an implementer recorded at that SHA, and a later approval
+answers it. Only when every row at the SHA is the author's own does it fall back to the best
+one, and then it says so, as above.
 The row is keyed by `(target, sha)`, so a new commit voids it:
 
 ```console
