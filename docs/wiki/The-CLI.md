@@ -321,8 +321,10 @@ phrase; forty zeros and a one-character evidence both used to record fine, and n
 `check` takes an optional SHA (default: the current head) and `--min <verdict>` for a floor.
 It judges a SHA by the latest row from a role that can close an item, the rows the gate's
 closing audit reads: a later `verifier-failed` or `verifier-blocked` from a reviewer fails the
-check and names itself, whatever an implementer recorded at that SHA, and a later approval
-answers it. Only when every row at the SHA is the author's own does it fall back to the best
+check and names itself, whatever an implementer recorded at that SHA (a rejection counts even
+when its evidence cites the implementer's report), and a later approval answers it. An approval
+whose evidence cites the implementer's own report is not independent, so when every closing-role
+row is of that kind the check fails and says so, as the gate does. Only when every row at the SHA is the author's own does it fall back to the best
 one, and then it says so, as above.
 The row is keyed by `(target, sha)`, so a new commit voids it:
 

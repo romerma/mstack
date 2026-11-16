@@ -162,7 +162,7 @@ The ledger is the typed record of who verified what (columns in
 |---|---|
 | implementer | Its own row, `--verifier implementer`, at the rung it honestly reached |
 | reviewer, alone | Its own row, `--verifier reviewer`, typed through Bash once the report exists. APPROVED records the rung its run reached; CHANGES_REQUESTED records `verifier-failed` even when the suite was green, because the check that ran is the review and the item failed it; a verification it could not run at all records `verifier-blocked` |
-| reviewer, as one lens of a panel | Nothing. The ledger keeps one winning row per item and commit, preferring the most favorable verdict, so several lens rows would collapse to the panel's most favorable member. The pass that synthesizes the panel's verdict records the one row, under its own name |
+| reviewer, as one lens of a panel | Nothing. `ledger check` reads the latest closing-role row per item and commit, so several lens rows would collapse to whichever lens recorded last, and a split panel means its worst lens, not the last one. The pass that synthesizes the panel's verdict records the one row, under its own name |
 | spec-author, spec-reviewer | No ledger rows. Their artifacts are the spec and `spec_review_<slug>.md` |
 
 Nobody types a row on another pass's behalf. A row ghost-written by the coordinating pass is
