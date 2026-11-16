@@ -61,3 +61,5 @@ and file mode is not kept; `--status done` does git work under the lock; the kno
 are kept in step with `parseItem` by hand; surviving mutants M7b, M8, M16.
 
 After 53: 54, 47, 46, 50.
+
+- 2026-11-16 round 2: blocker (short write at state.ts:274) reproduced and fixed with writeFileSync; red test 1df7891, fix acf1e8a, dead line 448fc54, finally-kill 4b533c8. Next: reviewer round 2.

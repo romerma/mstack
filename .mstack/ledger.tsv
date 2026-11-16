@@ -104,3 +104,4 @@ withlock-enters-without-the-lock	949962187b87d00dcff042881c18889ff979ccb2	test-v
 withlock-enters-without-the-lock	4dbb41c7ce9604b813bb412075e88c29d1c07ab1	test-verified	.mstack/progress/review_withlock-enters-without-the-lock_r3.md	reviewer	2026-11-16T19:52:23.645Z
 state-json-loses-concurrent-writes	454a02a4a2628df80ebb53a86af7b971b59c4bad	test-verified	.mstack/progress/impl_state-json-loses-concurrent-writes.md	implementer	2026-11-16T20:06:03.917Z
 state-json-loses-concurrent-writes	ee2ad50eca8ca4c174be0e71c3dd8ed15e53637f	verifier-failed	.mstack/progress/review_state-json-loses-concurrent-writes.md	reviewer	2026-11-16T20:37:05.102Z
+state-json-loses-concurrent-writes	4b533c87119a2daac8efbf2c0d356d7bd08c1e1f	test-verified	.mstack/progress/impl_state-json-loses-concurrent-writes_r2.md	implementer	2026-11-16T20:44:15.788Z
