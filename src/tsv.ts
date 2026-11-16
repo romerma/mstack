@@ -213,9 +213,8 @@ function tryCreate(path: string, token: string): boolean {
 }
 
 function cannotCreate(path: string, error: unknown): UserError {
-  const { code, message } = error as NodeJS.ErrnoException;
   return new UserError(
-    `cannot create the lock ${path}: ${code ?? "error"} ${message}`,
+    `cannot create the lock ${path}: ${(error as Error).message}`,
     `check that ${dirname(path)} exists and is writable, and that its disk is not full`,
   );
 }
