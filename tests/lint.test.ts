@@ -137,6 +137,37 @@ test("a miscased hook event is caught, since event names are case-sensitive", ()
   }
 });
 
+test("a hooks.json entry whose argument names an event the CLI does not handle is refused", () => {
+  const c = copy();
+  try {
+    const file = join(c.root, "hooks", "hooks.json");
+    const before = readFileSync(file, "utf8");
+    assert.ok(before.includes('"session-start"'), "the fixture still names session-start");
+    writeFileSync(file, before.replace('"session-start"', '"sesion-start"'));
+    expectFail(c.root, /'SessionStart'.*mstack hook sesion-start.*does not handle/, "misspelt hook argument");
+    const report = lint(c.root);
+    assert.ok(
+      report.failures.some((f) => /did you mean 'session-start'/.test(f)),
+      `names the nearest handled event: ${JSON.stringify(report.failures)}`,
+    );
+  } finally {
+    c.dispose();
+  }
+});
+
+test("the real hooks.json passes the argument check", () => {
+  const c = copy();
+  try {
+    const report = lint(c.root);
+    assert.deepEqual(
+      report.failures.filter((f) => /mstack hook/.test(f)),
+      [],
+    );
+  } finally {
+    c.dispose();
+  }
+});
+
 test("a second copy of the lifecycle enum is caught", () => {
   const c = copy();
   try {
