@@ -320,6 +320,16 @@ test("a reviewer rejection that cites the implementer's report next to its own s
   assert.equal(r.passing, false);
   assert.match(r.reason, /verifier-failed.*reviewer/);
   assert.match(r.reason, /review_x\.md/);
+  assert.match(r.reason, /rejects this commit/, "answered as a rejection, not as a discounted row");
+});
+
+test("a rejection citing the implementer's report retracts an earlier genuine approval", () => {
+  const r = checkAfter([
+    ["test-verified", "reviewer", ".mstack/progress/review_x.md"],
+    ["verifier-failed", "reviewer", ".mstack/progress/review_x_r2.md; impl_x.md overclaims"],
+  ]);
+  assert.equal(r.passing, false);
+  assert.match(r.reason, /rejects this commit/);
 });
 
 test("a reviewer rejection whose only evidence is the implementer's report still fails", () => {
@@ -328,7 +338,7 @@ test("a reviewer rejection whose only evidence is the implementer's report still
     ["verifier-failed", "reviewer", ".mstack/progress/impl_x.md"],
   ]);
   assert.equal(r.passing, false);
-  assert.match(r.reason, /verifier-failed.*reviewer/);
+  assert.match(r.reason, /verifier-failed.*reviewer rejects this commit/);
 });
 
 test("a verifier-blocked row that cites the implementer's report still fails", () => {
@@ -337,7 +347,7 @@ test("a verifier-blocked row that cites the implementer's report still fails", (
     ["verifier-blocked", "reviewer", ".mstack/progress/impl_x.md"],
   ]);
   assert.equal(r.passing, false);
-  assert.match(r.reason, /verifier-blocked.*reviewer/);
+  assert.match(r.reason, /verifier-blocked.*reviewer rejects this commit/);
 });
 
 test("an approval that cites the implementer's report is not presented as an independent pass", () => {
