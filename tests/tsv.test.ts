@@ -44,6 +44,8 @@ interface Holder {
   readonly child: ChildProcess;
   readonly exited: Promise<number | null>;
   release(): void;
+  /** Let the process go on from the step it was told to block at. */
+  releaseStep(): void;
 }
 
 /**
@@ -71,16 +73,19 @@ function lockBench() {
       await new Promise((res) => child.on("close", res));
       return pid;
     },
-    hold(name: string, timeoutMs: number): Holder {
+    hold(name: string, timeoutMs: number, steps: { blockAt?: string; signal?: string } = {}): Holder {
       const release = join(dir, `release-${name}`);
-      const child = spawn(process.execPath, [...RUNTIME_FLAGS, HOLDER, file, journal, name, String(timeoutMs), release], {
-        stdio: "ignore",
-      });
+      const child = spawn(
+        process.execPath,
+        [...RUNTIME_FLAGS, HOLDER, file, journal, name, String(timeoutMs), release, steps.blockAt ?? "", steps.signal ?? ""],
+        { stdio: "ignore" },
+      );
       children.push(child);
       return {
         child,
         exited: new Promise((res) => child.on("close", (code) => res(code))),
         release: () => writeFileSync(release, ""),
+        releaseStep: () => writeFileSync(`${release}.step`, ""),
       };
     },
     race(name: string, rounds: number, start: number, roundMs: number, holdMs: number): Holder {
@@ -94,6 +99,7 @@ function lockBench() {
         child,
         exited: new Promise((res) => child.on("close", (code) => res(code))),
         release: () => {},
+        releaseStep: () => {},
       };
     },
     dispose() {
@@ -139,6 +145,44 @@ test("a waiter that times out on a live holder does not enter beside it", async 
     bench.dispose();
   }
 });
+
+test("a creator that lost its empty lock to a breaker does not enter beside the breaker", async () => {
+  // The lock is created empty and the owner written a moment later. A creator held
+  // between the two for longer than the unreadable-owner limit has an empty lock
+  // that looks like a leftover, and a waiter breaks it and takes its own. When the
+  // creator goes on it must find that the lock is no longer its own and wait.
+  const bench = lockBench();
+  try {
+    const c = bench.hold("C", 5_000, { blockAt: "lock-created", signal: "waiting" });
+    assert.ok(await until(() => bench.journal().includes("C at lock-created"), 20_000), "C never created the lock");
+    const old = new Date(Date.now() - 60_000);
+    utimesSync(bench.lock, old, old);
+
+    const w = bench.hold("W", 5_000);
+    assert.ok(await until(() => bench.journal().includes("W enter"), 20_000), "W never broke the empty lock");
+    const ownedByW = () => readFileSync(bench.lock, "utf8").startsWith(`${w.child.pid} `);
+    assert.ok(ownedByW(), "fixture: W should hold the lock it took from C");
+
+    c.releaseStep();
+    const settled = await until(() => /C (at waiting|enter)/.test(bench.journal()), 20_000);
+    assert.ok(settled, "C neither entered nor waited after it was released");
+    assert.ok(!bench.journal().includes("C enter"), `C entered beside W:\n${bench.journal()}`);
+    assert.ok(ownedByW(), "W's lock was changed or removed by C");
+
+    w.release();
+    assert.equal(await w.exited, 0);
+    assert.ok(await until(() => bench.journal().includes("C enter"), 20_000), "C never got the lock after W let go");
+    c.release();
+    assert.equal(await c.exited, 0);
+    assert.deepEqual(
+      bench.journal().split("\n").filter((l) => /enter|leave/.test(l)),
+      ["W enter", "W leave", "C enter", "C leave"],
+    );
+    assert.ok(!existsSync(bench.lock), "the lock must not survive the writers");
+  } finally {
+    bench.dispose();
+  }
+}, { timeout: 90_000 });
 
 test("a lock left by a killed process is broken, and the next caller holds a real one", async () => {
   const bench = lockBench();
