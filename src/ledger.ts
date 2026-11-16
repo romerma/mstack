@@ -152,11 +152,14 @@ export function check(
   }
 
   // The rows the gate's closing audit reads (`checkClosedItems`): a role that can
-  // close an item, whose evidence does not point at an implementing role's own
-  // report. Anything else is the author talking about its own work.
-  const closing = here.filter(
-    (e) => canCloseAnItem(e.verifier) && citesImplementingReport(e.evidence, target) === undefined,
-  );
+  // close an item. An APPROVAL whose evidence points at an implementing role's own
+  // report is that report under a reviewer's name, and the gate drops it. A
+  // REJECTION is never dropped: citing the report it rejects is ordinary prose,
+  // and discarding it could only hide a failure.
+  const byCloser = here.filter((e) => canCloseAnItem(e.verifier));
+  const isRejection = (e: Entry) => e.verdict === "verifier-failed" || e.verdict === "verifier-blocked";
+  const closing = byCloser.filter((e) => isRejection(e) || citesImplementingReport(e.evidence, target) === undefined);
+  const discounted = byCloser.filter((e) => !closing.includes(e));
 
   // The latest closing row is the answer, not the best-ranked row: a rejection
   // after an approval retracts it, and an approval after a rejection answers it.
@@ -167,7 +170,7 @@ export function check(
   const latest = closing[closing.length - 1];
   if (latest !== undefined) {
     const by = latest.verifier || "unknown";
-    if (latest.verdict === "verifier-failed" || latest.verdict === "verifier-blocked") {
+    if (isRejection(latest)) {
       return {
         passing: false,
         best: latest,
@@ -183,6 +186,19 @@ export function check(
       reason: passing
         ? `${latest.verdict} at ${short(sha)} by ${by}`
         : `latest closing verdict at ${short(sha)} is ${latest.verdict} by ${by}, which does not clear ${min}`,
+    };
+  }
+
+  // Closing-role approvals exist but every one cites the implementer's own report:
+  // the gate refuses to close on that, so `check` fails and says why rather than
+  // printing it as an independent PASS.
+  const forged = discounted[discounted.length - 1];
+  if (forged !== undefined) {
+    return {
+      passing: false,
+      best: forged,
+      stale,
+      reason: `${forged.verdict} at ${short(sha)} by ${forged.verifier} cites the implementer's own report (evidence: ${forged.evidence}), so it is not an independent approval`,
     };
   }
 
