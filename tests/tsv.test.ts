@@ -226,6 +226,28 @@ test("a guard left by a dead process does not keep a dead lock from being broken
   }
 });
 
+test("an empty guard left by a process killed as it created it does not keep a dead lock from being broken", async () => {
+  // Every guard is empty for an instant, so a breaker killed there leaves an empty
+  // `.lock.break` beside the dead lock. Nothing names its owner, so only its age
+  // can say it is a leftover, and it must then be removed, not merely ignored.
+  const bench = lockBench();
+  try {
+    const guard = `${bench.lock}.break`;
+    writeFileSync(bench.lock, `${await bench.deadPid()} ${TOKEN}\n`);
+    writeFileSync(guard, "");
+    const old = new Date(Date.now() - 60_000);
+    utimesSync(guard, old, old);
+    let inside = "";
+    withLock(bench.file, () => {
+      inside = readFileSync(bench.lock, "utf8");
+    }, { timeoutMs: 1_000 });
+    assert.match(inside, new RegExp(`^${process.pid} [0-9a-f-]{36}\\n$`), "the caller entered without its own lock");
+    assert.ok(!existsSync(bench.lock) && !existsSync(guard), "a lock or guard was left behind");
+  } finally {
+    bench.dispose();
+  }
+});
+
 test("a dead lock is not broken while a live process holds the break guard", async () => {
   const bench = lockBench();
   try {
