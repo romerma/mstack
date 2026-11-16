@@ -111,3 +111,4 @@ hook-errors-leave-no-trace	9f96d9b02d5abd6c5a714bd56cb7b31bbabf0038	verifier-fai
 hook-errors-leave-no-trace	9b36340	test-verified	.mstack/progress/impl_hook-errors-leave-no-trace_r2.md	implementer	2026-11-16T22:32:42.348Z
 hook-errors-leave-no-trace	9adb4b9b33ad8d65533346ac006df32d65737ad6	test-verified	.mstack/progress/review_hook-errors-leave-no-trace_r2.md	reviewer	2026-11-16T23:01:40.386Z
 ledger-check-hides-a-rejection	ebd8a6bc8470f01e9c4e2b66b2485a5d641a02e2	test-verified	.mstack/progress/impl_ledger-check-hides-a-rejection.md	implementer	2026-11-16T23:08:33.332Z
+ledger-check-hides-a-rejection	a16e49087d0505861833d4b277f317b6bfc4d4c7	verifier-failed	.mstack/progress/review_ledger-check-hides-a-rejection.md	reviewer	2026-11-16T23:35:30.216Z

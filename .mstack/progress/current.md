@@ -7,7 +7,7 @@
 > empty template below.
 
 - **Item:** 47 ledger-check-hides-a-rejection
-- **Status:** reviewing, round 1
+- **Status:** in_progress, round 2 after CHANGES_REQUESTED
 - **Branch:** fix/ledger-check-hides-a-rejection
 - **Base:** 5b2714c
 - **Worktree:** none
@@ -45,17 +45,22 @@ passes bypassPermissions. Do not run `check.mjs` or `verify.mjs` while a batch i
 
 ## Next step
 
-Item 47, round 1 implementation is in: `impl_ledger-check-hides-a-rejection.md`, code head
-`ebd8a6b`. `ledger check` answers with the latest closing-role row at the sha; with none it
-keeps best-by-rank and labels it the author's own verdict. Round 1 review is out to a fresh
-reviewer on a different model, which writes `review_ledger-check-hides-a-rejection.md` and
-types its own ledger row.
+Item 47, round 1 review: CHANGES_REQUESTED, `review_ledger-check-hides-a-rejection.md`, ledger
+row `verifier-failed` at a16e490. Two blockers:
 
-- APPROVED: `state set 47 --status verifying`, then `done`, merge fast-forward, then item 46.
-- CHANGES_REQUESTED: `state set 47 --status in_progress`, a fresh implementer, review as `_r2`.
+1. `src/ledger.ts:157-159`: the filter that drops closing rows citing the implementer's own
+   report also drops REJECTIONS that cite it, so a reviewer `verifier-failed` whose evidence
+   mentions `impl_<slug>.md` gives PASS on the author's row while the gate refuses.
+2. `docs/wiki/The-Agents.md:165` still states the old most-favorable rule.
 
-Follow-ups to file when the item closes: `ledger check` and `ledger record` compare shas
-exactly, so an abbreviated sha answers "no verdict" and the ledger holds a 7-character row
-(`9b36340`); the gate lets a latest `verifier-blocked` close while `ledger check` fails on it.
+All 29 closed items still pass; no test weakened. A fresh implementer has both blockers plus a
+crash this change introduced (`ledger check 'api(v2'`: the slug reaches a regex unescaped).
+When it returns: `state set 47 --status reviewing`, then a fresh reviewer writes
+`review_ledger-check-hides-a-rejection_r2.md`.
+
+Follow-ups to file when the item closes: shas compared exactly (abbreviated sha answers "no
+verdict", one 7-character row in the ledger); in the gate a `verifier-blocked` after a
+`verifier-failed` lets the item close (`src/gate.ts:445-448`); the status line shows an
+author-only verdict as green.
 
 After 47: 46, 50. Then phase 1 and item 69, which need the plugin really loaded.
