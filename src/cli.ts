@@ -21,7 +21,7 @@ import {
 } from "./lifecycle.ts";
 import { lintPlugin } from "./lint.ts";
 import { cliProvenance, describeSrcComparison, findStore, requireStore, runningCliRoot, UserError } from "./paths.ts";
-import { assertWritable, findItem, parseState, saveState, type Item } from "./state.ts";
+import { assertWritable, findItem, parseState, updateState, type Item } from "./state.ts";
 import { MIN_REPORT_BYTES } from "./roles.ts";
 import * as verification from "./verification.ts";
 
@@ -361,40 +361,42 @@ function cmdState(argv: readonly string[]): number {
     if (values.slug === undefined || values.title === undefined) {
       throw new UserError("state add needs --slug and --title");
     }
-    const state = parseState(store.state);
-    // Both writers, one rule. The empty-string trap was closed in `state set`
-    // and left open here, so `state add --description "" --decision-required ""`
-    // still wrote every shape `state set` refuses — including the
-    // `decision_required: ""` that `src/gate.ts` reads as no fork at all — and
-    // the gate called it green. A rule enforced in one of two doors is a rule
-    // with a documented way around it.
-    const item: Item = {
-      id: Math.max(0, ...state.items.map((i) => i.id)) + 1,
-      slug: values.slug,
-      title: required("--title", values.title, "an item needs a title; it is the one field that cannot be removed"),
-      acceptance: (values.acceptance ?? []).map((a) =>
-        required("--acceptance", a, "a criterion has to say something; quote it from the source"),
-      ),
-      status: "pending",
-    };
-    if (values.description !== undefined) {
-      item.description = required("--description", values.description, "leave the flag off instead");
-    }
-    if (values.sdd === true) item.sdd = true;
-    if (values.source !== undefined) item.source = required("--source", values.source, "leave the flag off instead");
-    if (values.verification !== undefined) {
-      item.verification = required("--verification", values.verification, "leave the flag off instead");
-    }
-    if (values["decision-required"] !== undefined) {
-      item.decision_required = required(
-        "--decision-required",
-        values["decision-required"],
-        "leave the flag off instead; an empty fork is not a fork, and the gate would read it as none",
-      );
-    }
-    state.items.push(item);
-    assertWritable(item, state);
-    saveState(store.state, state);
+    const { slug, title } = values;
+    const item = updateState(store.state, (state) => {
+      // Both writers, one rule. The empty-string trap was closed in `state set`
+      // and left open here, so `state add --description "" --decision-required ""`
+      // still wrote every shape `state set` refuses — including the
+      // `decision_required: ""` that `src/gate.ts` reads as no fork at all — and
+      // the gate called it green. A rule enforced in one of two doors is a rule
+      // with a documented way around it.
+      const item: Item = {
+        id: Math.max(0, ...state.items.map((i) => i.id)) + 1,
+        slug,
+        title: required("--title", title, "an item needs a title; it is the one field that cannot be removed"),
+        acceptance: (values.acceptance ?? []).map((a) =>
+          required("--acceptance", a, "a criterion has to say something; quote it from the source"),
+        ),
+        status: "pending",
+      };
+      if (values.description !== undefined) {
+        item.description = required("--description", values.description, "leave the flag off instead");
+      }
+      if (values.sdd === true) item.sdd = true;
+      if (values.source !== undefined) item.source = required("--source", values.source, "leave the flag off instead");
+      if (values.verification !== undefined) {
+        item.verification = required("--verification", values.verification, "leave the flag off instead");
+      }
+      if (values["decision-required"] !== undefined) {
+        item.decision_required = required(
+          "--decision-required",
+          values["decision-required"],
+          "leave the flag off instead; an empty fork is not a fork, and the gate would read it as none",
+        );
+      }
+      state.items.push(item);
+      assertWritable(item, state);
+      return item;
+    });
     console.log(`added ${itemLabel(item)}`);
     return 0;
   }
@@ -421,286 +423,287 @@ function cmdState(argv: readonly string[]): number {
       },
       strict: true,
     });
-    const state = parseState(store.state);
-    const item = findItem(state, ref);
-    if (item === undefined) throw new UserError(`no item matches '${ref}'`);
+    const { item, changes } = updateState(store.state, (state) => {
+      const item = findItem(state, ref);
+      if (item === undefined) throw new UserError(`no item matches '${ref}'`);
 
-    // Every other field is a value in this file and nowhere else. The slug is
-    // the branch, the spec directory, the progress filenames, every ledger
-    // target and every `resolves` value already written, and none of those move
-    // when this one does — so renaming it here would orphan them all silently.
-    if (values.slug !== undefined) {
-      throw new UserError(
-        "state set cannot rename a slug",
-        "it names the branch, the spec directory, the progress files and every ledger and decision row already written for this item; none of those move with it",
-      );
-    }
-
-    const clears = values.clear ?? [];
-    const instructions =
-      clears.length +
-      [
-        values.status,
-        values["closed-by"],
-        values.title,
-        values.description,
-        values.acceptance,
-        values["add-acceptance"],
-        values.sdd,
-        values.source,
-        values.verification,
-        values["decision-required"],
-      ].filter((v) => v !== undefined).length;
-    // `state set 3` used to rewrite the file unchanged and print the label,
-    // which is the shape `takesNothing` exists to stop elsewhere: a command that
-    // did nothing is indistinguishable from a flag that worked.
-    if (instructions === 0) {
-      throw new UserError(
-        `state set ${ref} was given nothing to set`,
-        `pass --status, --clear <field>, or a value flag: ${Object.keys(CLEARABLE).join(", ")}, title, acceptance, add-acceptance`,
-      );
-    }
-    for (const [flag, given] of [
-      ["description", values.description !== undefined],
-      ["source", values.source !== undefined],
-      ["verification", values.verification !== undefined],
-      ["decision-required", values["decision-required"] !== undefined],
-      ["closed-by", values["closed-by"] !== undefined],
-      ["sdd", values.sdd === true],
-    ] as const) {
-      if (given && clears.includes(flag)) {
+      // Every other field is a value in this file and nowhere else. The slug is
+      // the branch, the spec directory, the progress filenames, every ledger
+      // target and every `resolves` value already written, and none of those move
+      // when this one does — so renaming it here would orphan them all silently.
+      if (values.slug !== undefined) {
         throw new UserError(
-          `--${flag} and --clear ${flag} in one command contradict each other`,
-          "run one or the other; which one won would depend on an order this CLI does not promise",
+          "state set cannot rename a slug",
+          "it names the branch, the spec directory, the progress files and every ledger and decision row already written for this item; none of those move with it",
         );
       }
-    }
-    if (values.acceptance !== undefined && values["add-acceptance"] !== undefined) {
-      throw new UserError(
-        "--acceptance replaces the list and --add-acceptance appends to it, so one command cannot do both",
-        "pass every criterion you want to --acceptance, or only the new ones to --add-acceptance",
-      );
-    }
 
-    const changes: string[] = [];
-    /** Set when `--force` carried a close past an unverified verification. */
-    let forcedUnverified: string | undefined;
-    /** What the note said before this command touched anything. */
-    const closedByBefore = item.closed_by;
-
-    // Clears first, then the status move, then the values. The order is what
-    // makes both single-command shapes work: dropping a fork and moving on, and
-    // moving an item back before attaching one. `--decision-required` is applied
-    // last for the same reason — its gate has to judge the status the item ends
-    // up in, not the one it started from.
-    for (const name of clears) changes.push(...clearField(item, name));
-
-    if (values.status !== undefined) {
-      if (!isStatus(values.status)) {
-        throw new UserError(`'${values.status}' is not a status`, `one of: ${STATUSES.join(", ")}`);
-      }
-      // Refused here as well as in the gate. The gate is the authority; this is
-      // the cheapest place to say so, before anything is built on the answer.
-      if (
-        requiresDecision(values.status) &&
-        (item.decision_required ?? "") !== "" &&
-        (item.decision_resolved ?? "") === "" &&
-        values.force !== true
-      ) {
+      const clears = values.clear ?? [];
+      const instructions =
+        clears.length +
+        [
+          values.status,
+          values["closed-by"],
+          values.title,
+          values.description,
+          values.acceptance,
+          values["add-acceptance"],
+          values.sdd,
+          values.source,
+          values.verification,
+          values["decision-required"],
+        ].filter((v) => v !== undefined).length;
+      // `state set 3` used to rewrite the file unchanged and print the label,
+      // which is the shape `takesNothing` exists to stop elsewhere: a command that
+      // did nothing is indistinguishable from a flag that worked.
+      if (instructions === 0) {
         throw new UserError(
-          `${item.slug} has an unanswered decision: "${item.decision_required}"`,
-          "answer it with 'mstack decide --resolves " + item.slug + " ...' first",
+          `state set ${ref} was given nothing to set`,
+          `pass --status, --clear <field>, or a value flag: ${Object.keys(CLEARABLE).join(", ")}, title, acceptance, add-acceptance`,
         );
       }
-      if (!canTransition(item.status, values.status) && values.force !== true) {
-        throw new UserError(
-          `${item.status} -> ${values.status} is not a legal transition`,
-          "pass --force if you mean to skip a phase, and say why in decisions.tsv",
-        );
-      }
-      // Closing is the other half of the gate's verification check, and without
-      // it that check has a one-command way around it. The gate holds an item at
-      // `verifying` to a verification that actually ran here; moving the item to
-      // `done` takes it out of the active set, so the gate stops looking and a
-      // store that was red a second ago goes green with nothing having run. That
-      // is the requirement-with-an-escape-hatch shape, and it was reproduced
-      // before this guard existed.
-      if (values.status === "done" && item.status !== "done") {
-        const problems = closingProblems(store, state, item);
-        const stuck = problems.find((p) => !p.overridable);
-        if (stuck !== undefined) {
-          // Never overridable: --force vouches for a finding, not for a failure to look.
-          throw new UserError(`${item.slug} cannot close: ${stuck.message}`, stuck.hint);
-        }
-        // The wording stays specific while the only problems are verification
-        // ones, which is what every message here said before there was a second check.
-        const verificationOnly = problems.every((p) => p.check === VERIFICATION_CHECK);
-        const summary = problems.map((p) => p.message).join("; ");
-        if (problems.length > 0) {
-          if (values.force !== true) {
-            throw new UserError(
-              verificationOnly
-                ? `${item.slug} cannot close on a verification that has not run: ${summary}`
-                : `${item.slug} cannot close: ${summary}`,
-              verificationOnly
-                ? "run 'mstack gate --full' at this commit; closing is the one moment the run has to be real, and --force closes it unverified"
-                : `${problems[0]?.hint ?? ""}; --force closes it anyway`,
-            );
-          }
-          // The forced line used to be pushed into `changes` and nothing else,
-          // and `changes` is only ever printed. So an override of the one check
-          // standing between an unverified item and `done` left nothing behind
-          // in state.json, ledger.tsv or decisions.tsv, and no later reader
-          // could tell a forced close from a real one. That is the `closed_by`
-          // shape this plugin already had to fix once, rebuilt inside the guard
-          // meant to prevent it.
-          //
-          // `closed_by` is the right home: committed, already typed as a note
-          // rather than a verdict, and this is exactly a note. The reason is
-          // required rather than optional, because an override nobody has to
-          // justify is the escape hatch with better manners.
-          if (values["closed-by"] === undefined) {
-            throw new UserError(
-              verificationOnly
-                ? `--force would close ${item.slug} on a verification that has not run, and that has to be on the record`
-                : `--force would close ${item.slug} past a failed closing check, and that has to be on the record`,
-              `add --closed-by "<why closing unverified is right here>"; it is stored in state.json as "${FORCED_UNVERIFIED}...", where the next reader will find it`,
-            );
-          }
-          forcedUnverified = summary;
-        }
-      }
-      if (item.status !== values.status) changes.push(...fieldChange("status", item.status, values.status));
-      item.status = values.status;
-    }
-
-    for (const [flag, key, given] of [
-      ["--title", "title", values.title],
-      ["--description", "description", values.description],
-      ["--source", "source", values.source],
-      ["--verification", "verification", values.verification],
-      ["--closed-by", "closed_by", values["closed-by"]],
-    ] as const) {
-      if (given === undefined) continue;
-      const before = item[key];
-      const next = required(
-        flag,
-        given,
-        key === "title"
-          ? "an item needs a title, and it is the one field 'state set' cannot remove"
-          : `to remove a field, say so: 'mstack state set ${item.slug} --clear ${flag.slice(2)}'`,
-      );
-      // A later `--closed-by` used to erase the forced-close marker, which is
-      // the only durable record that an item closed on a verification nobody
-      // ran — and `skills/ship/SKILL.md` tells people to run exactly that
-      // command after a merge, so it was not a contrived path. The marker is
-      // carried across any rewrite of the note; the words after it are theirs.
-      const marked =
-        key === "closed_by" && (item.closed_by ?? "").startsWith(FORCED_UNVERIFIED) ? `${FORCED_UNVERIFIED}${next}` : next;
-      item[key] = marked;
-      // A forced close reports its own `closed_by` line below, from the value
-      // the item carried when the command started. Reporting it here as well
-      // printed two consecutive `closed_by:` changes, which is honest and reads
-      // like a bug.
-      if (before !== marked && !(key === "closed_by" && forcedUnverified !== undefined)) {
-        changes.push(...fieldChange(key, before, marked));
-      }
-    }
-
-    // After the loop, so it prefixes the value the loop just stored rather than
-    // being overwritten by it. A reader opening state.json has to be able to
-    // tell a forced unverified close from an ordinary note, and the reason they
-    // gave is kept verbatim after the marker.
-    if (forcedUnverified !== undefined) {
-      const note = `${FORCED_UNVERIFIED}${item.closed_by ?? ""}`;
-      changes.push(...fieldChange("closed_by", closedByBefore, note));
-      item.closed_by = note;
-      changes.push(`  forced: closed on a verification that did not run here - ${forcedUnverified}`);
-    }
-
-    if (values.acceptance !== undefined) {
-      const next = values.acceptance.map((a) =>
-        required("--acceptance", a, "a criterion has to say something; quote it from the source"),
-      );
-      changes.push(`  acceptance: ${item.acceptance.length} criterion(s) replaced with ${next.length}`);
-      for (const dropped of item.acceptance) changes.push(`    - dropped ${preview(dropped)}`);
-      item.acceptance = next;
-    }
-    if (values["add-acceptance"] !== undefined) {
-      const added = values["add-acceptance"].map((a) =>
-        required("--add-acceptance", a, "a criterion has to say something; quote it from the source"),
-      );
-      item.acceptance = [...item.acceptance, ...added];
-      changes.push(`  acceptance: ${added.length} added, now ${item.acceptance.length}`);
-    }
-    if (values.sdd === true && item.sdd !== true) {
-      changes.push(...fieldChange("sdd", item.sdd, true));
-      item.sdd = true;
-      // The same announcement the fork path makes, for the same reason and on
-      // review's insistence: `--sdd` on an item already past `specifying` took
-      // a green gate to red at exit 0, which is the shape this file's own
-      // comment at the status check argues against — the gate is the authority,
-      // and this is the cheapest place to say so.
-      //
-      // The disk is read rather than assumed, because the two cases are
-      // genuinely different and a line claiming a failure that did not happen
-      // would be worse than no line. Existence only: whether four present
-      // artifacts are also complete is the gate's judgement, not this one's.
-      if (requiresSpecArtifacts(item.status)) {
-        const dir = join(store.specs, item.slug);
-        changes.push(
-          existsSync(dir)
-            ? `  forced: ${item.slug} is ${item.status}, so 'mstack gate' now holds it to a complete spec at ${dir}`
-            : `  forced: ${item.slug} is ${item.status} with no spec at ${dir}, so 'mstack gate' fails until one is written or the item moves back to specifying`,
-        );
-      }
-    }
-
-    if (values["decision-required"] !== undefined) {
-      const fork = required(
-        "--decision-required",
-        values["decision-required"],
-        `to remove a fork, say so: 'mstack state set ${item.slug} --clear decision-required'`,
-      );
-      // Identical prose is left alone, so re-stating a fork stays idempotent.
-      // `required` trims, so a trailing space is the same fork rather than a
-      // rewrite that would drop the answer and print two lines nobody can tell
-      // apart.
-      if (fork !== item.decision_required) {
-        // The same line the status move is refused across, guarded in the other
-        // direction. Attaching a fork to an item already sitting past it would
-        // put the item past a gate it never passed, and `mstack gate` would then
-        // report a state this command had just created.
-        if (requiresDecision(item.status) && values.force !== true) {
+      for (const [flag, given] of [
+        ["description", values.description !== undefined],
+        ["source", values.source !== undefined],
+        ["verification", values.verification !== undefined],
+        ["decision-required", values["decision-required"] !== undefined],
+        ["closed-by", values["closed-by"] !== undefined],
+        ["sdd", values.sdd === true],
+      ] as const) {
+        if (given && clears.includes(flag)) {
           throw new UserError(
-            `${item.slug} is ${item.status}, at or past the point where a fork must already be answered`,
-            `park it first ('mstack state set ${item.slug} --status blocked --decision-required ...'), or pass --force to attach it where it stands and let the gate report it`,
-          );
-        }
-        changes.push(...fieldChange("decision_required", item.decision_required, fork));
-        // The answer named the question it answered. Left in place across a
-        // rewrite, the pointer would make the new fork read as already answered:
-        // the gate matches a row on its timestamp and the slug it resolves, and
-        // never on the question.
-        if (item.decision_resolved !== undefined) {
-          changes.push(...fieldChange("decision_resolved", item.decision_resolved, undefined));
-          delete item.decision_resolved;
-        }
-        item.decision_required = fork;
-        if (requiresDecision(item.status)) {
-          changes.push(
-            `  forced: ${item.slug} is ${item.status} and now carries an unanswered fork, so 'mstack gate' fails until 'mstack decide --resolves ${item.slug} ...' answers it`,
+            `--${flag} and --clear ${flag} in one command contradict each other`,
+            "run one or the other; which one won would depend on an order this CLI does not promise",
           );
         }
       }
-    }
+      if (values.acceptance !== undefined && values["add-acceptance"] !== undefined) {
+        throw new UserError(
+          "--acceptance replaces the list and --add-acceptance appends to it, so one command cannot do both",
+          "pass every criterion you want to --acceptance, or only the new ones to --add-acceptance",
+        );
+      }
 
-    // A belt, and deliberately not load-bearing today: with `--slug` refused
-    // and `--title ""` caught by `required`, nothing this branch can write
-    // violates it. It stands so that whatever makes the slug or the title
-    // editable next has to pass the same check `state add` does.
-    assertWritable(item, state);
-    saveState(store.state, state);
+      const changes: string[] = [];
+      /** Set when `--force` carried a close past an unverified verification. */
+      let forcedUnverified: string | undefined;
+      /** What the note said before this command touched anything. */
+      const closedByBefore = item.closed_by;
+
+      // Clears first, then the status move, then the values. The order is what
+      // makes both single-command shapes work: dropping a fork and moving on, and
+      // moving an item back before attaching one. `--decision-required` is applied
+      // last for the same reason — its gate has to judge the status the item ends
+      // up in, not the one it started from.
+      for (const name of clears) changes.push(...clearField(item, name));
+
+      if (values.status !== undefined) {
+        if (!isStatus(values.status)) {
+          throw new UserError(`'${values.status}' is not a status`, `one of: ${STATUSES.join(", ")}`);
+        }
+        // Refused here as well as in the gate. The gate is the authority; this is
+        // the cheapest place to say so, before anything is built on the answer.
+        if (
+          requiresDecision(values.status) &&
+          (item.decision_required ?? "") !== "" &&
+          (item.decision_resolved ?? "") === "" &&
+          values.force !== true
+        ) {
+          throw new UserError(
+            `${item.slug} has an unanswered decision: "${item.decision_required}"`,
+            "answer it with 'mstack decide --resolves " + item.slug + " ...' first",
+          );
+        }
+        if (!canTransition(item.status, values.status) && values.force !== true) {
+          throw new UserError(
+            `${item.status} -> ${values.status} is not a legal transition`,
+            "pass --force if you mean to skip a phase, and say why in decisions.tsv",
+          );
+        }
+        // Closing is the other half of the gate's verification check, and without
+        // it that check has a one-command way around it. The gate holds an item at
+        // `verifying` to a verification that actually ran here; moving the item to
+        // `done` takes it out of the active set, so the gate stops looking and a
+        // store that was red a second ago goes green with nothing having run. That
+        // is the requirement-with-an-escape-hatch shape, and it was reproduced
+        // before this guard existed.
+        if (values.status === "done" && item.status !== "done") {
+          const problems = closingProblems(store, state, item);
+          const stuck = problems.find((p) => !p.overridable);
+          if (stuck !== undefined) {
+            // Never overridable: --force vouches for a finding, not for a failure to look.
+            throw new UserError(`${item.slug} cannot close: ${stuck.message}`, stuck.hint);
+          }
+          // The wording stays specific while the only problems are verification
+          // ones, which is what every message here said before there was a second check.
+          const verificationOnly = problems.every((p) => p.check === VERIFICATION_CHECK);
+          const summary = problems.map((p) => p.message).join("; ");
+          if (problems.length > 0) {
+            if (values.force !== true) {
+              throw new UserError(
+                verificationOnly
+                  ? `${item.slug} cannot close on a verification that has not run: ${summary}`
+                  : `${item.slug} cannot close: ${summary}`,
+                verificationOnly
+                  ? "run 'mstack gate --full' at this commit; closing is the one moment the run has to be real, and --force closes it unverified"
+                  : `${problems[0]?.hint ?? ""}; --force closes it anyway`,
+              );
+            }
+            // The forced line used to be pushed into `changes` and nothing else,
+            // and `changes` is only ever printed. So an override of the one check
+            // standing between an unverified item and `done` left nothing behind
+            // in state.json, ledger.tsv or decisions.tsv, and no later reader
+            // could tell a forced close from a real one. That is the `closed_by`
+            // shape this plugin already had to fix once, rebuilt inside the guard
+            // meant to prevent it.
+            //
+            // `closed_by` is the right home: committed, already typed as a note
+            // rather than a verdict, and this is exactly a note. The reason is
+            // required rather than optional, because an override nobody has to
+            // justify is the escape hatch with better manners.
+            if (values["closed-by"] === undefined) {
+              throw new UserError(
+                verificationOnly
+                  ? `--force would close ${item.slug} on a verification that has not run, and that has to be on the record`
+                  : `--force would close ${item.slug} past a failed closing check, and that has to be on the record`,
+                `add --closed-by "<why closing unverified is right here>"; it is stored in state.json as "${FORCED_UNVERIFIED}...", where the next reader will find it`,
+              );
+            }
+            forcedUnverified = summary;
+          }
+        }
+        if (item.status !== values.status) changes.push(...fieldChange("status", item.status, values.status));
+        item.status = values.status;
+      }
+
+      for (const [flag, key, given] of [
+        ["--title", "title", values.title],
+        ["--description", "description", values.description],
+        ["--source", "source", values.source],
+        ["--verification", "verification", values.verification],
+        ["--closed-by", "closed_by", values["closed-by"]],
+      ] as const) {
+        if (given === undefined) continue;
+        const before = item[key];
+        const next = required(
+          flag,
+          given,
+          key === "title"
+            ? "an item needs a title, and it is the one field 'state set' cannot remove"
+            : `to remove a field, say so: 'mstack state set ${item.slug} --clear ${flag.slice(2)}'`,
+        );
+        // A later `--closed-by` used to erase the forced-close marker, which is
+        // the only durable record that an item closed on a verification nobody
+        // ran — and `skills/ship/SKILL.md` tells people to run exactly that
+        // command after a merge, so it was not a contrived path. The marker is
+        // carried across any rewrite of the note; the words after it are theirs.
+        const marked =
+          key === "closed_by" && (item.closed_by ?? "").startsWith(FORCED_UNVERIFIED) ? `${FORCED_UNVERIFIED}${next}` : next;
+        item[key] = marked;
+        // A forced close reports its own `closed_by` line below, from the value
+        // the item carried when the command started. Reporting it here as well
+        // printed two consecutive `closed_by:` changes, which is honest and reads
+        // like a bug.
+        if (before !== marked && !(key === "closed_by" && forcedUnverified !== undefined)) {
+          changes.push(...fieldChange(key, before, marked));
+        }
+      }
+
+      // After the loop, so it prefixes the value the loop just stored rather than
+      // being overwritten by it. A reader opening state.json has to be able to
+      // tell a forced unverified close from an ordinary note, and the reason they
+      // gave is kept verbatim after the marker.
+      if (forcedUnverified !== undefined) {
+        const note = `${FORCED_UNVERIFIED}${item.closed_by ?? ""}`;
+        changes.push(...fieldChange("closed_by", closedByBefore, note));
+        item.closed_by = note;
+        changes.push(`  forced: closed on a verification that did not run here - ${forcedUnverified}`);
+      }
+
+      if (values.acceptance !== undefined) {
+        const next = values.acceptance.map((a) =>
+          required("--acceptance", a, "a criterion has to say something; quote it from the source"),
+        );
+        changes.push(`  acceptance: ${item.acceptance.length} criterion(s) replaced with ${next.length}`);
+        for (const dropped of item.acceptance) changes.push(`    - dropped ${preview(dropped)}`);
+        item.acceptance = next;
+      }
+      if (values["add-acceptance"] !== undefined) {
+        const added = values["add-acceptance"].map((a) =>
+          required("--add-acceptance", a, "a criterion has to say something; quote it from the source"),
+        );
+        item.acceptance = [...item.acceptance, ...added];
+        changes.push(`  acceptance: ${added.length} added, now ${item.acceptance.length}`);
+      }
+      if (values.sdd === true && item.sdd !== true) {
+        changes.push(...fieldChange("sdd", item.sdd, true));
+        item.sdd = true;
+        // The same announcement the fork path makes, for the same reason and on
+        // review's insistence: `--sdd` on an item already past `specifying` took
+        // a green gate to red at exit 0, which is the shape this file's own
+        // comment at the status check argues against — the gate is the authority,
+        // and this is the cheapest place to say so.
+        //
+        // The disk is read rather than assumed, because the two cases are
+        // genuinely different and a line claiming a failure that did not happen
+        // would be worse than no line. Existence only: whether four present
+        // artifacts are also complete is the gate's judgement, not this one's.
+        if (requiresSpecArtifacts(item.status)) {
+          const dir = join(store.specs, item.slug);
+          changes.push(
+            existsSync(dir)
+              ? `  forced: ${item.slug} is ${item.status}, so 'mstack gate' now holds it to a complete spec at ${dir}`
+              : `  forced: ${item.slug} is ${item.status} with no spec at ${dir}, so 'mstack gate' fails until one is written or the item moves back to specifying`,
+          );
+        }
+      }
+
+      if (values["decision-required"] !== undefined) {
+        const fork = required(
+          "--decision-required",
+          values["decision-required"],
+          `to remove a fork, say so: 'mstack state set ${item.slug} --clear decision-required'`,
+        );
+        // Identical prose is left alone, so re-stating a fork stays idempotent.
+        // `required` trims, so a trailing space is the same fork rather than a
+        // rewrite that would drop the answer and print two lines nobody can tell
+        // apart.
+        if (fork !== item.decision_required) {
+          // The same line the status move is refused across, guarded in the other
+          // direction. Attaching a fork to an item already sitting past it would
+          // put the item past a gate it never passed, and `mstack gate` would then
+          // report a state this command had just created.
+          if (requiresDecision(item.status) && values.force !== true) {
+            throw new UserError(
+              `${item.slug} is ${item.status}, at or past the point where a fork must already be answered`,
+              `park it first ('mstack state set ${item.slug} --status blocked --decision-required ...'), or pass --force to attach it where it stands and let the gate report it`,
+            );
+          }
+          changes.push(...fieldChange("decision_required", item.decision_required, fork));
+          // The answer named the question it answered. Left in place across a
+          // rewrite, the pointer would make the new fork read as already answered:
+          // the gate matches a row on its timestamp and the slug it resolves, and
+          // never on the question.
+          if (item.decision_resolved !== undefined) {
+            changes.push(...fieldChange("decision_resolved", item.decision_resolved, undefined));
+            delete item.decision_resolved;
+          }
+          item.decision_required = fork;
+          if (requiresDecision(item.status)) {
+            changes.push(
+              `  forced: ${item.slug} is ${item.status} and now carries an unanswered fork, so 'mstack gate' fails until 'mstack decide --resolves ${item.slug} ...' answers it`,
+            );
+          }
+        }
+      }
+
+      // A belt, and deliberately not load-bearing today: with `--slug` refused
+      // and `--title ""` caught by `required`, nothing this branch can write
+      // violates it. It stands so that whatever makes the slug or the title
+      // editable next has to pass the same check `state add` does.
+      assertWritable(item, state);
+      return { item, changes };
+    });
     console.log(itemLabel(item));
     for (const line of changes) console.log(line);
     return 0;
@@ -848,8 +851,14 @@ function cmdDecide(argv: readonly string[]): number {
   });
 
   if (item !== undefined && state !== undefined) {
-    item.decision_resolved = written.ts;
-    saveState(store.state, state);
+    // The row is in; the pointer is written under the state lock against a fresh
+    // read, never against the copy parsed before `decisions.add` ran. The two locks
+    // are taken one after the other and never nested.
+    updateState(store.state, (fresh) => {
+      const target = findItem(fresh, item.slug);
+      if (target === undefined) throw new UserError(`no item matches '${item.slug}'`);
+      target.decision_resolved = written.ts;
+    });
     console.log(`recorded, and ${item.slug} no longer has an open fork`);
     return 0;
   }

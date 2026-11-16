@@ -1,7 +1,9 @@
-import { readFileSync, writeFileSync } from "node:fs";
+import { closeSync, openSync, readFileSync, renameSync, rmSync, writeSync } from "node:fs";
+import { dirname, basename, join } from "node:path";
 
 import { isActive, isStatus, type Status } from "./lifecycle.ts";
 import { UserError, type Store } from "./paths.ts";
+import { withLock } from "./tsv.ts";
 
 export interface Item {
   id: number;
@@ -205,8 +207,87 @@ function describe(value: unknown): string {
   return JSON.stringify(value);
 }
 
-export function saveState(file: string, state: State): void {
-  writeFileSync(file, `${JSON.stringify(state, null, 2)}\n`, "utf8");
+const KNOWN_STATE_KEYS = new Set(["version", "project", "description", "verify", "rules", "items"]);
+const KNOWN_RULE_KEYS = new Set(["one_active_item", "require_verdict_to_close", "require_spec_for_sdd_items", "record_costs"]);
+const KNOWN_ITEM_KEYS = new Set([
+  "id", "slug", "title", "description", "acceptance", "status", "sdd",
+  "decision_required", "decision_resolved", "source", "verification", "closed_by",
+]);
+
+function extras(value: unknown, known: ReadonlySet<string>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  if (!isRecord(value)) return out;
+  for (const [key, v] of Object.entries(value)) if (!known.has(key)) out[key] = v;
+  return out;
+}
+
+/**
+ * Prefix of the temporary file a state write goes through, in the same
+ * directory as `state.json` so the rename never crosses a filesystem. A writer
+ * killed between the write and the rename leaves `state.json.tmp-<pid>-<n>`
+ * behind: the target is untouched, the name is unique per attempt so a leftover
+ * never blocks the next write, and a later sweep can match this prefix.
+ */
+export const STATE_TMP_PREFIX = ".tmp-";
+
+let tmpCounter = 0;
+
+/**
+ * The only way `state.json` changes.
+ *
+ * Every writer used to parse the file, change the result and overwrite the file,
+ * so concurrent writers overwrote each other: twelve parallel `state add` exited
+ * 0 and left eight or nine items. This takes the lock on the file, parses it
+ * under the lock, applies `change`, and writes to a temporary file beside it that
+ * is renamed over the target, so a reader or a killed writer sees the old file or
+ * the new one and never a truncated one. If `change` throws nothing is written.
+ *
+ * Keys the CLI does not know, on the state, on `rules` and on an item (matched by
+ * id), are carried through the write; the parse alone rebuilds from known fields.
+ * The lock is not re-entrant: `change` must not call `updateState` on the same file.
+ */
+export function updateState<T>(file: string, change: (state: State) => T): T {
+  return withLock(file, () => {
+    const state = parseState(file);
+    const result = change(state);
+    const raw = JSON.parse(readFileSync(file, "utf8")) as Record<string, unknown>;
+    const rawItems = new Map<unknown, unknown>();
+    if (Array.isArray(raw["items"])) {
+      for (const it of raw["items"]) if (isRecord(it) && !rawItems.has(it["id"])) rawItems.set(it["id"], it);
+    }
+    const out = {
+      ...state,
+      rules: { ...state.rules, ...extras(raw["rules"], KNOWN_RULE_KEYS) },
+      items: state.items.map((item) => ({ ...item, ...extras(rawItems.get(item.id), KNOWN_ITEM_KEYS) })),
+      ...extras(raw, KNOWN_STATE_KEYS),
+    };
+    writeAtomically(file, `${JSON.stringify(out, null, 2)}\n`);
+    return result;
+  });
+}
+
+function writeAtomically(file: string, text: string): void {
+  const tmp = join(dirname(file), `${basename(file)}${STATE_TMP_PREFIX}${process.pid}-${tmpCounter++}`);
+  try {
+    const fd = openSync(tmp, "wx");
+    try {
+      writeSync(fd, text);
+    } finally {
+      closeSync(fd);
+    }
+    renameSync(tmp, file);
+  } catch (error) {
+    try {
+      rmSync(tmp, { force: true });
+    } catch {
+      // the original failure is the one to report
+    }
+    if (error instanceof UserError) throw error;
+    throw new UserError(
+      `cannot write ${file}: ${(error as NodeJS.ErrnoException).code ?? (error as Error).message}`,
+      `check that ${dirname(file)} is writable`,
+    );
+  }
 }
 
 /**
