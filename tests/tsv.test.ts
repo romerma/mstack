@@ -307,7 +307,7 @@ test("waiters that all see the same dead owner never hold the lock together", { 
   try {
     const dead = await bench.deadPid();
     const start = Date.now() + 1_000;
-    const racers = Array.from({ length: waiters }, (_, i) => bench.race(`W`, rounds, start, roundMs, 1));
+    const racers = Array.from({ length: waiters }, (_, i) => bench.race(`W${i}`, rounds, start, roundMs, 1));
     for (let round = 0; round < rounds; round++) {
       const plant = start + round * roundMs - roundMs / 2;
       await new Promise((res) => setTimeout(res, Math.max(0, plant - Date.now())));
@@ -320,19 +320,24 @@ test("waiters that all see the same dead owner never hold the lock together", { 
     }
     for (const racer of racers) await racer.exited;
 
-    const entries: { name: string; enter: number; leave: number; own: boolean }[] = [];
+    let inside: string | null = null;
+    let entries = 0;
+    const foreign: string[] = [];
     for (const line of bench.journal().split("\n").filter((l) => l !== "")) {
-      const [, name, enter, leave, own] = line.split(" ") as [string, string, string, string, string];
-      assert.notEqual(enter, "THREW", `a waiter threw: ${line}`);
-      entries.push({ name, enter: Number(enter), leave: Number(leave), own: own === "true" });
+      const [round, name, what, own] = line.split(" ") as [string, string, string, string];
+      assert.notEqual(what, "THREW", `a waiter threw: ${line}`);
+      if (own !== "true") foreign.push(`${name} in round ${round}`);
+      if (what === "enter") {
+        assert.equal(inside, null, `${name} entered in round ${round} while ${inside} was inside`);
+        inside = name;
+        entries += 1;
+      } else {
+        assert.equal(inside, name, `${name} left in round ${round} while ${inside} was the one inside`);
+        inside = null;
+      }
     }
-    assert.equal(entries.length, waiters * rounds, "some waiters never entered");
-    assert.deepEqual(entries.filter((e) => !e.own).map((e) => e.name), [], "a waiter was inside while the lock on disk was not its own");
-    entries.sort((x, y) => x.enter - y.enter);
-    for (let i = 1; i < entries.length; i++) {
-      const [prev, next] = [entries[i - 1], entries[i]] as [(typeof entries)[number], (typeof entries)[number]];
-      assert.ok(next.enter >= prev.leave, `${prev.name} [${prev.enter}, ${prev.leave}] and ${next.name} [${next.enter}, ${next.leave}] were inside together`);
-    }
+    assert.equal(entries, waiters * rounds, "some waiters never entered");
+    assert.deepEqual(foreign, [], "a waiter was inside while the lock on disk was not its own");
     assert.ok(!existsSync(bench.lock) && !existsSync(`${bench.lock}.break`));
   } finally {
     bench.dispose();
