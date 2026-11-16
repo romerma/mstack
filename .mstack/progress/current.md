@@ -45,17 +45,11 @@ passes bypassPermissions. Do not run `check.mjs` or `verify.mjs` while a batch i
 
 ## Next step
 
-Item 54, round 1 review: CHANGES_REQUESTED, `review_hook-errors-leave-no-trace.md`, ledger row
-`verifier-failed` at 9f96d9b. Two blockers:
-
-1. `src/hooks.ts:197`: subagent-stop calls `activeItem`, which swallows the `state.json` parse
-   error, so on an unreadable store it skips its report check and logs nothing.
-2. `src/hooklog.ts:167-171`: no test pins the branch where `tolerateAbsence` records a fault;
-   mutant O1 ("never record") survives on both runtimes.
-
-Fail-open held in every case run; the `.git/info/exclude` edit was accepted after 12 layouts.
-A fresh implementer has the two blockers plus the exclude-path guard and its surviving mutants.
-When it returns: `state set 54 --status reviewing`, then a fresh reviewer writes
+Item 54, round 2 implementation done (`impl_hook-errors-leave-no-trace_r2.md`, head of code
+`9b36340`): subagent-stop now logs an unreadable `state.json`, the fault branch of
+`tolerateAbsence` is pinned, the exclude edit needs a directory store and follows the append,
+and O5/O6/O6b/H8c have tests. Survivors G1 and H8c-literal are equivalent by layering (see
+report). Next: `state set 54 --status reviewing`, then a fresh reviewer writes
 `review_hook-errors-leave-no-trace_r2.md`.
 
 Follow-ups to file when the item closes: the lint refuses a foreign hook whose args start with
