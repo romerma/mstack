@@ -51,43 +51,9 @@ passes bypassPermissions. Do not run `check.mjs` or `verify.mjs` while a batch i
 
 ## Next step
 
-Round 2 review: CHANGES_REQUESTED, `review_withlock-enters-without-the-lock_r2.md`, ledger row
-`verifier-failed` at 8f297e3. All four round 1 findings are resolved. Three new blockers:
-
-1. `src/tsv.ts:196-213`: a creator stopped 2 s between the exclusive create and the owner write
-   is broken as a leftover and resumes inside beside the breaker. Fix: read the lock back and
-   enter only on the caller's own token.
-2. The empty-guard branch (`src/tsv.ts:256`, `:273`) has no test; mutant N8 survives.
-3. `tests/tsv.test.ts:260` and `:297` fail on correct code under load.
-
-Round 3 is authorized by the `review-r3` decision row and scoped to those three. A fresh
-implementer has them. When it returns: `state set 52 --status reviewing`, then a fresh reviewer
-writes `review_withlock-enters-without-the-lock_r3.md`.
-
-Follow-ups to file when the item closes: ignore or sweep `*.lock` and `*.lock.break` in the
-store; `tests/costs.test.ts:698` fails 9 of 12 node suites under load (compare with item 21);
-`withLock` measures its wait on the wall clock; move `UserError` out of `src/paths.ts` with
-item 53.
-
-## Verification
-
-- `node --disable-warning=ExperimentalWarning --experimental-strip-types --test tests/tsv.test.ts`:
-  4 pass, 2 fail. `B ran its critical section while A was still inside its own`
-  (`'A enter\nB enter\nB leave\n'` against `'A enter\n'`), and `B is inside with no lock file`.
-- `bun test ./tests/tsv.test.ts`: 4 pass, 2 fail, same two assertions.
-- `bunx --bun tsc --noEmit`: exit 0. `./bin/mstack lint-plugin .`: PASSED.
-
-## Implementer, item 52 (withlock-enters-without-the-lock)
-
-Done on the branch: `src/tsv.ts` rewritten (owner-recording lock via write-then-link, dead owner
-broken under a `.break` guard and re-created atomically, live holder past timeout throws
-UserError, release only with own token); new tsv tests; decisions concurrent test now uses
-`spawn`. Report: `.mstack/progress/impl_withlock-enters-without-the-lock.md`.
-If this session stops now: the coordinator reviews the item with a pass that did not write it,
-then moves the status.
-
-- Item 52, round 2 (implementer): exclusive create plus write replaces write-then-link; only EEXIST
-  is held, other create errors throw a UserError; loop cannot skip deadline and sleep. Race test,
-  live-holder age test, dead and live guard tests, EPERM test added. Report:
-  `impl_withlock-enters-without-the-lock_r2.md`. Next: an independent review round 2. Item status
-  not changed by the implementer.
+Round 3 implemented (report `impl_withlock-enters-without-the-lock_r3.md`, last code commit
+9499621): read-back by token, `options.step` seam, empty-guard test, M14 test through the seam,
+race test and `tests/lock-racer.ts` removed, timeouts and watchdog on every spawn test, notes c
+and d (second half). Next: independent round 3 review; the item stays `reviewing`, this pass does
+not change its status. Left undone: note d first half; unrelated flakes under heavy load in
+`tests/run.test.ts:54` and `tests/costs.test.ts:698`.
