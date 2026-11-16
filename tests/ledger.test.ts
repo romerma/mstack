@@ -129,3 +129,159 @@ test("evidence has a floor, because one character is not evidence", () => {
     sb.dispose();
   }
 });
+
+// ---- item 47: a rejection must not hide behind the author's own row -----------------
+//
+// `check` used to keep the best-ranked row at a sha, so an implementer's
+// `test-verified` outranked the reviewer's `verifier-failed` recorded after it.
+// The cases below are the whole table; each row names who recorded what, in
+// file order, and what `check` must say.
+
+type Row = [verdict: Parameters<typeof record>[1]["verdict"], verifier: string, evidence?: string];
+
+function checkAfter(rows: Row[], min?: Parameters<typeof check>[3]) {
+  const sb = sandbox();
+  try {
+    for (const [verdict, verifier, evidence] of rows) {
+      record(sb.store, { target: "x", sha: sb.sha, verdict, evidence: evidence ?? "node --test tests", verifier });
+    }
+    return check(sb.store, "x", sb.sha, min);
+  } finally {
+    sb.dispose();
+  }
+}
+
+test("the benchmark-harness case: implementer test-verified, then reviewer verifier-failed, fails and names the rejection", () => {
+  const r = checkAfter([
+    ["test-verified", "implementer"],
+    ["verifier-failed", "reviewer", ".mstack/progress/review_x.md"],
+  ]);
+  assert.equal(r.passing, false);
+  assert.equal(r.best?.verdict, "verifier-failed");
+  assert.equal(r.best?.verifier, "reviewer");
+  assert.match(r.reason, /verifier-failed/);
+  assert.match(r.reason, /reviewer/);
+  assert.match(r.reason, /review_x\.md/);
+});
+
+test("a rejection recorded before the implementer's next row still wins over it", () => {
+  const r = checkAfter([
+    ["verifier-failed", "reviewer", ".mstack/progress/review_x.md"],
+    ["test-verified", "implementer"],
+  ]);
+  assert.equal(r.passing, false);
+  assert.match(r.reason, /verifier-failed.*reviewer/);
+});
+
+test("a later approval from a closing role supersedes an earlier rejection", () => {
+  const r = checkAfter([
+    ["verifier-failed", "reviewer", ".mstack/progress/review_x.md"],
+    ["test-verified", "reviewer", ".mstack/progress/review_x_r2.md"],
+  ]);
+  assert.equal(r.passing, true);
+  assert.equal(r.reason, `test-verified at ${r.best?.sha.slice(0, 8)} by reviewer`);
+});
+
+test("a later rejection retracts an earlier approval from a closing role", () => {
+  const r = checkAfter([
+    ["test-verified", "reviewer", ".mstack/progress/review_x.md"],
+    ["verifier-failed", "reviewer", ".mstack/progress/review_x_r2.md"],
+  ]);
+  assert.equal(r.passing, false);
+  assert.match(r.reason, /review_x_r2\.md/);
+});
+
+test("the latest closing row is the answer, not the best one: a weaker later approval replaces a stronger earlier one", () => {
+  const r = checkAfter([
+    ["live-verified", "reviewer", ".mstack/progress/review_x.md"],
+    ["type-check-only", "reviewer", ".mstack/progress/review_x_r2.md"],
+  ]);
+  assert.equal(r.best?.verdict, "type-check-only");
+  assert.equal(r.passing, false, "type-check-only does not clear the default test-verified");
+});
+
+test("a reviewer verifier-blocked row fails the check and is named", () => {
+  const r = checkAfter([
+    ["test-verified", "implementer"],
+    ["verifier-blocked", "reviewer", ".mstack/progress/review_x.md"],
+  ]);
+  assert.equal(r.passing, false);
+  assert.match(r.reason, /verifier-blocked.*reviewer/);
+});
+
+test("with only an implementer row the verdict stays, labelled as the author's own", () => {
+  const r = checkAfter([["test-verified", "implementer"]]);
+  assert.equal(r.passing, true);
+  assert.match(r.reason, /^test-verified at [0-9a-f]{8} by implementer/);
+  assert.match(r.reason, /author's own/);
+});
+
+test("an implementer then reviewer approval passes and names the reviewer, without the author's-own label", () => {
+  const r = checkAfter([
+    ["test-verified", "implementer"],
+    ["test-verified", "reviewer", ".mstack/progress/review_x.md"],
+  ]);
+  assert.equal(r.passing, true);
+  assert.equal(r.best?.verifier, "reviewer");
+  assert.doesNotMatch(r.reason, /author's own/);
+});
+
+test("an empty verifier is not a closing role, so its row is only the labelled author's own verdict", () => {
+  // canCloseAnItem("") is false, the same floor the gate applies: unnamed is not independent.
+  const r = checkAfter([["test-verified", ""]]);
+  assert.equal(r.passing, true);
+  assert.match(r.reason, /author's own/);
+});
+
+test("an unknown verifier name can close, so its rejection counts", () => {
+  const r = checkAfter([
+    ["test-verified", "implementer"],
+    ["verifier-failed", "ci-bot", "https://ci.example/run/1"],
+  ]);
+  assert.equal(r.passing, false);
+  assert.match(r.reason, /verifier-failed.*ci-bot/);
+});
+
+test("--min applies to the closing row: live-verified against a test-verified approval fails", () => {
+  const r = checkAfter(
+    [
+      ["live-verified", "implementer"],
+      ["test-verified", "reviewer", ".mstack/progress/review_x.md"],
+    ],
+    "live-verified",
+  );
+  assert.equal(r.passing, false);
+  assert.match(r.reason, /test-verified/);
+  assert.match(r.reason, /live-verified/);
+});
+
+test("a closing row that cites the implementer's own report is not a closing row, as in the gate", () => {
+  const r = checkAfter([
+    ["verifier-failed", "reviewer", ".mstack/progress/review_x.md"],
+    ["test-verified", "reviewer", ".mstack/progress/impl_x.md"],
+  ]);
+  // The forged approval is dropped, so the rejection is still the latest closing row.
+  assert.equal(r.passing, false);
+  assert.match(r.reason, /verifier-failed.*reviewer/);
+});
+
+test("rows at another sha only keep the unchanged stale message", () => {
+  const sb = sandbox();
+  try {
+    record(sb.store, { target: "x", sha: sb.sha, verdict: "verifier-failed", evidence: "review_x.md here", verifier: "reviewer" });
+    const r = check(sb.store, "x", sb.commit());
+    assert.equal(r.passing, false);
+    assert.match(r.reason, /^no verdict at [0-9a-f]{8}; 1 row\(s\) exist at other SHAs and a new head SHA voids them$/);
+  } finally {
+    sb.dispose();
+  }
+});
+
+test("an empty ledger keeps the unchanged message", () => {
+  const sb = sandbox();
+  try {
+    assert.equal(check(sb.store, "x", sb.sha).reason, "no verdict recorded for x");
+  } finally {
+    sb.dispose();
+  }
+});
