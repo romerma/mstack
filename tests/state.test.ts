@@ -14,6 +14,7 @@ import { item, sandbox, state } from "./helpers.ts";
 const MSTACK = join(dirname(fileURLToPath(import.meta.url)), "..", "bin", "mstack");
 
 const HOLDER = join(dirname(fileURLToPath(import.meta.url)), "state-holder.ts");
+const BIGWRITER = join(dirname(fileURLToPath(import.meta.url)), "state-bigwriter.ts");
 const RUNTIME_FLAGS = typeof (globalThis as { Bun?: unknown }).Bun === "undefined"
   ? ["--experimental-strip-types", "--disable-warning=ExperimentalWarning"]
   : [];
@@ -214,6 +215,51 @@ test("a successful write leaves no lock or temporary file, and a leftover one do
     assert.equal(parseState(sb.store.state).items[0]!.title, "changed again");
     assert.deepEqual(readdirSync(dir).sort(), names, "a write must leave nothing of its own behind");
   } finally {
+    sb.dispose();
+  }
+});
+
+test("a write that cannot be completed leaves the target intact and parseable, and never exits 0", { timeout: 30_000 }, async (t) => {
+  if (process.platform === "win32") {
+    t.skip("ulimit is a POSIX shell builtin");
+    return;
+  }
+  const sb = sandbox();
+  let child: ChildProcess | undefined;
+  try {
+    sb.writeState(state([item()]));
+    const before = readFileSync(sb.store.state);
+    const dir = dirname(sb.store.state);
+    const names = readdirSync(dir).sort();
+    // `ulimit -f 2` caps a file at 1024 bytes: the first write past it comes
+    // back short (and the next one fails with EFBIG, or the process gets SIGXFSZ).
+    // The new state is about 3 KB, so the write cannot be completed.
+    const outcome = await new Promise<{ code: number | null; signal: NodeJS.Signals | null; stdout: string }>((resolve, reject) => {
+      child = spawn(
+        "sh",
+        ["-c", 'ulimit -f 2; exec "$@"', "sh", process.execPath, ...RUNTIME_FLAGS, BIGWRITER, sb.store.state, "3000"],
+        { stdio: ["ignore", "pipe", "ignore"] },
+      );
+      let stdout = "";
+      child.stdout!.on("data", (chunk) => {
+        stdout += String(chunk);
+      });
+      child.on("error", reject);
+      child.on("close", (code, signal) => resolve({ code, signal, stdout }));
+    });
+    const how = `exit ${outcome.code}, signal ${outcome.signal}, said ${JSON.stringify(outcome.stdout)}`;
+    assert.notEqual(outcome.code, 0, `a write that was cut short must not report success (${how})`);
+    assert.ok(!outcome.stdout.startsWith("wrote"), how);
+    assert.ok(readFileSync(sb.store.state).equals(before), `the target must be untouched (${how})`);
+    assert.doesNotThrow(() => parseState(sb.store.state), "and still parse");
+    // A runtime that throws cleans up after itself and says what failed. One
+    // that dies by SIGXFSZ cannot, so the leftovers are only checked on the throw.
+    if (outcome.signal === null) {
+      assert.match(outcome.stdout, /^threw UserError: cannot write .*state\.json/, how);
+      assert.deepEqual(readdirSync(dir).sort(), names, "a failed write must remove its temporary file");
+    }
+  } finally {
+    child?.kill("SIGKILL");
     sb.dispose();
   }
 });
