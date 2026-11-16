@@ -887,3 +887,27 @@ loses a live lock. It needs two stops landing in two microsecond windows. Filed 
 - item 67: `tests/run.test.ts:54` and `tests/costs.test.ts:698` fail under load; maybe item 21.
 
 **Carried to item 53:** move `UserError` out of `src/paths.ts`, which `src/state.ts` imports.
+
+## 2026-11-16 — item 53 state-json-loses-concurrent-writes, closed
+
+**What changed.** `state.json` changes go through `updateState` in `src/state.ts`: it holds
+`withLock` across parse, change and write, writes a temp file in the same directory and renames
+it over the target, and carries keys the CLI does not know through the write. `state add`,
+`state set` and `decide --resolves` moved to it and `saveState` is no longer exported.
+
+**Rounds: 2.** Same arrangement as item 52: Sonnet implements, Opus reviews, general-purpose
+agents briefed from `agents/*.md`, no plugin loaded, no hooks, no cost rows.
+- Round 1, rejected on one blocker: the temp write used one `writeSync` and ignored its byte
+  count, so under `ulimit -f 2` a truncated file was renamed over `state.json` and the command
+  exited 0.
+- Round 2, approved: `review_state-json-loses-concurrent-writes_r2.md`, `live-verified` at
+  `4092af5` by reviewer. Real failures run on both runtimes (EFBIG, EPERM on rename, ENOSPC on a
+  full image, EACCES): target untouched every time. 0 failures of `tests/state.test.ts` in 110
+  loaded runs.
+
+**Did the item 52 lessons carry?** The brief asked for explicit timeouts, deterministic tests
+and the mutant table up front. Round 1 came back with one blocker instead of three, and no test
+failed under load. One data point, not a measurement.
+
+**Filed:** item 68, state write follow-ups (the half-done `decide --resolves`, symlink and file
+mode, a recurring temp pid, key lists kept by hand, git work under the lock).

@@ -730,7 +730,7 @@
         "every read-modify-write of state.json (state add, state set, decide --resolves and any other saveState caller) holds the lock across the read and the write",
         "a key the CLI does not know survives a state set instead of being dropped, or dropping it is refused with a message naming the key"
       ],
-      "status": "reviewing",
+      "status": "done",
       "description": "Reproduced 2026-11-16 in a throwaway store: 12 parallel './bin/mstack state add', all exit 0, 8 items in state.json. saveState is one writeFileSync with no lock and no rename (src/state.ts:208-210), so every caller reads, modifies and overwrites independently. Builds on item 52: the lock it takes must be one that excludes.",
       "source": "reports/Mejoras mstack con skills Pocock.md, 2026-11-16"
     },
@@ -921,6 +921,21 @@
       "status": "pending",
       "description": "Measured during the item 52 reviews with four bun and two node suites running together: tests/run.test.ts:54 ('a temp directory was left behind') failed 7 of 20 bun and 2 of 10 node suites in round 3 and 6 of 6 node in the round 3 implementer's runs; tests/costs.test.ts:698 failed 2 of 10 node suites in round 3 and 9 of 12 in round 2. Neither was touched by item 52. Item 21 is a suite run that failed once and was never identified; this may be the same failure.",
       "source": "item 52 round-3 review, .mstack/progress/review_withlock-enters-without-the-lock_r3.md, 2026-11-16"
+    },
+    {
+      "id": 68,
+      "slug": "state-write-followups",
+      "title": "State write follow-ups from the item 53 reviews: a half-done decide --resolves, a replaced symlink, lost file mode",
+      "acceptance": [
+        "when decide --resolves records the row and cannot write the pointer, the message says the row was recorded and how to attach the pointer, and a test shows it",
+        "a state.json that is a symlink stays a symlink across a write, and the file's mode is kept; a test shows both",
+        "a leftover temp file with a recurring pid never fails a write",
+        "the known-key lists cannot drift from parseItem: one source, or a test that fails when they differ",
+        "state set --status done holds the state lock only for the read-modify-write, or the report shows why the git work has to sit inside it; surviving mutants M7b and M16 are killed or the code removed"
+      ],
+      "status": "pending",
+      "description": "Item 53 closed with a list of non-blocking findings, each run by a reviewer. decide --resolves takes the decisions lock and then the state lock, never nested: a state-lock timeout after the row is written leaves a row with no pointer, and the message does not say the row was recorded. updateState renames a new file over the target, so a symlinked state.json becomes a regular file and the file mode is not kept. A leftover temp file whose pid comes round again fails one write with EEXIST. state set --status done does git work while holding the lock. The lists of known keys are kept in step with parseItem by hand.",
+      "source": "item 53 reviews, .mstack/progress/review_state-json-loses-concurrent-writes.md and _r2.md, 2026-11-16"
     }
   ]
 }

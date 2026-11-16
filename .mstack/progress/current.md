@@ -6,10 +6,10 @@
 > On close: append the summary to `history.md` and reset this file to the
 > empty template below.
 
-- **Item:** 53 state-json-loses-concurrent-writes
-- **Status:** reviewing, round 2
-- **Branch:** fix/state-json-loses-concurrent-writes
-- **Base:** dce98cb
+- **Item:** none active (53 closed 2026-11-16; next 54 hook-errors-leave-no-trace)
+- **Status:** -
+- **Branch:** main
+- **Base:** -
 - **Worktree:** none
 
 ## Plan
@@ -32,7 +32,7 @@ watch is review rounds per item: if they do not drop after phase 1, intake is ce
 
 - Easy tier: `impl_benchmark-harness_baseline.md`.
 - Hard tier: `impl_benchmark-hard-tier_baseline.md`.
-- 2026-11-16: items 52 to 67 filed. Item 52 closed in 3 rounds; see `history.md`.
+- 2026-11-16: items 52 to 68 filed. Item 52 closed in 3 rounds and item 53 in 2; see `history.md`.
 - Sessions launched as plain `claude` have no mstack plugin: no `mstack:*` agents, no hooks, no
   cost rows. On 2026-11-16 the user chose to continue anyway, with general-purpose agents
   briefed from `agents/*.md` (Sonnet implements, Opus reviews).
@@ -45,20 +45,10 @@ passes bypassPermissions. Do not run `check.mjs` or `verify.mjs` while a batch i
 
 ## Next step
 
-Item 53, round 2 implementation is in: `impl_state-json-loses-concurrent-writes_r2.md`, code
-head `4b533c8`. The write is now `writeFileSync(fd, text)`; a cut-short write throws, leaves the
-target untouched and removes the temp file. Round 2 review is out to a fresh reviewer, which
-writes `review_state-json-loses-concurrent-writes_r2.md` and types its own ledger row.
+Phase 0 has 52 and 53 closed. Next: 54 (hook errors leave no trace), then 47, 46, 50. For 54,
+start from the item 37 history entry: that session ran the cached plugin and wrote no cost rows,
+which may be all there is behind the header-only `costs.tsv`.
 
-- APPROVED: `state set 53 --status verifying`, then `done`, merge the branch to main
-  fast-forward, then item 54.
-- CHANGES_REQUESTED: a third round needs a `review-r3` decision row.
-
-Follow-ups to file when the item closes (round 1 review's non-blocking list): the `decide
---resolves` message when the row is recorded and the pointer is not; a leftover temp file whose
-pid recurs fails one write; a symlinked `state.json` is replaced by a regular file and file mode
-is not kept; `--status done` does git work under the lock; the known-key lists are kept in step
-with `parseItem` by hand; surviving mutants M7b, M8, M16; the EFBIG hint says "check that it is
-writable".
-
-After 53: 54, 47, 46, 50.
+Phase 1 (55 intake, 56 test-first reference) changes skills and agents and has acceptance lines
+that need the plugin really loaded (`claude --plugin-dir .`, or headless `claude -p` with it):
+a request driven through `/mstack` in the sandbox, and a subagent quoting a preloaded skill.
