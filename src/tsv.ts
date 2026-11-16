@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { appendFileSync, existsSync, linkSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { appendFileSync, closeSync, existsSync, openSync, readFileSync, rmSync, statSync, writeFileSync, writeSync } from "node:fs";
+import { dirname } from "node:path";
 
 import { UserError } from "./paths.ts";
 
@@ -94,10 +95,16 @@ export function readRecords(file: string): Record<string, string>[] {
  * `decide` calls produced eight distinct millisecond timestamps, because each
  * one read the file before any of them had written.
  *
- * The lock is a file that names its owner (`<pid> <token>`). It is created by
- * writing a private temp file and `link`ing it into place: `link` is atomic and
- * fails if the lock exists, and the content is complete before anyone can see
- * the name, so a reader never meets a lock with no owner in it.
+ * The lock is a file that names its owner (`<pid> <token>`). It is created with
+ * an exclusive create (`O_EXCL`), which is atomic and fails with EEXIST only when
+ * the lock exists, and the owner is written straight after. For that instant a
+ * reader meets a lock with no owner in it; that is the same as a lock from the
+ * previous format, and it is waited on while young (below). Any other failure to
+ * create the lock (a missing or read-only directory, a full disk) is not "held":
+ * it is thrown, naming the lock and the system error, rather than waited out.
+ * Exclusive create is used instead of write-then-`link` because `link` fails
+ * with ENOTSUP on filesystems without hard links (exFAT), where nothing could
+ * ever take the lock, and because it leaves no temp file behind a killed waiter.
  *
  * A waiter never enters without holding the lock:
  *  - owner dead: the lock is broken at once and taken again with the same
@@ -129,11 +136,15 @@ export function withLock<T>(file: string, run: () => T, options: { timeoutMs?: n
 
   for (;;) {
     if (tryCreate(lock, token)) break;
-    if (tryBreakStale(lock, token)) continue;
-    if (Date.now() - started > timeout) {
+    // Every pass reaches the deadline check or the sleep, or has just removed a
+    // dead lock and so made progress: no path through here can spin unbounded.
+    const removed = tryBreakStale(lock, token);
+    const waited = Date.now() - started;
+    if (removed && waited <= timeout) continue;
+    if (waited > timeout) {
       const holder = readOwner(lock);
       throw new UserError(
-        `${lock} is held ${holder === null ? "by a process that cannot be identified" : `by pid ${holder.pid}`} and did not let go in ${Date.now() - started} ms`,
+        `${lock} is held ${holder === null ? "by a process that cannot be identified" : `by pid ${holder.pid}`} and did not let go in ${waited} ms`,
         holder === null
           ? `if no mstack command is running, remove ${lock}`
           : `wait for pid ${holder.pid} to finish, or stop it; if it is not an mstack process, remove ${lock}`,
@@ -177,22 +188,36 @@ function readOwner(path: string): Owner | null {
   return match === null ? null : { pid: Number(match[1]), token: match[2] as string };
 }
 
-/** Atomic create-with-content: the name appears only once the owner is in it. */
+/**
+ * Create `path` exclusively and write the owner into it. False only when it
+ * already exists; any other failure throws, because "could not create" and "held
+ * by someone" need opposite handling.
+ */
 function tryCreate(path: string, token: string): boolean {
-  const temp = `${path}.${process.pid}.${token}.tmp`;
+  let fd: number;
   try {
-    writeFileSync(temp, `${process.pid} ${token}\n`, { encoding: "utf8", flag: "wx" });
-    try {
-      linkSync(temp, path);
-      return true;
-    } catch {
-      return false;
-    }
-  } catch {
-    return false;
-  } finally {
-    rmSync(temp, { force: true });
+    fd = openSync(path, "wx");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "EEXIST") return false;
+    throw cannotCreate(path, error);
   }
+  try {
+    writeSync(fd, `${process.pid} ${token}\n`);
+  } catch (error) {
+    rmSync(path, { force: true });
+    throw cannotCreate(path, error);
+  } finally {
+    closeSync(fd);
+  }
+  return true;
+}
+
+function cannotCreate(path: string, error: unknown): UserError {
+  const { code, message } = error as NodeJS.ErrnoException;
+  return new UserError(
+    `cannot create the lock ${path}: ${code ?? "error"} ${message}`,
+    `check that ${dirname(path)} exists and is writable, and that its disk is not full`,
+  );
 }
 
 function alive(pid: number): boolean {
@@ -215,14 +240,13 @@ function isStale(path: string, owner: Owner | null): boolean {
 }
 
 /**
- * Remove a lock whose owner is gone. Returns true when the caller should try to
- * take the lock again (it was removed by us or already gone), false when the
- * lock is held by someone who may still be inside.
+ * Remove a lock whose owner is gone. Returns true only when the caller removed
+ * it, and so should try to take the lock again at once; false when the lock is
+ * held by someone who may still be inside, is already gone, or another waiter is
+ * breaking it.
  */
 function tryBreakStale(lock: string, token: string): boolean {
-  if (!existsSync(lock)) return true;
-  const observed = readOwner(lock);
-  if (!isStale(lock, observed)) return false;
+  if (!isStale(lock, readOwner(lock))) return false;
 
   // One breaker at a time: otherwise two waiters that saw the same dead owner
   // can each remove the lock and each create their own, the second removing
@@ -234,11 +258,9 @@ function tryBreakStale(lock: string, token: string): boolean {
     return false;
   }
   try {
-    // Re-read under the guard: it must still be the lock we judged dead.
-    const again = readOwner(lock);
-    if (!existsSync(lock)) return true;
-    const same = observed === null ? again === null : again !== null && again.token === observed.token;
-    if (!same || !isStale(lock, again)) return false;
+    // Judge again under the guard: the lock may have been replaced by a live one
+    // since the first look, and that one must not be removed.
+    if (!isStale(lock, readOwner(lock))) return false;
     rmSync(lock, { force: true });
     return true;
   } finally {

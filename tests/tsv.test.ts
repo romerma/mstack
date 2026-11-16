@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawn, type ChildProcess } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -34,6 +34,7 @@ test("null and undefined become empty, not the string 'undefined'", () => {
 });
 
 const HOLDER = join(dirname(fileURLToPath(import.meta.url)), "lock-holder.ts");
+const PROBE = join(dirname(fileURLToPath(import.meta.url)), "lock-probe.ts");
 const RACER = join(dirname(fileURLToPath(import.meta.url)), "lock-racer.ts");
 const RUNTIME_FLAGS = typeof (globalThis as { Bun?: unknown }).Bun === "undefined"
   ? ["--experimental-strip-types", "--disable-warning=ExperimentalWarning"]
@@ -59,6 +60,7 @@ function lockBench() {
   writeFileSync(journal, "");
   const children: ChildProcess[] = [];
   return {
+    dir,
     lock: `${file}.lock`,
     journal: () => readFileSync(journal, "utf8"),
     file,
@@ -332,6 +334,65 @@ test("waiters that all see the same dead owner never hold the lock together", { 
       assert.ok(next.enter >= prev.leave, `${prev.name} and ${next.name} were inside together`);
     }
     assert.ok(!existsSync(bench.lock) && !existsSync(`${bench.lock}.break`));
+  } finally {
+    bench.dispose();
+  }
+});
+
+/**
+ * `withLock` on a path in a child that is killed if it has not answered. A lock
+ * that spins turns an assertion into a hung suite, so the deadline belongs to the
+ * test, not to the code under test.
+ */
+async function probe(file: string, timeoutMs: number): Promise<{ out: string; ms: number; hung: boolean }> {
+  const started = Date.now();
+  const child = spawn(process.execPath, [...RUNTIME_FLAGS, PROBE, file, String(timeoutMs)], { stdio: ["ignore", "pipe", "ignore"] });
+  let out = "";
+  child.stdout.on("data", (chunk) => { out += String(chunk); });
+  let hung = false;
+  const timer = setTimeout(() => { hung = true; child.kill("SIGKILL"); }, timeoutMs + 3_000);
+  await new Promise((res) => child.on("close", res));
+  clearTimeout(timer);
+  return { out: out.trim(), ms: Date.now() - started, hung };
+}
+
+test("a lock that cannot be created because the directory is missing fails promptly, naming the lock", async () => {
+  const bench = lockBench();
+  try {
+    const file = join(bench.dir, "no-such-dir", "target.tsv");
+    const result = await probe(file, 200);
+    assert.equal(result.hung, false, "withLock spun instead of failing");
+    assert.match(result.out, /^THREW UserError /);
+    assert.ok(result.out.includes(`${file}.lock`), result.out);
+    assert.match(result.out, /ENOENT/);
+  } finally {
+    bench.dispose();
+  }
+});
+
+test("a lock that cannot be created because the directory is read-only fails promptly, naming the lock", { skip: process.getuid?.() === 0 }, async () => {
+  const bench = lockBench();
+  try {
+    const dir = join(bench.dir, "readonly");
+    mkdirSync(dir);
+    chmodSync(dir, 0o555);
+    const result = await probe(join(dir, "target.tsv"), 200);
+    chmodSync(dir, 0o755);
+    assert.equal(result.hung, false, "withLock spun instead of failing");
+    assert.match(result.out, /^THREW UserError /);
+    assert.ok(result.out.includes(join(dir, "target.tsv.lock")), result.out);
+    assert.match(result.out, /EACCES|EPERM|EROFS/);
+  } finally {
+    bench.dispose();
+  }
+});
+
+test("taking and releasing a lock leaves nothing in the directory but the files it was given", () => {
+  const bench = lockBench();
+  try {
+    const before = readdirSync(bench.dir).sort();
+    withLock(bench.file, () => {});
+    assert.deepEqual(readdirSync(bench.dir).sort(), before);
   } finally {
     bench.dispose();
   }
