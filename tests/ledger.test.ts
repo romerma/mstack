@@ -54,7 +54,7 @@ test("a blocked or failed verifier clears nothing", () => {
   }
 });
 
-test("the strongest verdict at a SHA wins", () => {
+test("with no closing-role row, the strongest author row at a SHA is the answer", () => {
   const sb = sandbox();
   try {
     record(sb.store, { target: "x", sha: sb.sha, verdict: "type-check-only", evidence: "tsc --noEmit clean", verifier: "ci" });
@@ -162,6 +162,15 @@ test("the benchmark-harness case: implementer test-verified, then reviewer verif
   assert.match(r.reason, /verifier-failed/);
   assert.match(r.reason, /reviewer/);
   assert.match(r.reason, /review_x\.md/);
+  // The wording is the message a person reads when a merge is blocked: it must say
+  // the rejection stands whatever an implementing role recorded.
+  assert.match(r.reason, /rejects this commit, whatever an implementing role recorded/);
+});
+
+test("a failing author-only check still says the verdict is the author's own", () => {
+  const r = checkAfter([["type-check-only", "implementer"]]);
+  assert.equal(r.passing, false);
+  assert.match(r.reason, /does not clear test-verified \(the author's own verdict\)/);
 });
 
 test("a rejection recorded before the implementer's next row still wins over it", () => {
