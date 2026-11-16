@@ -100,3 +100,4 @@ withlock-enters-without-the-lock	377e742c2978b5ab8b30e720752700c375da729e	live-v
 withlock-enters-without-the-lock	572ebbc30cec86fa4b5ba68ded23801240a8c837	verifier-failed	.mstack/progress/review_withlock-enters-without-the-lock.md	reviewer	2026-11-16T17:14:02.944Z
 withlock-enters-without-the-lock	f56b44cab76d4ac55bf46b1b7e533e2e5dc0435f	test-verified	.mstack/progress/impl_withlock-enters-without-the-lock_r2.md	implementer	2026-11-16T17:57:31.645Z
 withlock-enters-without-the-lock	8f297e3087ab80daa4d3ba868184ca1c1f57c501	verifier-failed	.mstack/progress/review_withlock-enters-without-the-lock_r2.md	reviewer	2026-11-16T18:49:01.379Z
+withlock-enters-without-the-lock	949962187b87d00dcff042881c18889ff979ccb2	test-verified	.mstack/progress/impl_withlock-enters-without-the-lock_r3.md	implementer	2026-11-16T19:16:14.609Z
