@@ -822,3 +822,32 @@ count. No split is made by token share, and no price table is kept.
 - item 50: `plugin validate --strict` is red on two warnings that claude 2.1.316 added. This
   predates item 37.
 - item 51: a single-append flush and marks compaction.
+
+## 2026-11-16 — improvement program seeded, item 52 opened
+
+**What ran.** A research pass over the plugin, the mattpocock/skills plugin, the wider skill
+collections and Claude Code's integration mechanisms. Report: `reports/Mejoras mstack con skills
+Pocock.md`. The user approved its plan and its one product fork in the session.
+
+**Decided:**
+- The plan runs as an orchestrate program in five phases. Row of 2026-11-16, phase `plan`.
+- Intake is autonomous by default, with an interactive mode only when the request asks for it.
+  Recorded with `--resolves intake-step`.
+- Third-party skill text is vendored and adapted under MIT, not depended on. A missing plugin
+  dependency disables the dependent plugin, and 16 of the 27 mattpocock skills, `grill-with-docs`
+  among them, carry `disable-model-invocation: true`.
+
+**Filed:** items 52 to 65.
+
+**Item 52, in flight.** Reproduced, mechanism located, two failing tests committed at `bb73baa`
+ahead of the fix. Red on node and on bun for the stated reason.
+
+**Not done, and why.** The session was launched as plain `claude`, with no mstack plugin loaded.
+There were no `mstack:*` agents to delegate to, no hooks and no cost rows, so the work stopped
+at the delegation step. `current.md` carries the next step.
+
+**Found on the way:**
+- `lint-plugin` does not read `.gitignore`: a gitignored notes directory at the root failed the
+  single-source-of-truth check. The notes moved under `docs/`, which the lint skips.
+- The item 37 entry above says that session ran the cached plugin and wrote no cost rows. That
+  is the first thing to check for item 54.
