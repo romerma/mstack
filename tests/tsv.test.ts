@@ -517,3 +517,34 @@ test("an old lock with an unreadable owner is broken and the caller takes a real
     bench.dispose();
   }
 });
+
+test("a lock path that is an old directory fails with a UserError, not a raw system error", () => {
+  const bench = lockBench();
+  try {
+    mkdirSync(bench.lock);
+    const old = new Date(Date.now() - 60_000);
+    utimesSync(bench.lock, old, old);
+    assert.throws(
+      () => withLock(bench.file, () => {}, { timeoutMs: 50 }),
+      (error: unknown) => error instanceof UserError && error.message.includes(bench.lock) && (error.fix ?? "").length > 0,
+    );
+    assert.ok(existsSync(bench.lock) && !existsSync(`${bench.lock}.break`), "the guard was left behind or the directory removed");
+  } finally {
+    bench.dispose();
+  }
+});
+
+test("a waiter that removes a dead lock on the pass that crosses its deadline still takes the lock", SPAWN_TEST, async () => {
+  // A timeout already behind us (-1) makes the first pass the one that crosses the
+  // deadline. The lock is free once the dead owner's is gone, so throwing "held" is wrong.
+  const bench = lockBench();
+  try {
+    writeFileSync(bench.lock, `${await bench.deadPid()} ${TOKEN}\n`);
+    let entered = false;
+    withLock(bench.file, () => { entered = true; }, { timeoutMs: -1 });
+    assert.equal(entered, true);
+    assert.ok(!existsSync(bench.lock));
+  } finally {
+    bench.dispose();
+  }
+});
