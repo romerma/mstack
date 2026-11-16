@@ -151,6 +151,7 @@ export function withLock<T>(file: string, run: () => T, options: LockOptions = {
   const step = options.step;
   const token = randomUUID();
   const started = Date.now();
+  let lastChance = false;
 
   for (;;) {
     if (tryCreate(lock, token, "lock-created", step)) break;
@@ -158,7 +159,12 @@ export function withLock<T>(file: string, run: () => T, options: LockOptions = {
     // dead lock and so made progress: no path through here can spin unbounded.
     const removed = tryBreakStale(lock, token, step);
     const waited = Date.now() - started;
-    if (removed && waited <= timeout) continue;
+    // Removing a dead lock is progress even on the pass that crosses the deadline:
+    // the lock is free now, so take it once more before reporting it held.
+    if (removed && (waited <= timeout || !lastChance)) {
+      lastChance = lastChance || waited > timeout;
+      continue;
+    }
     if (waited > timeout) {
       const holder = readOwner(lock);
       throw new UserError(
@@ -288,7 +294,13 @@ function tryBreakStale(lock: string, token: string, step: LockOptions["step"]): 
     // Judge again under the guard: the lock may have been replaced by a live one
     // since the first look, and that one must not be removed.
     if (!isStale(lock, readOwner(lock))) return false;
-    rmSync(lock, { force: true });
+    try {
+      rmSync(lock, { force: true });
+    } catch {
+      // Not removable (a directory where the lock belongs): nothing was broken, so
+      // it is waited on to the deadline, which names it and says what to remove.
+      return false;
+    }
     return true;
   } finally {
     rmIfOwner(guard, token);
