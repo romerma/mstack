@@ -7,7 +7,7 @@
 > empty template below.
 
 - **Item:** 47 ledger-check-hides-a-rejection
-- **Status:** in_progress, round 2 after CHANGES_REQUESTED
+- **Status:** reviewing, round 2
 - **Branch:** fix/ledger-check-hides-a-rejection
 - **Base:** 5b2714c
 - **Worktree:** none
@@ -45,26 +45,18 @@ passes bypassPermissions. Do not run `check.mjs` or `verify.mjs` while a batch i
 
 ## Next step
 
-Item 47, round 1 review: CHANGES_REQUESTED, `review_ledger-check-hides-a-rejection.md`, ledger
-row `verifier-failed` at a16e490. Two blockers:
+Item 47, round 2 implementation is in: `impl_ledger-check-hides-a-rejection_r2.md`, code head
+`d73b40c`. Rejections are exempt from the citation filter; an approval whose evidence cites the
+implementer's own report now FAILS as not independent; the slug is escaped before it reaches a
+regex; `docs/wiki/The-Agents.md` is corrected. Round 2 review is out to a fresh reviewer, which
+writes `review_ledger-check-hides-a-rejection_r2.md` and types its own ledger row.
 
-1. `src/ledger.ts:157-159`: the filter that drops closing rows citing the implementer's own
-   report also drops REJECTIONS that cite it, so a reviewer `verifier-failed` whose evidence
-   mentions `impl_<slug>.md` gives PASS on the author's row while the gate refuses.
-2. `docs/wiki/The-Agents.md:165` still states the old most-favorable rule.
-
-All 29 closed items still pass; no test weakened. A fresh implementer has both blockers plus a
-crash this change introduced (`ledger check 'api(v2'`: the slug reaches a regex unescaped).
-When it returns: `state set 47 --status reviewing`, then a fresh reviewer writes
-`review_ledger-check-hides-a-rejection_r2.md`.
+- APPROVED: `state set 47 --status verifying`, then `done`, merge fast-forward, then item 46.
+- CHANGES_REQUESTED: a third round needs a `review-r3` decision row.
 
 Follow-ups to file when the item closes: shas compared exactly (abbreviated sha answers "no
 verdict", one 7-character row in the ledger); in the gate a `verifier-blocked` after a
 `verifier-failed` lets the item close (`src/gate.ts:445-448`); the status line shows an
-author-only verdict as green.
+author-only verdict as green; `ledger check` reads one sha while the gate audits every sha.
 
 After 47: 46, 50. Then phase 1 and item 69, which need the plugin really loaded.
-
-## Round 2 (implementer)
-
-All four findings fixed with red tests first; report `.mstack/progress/impl_ledger-check-hides-a-rejection_r2.md`. Next session: reviewer round 2 from a pass that did not write the code. Left undone: the other non-blocking review notes (queued follow-ups).

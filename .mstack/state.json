@@ -654,7 +654,7 @@
         "ledger check exits non-zero and names the rejection when a reviewer's verifier-failed row is the latest closing-role row at the checked sha, even if an implementer row at that sha ranks higher",
         "a test reproduces the benchmark-harness case: implementer test-verified then reviewer verifier-failed at one sha"
       ],
-      "status": "in_progress",
+      "status": "reviewing",
       "description": "Reproduced at rung 4: rows 70 (implementer test-verified) and 71 (reviewer verifier-failed) at a4e6c784; './bin/mstack ledger check benchmark-harness' prints 'PASS test-verified at a4e6c784 by implementer', exit 0. check() keeps the best row by rank, so the implementer's self-assessment hides the independent rejection. Closing is unaffected (checkClosedItems filters closing roles); reviewers, briefs and the status line that call ledger check are misled.",
       "source": "item 38 round-1 review, 2026-10-31"
     },
