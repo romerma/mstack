@@ -1,4 +1,4 @@
-import { closeSync, openSync, readFileSync, renameSync, rmSync, writeSync } from "node:fs";
+import { closeSync, openSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, basename, join } from "node:path";
 
 import { isActive, isStatus, type Status } from "./lifecycle.ts";
@@ -271,7 +271,7 @@ function writeAtomically(file: string, text: string): void {
   try {
     const fd = openSync(tmp, "wx");
     try {
-      writeSync(fd, text);
+      writeFileSync(fd, text);
     } finally {
       closeSync(fd);
     }
