@@ -499,3 +499,15 @@ test("a failing hook stays well inside the smallest timeout in hooks.json (5 s)"
     box.dispose();
   }
 });
+
+test("appending to a store directory that does not exist creates nothing", async () => {
+  const { appendHookError } = await import("../src/hooklog.ts");
+  const dir = mkdtempSync(join(tmpdir(), "mstack-nostore-"));
+  try {
+    appendHookError(join(dir, ".mstack"), "stop", "boom");
+    assert.equal(existsSync(join(dir, ".mstack")), false);
+    appendHookError(null, "stop", "boom");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
