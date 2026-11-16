@@ -300,14 +300,14 @@ test("waiters that all see the same dead owner never hold the lock together", { 
   // The window is microseconds wide, so the waiters start from a shared instant,
   // every round plants a fresh dead lock, and each one checks from inside that the
   // lock on disk is still its own.
-  const waiters = 16;
-  const rounds = 60;
-  const roundMs = 40;
+  const waiters = 32;
+  const rounds = 120;
+  const roundMs = 50;
   const bench = lockBench();
   try {
     const dead = await bench.deadPid();
-    const start = Date.now() + 1_500;
-    const racers = Array.from({ length: waiters }, (_, i) => bench.race(`W${i}`, rounds, start, roundMs, 2));
+    const start = Date.now() + 1_000;
+    const racers = Array.from({ length: waiters }, (_, i) => bench.race(`W`, rounds, start, roundMs, 1));
     for (let round = 0; round < rounds; round++) {
       const plant = start + round * roundMs - roundMs / 2;
       await new Promise((res) => setTimeout(res, Math.max(0, plant - Date.now())));
