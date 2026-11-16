@@ -7,7 +7,7 @@
 > empty template below.
 
 - **Item:** 52 withlock-enters-without-the-lock
-- **Status:** reviewing, round 2
+- **Status:** in_progress, round 3 after CHANGES_REQUESTED
 - **Branch:** fix/withlock-enters-without-the-lock
 - **Base:** d34761e
 - **Worktree:** none
@@ -51,17 +51,23 @@ passes bypassPermissions. Do not run `check.mjs` or `verify.mjs` while a batch i
 
 ## Next step
 
-Round 2 implementation is in: `impl_withlock-enters-without-the-lock_r2.md`, code head
-`f56b44c`. The lock is now an exclusive create followed by the owner write, with no temp file
-and no hard link. Round 2 review is out to a fresh reviewer, which writes
-`review_withlock-enters-without-the-lock_r2.md` and types its own ledger row.
+Round 2 review: CHANGES_REQUESTED, `review_withlock-enters-without-the-lock_r2.md`, ledger row
+`verifier-failed` at 8f297e3. All four round 1 findings are resolved. Three new blockers:
 
-- APPROVED: `./bin/mstack gate --full`, `state set 52 --status verifying`, then `done`, merge
-  the branch to main fast-forward, and start item 53.
-- CHANGES_REQUESTED: a third round needs a `review-r3` decision row scoped to what is left.
+1. `src/tsv.ts:196-213`: a creator stopped 2 s between the exclusive create and the owner write
+   is broken as a leftover and resumes inside beside the breaker. Fix: read the lock back and
+   enter only on the caller's own token.
+2. The empty-guard branch (`src/tsv.ts:256`, `:273`) has no test; mutant N8 survives.
+3. `tests/tsv.test.ts:260` and `:297` fail on correct code under load.
 
-Open question the reviewer was asked to settle: the rebuilt race test is statistical. A first
-draft failed once in a full node run and the cause (cross-process clocks) is unproven.
+Round 3 is authorized by the `review-r3` decision row and scoped to those three. A fresh
+implementer has them. When it returns: `state set 52 --status reviewing`, then a fresh reviewer
+writes `review_withlock-enters-without-the-lock_r3.md`.
+
+Follow-ups to file when the item closes: ignore or sweep `*.lock` and `*.lock.break` in the
+store; `tests/costs.test.ts:698` fails 9 of 12 node suites under load (compare with item 21);
+`withLock` measures its wait on the wall clock; move `UserError` out of `src/paths.ts` with
+item 53.
 
 ## Verification
 
