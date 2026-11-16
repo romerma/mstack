@@ -34,6 +34,7 @@ test("null and undefined become empty, not the string 'undefined'", () => {
 });
 
 const HOLDER = join(dirname(fileURLToPath(import.meta.url)), "lock-holder.ts");
+const RACER = join(dirname(fileURLToPath(import.meta.url)), "lock-racer.ts");
 const RUNTIME_FLAGS = typeof (globalThis as { Bun?: unknown }).Bun === "undefined"
   ? ["--experimental-strip-types", "--disable-warning=ExperimentalWarning"]
   : [];
@@ -78,6 +79,19 @@ function lockBench() {
         child,
         exited: new Promise((res) => child.on("close", (code) => res(code))),
         release: () => writeFileSync(release, ""),
+      };
+    },
+    race(name: string, rounds: number, start: number, roundMs: number, holdMs: number): Holder {
+      const child = spawn(
+        process.execPath,
+        [...RUNTIME_FLAGS, RACER, file, journal, name, String(rounds), String(start), String(roundMs), String(holdMs)],
+        { stdio: "ignore" },
+      );
+      children.push(child);
+      return {
+        child,
+        exited: new Promise((res) => child.on("close", (code) => res(code))),
+        release: () => {},
       };
     },
     dispose() {
@@ -277,20 +291,45 @@ test("a lock is never visible without its owner in it", async () => {
   }
 });
 
-test("waiters that all see the same dead owner do not end up inside together", async () => {
+test("waiters that all see the same dead owner never hold the lock together", { timeout: 30_000 }, async () => {
+  // The hazard is two breakers: each judges the same dead lock dead, one removes
+  // it and takes its own, and the other then removes that live one and walks in.
+  // The window is microseconds wide, so the waiters start from a shared instant,
+  // every round plants a fresh dead lock, and each one checks from inside that the
+  // lock on disk is still its own.
+  const waiters = 16;
+  const rounds = 60;
+  const roundMs = 40;
   const bench = lockBench();
   try {
-    writeFileSync(bench.lock, `${await bench.deadPid()} ${TOKEN}\n`);
-    const holders = Array.from({ length: 8 }, (_, i) => bench.hold(`W${i}`, 5_000));
-    for (const h of holders) h.release();
-    for (const h of holders) assert.equal(await h.exited, 0);
-    const lines = bench.journal().split("\n").filter((l) => l !== "");
-    assert.equal(lines.length, 16);
-    lines.forEach((line, i) => {
-      const [name, what] = line.split(" ") as [string, string];
-      assert.equal(what, i % 2 === 0 ? "enter" : "leave", `entries overlapped: ${lines.join(", ")}`);
-      if (i % 2 === 1) assert.equal(name, (lines[i - 1] as string).split(" ")[0]);
-    });
+    const dead = await bench.deadPid();
+    const start = Date.now() + 1_500;
+    const racers = Array.from({ length: waiters }, (_, i) => bench.race(`W${i}`, rounds, start, roundMs, 2));
+    for (let round = 0; round < rounds; round++) {
+      const plant = start + round * roundMs - roundMs / 2;
+      await new Promise((res) => setTimeout(res, Math.max(0, plant - Date.now())));
+      // Exclusive: if the previous round is still running, leave its lock alone.
+      try {
+        writeFileSync(bench.lock, `${dead} ${TOKEN}\n`, { flag: "wx" });
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+      }
+    }
+    for (const racer of racers) await racer.exited;
+
+    const entries: { name: string; enter: number; leave: number; own: boolean }[] = [];
+    for (const line of bench.journal().split("\n").filter((l) => l !== "")) {
+      const [, name, enter, leave, own] = line.split(" ") as [string, string, string, string, string];
+      assert.notEqual(enter, "THREW", `a waiter threw: ${line}`);
+      entries.push({ name, enter: Number(enter), leave: Number(leave), own: own === "true" });
+    }
+    assert.equal(entries.length, waiters * rounds, "some waiters never entered");
+    assert.deepEqual(entries.filter((e) => !e.own).map((e) => e.name), [], "a waiter was inside while the lock on disk was not its own");
+    entries.sort((x, y) => x.enter - y.enter);
+    for (let i = 1; i < entries.length; i++) {
+      const [prev, next] = [entries[i - 1], entries[i]] as [(typeof entries)[number], (typeof entries)[number]];
+      assert.ok(next.enter >= prev.leave, `${prev.name} and ${next.name} were inside together`);
+    }
     assert.ok(!existsSync(bench.lock) && !existsSync(`${bench.lock}.break`));
   } finally {
     bench.dispose();
