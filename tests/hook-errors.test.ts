@@ -147,6 +147,60 @@ test("session-start on an unreadable state.json logs it and says what it said be
   }
 });
 
+/**
+ * Acceptance 1 says "any mstack hook", so this runs all six against one store whose
+ * state.json cannot be read. `stdout` is what each printed before this item: the
+ * log is an addition, never a change of answer.
+ */
+const UNREADABLE_STATE_CASES: readonly {
+  readonly event: string;
+  readonly input: Record<string, unknown>;
+  readonly stdout: RegExp | "";
+  readonly logged: number;
+  readonly why: string;
+}[] = [
+  { event: "session-start", input: { session_id: "s1" }, stdout: /No active work item/, logged: 2, why: "reads it twice, both fail" },
+  { event: "subagent-stop", input: { agent_type: "mstack:reviewer", agent_id: "a1" }, stdout: "", logged: 1, why: "skips its report check" },
+  { event: "stop", input: { session_id: "s1", transcript_path: "/nonexistent/t.jsonl" }, stdout: /gate is red/, logged: 1, why: "the gate says so on stdout; the fenced cost mark is the line" },
+  { event: "session-end", input: { session_id: "s1", transcript_path: "/nonexistent/t.jsonl" }, stdout: "", logged: 1, why: "cost recording" },
+  { event: "post-edit", input: { tool_input: { file_path: "/elsewhere/x.ts" } }, stdout: "", logged: 0, why: "never reads the store for another file" },
+  { event: "pre-tool-use", input: { tool_name: "Bash", tool_input: { command: "ls" } }, stdout: "", logged: 0, why: "never reads the store" },
+];
+
+for (const c of UNREADABLE_STATE_CASES) {
+  test(`${c.event} on an unreadable state.json: ${c.logged} line(s) naming it, stdout as before (${c.why})`, () => {
+    const box = sandbox();
+    try {
+      writeFileSync(box.store.state, "{ nope\n");
+      const r = hook(box.store.root, [c.event], JSON.stringify({ cwd: box.store.root, ...c.input }));
+      assert.equal(r.code, 0);
+      // The Stop hook's gate prints its own failure report on stderr, as it did before this item.
+      if (c.event === "stop") assert.doesNotMatch(r.stderr, /\n\s+at /, "no stack trace");
+      else assert.equal(r.stderr, "");
+      if (c.stdout === "") assert.equal(r.stdout, "");
+      else assert.match(r.stdout, c.stdout);
+      const got = lines(box);
+      assert.equal(got.length, c.logged, JSON.stringify(got));
+      for (const line of got) assert.equal(line.split("\t")[1], c.event);
+    } finally {
+      box.dispose();
+    }
+  });
+}
+
+test("post-edit of state.json itself says so on stdout and does not also log it", () => {
+  const box = sandbox();
+  try {
+    writeFileSync(box.store.state, "{ nope\n");
+    const r = hook(box.store.root, ["post-edit"], JSON.stringify({ cwd: box.store.root, tool_input: { file_path: box.store.state } }));
+    assert.equal(r.code, 0);
+    assert.match(r.stdout, /state\.json no longer validates/);
+    assert.equal(lines(box).length, 0, "not hidden, so nothing to record");
+  } finally {
+    box.dispose();
+  }
+});
+
 test("a cost row lost to a lock that a live process holds leaves a line", () => {
   const box = sandbox();
   try {
@@ -481,6 +535,54 @@ test("a store created before this change does not show the log in git status eit
     assert.equal(git(box.store.root, "status", "--short"), "", "no tracked file was edited and no log shows");
     assert.equal(statSync(logOf(box)).isFile(), true);
   } finally {
+    box.dispose();
+  }
+});
+
+// ---------------------------------------------------------------------------
+// The one write outside the store: .git/info/exclude
+// ---------------------------------------------------------------------------
+
+const ENTRY = `**/.mstack/${LOG}`;
+const excludeOf = (root: string) => join(root, ".git", "info", "exclude");
+const FAILING = ["sesion-start"] as const;
+
+function initRepo(): string {
+  const root = mkdtempSync(join(tmpdir(), "mstack-git-"));
+  git(root, "init", "-q");
+  git(root, "config", "user.email", "test@example.com");
+  git(root, "config", "user.name", "test");
+  git(root, "commit", "-q", "--allow-empty", "-m", "init");
+  return root;
+}
+
+test("a repository whose .mstack is a file gets no exclude edit and no log", () => {
+  const root = initRepo();
+  try {
+    writeFileSync(join(root, ".mstack"), "not a store\n");
+    const before = readFileSync(excludeOf(root));
+    const r = hook(root, FAILING, JSON.stringify({ cwd: root }));
+    assert.equal(r.code, 0);
+    assert.match(r.stderr, /unknown event/);
+    assert.deepEqual(readFileSync(excludeOf(root)), before, ".git/info/exclude is byte-identical");
+    assert.equal(statSync(join(root, ".mstack")).isFile(), true, "the file is left alone");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("a store that cannot take the log gets no exclude entry either", { skip: process.getuid?.() === 0 }, () => {
+  const box = sandbox();
+  try {
+    writeFileSync(join(box.store.dir, ".gitignore"), "verification.tsv\n");
+    const before = readFileSync(excludeOf(box.store.root));
+    execFileSync("chmod", ["555", box.store.dir]);
+    const r = hook(box.store.root, FAILING, JSON.stringify({ cwd: box.store.root }));
+    assert.equal(r.code, 0);
+    assert.equal(existsSync(logOf(box)), false, "nothing could be appended");
+    assert.deepEqual(readFileSync(excludeOf(box.store.root)), before, "so the user's git metadata was not touched");
+  } finally {
+    execFileSync("chmod", ["755", box.store.dir]);
     box.dispose();
   }
 });
