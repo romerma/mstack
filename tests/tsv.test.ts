@@ -35,6 +35,12 @@ test("null and undefined become empty, not the string 'undefined'", () => {
 
 const HOLDER = join(dirname(fileURLToPath(import.meta.url)), "lock-holder.ts");
 const PROBE = join(dirname(fileURLToPath(import.meta.url)), "lock-probe.ts");
+// Every test that spawns processes carries SPAWN_TEST, which sits above the
+// watchdog, and waits for positive signals (a journal line, an exit) with bounds
+// that load cannot eat; nothing here depends on how long a child takes to boot.
+const WATCHDOG_MS = 45_000;
+const SPAWN_TEST = { timeout: 90_000 };
+const SIGNAL_MS = 20_000;
 const RUNTIME_FLAGS = typeof (globalThis as { Bun?: unknown }).Bun === "undefined"
   ? ["--experimental-strip-types", "--disable-warning=ExperimentalWarning"]
   : [];
@@ -60,6 +66,13 @@ function lockBench() {
   const journal = join(dir, "journal");
   writeFileSync(journal, "");
   const children: ChildProcess[] = [];
+  // A test that fails or is cancelled while it awaits a child leaves the child
+  // running, and the child's own deadline can be many seconds. Past this budget
+  // every child is killed, so what the test awaits resolves and it fails, fast,
+  // instead of stalling the suite. It is far above what a test needs under load.
+  const watchdog = setTimeout(() => {
+    for (const child of children) child.kill("SIGKILL");
+  }, WATCHDOG_MS);
   return {
     dir,
     lock: `${file}.lock`,
@@ -88,6 +101,7 @@ function lockBench() {
       };
     },
     dispose() {
+      clearTimeout(watchdog);
       for (const child of children) child.kill("SIGKILL");
       rmSync(dir, { recursive: true, force: true });
     },
@@ -103,35 +117,36 @@ async function until(condition: () => boolean, ms: number): Promise<boolean> {
   return condition();
 }
 
-test("a waiter that times out on a live holder does not enter beside it", async () => {
+test("a waiter that times out on a live holder does not enter beside it", SPAWN_TEST, async () => {
   const bench = lockBench();
   try {
     const a = bench.hold("A", 5_000);
-    assert.ok(await until(() => bench.journal().includes("A enter"), 5_000), "A never took the lock");
+    assert.ok(await until(() => bench.journal().includes("A enter"), SIGNAL_MS), "A never took the lock");
 
     // B's patience is shorter than A's hold. Whatever B does about that, keep
-    // waiting or give up and say so, it may not run beside A.
+    // waiting or give up and say so, it may not run beside A. B's exit (or its
+    // entering) is the signal that it has decided; no clock is read.
     const b = bench.hold("B", 200);
     b.release();
     let bExited = false;
     void b.exited.then(() => {
       bExited = true;
     });
-    await until(() => bExited || bench.journal().includes("B enter"), 1_500);
+    assert.ok(await until(() => bExited || bench.journal().includes("B enter"), SIGNAL_MS), "B neither gave up nor entered");
 
     assert.equal(bench.journal(), "A enter\n", "B ran its critical section while A was still inside its own");
     assert.ok(existsSync(bench.lock), "A is still inside and its lock file is gone: B removed a lock it did not create");
 
     a.release();
     assert.equal(await a.exited, 0);
-    assert.ok(await until(() => bExited, 5_000), "B never finished after A let go");
+    assert.ok(await until(() => bExited, SIGNAL_MS), "B never finished after A let go");
     assert.ok(!existsSync(bench.lock), "the lock must not survive the writers");
   } finally {
     bench.dispose();
   }
 });
 
-test("a creator that lost its empty lock to a breaker does not enter beside the breaker", async () => {
+test("a creator that lost its empty lock to a breaker does not enter beside the breaker", SPAWN_TEST, async () => {
   // The lock is created empty and the owner written a moment later. A creator held
   // between the two for longer than the unreadable-owner limit has an empty lock
   // that looks like a leftover, and a waiter breaks it and takes its own. When the
@@ -139,24 +154,24 @@ test("a creator that lost its empty lock to a breaker does not enter beside the 
   const bench = lockBench();
   try {
     const c = bench.hold("C", 5_000, { blockAt: "lock-created", signal: "waiting" });
-    assert.ok(await until(() => bench.journal().includes("C at lock-created"), 20_000), "C never created the lock");
+    assert.ok(await until(() => bench.journal().includes("C at lock-created"), SIGNAL_MS), "C never created the lock");
     const old = new Date(Date.now() - 60_000);
     utimesSync(bench.lock, old, old);
 
     const w = bench.hold("W", 5_000);
-    assert.ok(await until(() => bench.journal().includes("W enter"), 20_000), "W never broke the empty lock");
+    assert.ok(await until(() => bench.journal().includes("W enter"), SIGNAL_MS), "W never broke the empty lock");
     const ownedByW = () => readFileSync(bench.lock, "utf8").startsWith(`${w.child.pid} `);
     assert.ok(ownedByW(), "fixture: W should hold the lock it took from C");
 
     c.releaseStep();
-    const settled = await until(() => /C (at waiting|enter)/.test(bench.journal()), 20_000);
+    const settled = await until(() => /C (at waiting|enter)/.test(bench.journal()), SIGNAL_MS);
     assert.ok(settled, "C neither entered nor waited after it was released");
     assert.ok(!bench.journal().includes("C enter"), `C entered beside W:\n${bench.journal()}`);
     assert.ok(ownedByW(), "W's lock was changed or removed by C");
 
     w.release();
     assert.equal(await w.exited, 0);
-    assert.ok(await until(() => bench.journal().includes("C enter"), 20_000), "C never got the lock after W let go");
+    assert.ok(await until(() => bench.journal().includes("C enter"), SIGNAL_MS), "C never got the lock after W let go");
     c.release();
     assert.equal(await c.exited, 0);
     assert.deepEqual(
@@ -167,19 +182,19 @@ test("a creator that lost its empty lock to a breaker does not enter beside the 
   } finally {
     bench.dispose();
   }
-}, { timeout: 90_000 });
+});
 
-test("a lock left by a killed process is broken, and the next caller holds a real one", async () => {
+test("a lock left by a killed process is broken, and the next caller holds a real one", SPAWN_TEST, async () => {
   const bench = lockBench();
   try {
     const a = bench.hold("A", 5_000);
-    assert.ok(await until(() => bench.journal().includes("A enter"), 5_000), "A never took the lock");
+    assert.ok(await until(() => bench.journal().includes("A enter"), SIGNAL_MS), "A never took the lock");
     a.child.kill("SIGKILL");
     await a.exited;
     assert.ok(existsSync(bench.lock), "fixture: a killed holder should leave its lock behind");
 
     const b = bench.hold("B", 200);
-    assert.ok(await until(() => bench.journal().includes("B enter"), 5_000), "B hung on a dead process's lock");
+    assert.ok(await until(() => bench.journal().includes("B enter"), SIGNAL_MS), "B hung on a dead process's lock");
 
     // Breaking a stale lock is not holding one. A caller that removes the
     // leftover and walks in has no lock for the next process to wait on.
@@ -195,11 +210,11 @@ test("a lock left by a killed process is broken, and the next caller holds a rea
 
 const TOKEN = "00000000-0000-4000-8000-000000000000";
 
-test("a waiter on a live holder throws a UserError naming the lock and the holder, and leaves the lock alone", async () => {
+test("a waiter on a live holder throws a UserError naming the lock and the holder, and leaves the lock alone", SPAWN_TEST, async () => {
   const bench = lockBench();
   try {
     const a = bench.hold("A", 5_000);
-    assert.ok(await until(() => bench.journal().includes("A enter"), 5_000), "A never took the lock");
+    assert.ok(await until(() => bench.journal().includes("A enter"), SIGNAL_MS), "A never took the lock");
     let entered = false;
     assert.throws(
       () => withLock(bench.file, () => { entered = true; }, { timeoutMs: 100 }),
@@ -218,14 +233,14 @@ test("a waiter on a live holder throws a UserError naming the lock and the holde
   }
 });
 
-test("a live holder's lock is never aged out, however old it is", async () => {
+test("a live holder's lock is never aged out, however old it is", SPAWN_TEST, async () => {
   // The unreadable-owner rule breaks a lock by age. A readable owner that is alive
   // must not be subject to it: the default wait is 2 s and so is that limit, so a
   // waiter that outlasts it would otherwise walk in beside a holder still inside.
   const bench = lockBench();
   try {
     const a = bench.hold("A", 5_000);
-    assert.ok(await until(() => bench.journal().includes("A enter"), 5_000), "A never took the lock");
+    assert.ok(await until(() => bench.journal().includes("A enter"), SIGNAL_MS), "A never took the lock");
     const old = new Date(Date.now() - 60_000);
     utimesSync(bench.lock, old, old);
     let entered = false;
@@ -239,7 +254,7 @@ test("a live holder's lock is never aged out, however old it is", async () => {
   }
 });
 
-test("a guard left by a dead process does not keep a dead lock from being broken", async () => {
+test("a guard left by a dead process does not keep a dead lock from being broken", SPAWN_TEST, async () => {
   const bench = lockBench();
   try {
     writeFileSync(bench.lock, `${await bench.deadPid()} ${TOKEN}\n`);
@@ -255,7 +270,7 @@ test("a guard left by a dead process does not keep a dead lock from being broken
   }
 });
 
-test("an empty guard left by a process killed as it created it does not keep a dead lock from being broken", async () => {
+test("an empty guard left by a process killed as it created it does not keep a dead lock from being broken", SPAWN_TEST, async () => {
   // Every guard is empty for an instant, so a breaker killed there leaves an empty
   // `.lock.break` beside the dead lock. Nothing names its owner, so only its age
   // can say it is a leftover, and it must then be removed, not merely ignored.
@@ -277,7 +292,7 @@ test("an empty guard left by a process killed as it created it does not keep a d
   }
 });
 
-test("a dead lock is not broken while a live process holds the break guard", async () => {
+test("a dead lock is not broken while a live process holds the break guard", SPAWN_TEST, async () => {
   const bench = lockBench();
   try {
     const guard = `${bench.lock}.break`;
@@ -308,18 +323,19 @@ test("a lock whose owner exists but belongs to someone else is treated as held",
   }
 });
 
-test("a lock is never visible with a partial or foreign owner in it", async () => {
+test("a lock is never visible with a partial or foreign owner in it", SPAWN_TEST, async () => {
   // The owner is written just after the exclusive create, so a reader may meet the
   // lock empty for an instant, which the unreadable-owner rule waits on. What it
   // must never meet is half an owner. Hammer the name from one process and read it
-  // from this one.
+  // from this one. The writer is bounded by time, not by a count of iterations, so
+  // how long the test takes does not depend on how loaded the machine is.
   const bench = lockBench();
   const writer = spawn(
     process.execPath,
     [
       ...RUNTIME_FLAGS,
       "-e",
-      `import(${JSON.stringify(join(dirname(HOLDER), "..", "src", "tsv.ts"))}).then(({withLock})=>{for(let i=0;i<3000;i++)withLock(${JSON.stringify(bench.file)},()=>{})})`,
+      `import(${JSON.stringify(join(dirname(HOLDER), "..", "src", "tsv.ts"))}).then(({withLock})=>{for(const end=Date.now()+500;Date.now()<end;)withLock(${JSON.stringify(bench.file)},()=>{})})`,
     ],
     { stdio: "ignore" },
   );
@@ -345,7 +361,7 @@ test("a lock is never visible with a partial or foreign owner in it", async () =
   }
 });
 
-test("a waiter that judged a lock dead does not remove the live lock that replaced it", async () => {
+test("a waiter that judged a lock dead does not remove the live lock that replaced it", SPAWN_TEST, async () => {
   // The hazard is two breakers: each judges the same dead lock dead, one removes it
   // and takes its own, and the other then removes that live one and walks in. The
   // second breaker is stopped after it judged and before it took the guard, so the
@@ -354,21 +370,21 @@ test("a waiter that judged a lock dead does not remove the live lock that replac
   try {
     writeFileSync(bench.lock, `${await bench.deadPid()} ${TOKEN}\n`);
     const w2 = bench.hold("W2", 5_000, { blockAt: "judged-stale", signal: "waiting" });
-    assert.ok(await until(() => bench.journal().includes("W2 at judged-stale"), 20_000), "W2 never judged the lock dead");
+    assert.ok(await until(() => bench.journal().includes("W2 at judged-stale"), SIGNAL_MS), "W2 never judged the lock dead");
 
     const w1 = bench.hold("W1", 5_000);
-    assert.ok(await until(() => bench.journal().includes("W1 enter"), 20_000), "W1 never broke the dead lock");
+    assert.ok(await until(() => bench.journal().includes("W1 enter"), SIGNAL_MS), "W1 never broke the dead lock");
     const ownedByW1 = () => readFileSync(bench.lock, "utf8").startsWith(`${w1.child.pid} `);
     assert.ok(ownedByW1(), "fixture: W1 should hold the lock it took from the dead owner");
 
     w2.releaseStep();
-    assert.ok(await until(() => /W2 (at waiting|enter)/.test(bench.journal()), 20_000), "W2 neither entered nor waited");
+    assert.ok(await until(() => /W2 (at waiting|enter)/.test(bench.journal()), SIGNAL_MS), "W2 neither entered nor waited");
     assert.ok(!bench.journal().includes("W2 enter"), `W2 entered beside W1:\n${bench.journal()}`);
     assert.ok(ownedByW1(), "W2 removed the lock W1 now holds");
 
     w1.release();
     assert.equal(await w1.exited, 0);
-    assert.ok(await until(() => bench.journal().includes("W2 enter"), 20_000), "W2 never got the lock after W1 let go");
+    assert.ok(await until(() => bench.journal().includes("W2 enter"), SIGNAL_MS), "W2 never got the lock after W1 let go");
     w2.release();
     assert.equal(await w2.exited, 0);
     assert.deepEqual(
@@ -379,7 +395,7 @@ test("a waiter that judged a lock dead does not remove the live lock that replac
   } finally {
     bench.dispose();
   }
-}, { timeout: 90_000 });
+});
 
 /**
  * `withLock` on a path in a child that is killed if it has not answered. A lock
@@ -392,13 +408,13 @@ async function probe(file: string, timeoutMs: number): Promise<{ out: string; ms
   let out = "";
   child.stdout.on("data", (chunk) => { out += String(chunk); });
   let hung = false;
-  const timer = setTimeout(() => { hung = true; child.kill("SIGKILL"); }, timeoutMs + 3_000);
+  const timer = setTimeout(() => { hung = true; child.kill("SIGKILL"); }, timeoutMs + 15_000);
   await new Promise((res) => child.on("close", res));
   clearTimeout(timer);
   return { out: out.trim(), ms: Date.now() - started, hung };
 }
 
-test("a lock that cannot be created because the directory is missing fails promptly, naming the lock", async () => {
+test("a lock that cannot be created because the directory is missing fails promptly, naming the lock", SPAWN_TEST, async () => {
   const bench = lockBench();
   try {
     const file = join(bench.dir, "no-such-dir", "target.tsv");
@@ -412,7 +428,7 @@ test("a lock that cannot be created because the directory is missing fails promp
   }
 });
 
-test("a lock that cannot be created because the directory is read-only fails promptly, naming the lock", { skip: process.getuid?.() === 0 }, async () => {
+test("a lock that cannot be created because the directory is read-only fails promptly, naming the lock", { skip: process.getuid?.() === 0, ...SPAWN_TEST }, async () => {
   const bench = lockBench();
   try {
     const dir = join(bench.dir, "readonly");
@@ -429,7 +445,7 @@ test("a lock that cannot be created because the directory is read-only fails pro
   }
 });
 
-test("a lock path that exists but cannot be read is waited on to the deadline, not spun on", async () => {
+test("a lock path that exists but cannot be read is waited on to the deadline, not spun on", SPAWN_TEST, async () => {
   // A dangling symlink: creating the lock fails with EEXIST, yet the path "does not
   // exist" to existsSync and stat. Nothing here can be broken, so the waiter must
   // reach the deadline and say so.
