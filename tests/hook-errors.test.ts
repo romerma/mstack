@@ -640,6 +640,87 @@ test("a store that cannot take the log gets no exclude entry either", { skip: pr
   }
 });
 
+/** A store older than the log: its own .gitignore does not list it, which is the case the exclude edit exists for. */
+function oldStore(root: string): string {
+  const dir = join(root, ".mstack");
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(join(dir, ".gitignore"), "verification.tsv\n");
+  return dir;
+}
+
+test("a git repository with no store is never edited", () => {
+  const root = initRepo();
+  try {
+    const before = readFileSync(excludeOf(root));
+    for (const args of [FAILING, ["stop"]] as const) {
+      const r = hook(root, args, args === FAILING ? JSON.stringify({ cwd: root }) : THROWING_INPUT);
+      assert.equal(r.code, 0);
+    }
+    assert.deepEqual(readFileSync(excludeOf(root)), before, ".git/info/exclude is byte-identical");
+    assert.equal(existsSync(join(root, ".mstack")), false);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("the exclude entry is written once, however many first failures a store sees", () => {
+  const root = initRepo();
+  try {
+    const dir = oldStore(root);
+    for (let i = 0; i < 3; i += 1) {
+      rmSync(join(dir, LOG), { force: true }); // the next failure is a "first" one again
+      assert.equal(hook(root, FAILING, JSON.stringify({ cwd: root })).code, 0);
+      assert.equal(existsSync(join(dir, LOG)), true);
+    }
+    const entries = readFileSync(excludeOf(root), "utf8").split("\n").filter((l) => l.trim() === ENTRY);
+    assert.equal(entries.length, 1, readFileSync(excludeOf(root), "utf8"));
+    assert.equal(git(root, "status", "--short", "--ignored", "--", ".mstack").includes(`!! .mstack/${LOG}`), true);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("an exclude file with no trailing newline keeps its last pattern working", () => {
+  const root = initRepo();
+  try {
+    const dir = oldStore(root);
+    writeFileSync(excludeOf(root), "keep-me\n*.swp");
+    assert.equal(hook(root, FAILING, JSON.stringify({ cwd: root })).code, 0);
+    assert.equal(
+      readFileSync(excludeOf(root), "utf8"),
+      `keep-me\n*.swp\n# mstack: machine-local hook error log\n${ENTRY}\n`,
+    );
+    writeFileSync(join(root, "scratch.swp"), "");
+    assert.equal(git(root, "check-ignore", "scratch.swp").trim(), "scratch.swp", "the user's own pattern still matches");
+    assert.equal(git(root, "check-ignore", `.mstack/${LOG}`).trim(), `.mstack/${LOG}`);
+    assert.equal(existsSync(join(dir, LOG)), true);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("in a linked worktree the entry lands in the common directory's exclude, which git reads", () => {
+  const root = initRepo();
+  const wtParent = mkdtempSync(join(tmpdir(), "mstack-wt-"));
+  const wt = join(wtParent, "linked");
+  try {
+    git(root, "worktree", "add", "-q", "-b", "linked", wt);
+    assert.equal(statSync(join(wt, ".git")).isFile(), true, "a linked worktree's .git is a file");
+    const dir = oldStore(wt);
+    const mainBefore = readFileSync(excludeOf(root), "utf8");
+    assert.equal(hook(wt, FAILING, JSON.stringify({ cwd: wt })).code, 0);
+    assert.equal(existsSync(join(dir, LOG)), true);
+    assert.equal(
+      readFileSync(excludeOf(root), "utf8"),
+      `${mainBefore}${mainBefore.endsWith("\n") ? "" : "\n"}# mstack: machine-local hook error log\n${ENTRY}\n`,
+    );
+    assert.equal(git(wt, "check-ignore", `.mstack/${LOG}`).trim(), `.mstack/${LOG}`, "git itself honours it from the worktree");
+  } finally {
+    rmSync(wtParent, { recursive: true, force: true });
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 // ---------------------------------------------------------------------------
 // Budget
 // ---------------------------------------------------------------------------
