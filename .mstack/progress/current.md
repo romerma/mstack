@@ -7,7 +7,7 @@
 > empty template below.
 
 - **Item:** 47 ledger-check-hides-a-rejection
-- **Status:** in_progress (bug-fix playbook, steps 1, 2 and 4 done)
+- **Status:** reviewing, round 1
 - **Branch:** fix/ledger-check-hides-a-rejection
 - **Base:** 5b2714c
 - **Worktree:** none
@@ -45,17 +45,17 @@ passes bypassPermissions. Do not run `check.mjs` or `verify.mjs` while a batch i
 
 ## Next step
 
-Item 47. Reproduced on this store: `./bin/mstack ledger check benchmark-harness <full a4e6c784
-sha>` prints `PASS test-verified at a4e6c784 by implementer`. Mechanism: `src/ledger.ts:151`
-keeps the best row by rank. Design recorded (row of phase `design`): judge a sha by its latest
-closing-role row. An implementer has the brief and writes the red test first; its report goes
-to `impl_ledger-check-hides-a-rejection.md`. Then a fresh reviewer on a different model.
+Item 47, round 1 implementation is in: `impl_ledger-check-hides-a-rejection.md`, code head
+`ebd8a6b`. `ledger check` answers with the latest closing-role row at the sha; with none it
+keeps best-by-rank and labels it the author's own verdict. Round 1 review is out to a fresh
+reviewer on a different model, which writes `review_ledger-check-hides-a-rejection.md` and
+types its own ledger row.
 
-Seen on the way, not in this item: `ledger check <target> a4e6c784` with an abbreviated sha
-answers "no verdict at a4e6c784" although rows exist at that commit.
+- APPROVED: `state set 47 --status verifying`, then `done`, merge fast-forward, then item 46.
+- CHANGES_REQUESTED: `state set 47 --status in_progress`, a fresh implementer, review as `_r2`.
+
+Follow-ups to file when the item closes: `ledger check` and `ledger record` compare shas
+exactly, so an abbreviated sha answers "no verdict" and the ledger holds a 7-character row
+(`9b36340`); the gate lets a latest `verifier-blocked` close while `ledger check` fails on it.
 
 After 47: 46, 50. Then phase 1 and item 69, which need the plugin really loaded.
-
-## Item 47 implementation (2026-11-17)
-
-Fix landed on fix/ledger-check-hides-a-rejection (bb21cf7 red, 4cd34e7 fix, docs dcbfe12, ebd8a6b). Report: `.mstack/progress/impl_ledger-check-hides-a-rejection.md`. Next: a reviewer pass that did not write the code; do not change status here.
