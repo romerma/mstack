@@ -156,9 +156,12 @@ export function check(
   // report is that report under a reviewer's name, and the gate drops it. A
   // REJECTION is never dropped: citing the report it rejects is ordinary prose,
   // and discarding it could only hide a failure.
+  // `citesImplementingReport` builds a RegExp from the slug. The gate only sees
+  // SLUG-validated names, but a ledger target is free text, so escape it here.
+  const literal = target.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const byCloser = here.filter((e) => canCloseAnItem(e.verifier));
   const isRejection = (e: Entry) => e.verdict === "verifier-failed" || e.verdict === "verifier-blocked";
-  const closing = byCloser.filter((e) => isRejection(e) || citesImplementingReport(e.evidence, target) === undefined);
+  const closing = byCloser.filter((e) => isRejection(e) || citesImplementingReport(e.evidence, literal) === undefined);
   const discounted = byCloser.filter((e) => !closing.includes(e));
 
   // The latest closing row is the answer, not the best-ranked row: a rejection
