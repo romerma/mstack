@@ -285,18 +285,21 @@ test("keys the CLI does not know survive a write, on the state, rules and every 
 
 test("state set keeps an unknown key on the item it changes and on the one it does not", SPAWN_TEST, async () => {
   const sb = sandbox();
+  let writers: ReturnType<typeof together> | undefined;
   try {
     sb.writeState(state(
       [item({ id: 1, slug: "a", title: "A", owner: "ana" }), item({ id: 2, slug: "b", title: "B", owner: "bo" })],
       { team: "core" },
     ));
-    const [exit] = await together(sb.store.root, [["state", "set", "a", "--title", "A2"]]).done;
+    writers = together(sb.store.root, [["state", "set", "a", "--title", "A2"]]);
+    const [exit] = await writers.done;
     assert.equal(exit!.code, 0, exit!.stderr);
     const raw = JSON.parse(readFileSync(sb.store.state, "utf8")) as Record<string, any>;
     assert.equal(raw.team, "core");
     assert.deepEqual(raw.items.map((i: any) => i.owner), ["ana", "bo"]);
     assert.equal(raw.items[0].title, "A2");
   } finally {
+    writers?.kill();
     sb.dispose();
   }
 });
