@@ -7,7 +7,7 @@
 > empty template below.
 
 - **Item:** 53 state-json-loses-concurrent-writes
-- **Status:** in_progress, round 2 after CHANGES_REQUESTED
+- **Status:** reviewing, round 2
 - **Branch:** fix/state-json-loses-concurrent-writes
 - **Base:** dce98cb
 - **Worktree:** none
@@ -45,21 +45,20 @@ passes bypassPermissions. Do not run `check.mjs` or `verify.mjs` while a batch i
 
 ## Next step
 
-Item 53, round 1 review: CHANGES_REQUESTED, `review_state-json-loses-concurrent-writes.md`,
-ledger row `verifier-failed` at ee2ad50. One blocker: `src/state.ts:274` writes once with
-`writeSync` and ignores the byte count, so a short write is renamed over `state.json` and the
-command exits 0 (`ulimit -f 2` with the real CLI leaves 1024 bytes of invalid JSON). Acceptance
-1, 3 and 4 are met; 2 is met for the kill case.
+Item 53, round 2 implementation is in: `impl_state-json-loses-concurrent-writes_r2.md`, code
+head `4b533c8`. The write is now `writeFileSync(fd, text)`; a cut-short write throws, leaves the
+target untouched and removes the temp file. Round 2 review is out to a fresh reviewer, which
+writes `review_state-json-loses-concurrent-writes_r2.md` and types its own ledger row.
 
-A fresh implementer has the blocker and two cheap notes. When it returns: `state set 53 --status
-reviewing`, then a fresh reviewer writes `review_state-json-loses-concurrent-writes_r2.md`.
+- APPROVED: `state set 53 --status verifying`, then `done`, merge the branch to main
+  fast-forward, then item 54.
+- CHANGES_REQUESTED: a third round needs a `review-r3` decision row.
 
-Follow-ups to file when the item closes (from the round 1 review's non-blocking list): the
-`decide --resolves` message when the row is recorded and the pointer is not; a leftover temp
-file whose pid recurs fails one write; a symlinked `state.json` is replaced by a regular file
-and file mode is not kept; `--status done` does git work under the lock; the known-key lists
-are kept in step with `parseItem` by hand; surviving mutants M7b, M8, M16.
+Follow-ups to file when the item closes (round 1 review's non-blocking list): the `decide
+--resolves` message when the row is recorded and the pointer is not; a leftover temp file whose
+pid recurs fails one write; a symlinked `state.json` is replaced by a regular file and file mode
+is not kept; `--status done` does git work under the lock; the known-key lists are kept in step
+with `parseItem` by hand; surviving mutants M7b, M8, M16; the EFBIG hint says "check that it is
+writable".
 
 After 53: 54, 47, 46, 50.
-
-- 2026-11-16 round 2: blocker (short write at state.ts:274) reproduced and fixed with writeFileSync; red test 1df7891, fix acf1e8a, dead line 448fc54, finally-kill 4b533c8. Next: reviewer round 2.
