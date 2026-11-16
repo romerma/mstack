@@ -2,3 +2,7 @@
 # Never committed - a receipt is keyed to HEAD, so committing one voids it, and
 # a receipt from another checkout is not evidence that anything ran in this one.
 verification.tsv
+# Machine-local: the hooks that failed on this machine. Another machine's
+# failures say nothing about this one, and the gate reads it against the local
+# history.md, so a copy from elsewhere would warn about something nobody here did.
+hook-errors.log
