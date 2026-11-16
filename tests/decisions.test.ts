@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { execFileSync, spawnSync } from "node:child_process";
+import { execFileSync, spawn, spawnSync } from "node:child_process";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -425,7 +425,7 @@ test("resolving a fork demands an answer that says something", () => {
   }
 });
 
-test("concurrent decisions do not share a timestamp, because the timestamp is the key", () => {
+test("concurrent decisions do not share a timestamp, because the timestamp is the key", async () => {
   const sb = sandbox();
   try {
     sb.writeState(state([item({ status: "in_progress" })]));
@@ -434,13 +434,22 @@ test("concurrent decisions do not share a timestamp, because the timestamp is th
     // before the append was serialised. Fan-out is a shipped feature, so this
     // is the designed workflow rather than a stress test, and a pointer that
     // resolved to two rows could name two contradictory answers.
-    const children = Array.from({ length: 12 }, (_, i) =>
-      spawnSync(MSTACK, ["decide", "--decision", `concurrent ${i}`], {
+    // Launched together and awaited together: `spawnSync` in a loop runs them
+    // one after another, which never contends for anything.
+    const children = Array.from({ length: 12 }, (_, i) => {
+      const child = spawn(MSTACK, ["decide", "--decision", `concurrent ${i}`], {
         cwd: sb.store.root,
-        encoding: "utf8",
-      }),
-    );
-    for (const child of children) assert.equal(child.status, 0, child.stderr);
+        stdio: ["ignore", "ignore", "pipe"],
+      });
+      let stderr = "";
+      child.stderr.on("data", (chunk) => {
+        stderr += chunk;
+      });
+      return new Promise<{ status: number | null; stderr: string }>((res) =>
+        child.on("close", (status) => res({ status, stderr })),
+      );
+    });
+    for (const child of await Promise.all(children)) assert.equal(child.status, 0, child.stderr);
 
     const rows = all(sb.store);
     assert.equal(rows.length, 12, "every decision must be recorded");
