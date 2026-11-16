@@ -716,7 +716,7 @@
         "what a waiter does when a live holder outlasts the timeout (keep waiting, or exit non-zero naming the lock) is recorded with mstack decide",
         "the 'concurrent decisions' test in tests/decisions.test.ts launches its processes concurrently, and removing the withLock call makes it fail (mutation shown in the report)"
       ],
-      "status": "in_progress",
+      "status": "reviewing",
       "description": "Reproduced 2026-11-16 with three node processes on one file: A holds 48-3549 ms, B waits 2 s, removes A's lock and enters at 2280 ms without creating its own, C then acquires a fresh lock at 2802 ms while A is still inside. src/tsv.ts:109-116 breaks the lock and falls through to run(); the finally at :129-135 removes whatever lock file exists, whoever owns it.",
       "source": "reports/Mejoras mstack con skills Pocock.md, 2026-11-16"
     },

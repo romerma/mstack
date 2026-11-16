@@ -7,7 +7,7 @@
 > empty template below.
 
 - **Item:** 52 withlock-enters-without-the-lock
-- **Status:** in_progress, round 2 after CHANGES_REQUESTED
+- **Status:** reviewing, round 2
 - **Branch:** fix/withlock-enters-without-the-lock
 - **Base:** d34761e
 - **Worktree:** none
@@ -51,18 +51,17 @@ passes bypassPermissions. Do not run `check.mjs` or `verify.mjs` while a batch i
 
 ## Next step
 
-Round 1 review: CHANGES_REQUESTED, `review_withlock-enters-without-the-lock.md`, ledger row
-`verifier-failed` at 572ebbc. Three blockers and one missing test:
+Round 2 implementation is in: `impl_withlock-enters-without-the-lock_r2.md`, code head
+`f56b44c`. The lock is now an exclusive create followed by the owner write, with no temp file
+and no hard link. Round 2 review is out to a fresh reviewer, which writes
+`review_withlock-enters-without-the-lock_r2.md` and types its own ledger row.
 
-1. `withLock` spins forever when the lock cannot be created for a reason other than "exists"
-   (exFAT has no hard links, read-only `.mstack/`): `src/tsv.ts:131-132, 188-192, 223`.
-2. The live-holder tests give the waiter 100 to 200 ms, so a mutant that breaks a live holder's
-   lock once it is 2 s old passes all of them and brings the original defect back.
-3. The stale-break race test passes on a mutant that drops the re-check under the guard.
-4. No test breaks a guard left by a dead process (`src/tsv.ts:232-233`).
+- APPROVED: `./bin/mstack gate --full`, `state set 52 --status verifying`, then `done`, merge
+  the branch to main fast-forward, and start item 53.
+- CHANGES_REQUESTED: a third round needs a `review-r3` decision row scoped to what is left.
 
-A fresh implementer has the findings. When it returns: `state set 52 --status reviewing`, then a
-fresh reviewer writes `review_withlock-enters-without-the-lock_r2.md`.
+Open question the reviewer was asked to settle: the rebuilt race test is statistical. A first
+draft failed once in a full node run and the cause (cross-process clocks) is unproven.
 
 ## Verification
 
