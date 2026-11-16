@@ -1,6 +1,7 @@
 import { execFileSync } from "node:child_process";
 
 import { UserError, type Store } from "./paths.ts";
+import { canCloseAnItem, citesImplementingReport } from "./roles.ts";
 import { append, readRecords } from "./tsv.ts";
 
 /**
@@ -122,6 +123,8 @@ export interface CheckResult {
 /**
  * Does `target` hold a verdict at `sha` that clears `min`?
  *
+ * Judged by the latest row from a role that can close an item; see below.
+ *
  * Rows recorded against a different SHA are reported as stale rather than
  * ignored, because "there was a verdict once" is the exact story that gets a
  * rewritten stack merged.
@@ -148,6 +151,44 @@ export function check(
     };
   }
 
+  // The rows the gate's closing audit reads (`checkClosedItems`): a role that can
+  // close an item, whose evidence does not point at an implementing role's own
+  // report. Anything else is the author talking about its own work.
+  const closing = here.filter(
+    (e) => canCloseAnItem(e.verifier) && citesImplementingReport(e.evidence, target) === undefined,
+  );
+
+  // The latest closing row is the answer, not the best-ranked row: a rejection
+  // after an approval retracts it, and an approval after a rejection answers it.
+  // "Latest" is row order, which is append order. The `ts` column is not used:
+  // a row can be recorded with an explicit `ts`, rows from two machines can
+  // carry skewed clocks, and the gate's audit already orders by position, so
+  // the two cannot disagree about which row is last.
+  const latest = closing[closing.length - 1];
+  if (latest !== undefined) {
+    const by = latest.verifier || "unknown";
+    if (latest.verdict === "verifier-failed" || latest.verdict === "verifier-blocked") {
+      return {
+        passing: false,
+        best: latest,
+        stale,
+        reason: `${latest.verdict} at ${short(sha)} by ${by} rejects this commit, whatever an implementing role recorded (evidence: ${latest.evidence})`,
+      };
+    }
+    const passing = RANK[latest.verdict] >= RANK[min];
+    return {
+      passing,
+      best: latest,
+      stale,
+      reason: passing
+        ? `${latest.verdict} at ${short(sha)} by ${by}`
+        : `latest closing verdict at ${short(sha)} is ${latest.verdict} by ${by}, which does not clear ${min}`,
+    };
+  }
+
+  // No closing-role row: every row here is the author's own, so the best-ranked
+  // one is kept as before, and the message says whose verdict it is so nobody
+  // reads it as an independent approval.
   const best = here.reduce((a, b) => (RANK[b.verdict] > RANK[a.verdict] ? b : a));
   const passing = RANK[best.verdict] >= RANK[min];
   return {
@@ -155,8 +196,8 @@ export function check(
     best,
     stale,
     reason: passing
-      ? `${best.verdict} at ${short(sha)} by ${best.verifier || "unknown"}`
-      : `best verdict at ${short(sha)} is ${best.verdict}, which does not clear ${min}`,
+      ? `${best.verdict} at ${short(sha)} by ${best.verifier || "unknown"} (the author's own verdict, not an independent approval)`
+      : `best verdict at ${short(sha)} is ${best.verdict}, which does not clear ${min} (the author's own verdict)`,
   };
 }
 
