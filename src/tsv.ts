@@ -208,8 +208,9 @@ function readOwner(path: string): Owner | null {
 }
 
 /**
- * Create `path` exclusively and write the owner into it. False only when it
- * already exists; any other failure throws, because "could not create" and "held
+ * Create `path` exclusively and write the owner into it. False when it already
+ * exists, or when it was taken from this caller before the owner was written (the
+ * caller then waits as for any held lock); any other failure throws, because "could not create" and "held
  * by someone" need opposite handling.
  */
 function tryCreate(path: string, token: string, created: LockStep, step: LockOptions["step"]): boolean {
@@ -222,6 +223,8 @@ function tryCreate(path: string, token: string, created: LockStep, step: LockOpt
   }
   try {
     step?.(created);
+    // Through the fd from the exclusive open, never by path: if the lock was broken
+    // while this process was stopped, a write by path would clobber the breaker's.
     writeSync(fd, `${process.pid} ${token}\n`);
   } catch (error) {
     rmSync(path, { force: true });
@@ -229,7 +232,11 @@ function tryCreate(path: string, token: string, created: LockStep, step: LockOpt
   } finally {
     closeSync(fd);
   }
-  return true;
+  // Between the create and the write the lock was empty, and an empty lock older
+  // than the limit is taken for a leftover and broken. Read it back by path and
+  // compare tokens (inode numbers can compare equal for a file and its successor
+  // on some filesystems): when it is not ours it is someone else's now, so leave it.
+  return readOwner(path)?.token === token;
 }
 
 function cannotCreate(path: string, error: unknown): UserError {
