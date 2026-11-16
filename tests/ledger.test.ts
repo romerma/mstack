@@ -352,3 +352,41 @@ test("an approval citing the implementer's report does not count when a genuine 
   assert.equal(r.passing, true);
   assert.equal(r.best?.verdict, "test-verified", "the discounted row is not the answer");
 });
+
+// ---- item 47, round 2: a slug with regex metacharacters is a literal --------------------
+//
+// `ledger record` and `ledger check` take a free-text target, and the citation
+// check builds a pattern from it. `api(v2` crashed the command with "Invalid
+// regular expression" where it used to print an answer.
+
+function checkTarget(target: string, rows: Array<[Row[0], string, string]>) {
+  const sb = sandbox();
+  try {
+    for (const [verdict, verifier, evidence] of rows) {
+      record(sb.store, { target, sha: sb.sha, verdict, evidence, verifier });
+    }
+    return check(sb.store, target, sb.sha);
+  } finally {
+    sb.dispose();
+  }
+}
+
+for (const target of ["api(v2", "a.b", "x[1]", "a+b"]) {
+  test(`a target with regex metacharacters (${target}) gets an ordinary answer`, () => {
+    const r = checkTarget(target, [["test-verified", "reviewer", `.mstack/progress/review_${target}.md`]]);
+    assert.equal(r.passing, true);
+    assert.equal(r.reason, `test-verified at ${r.best?.sha.slice(0, 8)} by reviewer`);
+  });
+
+  test(`an approval citing impl_${target}.md is still recognised as the implementer's report`, () => {
+    const r = checkTarget(target, [["test-verified", "reviewer", `.mstack/progress/impl_${target}.md`]]);
+    assert.equal(r.passing, false);
+    assert.match(r.reason, /implementer's own report/);
+  });
+}
+
+test("a dot in the target is not a wildcard: impl_axb.md is not the report for a.b", () => {
+  const r = checkTarget("a.b", [["test-verified", "reviewer", ".mstack/progress/impl_axb.md"]]);
+  assert.equal(r.passing, true, "a report for another item does not discount the row");
+  assert.equal(r.best?.verifier, "reviewer");
+});
