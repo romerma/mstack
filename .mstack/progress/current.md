@@ -6,10 +6,10 @@
 > On close: append the summary to `history.md` and reset this file to the
 > empty template below.
 
-- **Item:** 54 hook-errors-leave-no-trace
-- **Status:** reviewing, round 2
-- **Branch:** fix/hook-errors-leave-no-trace
-- **Base:** 8dac2fd
+- **Item:** none active (54 closed 2026-11-17; next 47 ledger-check-hides-a-rejection)
+- **Status:** -
+- **Branch:** main
+- **Base:** -
 - **Worktree:** none
 
 ## Plan
@@ -45,19 +45,10 @@ passes bypassPermissions. Do not run `check.mjs` or `verify.mjs` while a batch i
 
 ## Next step
 
-Item 54, round 2 implementation is in: `impl_hook-errors-leave-no-trace_r2.md`, code head
-`9b36340`. subagent-stop now logs an unreadable `state.json`; two tests pin the branch where
-`tolerateAbsence` records a fault; the exclude edit needs a store directory and happens only
-after the append. Round 2 review is out to a fresh reviewer, which writes
-`review_hook-errors-leave-no-trace_r2.md` and types its own ledger row.
+Phase 0 has 52, 53 and 54 closed. Left in it: 47 (ledger check hides a rejection), 46 (npm test
+on node 22.6 and the bun test scope), 50 (`plugin validate --strict`).
 
-- APPROVED: `state set 54 --status verifying`, then `done`, merge fast-forward, then item 47.
-- CHANGES_REQUESTED: a third round needs a `review-r3` decision row.
-
-Follow-ups to file when the item closes: the lint refuses a foreign hook whose args start with
-"hook"; a `hooks.json` containing `null` crashes the lint (base too); `tests/run.test.ts:239`
-is load-sensitive, add it to item 67; a gate warning for a store whose log is not ignored;
-`session-start` on an unreadable `state.json` still prints "No active work item"; recording in
-a real `claude --plugin-dir .` session is unproven; surviving mutants O4, O14, O17, O21 to O25.
-
-After 54: 47, 46, 50. Then phase 1.
+Phase 1 (55 intake, 56 test-first reference) changes skills and agents and has acceptance lines
+that need the plugin really loaded (`claude --plugin-dir .`, or headless `claude -p` with it):
+a request driven through `/mstack` in the sandbox, and a subagent quoting a preloaded skill.
+Item 69 needs the same for the cost rows.

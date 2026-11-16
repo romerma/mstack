@@ -911,3 +911,34 @@ failed under load. One data point, not a measurement.
 
 **Filed:** item 68, state write follow-ups (the half-done `decide --resolves`, symlink and file
 mode, a recurring temp pid, key lists kept by hand, git work under the lock).
+
+## 2026-11-17 — item 54 hook-errors-leave-no-trace, closed
+
+**What changed.** A hook that throws, a hook called with an event the CLI does not handle, and
+every swallowed failure on the hook path that is not a plain absence now append one line to
+`.mstack/hook-errors.log` (machine-local, capped at 200 lines). Hooks still exit 0 and print
+what they printed before. `mstack gate` warns when the log has lines newer than `history.md`.
+`lint-plugin` refuses a `hooks.json` entry whose hook argument the CLI does not handle, from
+the one list the dispatcher reads. For stores created before this change the log's name is
+appended to `.git/info/exclude`, only after a successful append and only in a store directory.
+
+**Rounds: 2.** Sonnet implements, Opus reviews, general-purpose agents briefed from
+`agents/*.md`. No plugin loaded, so none of these hooks ran in a real session.
+- Round 1, rejected: subagent-stop still swallowed an unreadable `state.json`; no test pinned
+  the branch that records a fault, so a "never record" mutant passed.
+- Round 2, approved: `review_hook-errors-leave-no-trace_r2.md`, `test-verified` at `9adb4b9`
+  by reviewer. Six hooks by hand on both runtimes against four kinds of unreadable store, 24
+  fail-open rows and 120 concurrent hooks: exit 0, stdout unchanged, 2 to 3 ms added.
+
+**Why `costs.tsv` holds only its header.** Not a bug in this checkout. The item 37 session ran
+the cached 0.2.1 copy, which predates the cost code, and no session since 2026-11-08 has loaded
+the plugin. Run by hand, this checkout's hooks write a cost row. A real `claude --plugin-dir .`
+session writing rows end to end is still unproven and is in item 69.
+
+**Filed:** item 69, hook log follow-ups. Item 67 gained a third load-sensitive test,
+`tests/run.test.ts:239`.
+
+**Phase 0 so far:** 52, 53 and 54 closed in 3, 2 and 2 rounds. In all three the suite was green
+in every round and each blocker came from the reviewer running real processes or mutants.
+Briefs that asked for the mutant table up front cut the first-round blockers from three to one
+or two, and did not get any item through in one round.
