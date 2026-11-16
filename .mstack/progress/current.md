@@ -7,7 +7,7 @@
 > empty template below.
 
 - **Item:** 54 hook-errors-leave-no-trace
-- **Status:** in_progress, round 2 after CHANGES_REQUESTED
+- **Status:** reviewing, round 2
 - **Branch:** fix/hook-errors-leave-no-trace
 - **Base:** 8dac2fd
 - **Worktree:** none
@@ -45,17 +45,19 @@ passes bypassPermissions. Do not run `check.mjs` or `verify.mjs` while a batch i
 
 ## Next step
 
-Item 54, round 2 implementation done (`impl_hook-errors-leave-no-trace_r2.md`, head of code
-`9b36340`): subagent-stop now logs an unreadable `state.json`, the fault branch of
-`tolerateAbsence` is pinned, the exclude edit needs a directory store and follows the append,
-and O5/O6/O6b/H8c have tests. Survivors G1 and H8c-literal are equivalent by layering (see
-report). Next: `state set 54 --status reviewing`, then a fresh reviewer writes
-`review_hook-errors-leave-no-trace_r2.md`.
+Item 54, round 2 implementation is in: `impl_hook-errors-leave-no-trace_r2.md`, code head
+`9b36340`. subagent-stop now logs an unreadable `state.json`; two tests pin the branch where
+`tolerateAbsence` records a fault; the exclude edit needs a store directory and happens only
+after the append. Round 2 review is out to a fresh reviewer, which writes
+`review_hook-errors-leave-no-trace_r2.md` and types its own ledger row.
+
+- APPROVED: `state set 54 --status verifying`, then `done`, merge fast-forward, then item 47.
+- CHANGES_REQUESTED: a third round needs a `review-r3` decision row.
 
 Follow-ups to file when the item closes: the lint refuses a foreign hook whose args start with
 "hook"; a `hooks.json` containing `null` crashes the lint (base too); `tests/run.test.ts:239`
 is load-sensitive, add it to item 67; a gate warning for a store whose log is not ignored;
 `session-start` on an unreadable `state.json` still prints "No active work item"; recording in
-a real `claude --plugin-dir .` session is unproven.
+a real `claude --plugin-dir .` session is unproven; surviving mutants O4, O14, O17, O21 to O25.
 
 After 54: 47, 46, 50. Then phase 1.
