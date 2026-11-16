@@ -238,6 +238,59 @@ test("hook input that is not JSON is logged, and an empty stdin is not", () => {
   }
 });
 
+// The 14 `tolerateAbsence` sites: a file that may legitimately be missing is silent,
+// a failure that is not an absence is a line. Without the second half of each pair,
+// the catch blocks could go quiet again with every other test green.
+test("a checkpoint that cannot be read leaves a line; one that is merely missing does not", () => {
+  const box = sandbox();
+  try {
+    rmSync(box.store.current, { force: true });
+    const absent = hook(box.store.root, ["session-start"], JSON.stringify({ cwd: box.store.root }));
+    assert.equal(absent.code, 0);
+    assert.equal(lines(box).length, 0, "ENOENT is an absence, not a fault");
+
+    mkdirSync(box.store.current); // a directory where current.md should be: EISDIR
+    const broken = hook(box.store.root, ["session-start"], JSON.stringify({ cwd: box.store.root }));
+    assert.equal(broken.code, 0);
+    assert.equal(broken.stderr, "");
+    assert.match(broken.stdout, /No active work item/, "the answer is the one it gave for an absent file");
+    const got = lines(box);
+    assert.equal(got.length, 1, JSON.stringify(got));
+    assert.match(got[0] as string, /\tsession-start\tcannot read .*current\.md: .*EISDIR/);
+  } finally {
+    box.dispose();
+  }
+});
+
+test("a transcript path that cannot be stat'ed leaves a line; a missing transcript does not", () => {
+  const box = sandbox();
+  try {
+    box.writeState(state([item({ status: "in_progress" })]));
+    trackCurrent(box);
+    const start = (session_id: string, transcript_path: string) =>
+      hook(box.store.root, ["session-start"], JSON.stringify({ cwd: box.store.root, session_id, transcript_path }));
+
+    // A fresh session's transcript does not exist yet: the normal case, and silent.
+    const absent = start("s8", join(box.store.root, "missing.jsonl"));
+    assert.equal(absent.code, 0);
+    assert.match(absent.stdout, /Active item/);
+    assert.equal(lines(box).length, 0, JSON.stringify(lines(box)));
+
+    // A name longer than the filesystem allows: ENAMETOOLONG, a fault and not an absence.
+    const tooLong = start("s9", join(box.store.root, `${"x".repeat(300)}.jsonl`));
+    assert.equal(tooLong.code, 0);
+    assert.match(tooLong.stdout, /Active item/, "the answer is the one it gives for a missing transcript");
+    assert.equal(tooLong.stderr, "");
+    const got = lines(box);
+    assert.ok(got.length >= 1, "the fault is recorded");
+    assert.match(got[0] as string, /\tsession-start\tcannot stat transcript /);
+    // The bounded message keeps the head of a very long path, so the errno itself is cut off.
+    assert.ok((got[0] as string).split("\t")[2]!.length <= 403);
+  } finally {
+    box.dispose();
+  }
+});
+
 // ---------------------------------------------------------------------------
 // Acceptance 3: an event the CLI does not handle
 // ---------------------------------------------------------------------------
