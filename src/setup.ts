@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
 
-import { storeAt, type Store } from "./paths.ts";
+import { HOOK_LOG, storeAt, type Store } from "./paths.ts";
 import { Report } from "./report.ts";
 import { ensureHeader } from "./tsv.ts";
 import { HEADER as LEDGER_HEADER } from "./ledger.ts";
@@ -57,7 +57,7 @@ _If this session dies right now, the first thing the next one should do._
 `;
 
 /**
- * The one file in the store that must not be committed.
+ * The files in the store that must not be committed.
  *
  * `verification.tsv` records that a command was executed *here*, keyed to the
  * commit it ran against. Committing it breaks both halves of that: the commit
@@ -70,6 +70,10 @@ export const STORE_GITIGNORE = `# Machine-local: which verification command ran 
 # Never committed - a receipt is keyed to HEAD, so committing one voids it, and
 # a receipt from another checkout is not evidence that anything ran in this one.
 verification.tsv
+# Machine-local: the hooks that failed on this machine. Another machine's
+# failures say nothing about this one, and the gate reads it against the local
+# history.md, so a copy from elsewhere would warn about something nobody here did.
+${HOOK_LOG}
 `;
 
 /**
@@ -154,7 +158,7 @@ export function setup(root: string, options: { force?: boolean } = {}): Report {
   // older store predates it, and one that silently loses the rule starts
   // committing receipts that void themselves.
   writeFileSync(join(store.dir, ".gitignore"), STORE_GITIGNORE, "utf8");
-  report.ok(".mstack/.gitignore ready (verification.tsv is machine-local)");
+  report.ok(".mstack/.gitignore ready (verification.tsv and hook-errors.log are machine-local)");
 
   report.summary();
   return report;

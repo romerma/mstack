@@ -27,7 +27,8 @@ const TERMINAL_IGNORED = new Set<string>(["cancelled"]);
 
 /** An answer has to be words. A row of spaces is a boolean with extra steps. */
 const SUBSTANTIAL = /[a-z0-9]/i;
-import { cliProvenance, describeSrcComparison, runningCliRoot, UserError, type Store } from "./paths.ts";
+import { errorsSince } from "./hooklog.ts";
+import { cliProvenance, describeSrcComparison, HOOK_LOG, runningCliRoot, UserError, type Store } from "./paths.ts";
 import { Report } from "./report.ts";
 import { canCloseAnItem, citesImplementingReport, MIN_REPORT_BYTES } from "./roles.ts";
 import { EMPTY_ITEM_LINE, EMPTY_NEXT_STEP } from "./setup.ts";
@@ -115,6 +116,32 @@ function checkStoreFiles(store: Store, report: Report): void {
     else report.fail(`${label} is missing`, "run 'mstack setup'");
   }
   checkReceiptIsIgnored(store, report);
+  checkHookErrors(store, report);
+}
+
+/**
+ * Hooks fail open, so a hook that broke said nothing to anyone. It left a line
+ * in `.mstack/hook-errors.log` instead (`src/hooklog.ts`), and this is where
+ * somebody reads it.
+ *
+ * "Since the last session close" is the last change to `progress/history.md`:
+ * closing a session appends to it, so a line older than that was there to be
+ * read before the session was closed. A warning, never a failure: a hook that
+ * broke is a reason to look, not a reason to refuse the work, and a gate that
+ * went red on a log nobody can clear but by writing history would be a trap.
+ */
+function checkHookErrors(store: Store, report: Report): void {
+  let closedAt = 0;
+  try {
+    closedAt = statSync(store.history).mtimeMs;
+  } catch {
+    // no history.md: every line counts, and the missing file is reported above
+  }
+  const { count, newest } = errorsSince(store.hookErrors, closedAt);
+  if (count === 0 || newest === null) return;
+  report.warn(
+    `${count} hook error${count === 1 ? "" : "s"} recorded since the last session close; newest: ${newest.event}: ${newest.message}. Read .mstack/${HOOK_LOG}`,
+  );
 }
 
 /**

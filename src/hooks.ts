@@ -4,6 +4,7 @@ import { basename, dirname, join } from "node:path";
 import * as costs from "./costs.ts";
 import { runGate } from "./gate.ts";
 import { isActive } from "./lifecycle.ts";
+import * as hooklog from "./hooklog.ts";
 import { findStore, type Store } from "./paths.ts";
 import { reportFiles, reportKind, roleOf, substantialReports } from "./roles.ts";
 import { activeItem, parseState, type Item } from "./state.ts";
@@ -44,6 +45,24 @@ interface HookInput {
   tool_input?: Record<string, unknown>;
 }
 
+/**
+ * Why `raw` is not a hook input, or null when it is one or when there is none.
+ *
+ * An empty stdin is a hook run by hand, not a fault. Anything else that is not
+ * a JSON object means the harness sent something this parser does not
+ * understand, and `readInput` answers `{}` for it, which every handler then
+ * reads as "nothing to do".
+ */
+export function inputProblem(raw: string): string | null {
+  if (raw.trim() === "") return null;
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    return typeof parsed === "object" && parsed !== null && !Array.isArray(parsed) ? null : "hook input is not a JSON object";
+  } catch {
+    return "hook input is not JSON";
+  }
+}
+
 export function readInput(raw: string): HookInput {
   try {
     const parsed: unknown = JSON.parse(raw);
@@ -79,10 +98,24 @@ export function sessionStart(input: HookInput): string | null {
   return text;
 }
 
-function sessionStartContext(store: Store): string {
+/**
+ * `activeItem` answers "none" for a `state.json` it cannot read, which is the
+ * right answer for a caller that only needs to know whether there is something
+ * to show, and a false one for the model told "No active work item" about a
+ * store that has one. The text is left as it was; the failure is written down.
+ */
+function activeItemOrLog(store: Store): Item | undefined {
+  try {
+    return parseState(store.state).items.find((i) => isActive(i.status));
+  } catch (error) {
+    hooklog.noteFailure("state.json could not be read", error);
+    return undefined;
+  }
+}
 
+function sessionStartContext(store: Store): string {
   const lines: string[] = ["mstack state for this repository:"];
-  const item = activeItem(store);
+  const item = activeItemOrLog(store);
   lines.push(
     item === undefined
       ? "- No active work item."
@@ -109,8 +142,9 @@ function sessionStartContext(store: Store): string {
 function safely(fn: () => void): void {
   try {
     fn();
-  } catch {
-    // by design
+  } catch (error) {
+    // Invisible to the user and to the model, by design; not invisible on disk.
+    hooklog.noteFailure("cost recording", error);
   }
 }
 
@@ -201,7 +235,8 @@ export function subagentStop(input: HookInput): string | null {
     const fresh = found.some((file) => {
       try {
         return statSync(file).mtimeMs > startedAt;
-      } catch {
+      } catch (error) {
+        hooklog.tolerateAbsence(`cannot stat report ${file}`, error);
         return false;
       }
     });
@@ -526,7 +561,8 @@ export function preToolUse(input: HookInput): string | null {
 function readIfPresent(path: string): string | null {
   try {
     return readFileSync(path, "utf8");
-  } catch {
+  } catch (error) {
+    hooklog.tolerateAbsence(`cannot read ${path}`, error);
     return null;
   }
 }

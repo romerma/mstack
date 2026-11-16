@@ -9,6 +9,7 @@ import { EXIT, evaluate, fetchPr } from "./mergegate.ts";
 import { closingProblems, VERIFICATION_CHECK } from "./closing.ts";
 import { itemLabel, runGate } from "./gate.ts";
 import { defaultBranch, headSha } from "./git.ts";
+import * as hooklog from "./hooklog.ts";
 import * as hooks from "./hooks.ts";
 import * as ledger from "./ledger.ts";
 import {
@@ -1018,35 +1019,53 @@ function cmdCost(argv: readonly string[]): number {
 
 async function cmdHook(argv: readonly string[]): Promise<number> {
   const [event] = argv;
-  const input = hooks.readInput(await readStdin());
+  const raw = await readStdin();
+  const input = hooks.readInput(raw);
+  // Where a failure is written down. Resolved the way the handlers resolve the
+  // store, and never allowed to throw: a `cwd` that is not a string is one of
+  // the things a handler can throw on, and the log still has to be found.
+  let storeDir: string | null = null;
   try {
-    const output = handleHook(event, input);
-    if (output !== null) process.stdout.write(output);
+    const at = (input as { cwd?: unknown }).cwd;
+    storeDir = findStore(typeof at === "string" ? at : process.cwd())?.dir ?? null;
   } catch {
+    // no store to write to
+  }
+  const label = event === undefined ? "(none)" : event;
+  hooklog.beginHook(storeDir, label);
+  try {
+    const problem = hooks.inputProblem(raw);
+    if (problem !== null) hooklog.recordFailure(problem);
+    if (!hooklog.isHookCommand(event)) {
+      // Said twice on purpose: stderr for whoever is running it by hand, the log
+      // for the gate. Exit 0 either way, because a hook never blocks.
+      const shown = hooklog.oneLine(label, 80);
+      process.stderr.write(`mstack hook: unknown event '${shown}'; handled: ${hooklog.HOOK_COMMANDS.join(", ")}\n`);
+      hooklog.recordFailure(`event is not handled by the CLI (handled: ${hooklog.HOOK_COMMANDS.join(", ")})`);
+      return 0;
+    }
+    const output = HANDLERS[event](input);
+    if (output !== null) process.stdout.write(output);
+  } catch (error) {
     // A hook that throws becomes a visible hook error for the user. Nothing
-    // this file does is important enough to be worth that, so it fails open.
+    // this file does is important enough to be worth that, so it fails open,
+    // and leaves a line for the gate to find.
+    hooklog.noteFailure("handler threw", error);
+  } finally {
+    hooklog.endHook();
   }
   return 0;
 }
 
-function handleHook(event: string | undefined, input: ReturnType<typeof hooks.readInput>): string | null {
-  switch (event) {
-    case "session-start":
-      return hooks.sessionStart(input);
-    case "post-edit":
-      return hooks.postEdit(input);
-    case "subagent-stop":
-      return hooks.subagentStop(input);
-    case "stop":
-      return hooks.stop(input);
-    case "session-end":
-      return hooks.sessionEnd(input);
-    case "pre-tool-use":
-      return hooks.preToolUse(input);
-    default:
-      return null;
-  }
-}
+/** Keyed by the one list of event names, so a handler cannot exist without being named in it. */
+const HANDLERS: Record<hooklog.HookCommand, (input: ReturnType<typeof hooks.readInput>) => string | null> = {
+  "session-start": hooks.sessionStart,
+  "post-edit": hooks.postEdit,
+  "subagent-stop": hooks.subagentStop,
+  stop: hooks.stop,
+  "session-end": hooks.sessionEnd,
+  "pre-tool-use": hooks.preToolUse,
+};
 
 function cmdLint(argv: readonly string[]): number {
   const [dir] = argv;

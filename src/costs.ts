@@ -18,6 +18,7 @@ import { isActive } from "./lifecycle.ts";
 import type { Store } from "./paths.ts";
 import { reportFiles, roleOf, roundOf } from "./roles.ts";
 import { parseState } from "./state.ts";
+import * as hooklog from "./hooklog.ts";
 import { append, readRecords, withLock } from "./tsv.ts";
 
 /**
@@ -172,7 +173,8 @@ export function marksDir(store: Store): string | null {
           return join(isAbsolute(gitdir) ? gitdir : resolve(dir, gitdir), "mstack");
         }
       }
-    } catch {
+    } catch (error) {
+      hooklog.tolerateAbsence(`cannot read ${dotGit}`, error);
       // not here; keep walking
     }
     const parent = dirname(dir);
@@ -229,7 +231,8 @@ export function readSessions(file: string): SessionMarks[] {
   let text: string;
   try {
     text = readFileSync(file, "utf8");
-  } catch {
+  } catch (error) {
+    hooklog.tolerateAbsence(`cannot read marks file ${file}`, error);
     return [];
   }
   const order: string[] = [];
@@ -265,7 +268,8 @@ function lastMarkFor(file: string, session: string): Mark | undefined {
   let text: string;
   try {
     text = readFileSync(file, "utf8");
-  } catch {
+  } catch (error) {
+    hooklog.tolerateAbsence(`cannot read marks file ${file}`, error);
     return undefined;
   }
   const lines = text.split("\n");
@@ -296,7 +300,8 @@ function newMark(session: string, transcript: string, slug: string | null): Mark
   let size = 0;
   try {
     size = statSync(transcript).size;
-  } catch {
+  } catch (error) {
+    hooklog.tolerateAbsence(`cannot stat transcript ${transcript}`, error);
     // not created yet: offset 0
   }
   return {
@@ -398,7 +403,8 @@ function needsFlush(s: SessionMarks): boolean {
   let size: number;
   try {
     size = statSync(tp).size;
-  } catch {
+  } catch (error) {
+    hooklog.tolerateAbsence(`cannot stat transcript ${tp}`, error);
     return false;
   }
   return s.ended === undefined || s.ended.size !== size;
@@ -583,7 +589,8 @@ export function firstTimestamp(path: string): number | null {
   let fd: number;
   try {
     fd = openSync(path, "r");
-  } catch {
+  } catch (error) {
+    hooklog.tolerateAbsence(`cannot open ${path}`, error);
     return null;
   }
   try {
@@ -605,7 +612,8 @@ export function firstTimestamp(path: string): number | null {
     if (m?.[1] === undefined) return null;
     const when = Date.parse(m[1]);
     return Number.isNaN(when) ? null : when;
-  } catch {
+  } catch (error) {
+    hooklog.noteFailure(`reading the head of ${path} failed`, error);
     return null;
   } finally {
     closeSync(fd);
@@ -625,7 +633,8 @@ function agentRole(subDir: string, id: string): string {
   try {
     const meta = JSON.parse(readFileSync(join(subDir, `agent-${id}.meta.json`), "utf8")) as { agentType?: unknown };
     if (typeof meta.agentType === "string" && roleOf(meta.agentType) !== "") return roleOf(meta.agentType);
-  } catch {
+  } catch (error) {
+    hooklog.tolerateAbsence(`cannot read the metadata of agent ${id}`, error);
     // no meta: the row still counts, under a generic role
   }
   return "subagent";
@@ -658,7 +667,8 @@ export function flushSession(store: Store, s: SessionMarks, marks: string): numb
   let size: number;
   try {
     size = statSync(tp).size;
-  } catch {
+  } catch (error) {
+    hooklog.tolerateAbsence(`cannot stat transcript ${tp}`, error);
     return 0;
   }
   const first = s.marks[0] as Mark;
@@ -692,7 +702,8 @@ export function flushSession(store: Store, s: SessionMarks, marks: string): numb
   let files: string[] = [];
   try {
     files = readdirSync(subDir).filter((f) => f.startsWith("agent-") && f.endsWith(".jsonl"));
-  } catch {
+  } catch (error) {
+    hooklog.tolerateAbsence(`cannot list ${subDir}`, error);
     // a session with no subagents has no directory
   }
   for (const file of files) {
@@ -710,7 +721,8 @@ export function flushSession(store: Store, s: SessionMarks, marks: string): numb
     let sub: Scan;
     try {
       sub = scanTranscript(path, 0, statSync(path).size, () => 0, { skipSidechain: false });
-    } catch {
+    } catch (error) {
+      hooklog.tolerateAbsence(`subagent transcript ${path} skipped, its rows are lost`, error);
       continue;
     }
     const role = agentRole(subDir, id);

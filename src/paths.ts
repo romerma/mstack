@@ -10,6 +10,9 @@ import { git } from "./git.ts";
 
 export const STORE_DIR = ".mstack";
 
+/** File name of the log a failed hook appends to; see `src/hooklog.ts`. */
+export const HOOK_LOG = "hook-errors.log";
+
 export interface Store {
   /** Project root: the directory that owns `.mstack/`. */
   readonly root: string;
@@ -29,6 +32,11 @@ export interface Store {
    * here executed the command.
    */
   readonly verification: string;
+  /**
+   * One line per hook that failed on this machine (`src/hooklog.ts`).
+   * Machine-local and gitignored, like `verification`.
+   */
+  readonly hookErrors: string;
   readonly progress: string;
   readonly current: string;
   readonly history: string;
@@ -46,6 +54,7 @@ export function storeAt(root: string): Store {
     decisions: join(dir, "decisions.tsv"),
     costs: join(dir, "costs.tsv"),
     verification: join(dir, "verification.tsv"),
+    hookErrors: join(dir, HOOK_LOG),
     progress,
     current: join(progress, "current.md"),
     history: join(progress, "history.md"),

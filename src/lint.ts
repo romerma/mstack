@@ -2,6 +2,7 @@ import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { basename, dirname, extname, join, relative, resolve } from "node:path";
 
 import { parse } from "./frontmatter.ts";
+import { HOOK_COMMANDS } from "./hooklog.ts";
 import { STATUSES } from "./lifecycle.ts";
 import { Report } from "./report.ts";
 
@@ -260,6 +261,49 @@ function lintHooks(root: string, report: Report): void {
       near !== undefined ? `event names are case-sensitive; did you mean '${near}'?` : "check the hooks reference",
     );
   }
+  lintHookArguments(data.hooks ?? {}, report);
+}
+
+/**
+ * `hooks.json` names the event twice: Claude Code's own name for when to run
+ * the hook, and the argument the CLI is called with. The first is checked
+ * above. A misspelt second one is not caught by anything else, because the
+ * hook runs, the CLI does not know the name, and the handler is skipped with
+ * an exit 0. The list of names is the one `mstack hook` dispatches on.
+ */
+function lintHookArguments(hooks: Record<string, unknown>, report: Report): void {
+  for (const [event, groups] of Object.entries(hooks)) {
+    if (!Array.isArray(groups)) continue;
+    for (const group of groups as { hooks?: unknown }[]) {
+      if (!Array.isArray(group?.hooks)) continue;
+      for (const entry of group.hooks as { args?: unknown }[]) {
+        const args = entry?.args;
+        if (!Array.isArray(args) || args[0] !== "hook") continue;
+        const name = String(args[1] ?? "");
+        if ((HOOK_COMMANDS as readonly string[]).includes(name)) continue;
+        const near = HOOK_COMMANDS.find((c) => c.replace(/-/g, "") === name.toLowerCase().replace(/-/g, "") || (name.length > 3 && distance(c, name) <= 2));
+        report.fail(
+          `hooks.json: '${event}' runs 'mstack hook ${name}', and the CLI does not handle that event, so the hook would do nothing`,
+          near !== undefined ? `did you mean '${near}'? handled: ${HOOK_COMMANDS.join(", ")}` : `handled: ${HOOK_COMMANDS.join(", ")}`,
+        );
+      }
+    }
+  }
+}
+
+/** Levenshtein distance, for a suggestion only. */
+function distance(a: string, b: string): number {
+  const row = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i += 1) {
+    let prev = row[0] as number;
+    row[0] = i;
+    for (let j = 1; j <= b.length; j += 1) {
+      const above = row[j] as number;
+      row[j] = Math.min(above + 1, (row[j - 1] as number) + 1, prev + (a[i - 1] === b[j - 1] ? 0 : 1));
+      prev = above;
+    }
+  }
+  return row[b.length] as number;
 }
 
 /**
