@@ -45,10 +45,9 @@ passes bypassPermissions. Do not run `check.mjs` or `verify.mjs` while a batch i
 
 ## Next step
 
-Item 53. Failing test committed (`tests/state.test.ts`, red on node and bun: 12 writers exit 0,
-8 or 9 items on disk). Design recorded (row of phase `design`): one locked read-modify-write
-function with a temp file renamed over the target, unknown keys preserved. An implementer has
-the brief; its report goes to `impl_state-json-loses-concurrent-writes.md`. When it returns:
-`state set 53 --status reviewing`, then a fresh reviewer on a different model.
+Item 53 implemented (code head 454a02a): `updateState` in `src/state.ts`, three callers moved,
+`saveState` removed. Report at `.mstack/progress/impl_state-json-loses-concurrent-writes.md`
+(mutant table, load runs, limits). Next: `state set 53 --status reviewing`, then a fresh reviewer
+on a different model. Leftover temp files `state.json.tmp-*` are for item 66.
 
 After 53: 54, 47, 46, 50.
