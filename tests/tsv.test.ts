@@ -35,7 +35,6 @@ test("null and undefined become empty, not the string 'undefined'", () => {
 
 const HOLDER = join(dirname(fileURLToPath(import.meta.url)), "lock-holder.ts");
 const PROBE = join(dirname(fileURLToPath(import.meta.url)), "lock-probe.ts");
-const RACER = join(dirname(fileURLToPath(import.meta.url)), "lock-racer.ts");
 const RUNTIME_FLAGS = typeof (globalThis as { Bun?: unknown }).Bun === "undefined"
   ? ["--experimental-strip-types", "--disable-warning=ExperimentalWarning"]
   : [];
@@ -86,20 +85,6 @@ function lockBench() {
         exited: new Promise((res) => child.on("close", (code) => res(code))),
         release: () => writeFileSync(release, ""),
         releaseStep: () => writeFileSync(`${release}.step`, ""),
-      };
-    },
-    race(name: string, rounds: number, start: number, roundMs: number, holdMs: number): Holder {
-      const child = spawn(
-        process.execPath,
-        [...RUNTIME_FLAGS, RACER, file, journal, name, String(rounds), String(start), String(roundMs), String(holdMs)],
-        { stdio: "ignore" },
-      );
-      children.push(child);
-      return {
-        child,
-        exited: new Promise((res) => child.on("close", (code) => res(code))),
-        release: () => {},
-        releaseStep: () => {},
       };
     },
     dispose() {
@@ -360,55 +345,41 @@ test("a lock is never visible with a partial or foreign owner in it", async () =
   }
 });
 
-test("waiters that all see the same dead owner never hold the lock together", { timeout: 30_000 }, async () => {
-  // The hazard is two breakers: each judges the same dead lock dead, one removes
-  // it and takes its own, and the other then removes that live one and walks in.
-  // The window is microseconds wide, so the waiters start from a shared instant,
-  // every round plants a fresh dead lock, and each one checks from inside that the
-  // lock on disk is still its own.
-  const waiters = 32;
-  const rounds = 120;
-  const roundMs = 50;
+test("a waiter that judged a lock dead does not remove the live lock that replaced it", async () => {
+  // The hazard is two breakers: each judges the same dead lock dead, one removes it
+  // and takes its own, and the other then removes that live one and walks in. The
+  // second breaker is stopped after it judged and before it took the guard, so the
+  // first one gets all the way in, and the second must judge again under the guard.
   const bench = lockBench();
   try {
-    const dead = await bench.deadPid();
-    const start = Date.now() + 1_000;
-    const racers = Array.from({ length: waiters }, (_, i) => bench.race(`W${i}`, rounds, start, roundMs, 1));
-    for (let round = 0; round < rounds; round++) {
-      const plant = start + round * roundMs - roundMs / 2;
-      await new Promise((res) => setTimeout(res, Math.max(0, plant - Date.now())));
-      // Exclusive: if the previous round is still running, leave its lock alone.
-      try {
-        writeFileSync(bench.lock, `${dead} ${TOKEN}\n`, { flag: "wx" });
-      } catch (error) {
-        if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
-      }
-    }
-    for (const racer of racers) await racer.exited;
+    writeFileSync(bench.lock, `${await bench.deadPid()} ${TOKEN}\n`);
+    const w2 = bench.hold("W2", 5_000, { blockAt: "judged-stale", signal: "waiting" });
+    assert.ok(await until(() => bench.journal().includes("W2 at judged-stale"), 20_000), "W2 never judged the lock dead");
 
-    let inside: string | null = null;
-    let entries = 0;
-    const foreign: string[] = [];
-    for (const line of bench.journal().split("\n").filter((l) => l !== "")) {
-      const [round, name, what, own] = line.split(" ") as [string, string, string, string];
-      assert.notEqual(what, "THREW", `a waiter threw: ${line}`);
-      if (own !== "true") foreign.push(`${name} in round ${round}`);
-      if (what === "enter") {
-        assert.equal(inside, null, `${name} entered in round ${round} while ${inside} was inside`);
-        inside = name;
-        entries += 1;
-      } else {
-        assert.equal(inside, name, `${name} left in round ${round} while ${inside} was the one inside`);
-        inside = null;
-      }
-    }
-    assert.equal(entries, waiters * rounds, "some waiters never entered");
-    assert.deepEqual(foreign, [], "a waiter was inside while the lock on disk was not its own");
+    const w1 = bench.hold("W1", 5_000);
+    assert.ok(await until(() => bench.journal().includes("W1 enter"), 20_000), "W1 never broke the dead lock");
+    const ownedByW1 = () => readFileSync(bench.lock, "utf8").startsWith(`${w1.child.pid} `);
+    assert.ok(ownedByW1(), "fixture: W1 should hold the lock it took from the dead owner");
+
+    w2.releaseStep();
+    assert.ok(await until(() => /W2 (at waiting|enter)/.test(bench.journal()), 20_000), "W2 neither entered nor waited");
+    assert.ok(!bench.journal().includes("W2 enter"), `W2 entered beside W1:\n${bench.journal()}`);
+    assert.ok(ownedByW1(), "W2 removed the lock W1 now holds");
+
+    w1.release();
+    assert.equal(await w1.exited, 0);
+    assert.ok(await until(() => bench.journal().includes("W2 enter"), 20_000), "W2 never got the lock after W1 let go");
+    w2.release();
+    assert.equal(await w2.exited, 0);
+    assert.deepEqual(
+      bench.journal().split("\n").filter((l) => /enter|leave/.test(l)),
+      ["W1 enter", "W1 leave", "W2 enter", "W2 leave"],
+    );
     assert.ok(!existsSync(bench.lock) && !existsSync(`${bench.lock}.break`));
   } finally {
     bench.dispose();
   }
-});
+}, { timeout: 90_000 });
 
 /**
  * `withLock` on a path in a child that is killed if it has not answered. A lock
