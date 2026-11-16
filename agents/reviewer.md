@@ -96,9 +96,9 @@ happened, not from the tone of the report:
 - **A verification you could not run at all** records `verifier-blocked`, whatever you
   thought of the diff. An opinion formed without running anything must not read as evidence.
 
-As one lens of a panel, in any round, write your report and record nothing. The ledger keeps
-the best row per `(target, sha)` by rank, so N lens rows would collapse to the panel's most
-favorable member, and a split panel means the opposite. The pass that synthesizes the panel's
+As one lens of a panel, in any round, write your report and record nothing. `ledger check`
+reads the latest closing-role row per `(target, sha)`, so N lens rows would collapse to
+whichever lens recorded last, and a split panel means its worst lens, not the last one. The pass that synthesizes the panel's
 verdict records the one row, under its own name.
 
 Return one line: `APPROVED -> <the path you wrote>`, or the `CHANGES_REQUESTED` equivalent.

@@ -47,8 +47,9 @@ The reviewer did not write the code. If that is not true, stop: fetch someone wh
    - After a panel, the lenses have recorded nothing, so record the synthesized verdict
      yourself: `mstack ledger record <slug> "$(git rev-parse HEAD)" <verdict> --evidence
      <the lens reports> --verifier <your own role, never reviewer>`. One row, not one per
-     lens: the ledger keeps the best row per `(target, sha)`, and a split panel means its
-     worst lens, not its best.
+     lens: `ledger check` reads the latest closing-role row per `(target, sha)`, so a row
+     per lens would leave whichever lens recorded last as the verdict, and a split panel
+     means its worst lens.
 
    Either way the mapping is fixed: `APPROVED` records the rung the verification reached,
    `CHANGES_REQUESTED` records `verifier-failed`, and a verification nobody could run
