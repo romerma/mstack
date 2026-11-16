@@ -114,14 +114,23 @@ export interface LockOptions {
  *
  * The lock is a file that names its owner (`<pid> <token>`). It is created with
  * an exclusive create (`O_EXCL`), which is atomic and fails with EEXIST only when
- * the lock exists, and the owner is written straight after. For that instant a
- * reader meets a lock with no owner in it; that is the same as a lock from the
- * previous format, and it is waited on while young (below). Any other failure to
- * create the lock (a missing or read-only directory, a full disk) is not "held":
- * it is thrown, naming the lock and the system error, rather than waited out.
- * Exclusive create is used instead of write-then-`link` because `link` fails
- * with ENOTSUP on filesystems without hard links (exFAT), where nothing could
- * ever take the lock, and because it leaves no temp file behind a killed waiter.
+ * the lock exists, and the owner is written straight after through the same file
+ * descriptor. For that instant a reader meets a lock with no owner in it; that is
+ * the same as a lock from the previous format, and it is waited on while young
+ * (below). Any other failure to create the lock (a missing or read-only
+ * directory, a full disk) is not "held": it is thrown, naming the lock and the
+ * system error, rather than waited out. Exclusive create is used instead of
+ * write-then-`link` because `link` fails with ENOTSUP on filesystems without
+ * hard links (exFAT), where nothing could ever take the lock, and because it
+ * leaves no temp file behind a killed waiter.
+ *
+ * Creating is not holding until the lock is read back. A creator stopped in that
+ * instant for longer than the limit has an empty lock that reads as a leftover,
+ * and a waiter breaks it and takes its own. So after the write the lock is read
+ * back by path, and the caller holds it only if it carries its own token; if not,
+ * the path is someone else's now, it is left alone, and the caller waits as for
+ * any held lock. Tokens are compared, not inode numbers, which can compare equal
+ * for a file and its successor on some filesystems.
  *
  * A waiter never enters without holding the lock:
  *  - owner dead: the lock is broken at once and taken again with the same
@@ -137,13 +146,29 @@ export interface LockOptions {
  *    broken only once the file is older than `UNKNOWN_OWNER_STALE_MS`.
  *  - release removes the lock only while it still carries this caller's token.
  *
- * Known limits: a dead owner's pid reused by an unrelated live process reads as
- * alive, so waiters fail at the timeout until it exits (fail-closed, and rare
- * for critical sections that last milliseconds). Two waiters breaking the same
- * dead lock are serialised by a `.break` guard, whose own staleness is decided
- * the same way; a process killed inside the guard in the microseconds between
- * its re-read and its remove, together with a second breaker, is the residual
- * window.
+ * `options.step` is a test seam, in the style of `prune`'s `beforeLock` in
+ * costs.ts: it is called at the named `LockStep`s so a test can stop a process
+ * between two statements that are otherwise microseconds apart. Absent, it does
+ * nothing.
+ *
+ * Known limits:
+ *  - A dead owner's pid reused by an unrelated live process reads as alive, so
+ *    waiters fail at the timeout until it exits (fail-closed, and rare for
+ *    critical sections that last milliseconds).
+ *  - Two waiters breaking the same dead lock are serialised by a `.break` guard,
+ *    whose own staleness is decided the same way and which is re-checked under
+ *    the guard. A process killed inside the guard in the microseconds between
+ *    its re-read and its remove, together with a second breaker, is the residual
+ *    window. A guard left with no lock beside it is swept only when some waiter
+ *    meets a stale lock.
+ *  - If the read-back itself fails (the file cannot be read right after it was
+ *    written), the caller treats a lock that is its own as someone else's and
+ *    waits on it; the lock then lasts until this process exits, and then it is
+ *    a dead owner's. Fail-closed.
+ *  - The wait is measured with the wall clock, and an unreadable lock's age
+ *    comes from the file's mtime, so a clock stepped back extends a wait, and a
+ *    file server whose clock runs more than the limit behind makes a fresh empty
+ *    lock look stale; the cost then is a retry for its creator, not an overlap.
  */
 export function withLock<T>(file: string, run: () => T, options: LockOptions = {}): T {
   const lock = `${file}.lock`;
