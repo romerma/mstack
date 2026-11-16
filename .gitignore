@@ -20,4 +20,5 @@ dist/
 sandbox/
 
 # Raw notes behind reports/: working material with local paths. The report is what is kept.
-research_notes/
+# Under docs/ because lint-plugin skips docs/ and does not read .gitignore.
+docs/research/notes-2026-11-16/

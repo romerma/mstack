@@ -716,7 +716,7 @@
         "what a waiter does when a live holder outlasts the timeout (keep waiting, or exit non-zero naming the lock) is recorded with mstack decide",
         "the 'concurrent decisions' test in tests/decisions.test.ts launches its processes concurrently, and removing the withLock call makes it fail (mutation shown in the report)"
       ],
-      "status": "pending",
+      "status": "in_progress",
       "description": "Reproduced 2026-11-16 with three node processes on one file: A holds 48-3549 ms, B waits 2 s, removes A's lock and enters at 2280 ms without creating its own, C then acquires a fresh lock at 2802 ms while A is still inside. src/tsv.ts:109-116 breaks the lock and falls through to run(); the finally at :129-135 removes whatever lock file exists, whoever owns it.",
       "source": "reports/Mejoras mstack con skills Pocock.md, 2026-11-16"
     },
@@ -763,8 +763,8 @@
       "status": "pending",
       "description": "state add appears only in setup and in the orchestrate playbook, 20 of 51 items have no source, and --resolves was used in 2 of 112 decision rows because nothing raised decision_required in time. The intake is derived from the structure of mattpocock/skills grilling (design tree, frontier, recommended answer, 'finding facts is your job') and the 'rulings, not stalls' pattern of obra/superpowers. It is not grilling and must not be called that: its author says an agent that answers its own decisions has broken the skill. Runs in the main session, because a subagent has no AskUserQuestion.",
       "decision_required": "A real grilling session is open-ended and waits for the user; the router says 'Ask at most three questions' and principles say 'Never block on the human'. Either intake is always autonomous under the three-question cap, or it is autonomous by default with an interactive mode (full rounds, no cap) that turns on only when the request asks for it, which needs a named exception to the cap.",
-      "source": "reports/Mejoras mstack con skills Pocock.md, 2026-11-16",
-      "decision_resolved": "2026-11-16T16:38:47.460Z"
+      "decision_resolved": "2026-11-16T16:38:47.460Z",
+      "source": "reports/Mejoras mstack con skills Pocock.md, 2026-11-16"
     },
     {
       "id": 56,
