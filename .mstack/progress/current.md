@@ -7,7 +7,7 @@
 > empty template below.
 
 - **Item:** 54 hook-errors-leave-no-trace
-- **Status:** in_progress (bug-fix playbook, steps 1, 2 and 4 done)
+- **Status:** reviewing, round 1
 - **Branch:** fix/hook-errors-leave-no-trace
 - **Base:** 8dac2fd
 - **Worktree:** none
@@ -45,6 +45,20 @@ passes bypassPermissions. Do not run `check.mjs` or `verify.mjs` while a batch i
 
 ## Next step
 
-Item 54 implemented (report `impl_hook-errors-leave-no-trace.md`, code at 66c9dc9, both suites 432/432).
-Next: an independent review pass (mutate every load-bearing line, run both suites), then close.
-Left for follow-up: session-start on an unreadable state.json still says "No active work item".
+Item 54, round 1 implementation is in: `impl_hook-errors-leave-no-trace.md`, code head
+`66c9dc9`. Hook failures and unknown events append to `.mstack/hook-errors.log`, the gate warns
+on lines newer than `history.md`, and the lint checks the hook argument against one list of
+handled names. Acceptance 4: the header-only `costs.tsv` is not a bug in this checkout; no
+session since 2026-11-08 has loaded the plugin, and item 37's session ran a copy without the
+cost code. Recording in a real `claude --plugin-dir .` session is still unproven.
+
+Round 1 review is out to a fresh reviewer on a different model, which writes
+`review_hook-errors-leave-no-trace.md` and types its own ledger row. The point it was asked to
+judge hardest: for stores created before this change the hook appends the log's name to
+`.git/info/exclude`, an edit outside `.mstack/`.
+
+- APPROVED: `state set 54 --status verifying`, then `done`, merge fast-forward, then item 47.
+- CHANGES_REQUESTED: `state set 54 --status in_progress`, a fresh implementer, review as `_r2`.
+
+After 54: 47, 46, 50. Then phase 1, which needs the plugin really loaded for two acceptance
+lines (a request through `/mstack` in the sandbox, a subagent quoting a preloaded skill).
