@@ -851,3 +851,39 @@ at the delegation step. `current.md` carries the next step.
   single-source-of-truth check. The notes moved under `docs/`, which the lint skips.
 - The item 37 entry above says that session ran the cached plugin and wrote no cost rows. That
   is the first thing to check for item 54.
+
+## 2026-11-16 — item 52 withlock-enters-without-the-lock, closed
+
+**What changed.** `withLock` in `src/tsv.ts` no longer enters without the lock. The lock names
+its owner (pid and token), is taken with an exclusive create and entered only after reading the
+caller's own token back; a dead owner's lock is broken under a `.lock.break` guard and taken
+again; a live holder past the timeout makes the waiter throw a `UserError` naming the lock; any
+other failure to create the lock is thrown, not waited out. An `options.step` seam drives
+deterministic interleavings in tests.
+
+**Rounds: 3.** Implementer on Sonnet, reviewer on Opus, each a fresh general-purpose agent
+briefed with `agents/implementer.md` or `agents/reviewer.md`, because the session had no plugin
+loaded. So no hooks ran and no cost rows were written.
+- Round 1, rejected: the acquire loop span forever when the lock could not be created (exFAT,
+  read-only store); a mutant that breaks a live holder's old lock passed every test; the race
+  test could not see the race.
+- Round 2, rejected: moving to exclusive create opened a window where a creator stopped 2 s
+  before writing its owner resumed inside beside the breaker (341 ms overlap, real processes);
+  the empty-guard branch was untested; two new tests failed on correct code under load.
+- Round 3, approved: `review_withlock-enters-without-the-lock_r3.md`, `test-verified` at
+  `4dbb41c` by reviewer. 0 failures of `tests/tsv.test.ts` in 399 loaded executions.
+
+**What the rounds say about the workflow.** The suite was green in every round. Every blocker
+came from the reviewer running real processes and mutants, as on item 36. Round 2's blocker was
+introduced by round 2's own fix. The statistical race test was written, measured and deleted
+inside the item: 7 s per runtime, one false failure in 213 runs.
+
+**Accepted, on the record.** A creator resuming between a breaker's re-check and its removal
+loses a live lock. It needs two stops landing in two microsecond windows. Filed in item 66.
+
+**Filed:**
+- item 66: lock follow-ups (the accepted window in Known limits, the unsafe cleanup in
+  `tryCreate`, lock leftovers in the store, monotonic wait, the timeout message).
+- item 67: `tests/run.test.ts:54` and `tests/costs.test.ts:698` fail under load; maybe item 21.
+
+**Carried to item 53:** move `UserError` out of `src/paths.ts`, which `src/state.ts` imports.

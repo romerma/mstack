@@ -716,7 +716,7 @@
         "what a waiter does when a live holder outlasts the timeout (keep waiting, or exit non-zero naming the lock) is recorded with mstack decide",
         "the 'concurrent decisions' test in tests/decisions.test.ts launches its processes concurrently, and removing the withLock call makes it fail (mutation shown in the report)"
       ],
-      "status": "reviewing",
+      "status": "done",
       "description": "Reproduced 2026-11-16 with three node processes on one file: A holds 48-3549 ms, B waits 2 s, removes A's lock and enters at 2280 ms without creating its own, C then acquires a fresh lock at 2802 ms while A is still inside. src/tsv.ts:109-116 breaks the lock and falls through to run(); the finally at :129-135 removes whatever lock file exists, whoever owns it.",
       "source": "reports/Mejoras mstack con skills Pocock.md, 2026-11-16"
     },
@@ -893,6 +893,34 @@
       "status": "pending",
       "description": "A proposal of the 2026-11-16 report, not of its sources. Commit order does not prove a test failed. verification.tsv already records outcome and tree, so the gate can require, for an item with a test-first step, a failed row of the test command that predates the passing one. Belongs with items 41 and 42; a PreToolUse guard was rejected because mstack hooks nudge and do not block, and its own author documents the Bash bypass.",
       "source": "reports/Mejoras mstack con skills Pocock.md, 2026-11-16"
+    },
+    {
+      "id": 66,
+      "slug": "lock-followups",
+      "title": "Lock follow-ups from the item 52 reviews: one accepted window, one unsafe cleanup, leftovers in the store",
+      "acceptance": [
+        "the Known limits above withLock name the breaker and resumed-creator window, and the wording at src/tsv.ts:135 and :170-171 claims no more than the code does",
+        "tryCreate's failure path never removes by path a lock that is no longer the caller's; a test with a throwing step after a takeover shows the new holder's lock survives",
+        "a leftover *.lock or *.lock.break in the store is ignored by git or swept, so it is never an uncommitted change (today a guard left by a breaker killed after removing the dead lock survives every later decide)",
+        "the wait is measured on a monotonic clock while the age rule stays on file mtime, and the timeout message names what blocks, the guard or the lock",
+        "surviving mutants R7, R8, R10, R11 and R13 of the round 3 review are killed by a test, or the code they touch is removed"
+      ],
+      "status": "pending",
+      "description": "Item 52 closed with residual risks the round 3 reviewer accepted and named. A creator that resumes between a breaker's re-check and its removal has its live lock removed (reproduced with two injected stops, 1.5 s overlap, 3 of 3): removal is by path with no compare-and-delete, so no check closes it in this design. A throwing step callback, or a writeSync failure after a takeover, makes tryCreate's catch remove the new holder's lock by path.",
+      "source": "item 52 round-3 review, .mstack/progress/review_withlock-enters-without-the-lock_r3.md, 2026-11-16"
+    },
+    {
+      "id": 67,
+      "slug": "load-sensitive-tests",
+      "title": "Two tests fail on correct code when several suites run at once: tests/run.test.ts:54 and tests/costs.test.ts:698",
+      "acceptance": [
+        "the cause of each failure is identified with runtime evidence, not guessed from the code",
+        "each test passes 0 failures in at least 20 suites per runtime under the same load, with the load harness named in the report",
+        "the report says whether either one is item 21's unidentified failure, and item 21 is closed or updated accordingly"
+      ],
+      "status": "pending",
+      "description": "Measured during the item 52 reviews with four bun and two node suites running together: tests/run.test.ts:54 ('a temp directory was left behind') failed 7 of 20 bun and 2 of 10 node suites in round 3 and 6 of 6 node in the round 3 implementer's runs; tests/costs.test.ts:698 failed 2 of 10 node suites in round 3 and 9 of 12 in round 2. Neither was touched by item 52. Item 21 is a suite run that failed once and was never identified; this may be the same failure.",
+      "source": "item 52 round-3 review, .mstack/progress/review_withlock-enters-without-the-lock_r3.md, 2026-11-16"
     }
   ]
 }
