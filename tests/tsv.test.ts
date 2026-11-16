@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawn, type ChildProcess } from "node:child_process";
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, utimesSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, symlinkSync, mkdtempSync, readdirSync, readFileSync, rmSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -387,6 +387,22 @@ test("a lock that cannot be created because the directory is read-only fails pro
     assert.match(result.out, /^THREW UserError /);
     assert.ok(result.out.includes(join(dir, "target.tsv.lock")), result.out);
     assert.match(result.out, /EACCES|EPERM|EROFS/);
+  } finally {
+    bench.dispose();
+  }
+});
+
+test("a lock path that exists but cannot be read is waited on to the deadline, not spun on", async () => {
+  // A dangling symlink: creating the lock fails with EEXIST, yet the path "does not
+  // exist" to existsSync and stat. Nothing here can be broken, so the waiter must
+  // reach the deadline and say so.
+  const bench = lockBench();
+  try {
+    symlinkSync(join(bench.dir, "nowhere"), bench.lock);
+    const result = await probe(bench.file, 200);
+    assert.equal(result.hung, false, "withLock spun on a lock path it could neither take nor break");
+    assert.match(result.out, /^THREW UserError /);
+    assert.ok(result.out.includes(bench.lock), result.out);
   } finally {
     bench.dispose();
   }
