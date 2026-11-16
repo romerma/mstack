@@ -295,3 +295,60 @@ test("an empty ledger keeps the unchanged message", () => {
     sb.dispose();
   }
 });
+
+// ---- item 47, round 2: a rejection is a rejection whatever it cites -------------------
+//
+// The gate drops closing-role rows that cite an implementing role's own report
+// because such a row is the author's report under a reviewer's name. That is
+// right for an approval. For a rejection it can only hide a failure, so a
+// rejection counts however its evidence reads.
+
+test("a reviewer rejection that cites the implementer's report next to its own still fails and is named", () => {
+  const r = checkAfter([
+    ["test-verified", "implementer"],
+    ["verifier-failed", "reviewer", ".mstack/progress/review_x.md; the claims in .mstack/progress/impl_x.md do not hold"],
+  ]);
+  assert.equal(r.passing, false);
+  assert.match(r.reason, /verifier-failed.*reviewer/);
+  assert.match(r.reason, /review_x\.md/);
+});
+
+test("a reviewer rejection whose only evidence is the implementer's report still fails", () => {
+  const r = checkAfter([
+    ["test-verified", "implementer"],
+    ["verifier-failed", "reviewer", ".mstack/progress/impl_x.md"],
+  ]);
+  assert.equal(r.passing, false);
+  assert.match(r.reason, /verifier-failed.*reviewer/);
+});
+
+test("a verifier-blocked row that cites the implementer's report still fails", () => {
+  const r = checkAfter([
+    ["test-verified", "implementer"],
+    ["verifier-blocked", "reviewer", ".mstack/progress/impl_x.md"],
+  ]);
+  assert.equal(r.passing, false);
+  assert.match(r.reason, /verifier-blocked.*reviewer/);
+});
+
+test("an approval that cites the implementer's report is not presented as an independent pass", () => {
+  // The gate refuses to close on this ledger (every closing row cites the report),
+  // so `check` fails and says why instead of printing an independent PASS.
+  const r = checkAfter([
+    ["test-verified", "implementer"],
+    ["test-verified", "reviewer", ".mstack/progress/impl_x.md"],
+  ]);
+  assert.equal(r.passing, false);
+  assert.match(r.reason, /test-verified.*reviewer/);
+  assert.match(r.reason, /implementer's own report/);
+  assert.match(r.reason, /impl_x\.md/);
+});
+
+test("an approval citing the implementer's report does not count when a genuine approval exists", () => {
+  const r = checkAfter([
+    ["test-verified", "reviewer", ".mstack/progress/review_x.md"],
+    ["live-verified", "reviewer", ".mstack/progress/impl_x.md"],
+  ]);
+  assert.equal(r.passing, true);
+  assert.equal(r.best?.verdict, "test-verified", "the discounted row is not the answer");
+});
