@@ -282,7 +282,6 @@ function writeAtomically(file: string, text: string): void {
     } catch {
       // the original failure is the one to report
     }
-    if (error instanceof UserError) throw error;
     throw new UserError(
       `cannot write ${file}: ${(error as NodeJS.ErrnoException).code ?? (error as Error).message}`,
       `check that ${dirname(file)} is writable`,
