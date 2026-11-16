@@ -207,6 +207,16 @@ test("a reviewer verifier-blocked row fails the check and is named", () => {
   ]);
   assert.equal(r.passing, false);
   assert.match(r.reason, /verifier-blocked.*reviewer/);
+  assert.match(r.reason, /review_x\.md/, "names the evidence, like a failed row");
+  // Rank 0 would clear `--min verifier-blocked`; a rejection must not.
+  const floor = checkAfter(
+    [
+      ["test-verified", "implementer"],
+      ["verifier-blocked", "reviewer", ".mstack/progress/review_x.md"],
+    ],
+    "verifier-blocked",
+  );
+  assert.equal(floor.passing, false);
 });
 
 test("with only an implementer row the verdict stays, labelled as the author's own", () => {
