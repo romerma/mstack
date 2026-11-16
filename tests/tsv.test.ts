@@ -173,6 +173,74 @@ test("a waiter on a live holder throws a UserError naming the lock and the holde
   }
 });
 
+test("a live holder's lock is never aged out, however old it is", async () => {
+  // The unreadable-owner rule breaks a lock by age. A readable owner that is alive
+  // must not be subject to it: the default wait is 2 s and so is that limit, so a
+  // waiter that outlasts it would otherwise walk in beside a holder still inside.
+  const bench = lockBench();
+  try {
+    const a = bench.hold("A", 5_000);
+    assert.ok(await until(() => bench.journal().includes("A enter"), 5_000), "A never took the lock");
+    const old = new Date(Date.now() - 60_000);
+    utimesSync(bench.lock, old, old);
+    let entered = false;
+    assert.throws(() => withLock(bench.file, () => { entered = true; }, { timeoutMs: 100 }), UserError);
+    assert.equal(entered, false, "a waiter entered beside a live holder because its lock was old");
+    assert.ok(existsSync(bench.lock), "the waiter removed a live holder's lock because it was old");
+    a.release();
+    assert.equal(await a.exited, 0);
+  } finally {
+    bench.dispose();
+  }
+});
+
+test("a guard left by a dead process does not keep a dead lock from being broken", async () => {
+  const bench = lockBench();
+  try {
+    writeFileSync(bench.lock, `${await bench.deadPid()} ${TOKEN}\n`);
+    writeFileSync(`${bench.lock}.break`, `${await bench.deadPid()} ${TOKEN}\n`);
+    let inside = "";
+    withLock(bench.file, () => {
+      inside = readFileSync(bench.lock, "utf8");
+    }, { timeoutMs: 1_000 });
+    assert.match(inside, new RegExp(`^${process.pid} [0-9a-f-]{36}\\n$`), "the caller entered without its own lock");
+    assert.ok(!existsSync(bench.lock) && !existsSync(`${bench.lock}.break`), "a lock or guard was left behind");
+  } finally {
+    bench.dispose();
+  }
+});
+
+test("a dead lock is not broken while a live process holds the break guard", async () => {
+  const bench = lockBench();
+  try {
+    const guard = `${bench.lock}.break`;
+    const dead = `${await bench.deadPid()} ${TOKEN}\n`;
+    writeFileSync(bench.lock, dead);
+    writeFileSync(guard, `${process.pid} ${TOKEN}\n`);
+    let entered = false;
+    assert.throws(() => withLock(bench.file, () => { entered = true; }, { timeoutMs: 150 }), UserError);
+    assert.equal(entered, false, "a second breaker ran while another process was breaking");
+    assert.equal(readFileSync(bench.lock, "utf8"), dead, "the lock was broken without the guard");
+    assert.equal(readFileSync(guard, "utf8"), `${process.pid} ${TOKEN}\n`, "a live process's guard was removed");
+  } finally {
+    bench.dispose();
+  }
+});
+
+test("a lock whose owner exists but belongs to someone else is treated as held", { skip: process.getuid?.() === 0 }, () => {
+  // kill(1, 0) is EPERM for a non-root user: the process is there, so the lock is not stale.
+  const bench = lockBench();
+  try {
+    writeFileSync(bench.lock, `1 ${TOKEN}\n`);
+    let entered = false;
+    assert.throws(() => withLock(bench.file, () => { entered = true; }, { timeoutMs: 100 }), UserError);
+    assert.equal(entered, false, "EPERM was read as a dead owner");
+    assert.equal(readFileSync(bench.lock, "utf8"), `1 ${TOKEN}\n`);
+  } finally {
+    bench.dispose();
+  }
+});
+
 test("a lock is never visible without its owner in it", async () => {
   // Hazard: create-then-write leaves a window where the lock exists and is
   // empty, which a reader cannot tell from a previous-format lock. Hammer the
@@ -232,7 +300,6 @@ test("waiters that all see the same dead owner do not end up inside together", a
 test("a release does not remove a lock that another owner now holds", () => {
   const bench = lockBench();
   try {
-    writeFileSync(bench.journal === undefined ? "" : bench.file, "");
     withLock(bench.file, () => {
       // Something replaced the lock while we were inside (a breaker that judged us dead).
       rmSync(bench.lock);
