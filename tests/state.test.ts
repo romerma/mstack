@@ -207,6 +207,7 @@ test("a successful write leaves no lock or temporary file, and a leftover one do
     // What a writer killed between the write and the rename leaves: a partial
     // temporary file under the same prefix.
     writeFileSync(join(dir, "state.json.tmp-1-0"), "{ \"trunc");
+    writeFileSync(join(dir, "state.json.tmp"), "{ \"trunc");
     const names = readdirSync(dir).sort();
     updateState(sb.store.state, (s) => { s.items[0]!.title = "changed"; });
     updateState(sb.store.state, (s) => { s.items[0]!.title = "changed again"; });
