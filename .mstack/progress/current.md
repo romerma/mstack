@@ -6,10 +6,10 @@
 > On close: append the summary to `history.md` and reset this file to the
 > empty template below.
 
-- **Item:** none active (54 closed 2026-11-17; next 47 ledger-check-hides-a-rejection)
-- **Status:** -
-- **Branch:** main
-- **Base:** -
+- **Item:** 47 ledger-check-hides-a-rejection
+- **Status:** in_progress (bug-fix playbook, steps 1, 2 and 4 done)
+- **Branch:** fix/ledger-check-hides-a-rejection
+- **Base:** 5b2714c
 - **Worktree:** none
 
 ## Plan
@@ -45,10 +45,13 @@ passes bypassPermissions. Do not run `check.mjs` or `verify.mjs` while a batch i
 
 ## Next step
 
-Phase 0 has 52, 53 and 54 closed. Left in it: 47 (ledger check hides a rejection), 46 (npm test
-on node 22.6 and the bun test scope), 50 (`plugin validate --strict`).
+Item 47. Reproduced on this store: `./bin/mstack ledger check benchmark-harness <full a4e6c784
+sha>` prints `PASS test-verified at a4e6c784 by implementer`. Mechanism: `src/ledger.ts:151`
+keeps the best row by rank. Design recorded (row of phase `design`): judge a sha by its latest
+closing-role row. An implementer has the brief and writes the red test first; its report goes
+to `impl_ledger-check-hides-a-rejection.md`. Then a fresh reviewer on a different model.
 
-Phase 1 (55 intake, 56 test-first reference) changes skills and agents and has acceptance lines
-that need the plugin really loaded (`claude --plugin-dir .`, or headless `claude -p` with it):
-a request driven through `/mstack` in the sandbox, and a subagent quoting a preloaded skill.
-Item 69 needs the same for the cost rows.
+Seen on the way, not in this item: `ledger check <target> a4e6c784` with an abbreviated sha
+answers "no verdict at a4e6c784" although rows exist at that commit.
+
+After 47: 46, 50. Then phase 1 and item 69, which need the plugin really loaded.
