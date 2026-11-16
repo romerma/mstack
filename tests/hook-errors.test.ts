@@ -136,9 +136,12 @@ test("session-start on an unreadable state.json logs it and says what it said be
     const r = hook(box.store.root, ["session-start"], JSON.stringify({ cwd: box.store.root }));
     assert.equal(r.code, 0);
     assert.match(r.stdout, /No active work item/, "output unchanged by this item");
+    // Two steps of the one hook read the same file and fail on it: the text it
+    // prints, and the cost recording that is fenced off after it.
     const got = lines(box);
-    assert.equal(got.length, 1, JSON.stringify(got));
-    assert.match(got[0] as string, /\tsession-start\t.*state\.json is not valid JSON/);
+    assert.equal(got.length, 2, JSON.stringify(got));
+    assert.match(got[0] as string, /\tsession-start\tstate\.json could not be read: .*not valid JSON/);
+    assert.match(got[1] as string, /\tsession-start\tcost recording: .*not valid JSON/);
   } finally {
     box.dispose();
   }
