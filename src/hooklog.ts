@@ -56,13 +56,15 @@ export function oneLine(text: string, max: number): string {
 export function appendHookError(storeDir: string | null, event: string, message: string): void {
   if (storeDir === null) return;
   try {
-    if (!existsSync(storeDir)) return;
+    // A directory, not merely a path that exists: `.mstack` as a file is no store.
+    if (!statSync(storeDir).isDirectory()) return;
     const log = join(storeDir, HOOK_LOG);
     const fresh = !existsSync(log);
-    if (fresh) keepOutOfGit(storeDir);
     const line = `${new Date().toISOString()}\t${oneLine(event, MAX_EVENT)}\t${oneLine(message, MAX_MESSAGE)}\n`;
     // One O_APPEND write of well under a page: two hooks failing together do not interleave.
     appendFileSync(log, line, "utf8");
+    // Only after the line is on disk: a store that cannot take the log has nothing to keep out of git.
+    if (fresh) keepOutOfGit(storeDir);
     trim(log);
   } catch {
     // The record of a failure is not allowed to become a failure.

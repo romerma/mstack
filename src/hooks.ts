@@ -7,7 +7,7 @@ import { isActive } from "./lifecycle.ts";
 import * as hooklog from "./hooklog.ts";
 import { findStore, type Store } from "./paths.ts";
 import { reportFiles, reportKind, roleOf, substantialReports } from "./roles.ts";
-import { activeItem, parseState, type Item } from "./state.ts";
+import { parseState, type Item } from "./state.ts";
 
 /**
  * Hook handlers.
@@ -194,7 +194,7 @@ export function subagentStop(input: HookInput): string | null {
 
   const store = findStore(input.cwd ?? process.cwd());
   if (store === null) return null;
-  const item = activeItem(store);
+  const item = activeItemOrLog(store);
   if (item === undefined) return null;
 
   const found = reportFiles(store.progress, kind, item.slug);
