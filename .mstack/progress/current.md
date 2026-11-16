@@ -7,7 +7,7 @@
 > empty template below.
 
 - **Item:** 52 withlock-enters-without-the-lock
-- **Status:** in_progress (bug-fix playbook, steps 1 to 3 done)
+- **Status:** reviewing, round 1 (bug-fix playbook step 8)
 - **Branch:** fix/withlock-enters-without-the-lock
 - **Base:** d34761e
 - **Worktree:** none
@@ -51,20 +51,16 @@ passes bypassPermissions. Do not run `check.mjs` or `verify.mjs` while a batch i
 
 ## Next step
 
-Relaunch with `claude --plugin-dir .`, then `/mstack continue item 52`. It resumes at bug-fix
-step 4:
+Round 1 review of item 52 is out to a lone reviewer on a different model from the implementer
+(implementer Sonnet, reviewer Opus, launched as general-purpose agents briefed with
+`agents/implementer.md` and `agents/reviewer.md`, because this session has no plugin loaded).
+Its report goes to `.mstack/progress/review_withlock-enters-without-the-lock.md` and it types
+its own ledger row.
 
-4. Design. The fix crosses a function boundary if the lock gains an owner record, so a design
-   pass is due. The open choice, acceptance line 4: when a live holder outlasts the timeout,
-   keep waiting or exit non-zero naming the lock. Record it with `mstack decide`. Entering
-   unlocked is not an option.
-5. Delegate to `mstack:implementer`. Scope: `src/tsv.ts`, `tests/tsv.test.ts`,
-   `tests/lock-holder.ts`, and the 'concurrent decisions' test in `tests/decisions.test.ts`
-   (acceptance line 5: real concurrency, plus the mutation that removes `withLock`). Forbidden:
-   `src/state.ts`, which is item 53.
-6. Verify on the step 1 surface: rerun the three-process repro and paste the timeline.
-7. The failing tests are already committed ahead of the fix.
-8. `/mstack:review`, then merge to main, then item 53.
+- APPROVED: `./bin/mstack gate --full`, `state set 52 --status verifying`, then `done`, merge
+  the branch to main fast-forward, and start item 53.
+- CHANGES_REQUESTED: `state set 52 --status in_progress`, hand the findings to a fresh
+  implementer, review again as `_r2`.
 
 ## Verification
 
