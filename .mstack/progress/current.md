@@ -6,10 +6,10 @@
 > On close: append the summary to `history.md` and reset this file to the
 > empty template below.
 
-- **Item:** 70 gate-closes-over-a-rejection
-- **Status:** reviewing, round 2
-- **Branch:** fix/gate-closes-over-a-rejection
-- **Base:** 7283bbe
+- **Item:** none active (70 closed 2026-11-17; item 50 waits for the user's icon answer)
+- **Status:** -
+- **Branch:** main
+- **Base:** -
 - **Worktree:** none
 
 ## Plan
@@ -32,7 +32,7 @@ watch is review rounds per item: if they do not drop after phase 1, intake is ce
 
 - Easy tier: `impl_benchmark-harness_baseline.md`.
 - Hard tier: `impl_benchmark-hard-tier_baseline.md`.
-- 2026-11-16: items 52 to 68 filed. Item 52 closed in 3 rounds and item 53 in 2; see `history.md`.
+- 2026-11-16 and 17: items 52 to 71 filed; 52, 53, 54, 47, 46 and 70 closed; see `history.md`.
 - Sessions launched as plain `claude` have no mstack plugin: no `mstack:*` agents, no hooks, no
   cost rows. On 2026-11-16 the user chose to continue anyway, with general-purpose agents
   briefed from `agents/*.md` (Sonnet implements, Opus reviews).
@@ -45,21 +45,16 @@ passes bypassPermissions. Do not run `check.mjs` or `verify.mjs` while a batch i
 
 ## Next step
 
-Item 70, round 2 implementation is in: `impl_gate-closes-over-a-rejection_r2.md`, head of the
-last non-chore commit `9ddd23d`. The closing check reads the verdict at the sha being closed
-and keeps the across-all-rows rule; a `verifier-blocked` row citing the author's report is
-discounted; the "not itself a gate" and "cannot disagree" sentences are corrected. An item does
-not record its closing commit, so the audit of already closed items keeps the across-sha rule.
-Round 2 review is out to a fresh reviewer, which writes
-`review_gate-closes-over-a-rejection_r2.md` and types its own ledger row.
+Phase 0 is done except item 50: closed 52, 53, 54, 47, 46, and item 70 found on the way.
 
-- APPROVED: `state set 70 --status verifying`, then `done`, merge fast-forward.
-- CHANGES_REQUESTED: a third round needs a `review-r3` decision row.
+Waiting on the user:
+- Item 50 (`plugin validate --strict`): the icon is the user's call per its own acceptance.
+- Pushing `main`, local only since 2026-11-08: the only way to see CI on ubuntu and node 22.6.
 
-Follow-ups to file when the item closes: `state set --status done` still closes author-only and
-discounted ledgers that the gate then fails; an item does not record the commit it was closed
-on (item 40 owns item fields), so a hand-edited `done` after a two-sha rejection passes the
-audit; surviving mutants M10, M11, M15, M16, M20, M24, M25.
-
-Waiting on the user: item 50 (the plugin icon), and the go-ahead to push `main`, local only
-since 2026-11-08. Then phase 1 (55, 56) and item 69, which need the plugin really loaded.
+Next, not blocked:
+1. Phase 1: 55 intake-step (its fork is answered) and 56 test-first-reference. Both change
+   skills and agents and have acceptance lines that need the plugin really loaded: relaunch
+   with `claude --plugin-dir .` and run `/mstack continue with item 55`. Item 69 needs the same
+   session for the cost rows.
+2. Follow-ups filed this session, by weight: 71 (closing commit unrecorded), 66 (lock), 68
+   (state writes), 67 (three load-sensitive tests, maybe item 21), 69 (hook log).

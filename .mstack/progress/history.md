@@ -992,3 +992,33 @@ They belong with item 30 (README counts drift).
 
 **Phase 0 is done except item 50**, which needs the user's answer on the plugin icon. Closed:
 52, 53, 54, 47, 46, in 3, 2, 2, 2 and 1 rounds. Filed on the way: 66 to 70.
+
+## 2026-11-17 — item 70 gate-closes-over-a-rejection, closed
+
+**What changed.** `readVerdict` in `src/ledger.ts` is the one reader of a verdict at a sha;
+`ledger check`, the gate's closed-item audit and a new `ledger-verdict` closing check call it.
+`state set --status done`, the gate at `verifying` and the Stop hook refuse a standing
+rejection and name the row; `--force` does not get past it. Closing judges at the sha being
+closed and also across the item's rows. A `verifier-blocked` row never lifts a rejection, and
+one that cites the author's own report is discounted. Abbreviated shas resolve through git;
+`ledger record` refuses an empty target; the status line shows three verdict states. The
+sentence every reviewer reads, that a `verifier-failed` row "is not itself a gate", now says
+the opposite, because it is one.
+
+**Rounds: 2.**
+- Round 1, rejected: that sentence was now false; the closing check judged across shas and not
+  at the closing sha, so a rejection at HEAD followed by an approval recorded later at HEAD~1
+  closed with a passing gate; and a lone `verifier-blocked` citing `impl_<slug>.md` closed an
+  item the old gate refused.
+- Round 2, approved: `review_gate-closes-over-a-rejection_r2.md`, `live-verified` at `28122f6`
+  by reviewer. 23 sequences on the real CLI: nothing closes over a standing independent
+  rejection at the sha being closed, and the normal fix-and-re-review flow still closes. The new
+  check refuses none of this repository's 31 closed items; 111 ledger pairs answer the same.
+
+**Accepted limit.** The audit cannot know the commit an item was closed on. Filed as item 71,
+next to item 40.
+
+**Session tally, 2026-11-16 and 17.** Closed: 52, 53, 54, 47, 46, 70, in 3, 2, 2, 2, 1 and 2
+rounds. Filed: 52 to 71. Suite: 374 tests at the start, 529 now, green on bun and on node
+22.6.0, 24.14.0 and 26.13.1. None of it has run on CI: `main` is local only since 2026-11-08.
+No session loaded the plugin, so no hook ran for real and `costs.tsv` is still header-only.

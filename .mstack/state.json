@@ -963,9 +963,24 @@
         "an abbreviated sha given to ledger check or ledger record is resolved to the full commit or refused with a message, and ledger record refuses an empty target",
         "the status line distinguishes an author-only verdict and a discounted approval from an independent approval"
       ],
-      "status": "reviewing",
+      "status": "done",
       "description": "Found by the item 47 reviewers on real stores. src/gate.ts:421 drops a closing-role row whose evidence cites the implementer's own report even when that row is a rejection, so a genuine approval followed by a rejection that mentions impl_<slug>.md closes the item. src/gate.ts:445-448 lets a reviewer verifier-blocked after a reviewer verifier-failed close the item, so 'could not verify' erases a standing rejection. ledger check fails both since item 47; the gate is the one that closes. Around the same code: shas are compared exactly, so 'ledger check <target> a4e6c784' answers 'no verdict' and the ledger holds one 7-character row; ledger record accepts an empty target; the status line shows an author-only verdict as green and a discounted approval as yellow without saying why; src/ledger.ts:204 says 'implementer's own report' when the evidence cites spec_<slug>.md.",
       "source": "item 47 reviews, .mstack/progress/review_ledger-check-hides-a-rejection.md and _r2.md, 2026-11-17"
+    },
+    {
+      "id": 71,
+      "slug": "closing-commit-unrecorded",
+      "title": "An item does not record the commit it was closed on, so the closing audit cannot judge the verdict at that commit",
+      "acceptance": [
+        "closing an item records the commit it was closed on, and the gate's audit of closed items judges the verdict at that commit through readVerdict",
+        "an item cannot be closed on a commit no closing role has judged while a rejection stands at an ancestor commit, or the report shows why that is allowed and the decision is recorded",
+        "ledger record stores a resolved full sha for any ref it accepts (HEAD, a branch, upper case) or refuses it",
+        "state set --status done refuses author-only and discounted ledgers with the reason the gate gives, or the split is recorded as intended",
+        "the sentence in agents/reviewer.md and skills/review/SKILL.md matches the code, a test pins that a blocked row citing spec_<slug>.md is discounted, and surviving mutants M10, M11, M15, M16, M20, M24 and M25 are killed or the code removed"
+      ],
+      "status": "pending",
+      "description": "Left open by item 70, each case run by a reviewer on the real CLI. The at-sha closing check only covers a close at the exact commit that carries the rejection row: a rejection at HEAD~1, an approval of HEAD~2 recorded later, and a close at a HEAD with no rows closes and passes the gate (the same at the base). An item hand-edited to done after a two-sha rejection passes the audit, because the audit keeps the across-sha rule. A ledger row whose sha was typed as HEAD, in upper case or as a branch name is stored as typed, so the at-sha check misses it. state set --status done still closes author-only and discounted ledgers that the gate then fails. The corrected sentence in agents/reviewer.md says a rejection stands 'until a later independent approval at that commit', which is narrower than the code. Belongs with item 40, which owns item fields.",
+      "source": "item 70 reviews, .mstack/progress/review_gate-closes-over-a-rejection.md and _r2.md, 2026-11-17"
     }
   ]
 }
