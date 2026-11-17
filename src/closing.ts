@@ -1,5 +1,5 @@
 import { headSha } from "./git.ts";
-import { describeRow, entries as ledgerEntries, readVerdict, sameCommit, short } from "./ledger.ts";
+import { describeRow, entries as ledgerEntries, readVerdict, sameCommit } from "./ledger.ts";
 import { requiresVerification, VERIFICATION_REQUIRED_FROM, type Status } from "./lifecycle.ts";
 import type { Store } from "./paths.ts";
 import type { Item, State } from "./state.ts";
@@ -127,7 +127,7 @@ const standingRejection: ClosingCheck = {
         : `; the later verifier-blocked by ${reading.blockedAfter.verifier || "unnamed"} does not answer it`;
     const elsewhere = atClosingSha
       ? ""
-      : `; it was recorded against another commit (${short(reading.row.sha)}) and only a later independent approval answers it`;
+      : `; it was recorded against another commit than the one being closed, and only a later independent approval answers it`;
     return [
       {
         check: LEDGER_VERDICT_CHECK,

@@ -364,6 +364,6 @@ export function check(
   }
 }
 
-export function short(sha: string): string {
+function short(sha: string): string {
   return sha.slice(0, 8);
 }
