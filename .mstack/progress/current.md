@@ -6,10 +6,10 @@
 > On close: append the summary to `history.md` and reset this file to the
 > empty template below.
 
-- **Item:** 56 test-first-reference
-- **Status:** in_progress (implementer briefed)
-- **Branch:** feat/test-first-reference
-- **Base:** 44809a5
+- **Item:** none active (56 closed 2026-11-17)
+- **Status:** -
+- **Branch:** main
+- **Base:** -
 - **Worktree:** none
 
 ## Plan
@@ -32,7 +32,7 @@ watch is review rounds per item: if they do not drop after phase 1, intake is ce
 
 - Easy tier: `impl_benchmark-harness_baseline.md`.
 - Hard tier: `impl_benchmark-hard-tier_baseline.md`.
-- 2026-11-16 and 17: items 52 to 74 filed; 52, 53, 54, 47, 46, 70 and 55 closed; see `history.md`.
+- 2026-11-16 and 17: items 52 to 74 filed; 52, 53, 54, 47, 46, 70, 55 and 56 closed; see `history.md`.
 - Sessions launched as plain `claude` have no mstack plugin: no `mstack:*` agents, no hooks, no
   cost rows. On 2026-11-16 the user chose to continue anyway, with general-purpose agents
   briefed from `agents/*.md` (Sonnet implements, Opus reviews).
@@ -45,23 +45,22 @@ passes bypassPermissions. Do not run `check.mjs` or `verify.mjs` while a batch i
 
 ## Next step
 
-Phase 0 is done except item 50, and item 55 (intake) of phase 1 is closed.
+Phases 0 and 1 are closed, except item 50 (waits for the user).
 
 Waiting on the user:
 - Item 72 `unattended-run-forks`: one fork on the item, whether an unattended run takes a
-  fork's recommended answer as a provisional ruling or stops at the fork round. Answer with
-  `mstack decide --resolves unattended-run-forks`.
+  fork's recommended answer as a provisional ruling or stops at the fork round. Asked on
+  2026-11-17. Answer with `mstack decide --resolves unattended-run-forks`.
 - Item 50 (`plugin validate --strict`): the icon is the user's call per its own acceptance.
 
 Standing: push `main` after closing work and check CI (user, 2026-11-17).
 
-In flight: 56 on `feat/test-first-reference` (design row of 2026-11-17: internal skill
-`skills/test-first/`, preloaded through the implementer's `skills` field, hook only if the live
-run shows no injection). Then review by the other model, close, merge, push.
-
 Next, not blocked:
-1. 56 test-first-reference (in flight). Its live acceptance (the implementer quotes the reference without
-   reading files) can be checked the way item 55 was, with a headless
-   `claude -p --plugin-dir .` run in a throwaway project; the wrapper is described in
-   `review_intake-step.md` under Probe C.
-2. Follow-ups by weight: 73 (intake loose ends), 74 (state CLI), 71, 66, 68, 67, 69.
+1. 73, the loose ends of 55 and 56 (12 criteria, prose and two lint rules). It closes real gaps
+   seen in live runs: nothing moves an item to `in_progress` after intake, and `feature.md`
+   points at a command that cannot print seams.
+2. 74 state CLI (`state show`), then 71, 66, 68, 67, 69.
+3. Phase 2: 57, 58, 59, 60, 61, 62, 64.
+
+Live checks: a headless `claude -p --plugin-dir .` run in a copy of `sandbox/bench/template`;
+the wrapper is in `review_intake-step.md` under Probe C.

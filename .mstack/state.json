@@ -776,7 +776,7 @@
         "feature.md names a test-first step before delegation, and the implementer brief declares the item's seams as pre-agreed",
         "lint-plugin and both suites green"
       ],
-      "status": "reviewing",
+      "status": "done",
       "description": "bug-fix.md and refactor.md name a failing test; feature.md does not, and test adequacy is found by the reviewer's mutations in rounds 2 to 4 (item 36: 'the suite was green from round 1'). The reference merges mattpocock/skills tdd (what a good test is: public interface, seams, independent expected values, vertical slices) with obra/superpowers test-driven-development (process: watch red for the expected reason, watch green, run the project suite). Refactoring stays out of the loop; review owns it. Seams come from the item, so no pass asks the user to confirm them (depends on item 55; the field lands with item 40).",
       "source": "reports/Mejoras mstack con skills Pocock.md, 2026-11-16"
     },
@@ -1003,7 +1003,7 @@
     {
       "id": 73,
       "slug": "intake-followups",
-      "title": "Loose ends the item 55 reviews accepted as non-blocking",
+      "title": "Loose ends the item 55 and 56 reviews accepted as non-blocking",
       "acceptance": [
         "a session that answers a parked fork has the --resolves placement rule in context: the current.md note carries it or router step 2 points at intake.md's Park a fork section, and a fresh headless session with a full answer to three forks writes one row that lists all three",
         "Closing a session does not reset a current.md that records a parked fork",
@@ -1011,7 +1011,12 @@
         "router step 2 no longer needs current.md read to know whether to read it, and the skip list covers a parked item, which is pending",
         "lint-plugin fails when the router's intake step, the origin header of intake.md or either licence file is removed",
         "CHANGELOG.md, docs/wiki/The-CLI.md:258 and docs/wiki/How-A-Work-Item-Flows.md:113 describe forks as intake now defines and parks them",
-        "the cost of sending every item with an answered intake fork down the spec path is measured on one small request, and the rule is kept or narrowed with the decision recorded"
+        "the cost of sending every item with an answered intake fork down the spec path is measured on one small request, and the rule is kept or narrowed with the decision recorded",
+        "after intake's state add something moves the item to in_progress before work starts: intake's End or the playbook says so, and a headless /mstack run does it without guessing a status",
+        "feature.md's test-first step names where the seams are read (the item's seams array in .mstack/state.json, or state show once item 74 adds it), says an item that changes behaviour but has no seams gets them with state set --seam before delegation, keeps 'skip: no behaviour' for changes with no behaviour, and asks for the first test run red, not all tests",
+        "skills/test-first/SKILL.md drops the sentence about a reviewer's mutants and this repository's history, and says a refactor the brief asks for, pinned by characterization tests, writes no new test",
+        "lint-plugin fails when an agent's skills entry names no skill under skills/ or names one with disable-model-invocation: true",
+        "docs/wiki/Skills-and-Playbooks.md counts the skills it introduces correctly"
       ],
       "status": "pending",
       "source": "item 55 reviews, .mstack/progress/review_intake-step.md N-6, review_intake-step_r2.md N-6, review_intake-step_r3.md N-2 to N-7, 2026-11-17",

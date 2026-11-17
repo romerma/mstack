@@ -1062,3 +1062,36 @@ parked-fork note, and nothing executable pins the router step, the header or the
 **Outside the item.** `main` was pushed on 2026-11-17 at `b9a12f7` after the user's standing
 yes; CI run 44045047755 was green on `test` and `oldest-node`, the first CI run since
 2026-08-24. Suite: 529 tests at the start of the item, 542 now.
+
+## 2026-11-17 — item 56 test-first-reference, closed
+
+**What changed.** A new internal skill, `skills/test-first/SKILL.md` (61 lines,
+`user-invocable: false`), holds the test-first reference: what a good test is (from
+`mattpocock/skills` tdd), the loop of one slice at a time with the red output pasted in the
+report (from `obra/superpowers` test-driven-development), seams taken from the item and never
+confirmed with the user, refactoring left to review, and the mutant check before reporting. It
+carries an origin header for both sources. `agents/implementer.md` preloads it through
+`skills: [test-first]`; `feature.md` has a test-first step before delegation; the router's
+Delegation list names the seams. No code changed and no hook was built.
+
+**Rounds: 1.** Approved: `review_test-first-reference.md`, `live-verified` at `d13d100` by
+reviewer. The preload was proved with a control: with the plugin loaded the implementer quoted
+two sentences of the reference with no tool call, and with the `skills` line removed in a clone
+it answered `NO REFERENCE IN CONTEXT`. So claude-code issue 25834 does not bite on claude
+2.1.326 with the bare name `test-first`; the documentation does not state the name form, so this
+is empirical. In a live `/mstack` run the brief carried the seams as pre-agreed and the
+implementer showed red for the expected reason, then green, then killed its mutants.
+
+**Measured.** The preload costs about 1.7k tokens per implementer start (8043 against 6309
+subagent tokens for the same task). The review's six headless runs cost 3.86 USD.
+
+**Accepted limits, all added to item 73.** `feature.md` points at `mstack state active` for the
+seams, which prints only the slug; nothing moves an item to `in_progress` after intake's
+`state add`, and two coordinators guessed `--status active` first; one sentence of the reference
+is false inside a consumer project; a delegated refactor is not exempted in so many words; lint
+does not catch a misspelled `skills` entry or a skill that blocks model invocation, either of
+which silently removes the reference.
+
+**Session tally, 2026-11-17.** Closed: 55 in 3 rounds, 56 in 1. Filed: 72, 73, 74. Suite: 542
+tests, green on both runtimes. `main` pushed twice with CI green on `test` and `oldest-node`.
+Phase 1 of the program (front end) is closed.
