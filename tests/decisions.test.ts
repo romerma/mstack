@@ -299,6 +299,61 @@ test("rewriting the fork drops the answer to the question it replaced", () => {
   }
 });
 
+/**
+ * The intake prose records a partial answer as a plain row and re-states the
+ * field with the unanswered forks, never with --resolves. In either order the
+ * item has to stay unable to reach in_progress, because the pointer is only
+ * ever written by the row that answers every fork left.
+ */
+test("a partial answer recorded plainly, in either order with the re-state, keeps the fork open", () => {
+  const TWO = "1) Discount the fee? Recommended: no. 2) Show the fee as its own line? Recommended: yes.";
+  const REST = "2) Show the fee as its own line? Recommended: yes.";
+  const plain = (cwd: string) =>
+    mstack(cwd, [
+      "decide", "--phase", "intake", "--decision", "1) no discount", "--why", "the user answered fork 1",
+      "--evidence", "user reply", "--result", "fork 1 answered",
+    ]);
+  const restate = (cwd: string) => mstack(cwd, ["state", "set", "fee", "--decision-required", REST]);
+  const orders: Record<string, [(c: string) => unknown, (c: string) => unknown]> = {
+    "answer, then re-state": [plain, restate],
+    "re-state, then answer": [restate, plain],
+  };
+  for (const [name, steps] of Object.entries(orders)) {
+    const sb = sandbox();
+    try {
+      sb.writeState(state([item({ slug: "fee", status: "pending", decision_required: TWO })]));
+      for (const step of steps) step(sb.store.root);
+      const it = parseState(sb.store.state).items[0]!;
+      assert.equal(it.decision_required, REST, name);
+      assert.equal(it.decision_resolved, undefined, `${name}: no pointer, so fork 2 reads as open`);
+      const refused = mstack(sb.store.root, ["state", "set", "fee", "--status", "in_progress"]);
+      assert.equal(refused.status, 2, `${name}: ${refused.stdout}`);
+      assert.match(refused.stderr, /unanswered decision/);
+      assert.equal(parseState(sb.store.state).items[0]!.status, "pending", name);
+    } finally {
+      sb.dispose();
+    }
+  }
+});
+
+test("re-stating an answered fork clears the pointer and in_progress is then refused", () => {
+  const sb = sandbox();
+  try {
+    sb.writeState(state([item({ slug: "fee", status: "pending", decision_required: "1) a? 2) b?" })]));
+    const answered = mstack(sb.store.root, [
+      "decide", "--resolves", "fee", "--decision", "no discount on the fee, flat as quoted", "--why", "a flat fee is a fixed cost, so a discount makes no sense",
+      "--evidence", "the user reply in the session of 2026-11-17, quoted", "--result", "what was chosen",
+    ]);
+    assert.equal(answered.status, 0, answered.stderr);
+    assert.notEqual(parseState(sb.store.state).items[0]!.decision_resolved, undefined);
+    assert.equal(mstack(sb.store.root, ["state", "set", "fee", "--decision-required", "2) b?"]).status, 0);
+    assert.equal(parseState(sb.store.state).items[0]!.decision_resolved, undefined);
+    assert.equal(mstack(sb.store.root, ["state", "set", "fee", "--status", "in_progress"]).status, 2);
+  } finally {
+    sb.dispose();
+  }
+});
+
 test("restating the same fork changes nothing, even on an item past the line", () => {
   const sb = sandbox();
   try {
