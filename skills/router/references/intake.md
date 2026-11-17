@@ -3,7 +3,8 @@
 # Intake
 
 Turn the request into one queue item. Unlike grilling, which hands every decision to the user,
-the agent takes the reversible ones and records them.
+the agent takes the reversible ones and records them. With a `GLOSSARY.md`, read it first and use
+its terms in the title and acceptance; a term the request uses differently is a fact, not a question.
 
 ## Map
 
@@ -63,10 +64,10 @@ stdout``. No behaviour change, no seam: say why in `--description`.
 
 ## Proportion
 
-A one-line request with nothing ambiguous costs a couple of lookups and one `state add`. A
-program of work (several changes or tracks) is not one item: hand it to the
+A program of work (several changes or tracks) is not one item: hand it to the
 [orchestrate](../playbooks/orchestrate.md) playbook, whose forks still reach the user in one
-round, each parked on the item it blocks.
+round, each parked on the item it blocks. A one-line request with nothing ambiguous is a couple
+of lookups and one `state add`.
 
 ## Interactive mode
 

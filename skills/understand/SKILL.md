@@ -37,6 +37,9 @@ an empty result become "there was no discussion" is how a confident, wrong accou
 
 ## The account
 
+With a `GLOSSARY.md`, read it and use its terms in the notes; a term the request uses differently
+is a fact to settle against the code, not a question for the user.
+
 Present it in this order, and omit any section with nothing in it:
 
 - **Overview.** What this is for, in a paragraph.

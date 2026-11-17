@@ -37,9 +37,13 @@ that separates a retro from a diary.
 |---|---|
 | A rule an agent must follow every time | A hook, or the gate. Not prose. |
 | A constraint specific to one directory | That directory's `CLAUDE.md` |
-| A decision with lasting consequences | An ADR, or `decisions.tsv` |
+| A decision hard to reverse, surprising without context and a real trade-off | An ADR; any other decision is a `decisions.tsv` row |
+| A term the work introduced or sharpened | `GLOSSARY.md` |
 | A procedure someone will repeat | A skill or a playbook |
 | A gap in what gets verified | A new check in the gate, or a new test |
+
+[The domain docs reference](references/domain-docs.md) holds both formats and the three conditions
+for an ADR. A session that introduced no term and took no such decision writes nothing here.
 
 **Anything better enforced by a lint, a type or a test goes to Backlog as a code change, not to
 Accepted as a documentation change.** A rule that lives only in prose drifts, and the drift is

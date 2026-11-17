@@ -151,10 +151,14 @@ only documentation it needed.
 
 ## Closing a session
 
-1. `mstack gate` green.
-2. The report files for every pass that ran exist and say something.
-3. Append the session summary to `.mstack/progress/history.md`, and reset `current.md` to its
+1. If the work introduced or sharpened a term, or took a decision that is hard to reverse,
+   surprising without context and a real trade-off, write the glossary entry or the ADR as
+   [domain-docs](../reflect/references/domain-docs.md) says, so the reviewer reads it in the diff.
+   Otherwise write nothing and say nothing.
+2. `mstack gate` green.
+3. The report files for every pass that ran exist and say something.
+4. Append the session summary to `.mstack/progress/history.md`, and reset `current.md` to its
    empty template, unless it records a parked fork. `history.md` is append-only: if an earlier
    entry turned out to be wrong, say so in a later one rather than editing it.
-4. `mstack state set <ref> --status done` only after a reviewer that did not write the code
+5. `mstack state set <ref> --status done` only after a reviewer that did not write the code
    approved, and the ledger holds a verdict at the current head SHA.
