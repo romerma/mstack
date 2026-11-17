@@ -90,10 +90,11 @@ Most skills also carry a prohibition, and they are worth knowing before you run 
 - `orchestrate` is refused below its threshold: work one agent could finish in a session
   takes the feature route instead.
 - `reflect` never edits skills, agents or hooks unilaterally, and `history.md` is
-  append-only. Closing an item and `reflect` are also where a term the work introduced goes
-  into `GLOSSARY.md` and where a decision that is hard to reverse, surprising without context
-  and a real trade-off becomes an ADR under `docs/adr/`; a decision missing any one of the three
-  stays a `decisions.tsv` row, and a session that introduced nothing writes nothing.
+  append-only. A term the work introduced goes into `GLOSSARY.md`, and a decision that is hard
+  to reverse, surprising without context and a real trade-off becomes an ADR under `docs/adr/`,
+  both before the review of the item that introduced them; what `reflect` proposes after the
+  verdict goes into a follow-up item. A decision missing any one of the three stays a
+  `decisions.tsv` row, and a session that introduced nothing writes nothing.
 - `unslop` is itself a list of prohibitions; the rule above them all is to not generate the
   bad sentence in the first place.
 - `commit` states Conventional Commits only and never presents a house rule as the

@@ -280,22 +280,29 @@ Walking the lines that carry the weight:
 
 - **"GLOSSARY.md: N entries"** appears only when a `GLOSSARY.md` exists at the repository root,
   and never otherwise: the gate does not ask for a glossary, so a repository without one gets
-  no section and no line. When the file exists, each entry must be a `**Term**:` line with a
-  definition of one or two sentences, and no term may appear twice. The check reads structure
-  and never content, so a hand-written glossary is not held to a style. Every failure names the
-  entry and its line:
+  no section and no line. When the file exists the check recognises `**Term**:` and `**Term:**`
+  (also as a list item, with the definition on the same line or below it) and one `##` or `###`
+  heading per term followed by a paragraph. Rules, HTML comments and fenced blocks are skipped.
+  It reads structure and never content. Two things are failures, each naming the entry and its
+  line: an entry with no definition, and a term that appears twice (case and a trailing colon
+  ignored). A `GLOSSARY.md` that cannot be read, or is a directory, is a failure that says so.
+  Two things are warnings and leave the gate green: a definition of more than two sentences,
+  and a non-empty file in which no entry is recognised, which is how a table or any other
+  style the check does not know passes. The warning lists the forms it does recognise. The
+  `Stop` hook runs the gate quiet, which prints no warning, so only a failure reaches the model.
 
   ```console
   $ mstack gate
   ...
   -- glossary
-  [fail]  GLOSSARY.md:3: entry "Receipt" has no definition
+  [fail]  GLOSSARY.md:5: entry "Receipt" has no definition
           fix: write one or two sentences under it, or remove the entry
+  [warn]  GLOSSARY.md:3: entry "Order" has 3 sentences; a definition is one or two
   ```
 
   The format is stated once, in the reflect skill's domain-docs reference, and a test pins that
-  the example there passes this check. Only the root file is read: a `GLOSSARY.md` in a
-  subdirectory or under `docs/` is not.
+  the example there passes this check with no warning. Only the root file is read: a
+  `GLOSSARY.md` in a subdirectory or under `docs/` is not.
 
 ### `gate --full`
 

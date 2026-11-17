@@ -24,11 +24,11 @@ The store is small enough to read in one sitting, and that is deliberate.
 ```
 
 Two files outside the store belong to the same practice. `GLOSSARY.md` at the repository root
-defines the project's terms, one or two sentences each, and `mstack gate` checks its entry
-format when the file exists. `docs/adr/` holds one numbered file per decision that was hard to
+defines the project's terms, one or two sentences each, and `mstack gate` checks its entries
+when the file exists: a missing definition or a repeated term fails, the rest warns. `docs/adr/` holds one numbered file per decision that was hard to
 reverse, surprising without context and a real trade-off; every other decision is a row in
-`decisions.tsv`. Neither is required, and both are written as part of the item that introduced
-them, so the reviewer reads them in the diff.
+`decisions.tsv`. Neither is required, and both are written before the review of the item that
+introduced them, so the verdict has seen them.
 
 Everything there is committed except `verification.tsv`, which is the one file whose whole
 claim is about *this* checkout. See [below](#verificationtsv).
