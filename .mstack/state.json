@@ -1018,7 +1018,7 @@
         "lint-plugin fails when an agent's skills entry names no skill under skills/ or names one with disable-model-invocation: true",
         "docs/wiki/Skills-and-Playbooks.md counts the skills it introduces correctly"
       ],
-      "status": "in_progress",
+      "status": "reviewing",
       "source": "item 55 reviews, .mstack/progress/review_intake-step.md N-6, review_intake-step_r2.md N-6, review_intake-step_r3.md N-2 to N-7, 2026-11-17",
       "seams": [
         "skills/router/SKILL.md and references/intake.md as read by a headless claude -p run",
