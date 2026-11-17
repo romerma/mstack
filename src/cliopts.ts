@@ -144,7 +144,7 @@ function refuseDashedValues(flags: Flags, args: readonly string[]): void {
       const shown = next.length > 40 ? `${next.slice(0, 37)}...` : next;
       throw new UserError(
         `${arg} was followed by '${shown}', which starts with a dash and so reads as another flag, not as its value`,
-        `if it is the value, pass it as one argument: ${arg}=${shown}${/\s/.test(shown) ? " (quote the whole argument, it has spaces)" : ""}`,
+        `if it is the value, pass it as one argument: ${arg}=${next}${/\s/.test(next) ? " (quote the whole argument, it has spaces)" : ""}`,
       );
     }
     i++;

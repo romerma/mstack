@@ -302,6 +302,11 @@ onEach("a value that starts with -- and follows its flag after a space is refuse
       assert.ok(result.stderr.includes(`${flag}=${value}`), `no ${flag}=${value} in: ${result.stderr}`);
       assert.doesNotMatch(result.stderr, /ambiguous|Did you forget/);
     }
+    // a long value is abbreviated in the sentence but never in the fix, which has to be copyable
+    const long = `--${"y".repeat(60)}`;
+    const abbreviated = cli(sb.store.root, "decide", "--decision", long);
+    assert.equal(abbreviated.code, 2);
+    assert.ok(abbreviated.stderr.includes(`--decision=${long}`), abbreviated.stderr);
     assert.equal(stateBytes(sb), before);
     assert.equal(readFileSync(sb.store.decisions, "utf8"), decisionsBefore);
   } finally {
