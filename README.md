@@ -91,7 +91,7 @@ drops its named steps.
 |---|---|---|
 | "how does X work", "why is it like this" | **investigate** | Splits how-it-works from why-it-is. Past three moving parts, fans out narrow readers instead of one broad one, and says where each claim's evidence stopped |
 | "X is broken, wrong, or slow" | **bug-fix** | Reproduce it first or stop, no repro no fix. Failing test before the fix, and the repro commit lands **before** the fix in history so the broken state stays checkoutable |
-| "build X" | **feature** | Understand the subsystem before adding a parallel one. Two structurally distinct designs before picking, or a stated reason the constraints forced the answer. A throughput checkpoint that says what can actually run in parallel |
+| "build X" | **feature** | Understand the subsystem before adding a parallel one. Two structurally distinct designs before picking, or a stated reason the constraints forced the answer. A throughput checkpoint that says what can actually run in parallel. A test-first step before delegation passes the item's seams to the implementer as pre-agreed |
 | "clean this up without changing behaviour" | **refactor** | Characterization tests committed *before* anything is touched. Migrate callers and delete the old path in the same change. Verify by re-running those tests unedited |
 | "run this whole program of work" | **orchestrate** | Many changes, several tracks, more than one session, isolated worktrees |
 | "pick up where we left off" | **resume** | Read the checkpoint and the reports that already ran rather than redoing them. Where the record and the repository disagree, the repository wins |
@@ -480,7 +480,8 @@ gate, hooks that enforce, tool-list-as-permission roles, the progress-file disci
 `decision_required` as a data field, and the fast/slow gate split. What is new here is joining
 them and making the gates executable on Claude Code's primitives.
 
-The intake step (`skills/router/references/intake.md`) adapts text from
+The intake step (`skills/router/references/intake.md`) and the implementer's test-first
+reference (`skills/test-first/SKILL.md`) adapt text from
 [mattpocock/skills](https://github.com/mattpocock/skills) and
 [obra/superpowers](https://github.com/obra/superpowers); their MIT notices ship in
 `licenses/mattpocock-skills-LICENSE.txt` and `licenses/obra-superpowers-LICENSE.txt`.

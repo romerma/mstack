@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+- **The implementer now starts with a test-first reference in its context.** A new internal
+  skill, `skills/test-first/SKILL.md` (`user-invocable: false`), holds it: what a good test is
+  (public interface at a seam, independent expected value, vertical slices, mocks only at
+  boundaries the project does not own), the loop (watch red for the expected reason, least
+  code, watch green, whole suite), and a mutant check before reporting. Refactoring stays out
+  of the loop; review owns it. `agents/implementer.md` loads it with `skills: [test-first]`;
+  a live headless run with the plugin loaded showed the subagent quoting a distinctive sentence
+  without a tool call, so no `SubagentStart` hook was needed. The feature playbook gains a
+  test-first step before delegation, and the brief carries the item's seams as pre-agreed, so
+  no pass asks the user to confirm them. The text adapts mattpocock/skills `tdd` and
+  obra/superpowers `test-driven-development` (origin header on the file; both MIT notices ship
+  under `licenses/`).
+
 - **`/mstack` now runs an intake step between orient and the playbook, and items carry
   `seams`.** Intake (`skills/router/references/intake.md`) maps the request as a design tree and
   sorts each open node into a fact (found, never asked), a reversible decision (taken and

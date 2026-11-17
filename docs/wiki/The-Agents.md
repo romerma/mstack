@@ -130,7 +130,10 @@ Implements exactly one item, with the full tool list (`Read`, `Write`, `Edit`, `
 `Grep`, `Bash`). On the spec path it executes `tasks.md` in order; on the direct path the
 item's `acceptance` array is the contract and it must not widen it. Every behaviour change
 gets a test that fails without the change, and it never weakens an existing test to obtain
-green. It keeps `progress/current.md` updated while it works, writes its report to
+green. Its frontmatter carries `skills: [test-first]`, so the internal test-first reference is
+in its context from the first turn: one test per behaviour, watched red for the expected
+reason, then the least code, then a mutant check before it reports. The seams in its brief
+are pre-agreed, and it asks no one to confirm them. It keeps `progress/current.md` updated while it works, writes its report to
 `.mstack/progress/impl_<slug>.md` with a requirement-to-test map, and records its own ledger
 row with `--verifier implementer` at the rung it honestly reached; `type-check-only` is the
 right answer when that is all it ran. It does not mark the item done. A reviewer that did not

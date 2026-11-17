@@ -17,6 +17,11 @@ alias. So the router answers three spellings: `/mstack:router` from its director
 `/mstack:mstack` from its declared name, and plain `/mstack` from the alias. The last is the
 front door everything else sits behind.
 
+One more skill is not a command: `skills/test-first/SKILL.md` carries `user-invocable: false`
+and is preloaded into `mstack:implementer` through that agent's `skills` field. It holds the
+test-first reference (what a good test is, the red-then-green loop, the mutant check) and is
+why the thirteen below are counted as the commands.
+
 ## The thirteen skills
 
 | Skill | What it does | Reach for it when |
@@ -128,7 +133,7 @@ reason it exists:
 |---|---|---|
 | `investigate` | Answering a question about the system; produces understanding, not a change | Every claim says where it stopped on the evidence ladder |
 | `bug-fix` | Something broken, wrong, or slow | Reproduce it yourself first, and write the failing test before the fix; the repro lands before the fix in history |
-| `feature` | Building something new | Understand and design before building; delegating implementation is mandatory, with no skip-with-reason escape, because the gain is review separation |
+| `feature` | Building something new | Understand and design before building; a named test-first step hands the implementer the item's seams as pre-agreed; delegating implementation is mandatory, with no skip-with-reason escape, because the gain is review separation |
 | `refactor` | Changing structure without changing behaviour | Pin current behaviour with characterization tests before touching anything, and verify by running them unchanged |
 | `resume` | Picking up interrupted work | Read the recorded state, then reconcile against the repository; where they disagree, the repository wins |
 | `cleanup` | Dead branches and dead worktrees | `mstack worktree prune` lists candidates and removes nothing without `--yes`; branch deletion is `-d`, never `-D` |
