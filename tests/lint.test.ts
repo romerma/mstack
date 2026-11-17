@@ -288,6 +288,7 @@ test("a file that must carry an origin header and does not is caught", () => {
     ["test-first", "SKILL.md"],
     ["design/references", "deep-modules.md"],
     ["router/playbooks", "deepen.md"],
+    ["reflect/references", "domain-docs.md"],
   ] as const) {
     const c = copy();
     try {

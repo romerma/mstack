@@ -424,6 +424,7 @@ const ORIGIN_REQUIRED = [
   "skills/test-first/SKILL.md",
   "skills/design/references/deep-modules.md",
   "skills/router/playbooks/deepen.md",
+  "skills/reflect/references/domain-docs.md",
 ];
 
 /**

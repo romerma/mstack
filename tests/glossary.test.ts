@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -162,5 +162,19 @@ test("the CLI exits 1 on a malformed glossary, 0 on a well-formed one and with n
     none.dispose();
     good.dispose();
     bad.dispose();
+  }
+});
+
+test("the example in the reference passes the check it is the format for", () => {
+  const reference = readFileSync(join(dirname(MSTACK), "..", "skills", "reflect", "references", "domain-docs.md"), "utf8");
+  const example = /```md\n([\s\S]*?)```/.exec(reference);
+  assert.ok(example !== null, "the reference has no ```md example");
+  const sb = withGlossary(example[1] ?? "");
+  try {
+    const { report, out } = gate(sb);
+    expectPass(report, "the reference's own example");
+    assert.match(out, /GLOSSARY\.md: [2-9] entries/);
+  } finally {
+    sb.dispose();
   }
 });
