@@ -235,7 +235,8 @@ command's flags with one line each to stdout, exits 0, needs no store and change
 help and the parser read one table, so a flag cannot be in one and missing from the other.
 
 A value that starts with a dash is read as the next flag. Write it as one argument,
-`--flag=value`, and it is stored whole; with a space, the command exits 2 and says so:
+`--flag=value`, and `state.json` stores it whole (`decisions.tsv` puts a quote in front of a
+value that starts with `=`, `+`, `-` or `@`); with a space, the command exits 2 and says so:
 
 ```console
 $ mstack state add --slug x --title t --acceptance --nope

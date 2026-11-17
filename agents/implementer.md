@@ -31,7 +31,8 @@ line, the decision is not crisp yet.
 
 The brief names the item's seams as pre-agreed: test there, and do not ask anyone to confirm
 them. The test-first reference is already in your context, so follow it without looking for a
-file. A brief without seams is incomplete: use the item's `seams` field and say so.
+file. A brief without seams is incomplete: use the item's `seams` field and say so;
+`mstack state show <ref>` prints the seams and the acceptance.
 
 Every behaviour change gets a test that **fails without the change**. A test that only asserts
 nothing threw does not count. Never weaken an existing test to obtain green output; if a test
