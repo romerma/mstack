@@ -1035,7 +1035,7 @@
         "state set --acceptance on an item that already has criteria names --add-acceptance in its output, so an append meant as an append is not a silent replace",
         "state add --help, state set --help and decide --help print that command's flags and exit 0, so an agent does not hand-edit state.json after a failed --help"
       ],
-      "status": "reviewing",
+      "status": "in_progress",
       "description": "In the item 55 live runs four agents tried 'mstack state show' first and one wrote it into a current.md note; three had a state add or decide refused because a value began with --; one replaced six criteria with one through --acceptance and had to restore them. state list prints only label and title, so nothing prints an item's seams or source.",
       "source": "item 55 reviews: review_intake-step.md N-9, review_intake-step_r2.md N-6, review_intake-step_r3.md N-8; sandbox/PROTOCOL.md F1; 2026-11-17",
       "seams": [
