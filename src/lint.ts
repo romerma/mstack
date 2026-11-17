@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { basename, dirname, extname, join, relative, resolve } from "node:path";
 
-import { parse } from "./frontmatter.ts";
+import { asList, parse, type Value } from "./frontmatter.ts";
 import { HOOK_COMMANDS } from "./hooklog.ts";
 import { STATUSES } from "./lifecycle.ts";
 import { Report } from "./report.ts";
@@ -132,6 +132,12 @@ export function lintPlugin(root: string): Report {
   report.section("single source of truth");
   lintLifecycleDuplication(dir, report);
 
+  report.section("provenance");
+  lintOrigins(dir, report);
+
+  report.section("router");
+  lintRouterIntake(dir, report);
+
   report.summary();
   return report;
 }
@@ -231,8 +237,52 @@ function lintAgent(root: string, file: string, report: Report): void {
       report.fail(`${label}: unknown front-matter key '${key}'`);
     }
   }
+  lintPreloadedSkills(root, label, data["skills"], report);
   lintLinks(root, file, source, report);
   if (!report.failed) report.ok(label);
+}
+
+/**
+ * Each `skills` entry of an agent is a skill this plugin ships that the model
+ * may be given. Claude Code skips a missing or model-hidden skill with a line
+ * in the debug log, so a misspelling or an added `disable-model-invocation`
+ * would quietly remove the reference the agent was written around. An entry
+ * namespaced to another plugin is not this plugin's to check.
+ */
+function lintPreloadedSkills(root: string, label: string, value: Value | undefined, report: Report): void {
+  const entries = asList(value);
+  if (entries.length === 0) return;
+  const own = pluginName(root);
+  const shipped = new Map<string, boolean>();
+  for (const file of collect(join(root, "skills"), "SKILL.md")) {
+    const { data } = parse(readFileSync(file, "utf8"));
+    shipped.set(nameOf(file) ?? basename(dirname(file)), data["disable-model-invocation"] === true);
+  }
+  for (const entry of entries) {
+    const name = own !== null && entry.startsWith(`${own}:`) ? entry.slice(own.length + 1) : entry;
+    if (name.includes(":")) continue;
+    const hidden = shipped.get(name);
+    if (hidden === undefined) {
+      report.fail(
+        `${label}: skills entry '${entry}' names no skill under skills/`,
+        `shipped skills: ${[...shipped.keys()].sort().join(", ")}`,
+      );
+    } else if (hidden) {
+      report.fail(
+        `${label}: skills entry '${entry}' has disable-model-invocation: true, so it is not preloaded`,
+        "remove that key from the skill, or drop it from the agent",
+      );
+    }
+  }
+}
+
+function pluginName(root: string): string | null {
+  try {
+    const data = JSON.parse(readFileSync(join(root, ".claude-plugin", "plugin.json"), "utf8")) as { name?: unknown };
+    return typeof data.name === "string" ? data.name : null;
+  } catch {
+    return null;
+  }
 }
 
 function lintHooks(root: string, report: Report): void {
@@ -362,6 +412,75 @@ function lintReferences(
 function nameOf(file: string): string | null {
   const value = parse(readFileSync(file, "utf8")).data["name"];
   return typeof value === "string" && value !== "" ? value : null;
+}
+
+/**
+ * Files under `skills/` whose text is derived from another repository, so each
+ * must carry an `<!-- Origin: ... -->` header. This is the one place the list is
+ * declared; a new derived file is added here and the rule covers it.
+ */
+const ORIGIN_REQUIRED = ["skills/router/references/intake.md", "skills/test-first/SKILL.md"];
+
+/**
+ * Every origin header names a licence file the plugin ships under `licenses/`,
+ * and every file in ORIGIN_REQUIRED has a header. Without this, deleting a
+ * header or a licence leaves the derived text unattributed with nothing red.
+ */
+function lintOrigins(root: string, report: Report): void {
+  const header = /<!--\s*Origin:([\s\S]*?)-->/;
+  let problems = 0;
+  let headers = 0;
+  const files = new Set(collectAll(join(root, "skills")).filter((f) => extname(f) === ".md"));
+  for (const required of ORIGIN_REQUIRED) {
+    const file = join(root, required);
+    if (existsSync(file)) files.add(file);
+  }
+  for (const file of files) {
+    const label = relative(root, file);
+    const match = header.exec(readFileSync(file, "utf8"));
+    if (match === null) {
+      if (ORIGIN_REQUIRED.includes(label)) {
+        problems += 1;
+        report.fail(`${label}: no origin header`, "the text is derived; restore the <!-- Origin: ... --> comment");
+      }
+      continue;
+    }
+    headers += 1;
+    const licences = [...(match[1] ?? "").matchAll(/licenses\/[A-Za-z0-9._-]+/g)].map((m) => m[0]);
+    if (licences.length === 0) {
+      problems += 1;
+      report.fail(`${label}: origin header names no file under licenses/`, "name the licence file that ships with the plugin");
+    }
+    for (const licence of new Set(licences)) {
+      if (!existsSync(join(root, licence))) {
+        problems += 1;
+        report.fail(`${label}: origin header names ${licence}, which does not exist`, "ship the licence text it names");
+      }
+    }
+  }
+  if (problems === 0) report.ok(`${headers} origin header(s), each naming a licence file that ships`);
+}
+
+/**
+ * The router's orient steps link `references/intake.md`. Intake is a step in
+ * prose, so deleting it changes no other file, and the router's later mentions
+ * of intake would still resolve while no new request went through it.
+ */
+function lintRouterIntake(root: string, report: Report): void {
+  const file = join(root, "skills", "router", "SKILL.md");
+  if (!existsSync(file)) return;
+  const source = readFileSync(file, "utf8");
+  const start = source.indexOf("## First, orient");
+  const end = source.indexOf("\n## ", start + 1);
+  const orient = start === -1 ? "" : source.slice(start, end === -1 ? undefined : end);
+  if (/\]\(references\/intake\.md\)/.test(orient)) {
+    report.ok("the router's orient steps link references/intake.md");
+  } else {
+    report.fail(
+      "skills/router/SKILL.md: the orient steps do not link references/intake.md",
+      "intake is the router's step 3; restore it under '## First, orient'",
+    );
+  }
 }
 
 /**

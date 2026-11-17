@@ -13,7 +13,7 @@ const PLUGIN = join(dirname(fileURLToPath(import.meta.url)), "..");
 /** A copy of the real plugin, so each test breaks one thing on purpose. */
 function copy(): { root: string; dispose(): void } {
   const root = mkdtempSync(join(tmpdir(), "mstack-lint-"));
-  for (const dir of ["skills", "agents", "hooks", ".claude-plugin", "src"]) {
+  for (const dir of ["skills", "agents", "hooks", ".claude-plugin", "src", "licenses"]) {
     cpSync(join(PLUGIN, dir), join(root, dir), { recursive: true });
   }
   return { root, dispose: () => rmSync(root, { recursive: true, force: true }) };
@@ -240,6 +240,130 @@ test("the same command with a path is left alone", () => {
       `${readFileSync(target, "utf8")}\n\`\`\`bash\nrg -l -i 'adr' --glob '*.md' .\nrg -n 'TODO' <file>\nrg -c 'x' src/\n\`\`\`\n`,
     );
     assert.equal(lint(c.root).failed, false, JSON.stringify(lint(c.root).failures));
+  } finally {
+    c.dispose();
+  }
+});
+
+test("an origin header that names a licence file the plugin does not ship is caught", () => {
+  const c = copy();
+  try {
+    rmSync(join(c.root, "licenses", "obra-superpowers-LICENSE.txt"));
+    expectFail(c.root, /intake\.md.*licenses\/obra-superpowers-LICENSE\.txt.*does not exist/, "missing licence");
+  } finally {
+    c.dispose();
+  }
+});
+
+test("an origin header that names no licence file is caught", () => {
+  const c = copy();
+  try {
+    const file = join(c.root, "skills", "test-first", "SKILL.md");
+    writeFileSync(file, readFileSync(file, "utf8").replace(/licenses\/[A-Za-z0-9._-]+/g, "somewhere"));
+    expectFail(c.root, /test-first\/SKILL\.md.*names no file under licenses\//, "header without a licence");
+  } finally {
+    c.dispose();
+  }
+});
+
+test("a file that must carry an origin header and does not is caught", () => {
+  for (const [dir, name] of [
+    ["router/references", "intake.md"],
+    ["test-first", "SKILL.md"],
+  ] as const) {
+    const c = copy();
+    try {
+      const file = join(c.root, "skills", dir, name);
+      writeFileSync(file, readFileSync(file, "utf8").replace(/^<!-- Origin:.*-->\n/m, ""));
+      expectFail(c.root, new RegExp(`${dir}/${name}.*no origin header`), `header removed from ${dir}/${name}`);
+    } finally {
+      c.dispose();
+    }
+  }
+});
+
+test("a router whose orient steps no longer link intake.md is caught", () => {
+  const c = copy();
+  try {
+    const file = join(c.root, "skills", "router", "SKILL.md");
+    const before = readFileSync(file, "utf8");
+    const start = before.indexOf("3. **Intake**");
+    const end = before.indexOf("4. Match the request");
+    assert.ok(start > 0 && end > start, "the fixture still has the intake step");
+    writeFileSync(file, `${before.slice(0, start)}${before.slice(end)}`);
+    assert.ok(before.includes("references/intake.md](references/intake.md) defines"), "intake.md is still linked elsewhere in the router");
+    expectFail(c.root, /router\/SKILL\.md.*orient.*references\/intake\.md/, "intake step removed");
+  } finally {
+    c.dispose();
+  }
+});
+
+test("a plugin with no router is not held to the router rule", () => {
+  const c = copy();
+  try {
+    rmSync(join(c.root, "skills", "router"), { recursive: true });
+    const report = lint(c.root);
+    assert.ok(!report.failures.some((f) => /intake/.test(f)), JSON.stringify(report.failures));
+  } finally {
+    c.dispose();
+  }
+});
+
+function setAgentSkills(root: string, entries: string[]): void {
+  const file = join(root, "agents", "implementer.md");
+  const source = readFileSync(file, "utf8");
+  assert.ok(/^skills:\n  - test-first\n/m.test(source), "the fixture still preloads test-first");
+  writeFileSync(file, source.replace(/^skills:\n  - test-first\n/m, `skills: [${entries.join(", ")}]\n`));
+}
+
+test("an agent whose skills entry names no skill under skills/ is caught", () => {
+  const c = copy();
+  try {
+    setAgentSkills(c.root, ["test-frist"]);
+    expectFail(c.root, /implementer\.md.*'test-frist'.*no skill/, "misspelt preloaded skill");
+  } finally {
+    c.dispose();
+  }
+});
+
+test("an agent that preloads a skill with disable-model-invocation: true is caught", () => {
+  const c = copy();
+  try {
+    const file = join(c.root, "skills", "test-first", "SKILL.md");
+    writeFileSync(file, readFileSync(file, "utf8").replace("user-invocable: false\n", "user-invocable: false\ndisable-model-invocation: true\n"));
+    expectFail(c.root, /implementer\.md.*'test-first'.*disable-model-invocation/, "hidden preloaded skill");
+  } finally {
+    c.dispose();
+  }
+});
+
+test("a skills entry that resolves, or that names another plugin's skill, passes", () => {
+  const c = copy();
+  try {
+    setAgentSkills(c.root, ["mstack:test-first", "someone-else:their-skill"]);
+    const report = lint(c.root);
+    assert.deepEqual(report.failures.filter((f) => /skills/.test(f) && /implementer/.test(f)), []);
+  } finally {
+    c.dispose();
+  }
+});
+
+test("an agent with no skills field is not held to the skills rule", () => {
+  const c = copy();
+  try {
+    const file = join(c.root, "agents", "implementer.md");
+    writeFileSync(file, readFileSync(file, "utf8").replace(/^skills:\n  - test-first\n/m, ""));
+    assert.equal(lint(c.root).failed, false, JSON.stringify(lint(c.root).failures));
+  } finally {
+    c.dispose();
+  }
+});
+
+test("a skills entry namespaced to this plugin is resolved, so a misspelt one is caught", () => {
+  const c = copy();
+  try {
+    setAgentSkills(c.root, ["mstack:test-frist"]);
+    expectFail(c.root, /implementer\.md.*'mstack:test-frist'.*no skill/, "misspelt namespaced skill");
   } finally {
     c.dispose();
   }
