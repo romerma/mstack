@@ -1120,15 +1120,15 @@
     {
       "id": 79,
       "slug": "workspace-facts",
-      "title": "Git is run outside git.ts, which calls itself the one place that does, and gate, statusline and worktree each ask git for the branch or the dirty state on their own",
+      "title": "Git is run outside git.ts, which calls itself the one place that does, and gate and statusline each ask git for the branch on their own",
       "acceptance": [
         "rg 'execFileSync\\(\"git\"' src finds exactly one call, inside the workspace module (five today: git.ts, ledger.ts twice and worktree.ts twice)",
-        "the workspace module answers branch state (no git, no commits, detached, on a branch), head and dirty, and gate.ts, statusline.ts and worktree.ts take those answers from it; on a detached head the gate no longer prints \"on branch HEAD\" (it does today)",
+        "the workspace module answers branch state (no git, no commits, detached, on a branch) and head, and gate.ts and statusline.ts take those answers from it; on a detached head the gate no longer prints \"on branch HEAD\" (it does today)",
         "the git directory and the common git directory are found only in that module: rg \"\\^gitdir:\" src finds only that module (costs.ts and hooklog.ts today), and paths.ts no longer runs rev-parse --git-common-dir itself (twice today)",
         "the four branch states and the git directory of a linked worktree are tested at the module's interface against temporary repositories"
       ],
       "status": "pending",
-      "description": "The header comment of src/git.ts says \"The one place this repository shells out to git.\", but ledger.ts (isCommit, resolveSha) and worktree.ts (isDirty, run) call execFileSync(\"git\") themselves. git() returns null on any failure and passes a 5 s timeout; worktree.ts run throws a UserError and passes no timeout. The same question gets separate answers: the branch is read with rev-parse --abbrev-ref HEAD in gate.ts checkWorkspace and in statusline.ts, and dirty is git status --porcelain in checkWorkspace and git status --porcelain --ignored=matching in worktree.ts isDirty. On a detached head the gate prints \"[ok] on branch HEAD\" while the status line shows no branch. costs.ts marksDir and hooklog.ts gitCommonDir each walk up to .git and parse a gitdir: line by hand, and paths.ts asks git rev-parse --git-common-dir. Deepen into one module that answers workspace questions. Claims checked in .mstack/progress/impl_deep-module-vocabulary_r3.md.",
+      "description": "The header comment of src/git.ts says \"The one place this repository shells out to git.\", but ledger.ts (isCommit, resolveSha) and worktree.ts (isDirty, run) call execFileSync(\"git\") themselves. git() returns null on any failure and passes a 5 s timeout; worktree.ts run throws a UserError and passes no timeout. The same question gets separate answers: the branch is read with rev-parse --abbrev-ref HEAD in gate.ts checkWorkspace and in statusline.ts. On a detached head the gate prints \"on branch HEAD\" while the status line shows no branch. costs.ts marksDir and hooklog.ts gitCommonDir each walk up to .git and parse a gitdir: line by hand, and paths.ts asks git rev-parse --git-common-dir. Deepen into one module that answers workspace questions. Dirty state is not part of this item: worktree.ts isDirty passes --ignored=matching on purpose, and the comment above it says why. Claims checked in .mstack/progress/impl_deep-module-vocabulary_r3.md and review_deep-module-vocabulary_r3.md.",
       "source": "deepen playbook run, 2026-11-17, .mstack/progress/deepen_2026-11-17.md",
       "seams": [
         "the workspace module"
