@@ -6,10 +6,10 @@
 > On close: append the summary to `history.md` and reset this file to the
 > empty template below.
 
-- **Item:** 46 npm-test-misses-strip-types
-- **Status:** reviewing, round 1
-- **Branch:** fix/npm-test-misses-strip-types
-- **Base:** a9f1d1d
+- **Item:** none active (46 closed 2026-11-17; item 50 waits for the user's icon answer)
+- **Status:** -
+- **Branch:** main
+- **Base:** -
 - **Worktree:** none
 
 ## Plan
@@ -45,16 +45,15 @@ passes bypassPermissions. Do not run `check.mjs` or `verify.mjs` while a batch i
 
 ## Next step
 
-Item 46, round 1 implementation is in: `impl_npm-test-misses-strip-types.md`, head of the last
-non-chore commit `7f8a95d`. `npm test` is `npm run test:bun && npm run test:node`; the node
-half carries both flags, the bun half is `bun test ./tests`; CI calls the same scripts;
-`tests/scripts.test.ts` pins them. Reported: 480 of 480 on bun and on node with 22.6.0, 24.14.0
-and 26.13.1 first on PATH. Round 1 review is out to a fresh reviewer on a different model,
-which writes `review_npm-test-misses-strip-types.md` and types its own ledger row.
+Phase 0: 52, 53, 54, 47 and 46 are closed. Item 50 (`plugin validate --strict`) needs the user:
+its acceptance says the icon is the user's call, because the first saved icon becomes the
+listing icon permanently.
 
-- APPROVED: `state set 46 --status verifying`, then `done`, merge fast-forward.
-- CHANGES_REQUESTED: `state set 46 --status in_progress`, a fresh implementer, review as `_r2`.
-
-After 46: item 50 needs the user's answer on the icon (its own acceptance says so). Item 70
-(the gate closes over a standing rejection) is the most serious follow-up. Then phase 1 and
-item 69, which need the plugin really loaded.
+Not blocked, in order of weight:
+1. Item 70: the gate closes an item over two kinds of standing rejection. Code only.
+2. Push `main` (local only since 2026-11-08), which needs the user's go-ahead and is the only
+   way to see CI on ubuntu and on node 22.6.
+3. Phase 1 (55 intake, 56 test-first reference). Both change skills and agents and have
+   acceptance lines that need the plugin really loaded (`claude --plugin-dir .`): a request
+   driven through `/mstack` in the sandbox, a subagent quoting a preloaded skill. Item 69 needs
+   the same for the cost rows.

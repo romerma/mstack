@@ -967,3 +967,28 @@ over a standing rejection. Filed as item 70; the disagreement is in the safe dir
 `ledger check` and the unsafe one for the gate.
 
 **Filed:** item 70.
+
+## 2026-11-17 — item 46 npm-test-misses-strip-types, closed
+
+**What changed.** `npm test` is `npm run test:bun && npm run test:node`. The node half carries
+`--disable-warning=ExperimentalWarning --experimental-strip-types`; the bun half is
+`bun test ./tests`, so the gitignored `sandbox/` no longer adds or fails tests. CI calls the
+same scripts. `tests/scripts.test.ts` pins them. The README names the command that proves the
+22.6 floor.
+
+**Rounds: 1.** The first item of this program to pass review first time. It is also the only
+one with no concurrency and no failure paths in it.
+- Approved: `review_npm-test-misses-strip-types.md`, `test-verified` at `cd83673` by reviewer.
+  480 of 480 on bun and on node with 22.6.0, 24.14.0 and 26.13.1 first on PATH, stderr clean.
+  The sandbox scoping was shown with a file list in a scratch clone, not by subtraction.
+
+**Unproven until a push.** Both GitHub Actions jobs on ubuntu-latest, with whatever bun is
+current there and whatever "22.6" resolves to. `main` is local only since 2026-11-08.
+
+**Notes left, not filed:** `README.md:424` describes `bun run test` the old way (still true);
+the README command assumes nvm's install path; the "480/480" comment in `ci.yml` will go stale
+as "112/112" did; bun searches `tests/` recursively and node's glob reads only the top level.
+They belong with item 30 (README counts drift).
+
+**Phase 0 is done except item 50**, which needs the user's answer on the plugin icon. Closed:
+52, 53, 54, 47, 46, in 3, 2, 2, 2 and 1 rounds. Filed on the way: 66 to 70.
