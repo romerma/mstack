@@ -6,10 +6,21 @@ Be scientific. Every shipped line traces to runtime evidence. Belt-and-suspender
 help" is a hypothesis, not a fix, and it does not ship. When evidence refutes a hypothesis,
 revert what it motivated.
 
-1. **Reproduce it yourself**, on the surface where it actually happens. Do not hand the repro
-   back to the user. No repro, no fix: say so and stop.
-2. Binary-search the cause. Seed it with `/mstack:understand` over the subsystem. Confirm the
-   *mechanism* with runtime evidence before designing anything.
+1. **Build the loop first**, on the surface where the bug happens: one command that goes red
+   on it, already run once, invocation and output in hand. It asserts the reported symptom
+   (not "did not crash"), gives the same verdict every run, takes seconds, runs unattended. A
+   bug that is not constant needs a higher rate, not a clean repro: loop the trigger, run it
+   in parallel, add load, pin the rate. Reading code for a theory before this command exists
+   is the failure this step prevents. Do not hand the repro back to the user. No loop, no
+   fix: say what was tried and stop.
+2. **Find the cause.** Shrink the repro to what is load-bearing. Write three to five ranked
+   hypotheses, each with its prediction ("if X is the cause, changing Y makes it go away"),
+   before testing any; take them in rank order without asking. One probe per prediction, one
+   variable at a time. Tag debug lines with one unique string and remove them before review.
+   A performance regression is measured against a baseline and bisected, not logged. Seed the
+   search with `/mstack:understand` when the subsystem is unfamiliar. Confirm the *mechanism*
+   with runtime evidence before designing anything. If the loop's red output already shows
+   the cause (a stack trace at the faulty line): `skip: cause shown by the loop`.
 3. Write the failing test first. It must fail without the fix. If it passes on unmodified code,
    you have not found the bug.
 4. `/mstack:design` only if the fix crosses a function boundary. A one-line fix inside one
