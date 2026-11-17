@@ -54,6 +54,8 @@ The reviewer did not write the code. If that is not true, stop: fetch someone wh
    Either way the mapping is fixed: `APPROVED` records the rung the verification reached,
    `CHANGES_REQUESTED` records `verifier-failed`, and a verification nobody could run
    records `verifier-blocked`. A `verifier-failed` row is the typed record of the rejection,
-   carrying the report as its evidence; it is not itself a gate.
+   carrying the report as its evidence, and it stands until a later independent approval at
+   that commit: `state set --status done` refuses it (`--force` included), the gate fails,
+   and a later `verifier-blocked` does not lift it.
 
 **Reply:** the verdict, and the findings that changed the outcome.

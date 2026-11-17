@@ -92,7 +92,9 @@ happened, not from the tone of the report:
 - **CHANGES_REQUESTED** records `verifier-failed`, even when the suite was green. The check
   that ran is the review, and the item failed it; a green suite next to an uncovered
   requirement is a failed verification, not a pass with a footnote. The row is the typed
-  record of your rejection, carrying your report as its evidence; it is not itself a gate.
+  record of your rejection, carrying your report as its evidence, and it stands until a later
+  independent approval at that commit: `state set --status done` refuses it (`--force`
+  included), the gate fails, and a later `verifier-blocked` does not lift it.
 - **A verification you could not run at all** records `verifier-blocked`, whatever you
   thought of the diff. An opinion formed without running anything must not read as evidence.
 

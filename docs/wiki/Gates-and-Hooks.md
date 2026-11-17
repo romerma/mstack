@@ -210,10 +210,15 @@ Walking the lines that carry the weight:
   dropped for what its evidence cites. And a `done` item whose most recent closing verdict is
   `verifier-failed` stays refused until a later *independent* approval from a closing role
   answers it; a `verifier-blocked` after the failure ("could not verify") does not, and the row
-  named is the failure. The same rows are read by `mstack ledger check` through one function,
-  `readVerdict` (`src/ledger.ts`), and `state set --status done` refuses a standing rejection
-  through the closing checks (`ledger-verdict` in `src/closing.ts`) with the same reason, so
-  the two commands and the gate cannot disagree about one ledger:
+  named is the failure. A `verifier-blocked` whose evidence cites the implementer's own report
+  is discounted like an approval that does, so it is not the escape hatch. Every caller reads
+  a verdict through one function, `readVerdict` (`src/ledger.ts`), but not the same rows:
+  `mstack ledger check` answers for one sha; `state set --status done` and the gate at
+  `verifying` refuse (through `ledger-verdict` in `src/closing.ts`, `--force` included) when
+  a rejection stands at the sha being closed, or when a rejection recorded later against any
+  other sha of the item has no independent approval after it; and this audit of an item
+  already closed reads every row, because an item records no closing commit, only a free-text
+  `closed_by`. So `ledger check` can pass at a sha where closing still refuses:
 
   ```console
   [fail]  items closed on a verdict whose evidence cites the implementer's own report: storage-layer (reviewer)

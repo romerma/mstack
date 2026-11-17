@@ -335,8 +335,12 @@ verify. An approval whose evidence cites the implementer's own report, or the sp
 not independent, so when every closing-role row is of that kind the check fails and names the
 role whose report it cites, as the gate does. Only when every row at the SHA is the author's
 own does it fall back to the best one, and then it says so, as above.
+A `verifier-blocked` whose evidence cites the implementer's own report is discounted the same
+way, so it does not count as that escape hatch.
 `state set --status done` refuses an item whose standing verdict is a rejection, and says which
-row, with the same function.
+row, with the same function. It reads the rows at the commit being closed and, too, every row
+of the item, so a rejection recorded later against another commit also refuses the close
+where `check` at the current head passes.
 The row is keyed by `(target, sha)`, so a new commit voids it:
 
 ```console

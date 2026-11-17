@@ -3,11 +3,16 @@
 ## Unreleased
 
 - **The gate no longer lets an item close, or stay closed, over a standing rejection.** One
-  function, `readVerdict` in `src/ledger.ts`, reads the verdict from a ledger's rows and both
-  `ledger check` and the gate's audit of closed items call it, so they cannot disagree about
-  the same rows. A `verifier-failed` from a closing role stands until a later independent
-  approval, whatever its evidence cites; a `verifier-blocked` after it does not answer it
-  (a lone `verifier-blocked` is still the escape hatch for an item nothing can verify).
+  function, `readVerdict` in `src/ledger.ts`, reads the verdict from a ledger's rows and
+  `ledger check`, the closing check and the gate's audit of closed items all call it, so no
+  caller keeps a private copy of the rule. They do not read the same rows: `ledger check`
+  answers for one sha, closing refuses on a rejection at the sha being closed or on a later
+  rejection anywhere in the item's rows (the conservative reading), and the audit of an
+  already closed item reads every row, because an item records no closing commit. A
+  `verifier-failed` from a closing role stands until a later independent approval, whatever
+  its evidence cites; a `verifier-blocked` after it does not answer it (a lone
+  `verifier-blocked` is still the escape hatch for an item nothing can verify, unless its
+  evidence cites the implementer's own report, which discounts it like an approval that does).
   `state set --status done` refuses a standing rejection and names the row. An abbreviated sha
   is resolved to the full commit by `ledger record` and `ledger check`, `ledger record` refuses
   an empty target, the status line tells an author-only verdict and a discounted approval apart
