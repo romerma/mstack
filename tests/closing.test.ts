@@ -252,3 +252,116 @@ test("a lone verifier-blocked row does not stop state set from closing", () => {
     sb.dispose();
   }
 });
+
+// ---- item 70 round 2: the verdict is judged AT the sha being closed, and across the item's rows ----
+
+/** A verifying item whose repository has two commits: `old` (HEAD~1) and `head` (what would be closed). */
+function twoShaStore() {
+  const sb = sandbox();
+  sb.writeState(state([item({ status: "verifying" })], { verify: "" }));
+  trackCurrent(sb);
+  const old = sb.sha;
+  const head = quiesce(sb);
+  assert.notEqual(old, head);
+  const rec = (sha: string, verdict: string, evidence: string, verifier = "reviewer") => {
+    const r = cli(sb.store.root, ["ledger", "record", "storage-layer", sha, verdict, "--evidence", evidence, "--verifier", verifier]);
+    assert.equal(r.code, 0, r.stderr);
+  };
+  const problems = () => {
+    const st = parseState(sb.store.state);
+    return closingProblems(sb.store, st, st.items[0]!);
+  };
+  return { sb, old, head, rec, problems };
+}
+
+test("a rejection at the closing sha is not answered by an approval of an older commit recorded after it", () => {
+  const { sb, old, head, rec, problems } = twoShaStore();
+  try {
+    rec(head, "verifier-failed", ".mstack/progress/review_storage-layer.md");
+    rec(old, "test-verified", ".mstack/progress/review_storage-layer_old.md");
+
+    const found = problems();
+    assert.equal(found.length, 1, JSON.stringify(found));
+    assert.equal(found[0]!.check, "ledger-verdict");
+    assert.equal(found[0]!.overridable, false);
+    assert.match(found[0]!.message, new RegExp(`verifier-failed at ${head.slice(0, 8)} by reviewer`));
+
+    const gate = cli(sb.store.root, ["gate"]);
+    assert.equal(gate.code, 1, gate.stdout);
+    assert.ok(gate.stdout.includes(`one step from done, and ${found[0]!.message}`), gate.stdout);
+
+    const refused = cli(sb.store.root, ["state", "set", "storage-layer", "--status", "done"]);
+    assert.equal(refused.code, 2, refused.stdout);
+    assert.ok(refused.stderr.includes(`storage-layer cannot close: ${found[0]!.message}`), refused.stderr);
+    const forced = cli(sb.store.root, ["state", "set", "storage-layer", "--status", "done", "--force", "--closed-by", "why"]);
+    assert.equal(forced.code, 2, forced.stdout);
+    assert.equal(parseState(sb.store.state).items[0]?.status, "verifying");
+  } finally {
+    sb.dispose();
+  }
+});
+
+test("a rejection recorded later against an older commit still refuses the close, and says it is at another commit", () => {
+  const { sb, old, head, rec, problems } = twoShaStore();
+  try {
+    rec(head, "test-verified", ".mstack/progress/review_storage-layer.md");
+    rec(old, "verifier-failed", ".mstack/progress/review_storage-layer_old.md");
+
+    const found = problems();
+    assert.equal(found.length, 1, JSON.stringify(found));
+    assert.match(found[0]!.message, new RegExp(`verifier-failed at ${old.slice(0, 8)} by reviewer`));
+    assert.match(found[0]!.message, /another commit/);
+
+    const refused = cli(sb.store.root, ["state", "set", "storage-layer", "--status", "done"]);
+    assert.equal(refused.code, 2, refused.stdout);
+    assert.match(refused.stderr, /another commit/);
+    assert.equal(cli(sb.store.root, ["gate"]).code, 1);
+
+    // Answered by a later independent approval at the closing sha: closes.
+    rec(head, "test-verified", ".mstack/progress/review_storage-layer_r2.md");
+    assert.deepEqual(problems(), []);
+    assert.equal(cli(sb.store.root, ["state", "set", "storage-layer", "--status", "done"]).code, 0);
+  } finally {
+    sb.dispose();
+  }
+});
+
+test("a rejection at an older commit followed by an approval at the closing sha recorded later closes", () => {
+  const { sb, old, head, rec, problems } = twoShaStore();
+  try {
+    rec(old, "verifier-failed", ".mstack/progress/review_storage-layer.md");
+    rec(head, "test-verified", ".mstack/progress/review_storage-layer_r2.md");
+    assert.deepEqual(problems(), []);
+    assert.equal(cli(sb.store.root, ["gate"]).code, 0);
+    assert.equal(cli(sb.store.root, ["state", "set", "storage-layer", "--status", "done"]).code, 0);
+  } finally {
+    sb.dispose();
+  }
+});
+
+test("an implementer's row at the older commit neither rejects nor answers anything at the closing sha", () => {
+  const { sb, old, head, rec, problems } = twoShaStore();
+  try {
+    rec(old, "test-verified", ".mstack/progress/impl_storage-layer.md", "implementer");
+    rec(head, "test-verified", ".mstack/progress/review_storage-layer.md");
+    rec(old, "verifier-failed", ".mstack/progress/impl_storage-layer.md", "implementer");
+    assert.deepEqual(problems(), []);
+    assert.equal(cli(sb.store.root, ["state", "set", "storage-layer", "--status", "done"]).code, 0);
+  } finally {
+    sb.dispose();
+  }
+});
+
+test("an implementer's approval at the older commit does not answer a reviewer's rejection at the closing sha", () => {
+  const { sb, old, head, rec, problems } = twoShaStore();
+  try {
+    rec(head, "verifier-failed", ".mstack/progress/review_storage-layer.md");
+    rec(old, "test-verified", ".mstack/progress/impl_storage-layer.md", "implementer");
+    const found = problems();
+    assert.equal(found.length, 1, JSON.stringify(found));
+    assert.match(found[0]!.message, new RegExp(`verifier-failed at ${head.slice(0, 8)}`));
+    assert.equal(cli(sb.store.root, ["state", "set", "storage-layer", "--status", "done"]).code, 2);
+  } finally {
+    sb.dispose();
+  }
+});
