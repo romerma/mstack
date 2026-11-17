@@ -480,6 +480,11 @@ gate, hooks that enforce, tool-list-as-permission roles, the progress-file disci
 `decision_required` as a data field, and the fast/slow gate split. What is new here is joining
 them and making the gates executable on Claude Code's primitives.
 
+The intake step (`skills/router/references/intake.md`) adapts text from
+[mattpocock/skills](https://github.com/mattpocock/skills) and
+[obra/superpowers](https://github.com/obra/superpowers); their MIT notices ship in
+`licenses/mattpocock-skills-LICENSE.txt` and `licenses/obra-superpowers-LICENSE.txt`.
+
 The full story of the port is in [docs/wiki/The-Story.md](docs/wiki/The-Story.md), and the
 research behind it, with sources, is in
 [docs/research/pstack-port.md](docs/research/pstack-port.md).

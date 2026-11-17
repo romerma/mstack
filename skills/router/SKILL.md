@@ -17,10 +17,17 @@ $ARGUMENTS
 1. `mstack gate`. A red gate stops you. Report it; do not work around it.
 2. `mstack state active`. If something is in flight, read `.mstack/progress/current.md` and
    resume its recorded next step rather than starting over.
-3. Match the request to a playbook below, and **copy that playbook's steps into your todo list
+3. **Intake**: turn the request into a queue item, by the method in
+   [references/intake.md](references/intake.md). Skip it when an item is already in flight and
+   you are resuming it, when the request names an existing item, or when it is not item-shaped
+   (a commit message, a cleanup); say which in one line. It ends with
+   `mstack state add --slug <s> --title <t> --acceptance "..." --source "..." --seam "..."`,
+   plus `--decision-required "..."` when a product fork or irreversible choice is open. Facts
+   are found, reversible decisions are taken and recorded, forks reach the user once, late.
+4. Match the request to a playbook below, and **copy that playbook's steps into your todo list
    verbatim, before any task-specific todos and before you reason about the task.**
 
-That third step is the one that gets skipped. The failure mode is reading a playbook, then
+That fourth step is the one that gets skipped. The failure mode is reading a playbook, then
 writing a bespoke plan that quietly drops its named steps. A step you choose not to do stays in
 the list with a one-line `skip: <reason>`. Skipping silently is not allowed.
 
@@ -89,7 +96,8 @@ Before asking a "which approach" question, classify it. If the answer could be o
 running something, it is not the human's to answer. Run the thing. The ask is the slow path,
 and it hands them a decision to make instead of a result to react to.
 
-Ask at most three questions. After three failed approaches to the same problem, record the
+Ask at most three questions, except in intake's interactive mode, which the request has to
+ask for and which has no cap. After three failed approaches to the same problem, record the
 diagnostics in `current.md` and stop.
 
 ## Principles

@@ -11,7 +11,8 @@ with `mstack decide`, including why the simpler route was rejected.
 1. **Frame.** One sentence naming the outcome. Then the tracks: groups of work that do not
    write the same files.
 2. **Seed the state.** One item per unit in `.mstack/state.json`, each with its own slug and a
-   real acceptance list. `mstack state add --slug <s> --title <t> --acceptance "..."`.
+   real acceptance list. `mstack state add --slug <s> --title <t> --acceptance "..." --source "..." --seam "..."`;
+   [intake](../references/intake.md) says how each field is derived.
 3. **Isolate.** `mstack worktree new <slug>` per unit that runs concurrently. Each worktree
    carries its own `.mstack/`, which is what makes "one active item" mean one active item
    *here* rather than one across the machine. Record the base SHA in that worktree's

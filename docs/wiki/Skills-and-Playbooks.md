@@ -91,7 +91,8 @@ Most skills also carry a prohibition, and they are worth knowing before you run 
 
 `skills/router/SKILL.md` is what `/mstack` runs. It orients first (`mstack gate`, the
 session gate described on [Gates-and-Hooks](Gates-and-Hooks.md), then the active item and
-its recorded next step), then matches the request against a route table:
+its recorded next step), then runs intake (the request becomes a queue item with acceptance,
+a source and test seams; method in `skills/router/references/intake.md`), then matches the request against a route table:
 
 | The request is about | Where it goes |
 |---|---|

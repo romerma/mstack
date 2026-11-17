@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+- **`/mstack` now runs an intake step between orient and the playbook, and items carry
+  `seams`.** Intake (`skills/router/references/intake.md`) maps the request as a design tree and
+  sorts each open node into a fact (found, never asked), a reversible decision (taken and
+  recorded with `mstack decide --phase intake`, the cost if wrong in `--result`) or a product
+  fork (parked as `decision_required`, numbered, with a recommended answer, put to the user
+  once and late). It ends with `mstack state add` carrying acceptance, `--source` and
+  `--seam`. It is autonomous by default; a request that asks to be questioned or have a plan
+  stress-tested turns on interactive mode, the one named exception to the three-question cap.
+  `seams` is a new optional item field: `state add --seam` repeats, `state set --seam`
+  replaces the list and names what it dropped, `--clear seams` removes it, and an empty
+  `--seam` is refused. The method adapts text from mattpocock/skills and obra/superpowers
+  (origin header on the file); both MIT notices ship under `licenses/`. The gate does not
+  require source or seams.
+
 - **The gate no longer lets an item close, or stay closed, over a standing rejection.** One
   function, `readVerdict` in `src/ledger.ts`, reads the verdict from a ledger's rows and
   `ledger check`, the closing check and the gate's audit of closed items all call it, so no
