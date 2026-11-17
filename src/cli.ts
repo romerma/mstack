@@ -670,6 +670,12 @@ function cmdState(argv: readonly string[]): number {
         );
         changes.push(`  acceptance: ${item.acceptance.length} criterion(s) replaced with ${next.length}`);
         for (const dropped of item.acceptance) changes.push(`    - dropped ${preview(dropped)}`);
+        // Agents reaching for "add one more" have used this flag and replaced six
+        // criteria with one. No prompt and no refusal, because this CLI is run by
+        // agents and must not block; the output says how the append is spelled.
+        if (item.acceptance.length > 0) {
+          changes.push("    to append instead of replace, use --add-acceptance; the dropped criteria are listed above if this was meant as one");
+        }
         item.acceptance = next;
       }
       if (values["add-acceptance"] !== undefined) {

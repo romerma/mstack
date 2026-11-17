@@ -320,3 +320,31 @@ onEach("a flag followed by an ordinary value, a boolean flag, or a lone dash is 
     sb.dispose();
   }
 });
+
+onEach("state set --acceptance on an item that has criteria names --add-acceptance; otherwise it stays quiet", (cli) => {
+  const sb = sandbox();
+  try {
+    sb.writeState(state([item({ acceptance: ["one", "two"] }), item({ id: 2, slug: "empty-list", acceptance: [] })]));
+
+    const replaced = cli(sb.store.root, "state", "set", "1", "--acceptance", "only");
+    assert.equal(replaced.code, 0, replaced.stderr);
+    assert.match(replaced.stdout, /acceptance: 2 criterion\(s\) replaced with 1/);
+    assert.match(replaced.stdout, /--add-acceptance/);
+    assert.deepEqual(JSON.parse(stateBytes(sb)).items[0].acceptance, ["only"], "still a replace, with no prompt and no refusal");
+
+    // nothing to replace, so nothing to warn about
+    const fresh = cli(sb.store.root, "state", "set", "2", "--acceptance", "first");
+    assert.equal(fresh.code, 0, fresh.stderr);
+    assert.doesNotMatch(fresh.stdout, /--add-acceptance/);
+
+    // the append itself, and a state add, are not replaces
+    const appended = cli(sb.store.root, "state", "set", "1", "--add-acceptance", "more");
+    assert.doesNotMatch(appended.stdout, /use --add-acceptance/);
+    assert.doesNotMatch(appended.stdout, /replaced/);
+    const added = cli(sb.store.root, "state", "add", "--slug", "new-one", "--title", "t", "--acceptance", "a");
+    assert.equal(added.stdout.trim(), "added 3 new-one (pending)");
+    assert.doesNotMatch(added.stdout, /--add-acceptance/);
+  } finally {
+    sb.dispose();
+  }
+});
