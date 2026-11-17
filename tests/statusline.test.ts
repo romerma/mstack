@@ -525,3 +525,37 @@ test("the context gauge changes colour as it fills", () => {
   assert.ok(at(85).includes(`${ESC}[31mctx 85%`), "red from 80");
   box.dispose();
 });
+
+// ---- item 70: three verdicts that all used to be one colour -------------------------------
+
+test("an independent approval, an author-only verdict and a discounted approval are three different things", () => {
+  const GREEN = `${ESC}[32m`;
+  const YELLOW = `${ESC}[33m`;
+  const RED = `${ESC}[31m`;
+  const rows: Array<[string, Array<[string, string]>]> = [
+    ["independent", [["test-verified", "reviewer"]]],
+    ["author", [["test-verified", "implementer"]]],
+    ["discounted", [["test-verified", "reviewer:.mstack/progress/impl_storage-layer.md"]]],
+  ];
+  const lines: Record<string, { plain: string; coloured: string }> = {};
+  for (const [name, verdicts] of rows) {
+    const box = sandbox();
+    try {
+      box.writeState(state([item({ status: "verifying" })]));
+      for (const [verdict, who] of verdicts) {
+        const [verifier, evidence] = who.split(":");
+        record(box.store, { target: "storage-layer", sha: box.sha, verdict: verdict as "test-verified", evidence: evidence ?? "suite green", verifier: verifier! });
+      }
+      const input = { workspace: { current_dir: box.store.root } };
+      lines[name] = { plain: render(input, { colours: false }), coloured: render(input, { colours: true }) };
+    } finally {
+      box.dispose();
+    }
+  }
+  assert.match(lines["independent"]!.coloured, new RegExp(`${GREEN.replace("[", "\\[")}test-verified${ESC.replace("[", "\\[")}\\[0m`));
+  assert.match(lines["author"]!.plain, /test-verified \(author only\)/);
+  assert.ok(lines["author"]!.coloured.includes(`${YELLOW}test-verified (author only)`), JSON.stringify(lines["author"]));
+  assert.match(lines["discounted"]!.plain, /test-verified \(not independent\)/);
+  assert.ok(lines["discounted"]!.coloured.includes(`${RED}test-verified (not independent)`), JSON.stringify(lines["discounted"]));
+  assert.doesNotMatch(lines["independent"]!.plain, /author|independent/);
+});

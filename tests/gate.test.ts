@@ -1649,3 +1649,70 @@ test("every manifest failure shape isMstackCheckout promises reads as not-a-chec
     }
   }
 });
+
+// ---- item 70: a standing rejection is not erased by what it cites or by "could not verify" ----
+
+test("a rejection that cites the implementer's report stands over an earlier genuine approval", () => {
+  const sb = sandbox();
+  try {
+    sb.writeState(state([item({ status: "done" })]));
+    record(sb.store, { target: "storage-layer", sha: sb.sha, verdict: "test-verified", evidence: ".mstack/progress/impl_storage-layer.md", verifier: "implementer" });
+    record(sb.store, { target: "storage-layer", sha: sb.sha, verdict: "test-verified", evidence: ".mstack/progress/review_storage-layer.md", verifier: "reviewer" });
+    expectPass(gate(sb), "the genuine approval closes");
+    record(sb.store, {
+      target: "storage-layer",
+      sha: sb.sha,
+      verdict: "verifier-failed",
+      evidence: ".mstack/progress/review_storage-layer_r2.md; the claims in impl_storage-layer.md do not hold",
+      verifier: "reviewer",
+    });
+    expectFail(gate(sb), /most recent closing verdict is verifier-failed/, "rejection citing the report");
+    assert.ok(
+      gate(sb).failures.some((f) => /storage-layer \(reviewer\)/.test(f) && /review_storage-layer_r2\.md/.test(f)),
+      `the rejecting row is named: ${JSON.stringify(gate(sb).failures)}`,
+    );
+  } finally {
+    sb.dispose();
+  }
+});
+
+test("a verifier-blocked row after a verifier-failed does not let the item close", () => {
+  const sb = sandbox();
+  try {
+    sb.writeState(state([item({ status: "done" })]));
+    record(sb.store, { target: "storage-layer", sha: sb.sha, verdict: "test-verified", evidence: ".mstack/progress/review_storage-layer.md", verifier: "reviewer" });
+    record(sb.store, { target: "storage-layer", sha: sb.sha, verdict: "verifier-failed", evidence: "regression found on re-review", verifier: "reviewer" });
+    record(sb.store, { target: "storage-layer", sha: sb.sha, verdict: "verifier-blocked", evidence: "could not re-run the suite here", verifier: "reviewer" });
+    expectFail(gate(sb), /most recent closing verdict is verifier-failed/, "blocked erased a rejection");
+    assert.ok(
+      gate(sb).failures.some((f) => /regression found on re-review/.test(f)),
+      `the rejecting row, not the blocked one, is named: ${JSON.stringify(gate(sb).failures)}`,
+    );
+  } finally {
+    sb.dispose();
+  }
+});
+
+test("a lone verifier-blocked row still closes an item nothing can verify", () => {
+  const sb = sandbox();
+  try {
+    sb.writeState(state([item({ status: "done" })]));
+    record(sb.store, { target: "storage-layer", sha: sb.sha, verdict: "verifier-blocked", evidence: "no harness in this repo", verifier: "reviewer" });
+    expectPass(gate(sb), "the documented escape hatch");
+  } finally {
+    sb.dispose();
+  }
+});
+
+test("a rejection followed by a later independent approval closes", () => {
+  const sb = sandbox();
+  try {
+    sb.writeState(state([item({ status: "done" })]));
+    record(sb.store, { target: "storage-layer", sha: sb.sha, verdict: "verifier-failed", evidence: ".mstack/progress/review_storage-layer.md", verifier: "reviewer" });
+    record(sb.store, { target: "storage-layer", sha: sb.sha, verdict: "verifier-blocked", evidence: "could not re-run the suite here", verifier: "reviewer" });
+    record(sb.store, { target: "storage-layer", sha: sb.sha, verdict: "test-verified", evidence: ".mstack/progress/review_storage-layer_r2.md", verifier: "reviewer" });
+    expectPass(gate(sb), "answered rejection");
+  } finally {
+    sb.dispose();
+  }
+});

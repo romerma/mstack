@@ -1,7 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { check, record } from "../src/ledger.ts";
+import { appendFileSync } from "node:fs";
+
+import { check, entries, record } from "../src/ledger.ts";
 import { UserError } from "../src/paths.ts";
 import { sandbox } from "./helpers.ts";
 
@@ -408,4 +410,80 @@ test("a dot in the target is not a wildcard: impl_axb.md is not the report for a
   const r = checkTarget("a.b", [["test-verified", "reviewer", ".mstack/progress/impl_axb.md"]]);
   assert.equal(r.passing, true, "a report for another item does not discount the row");
   assert.equal(r.best?.verifier, "reviewer");
+});
+
+// ---- item 70: shas, targets, and naming the role whose report is cited -----------------
+
+test("an abbreviated sha is resolved to the full commit by ledger check", () => {
+  const sb = sandbox();
+  try {
+    record(sb.store, { target: "x", sha: sb.sha, verdict: "test-verified", evidence: "node --test tests", verifier: "reviewer" });
+    for (const length of [7, 8, 12]) {
+      const r = check(sb.store, "x", sb.sha.slice(0, length));
+      assert.equal(r.passing, true, `${length} chars: ${r.reason}`);
+      assert.equal(r.best?.verdict, "test-verified");
+    }
+  } finally {
+    sb.dispose();
+  }
+});
+
+test("an abbreviated sha given to ledger record is stored as the full sha", () => {
+  const sb = sandbox();
+  try {
+    const entry = record(sb.store, { target: "x", sha: sb.sha.slice(0, 7), verdict: "test-verified", evidence: "node --test tests", verifier: "reviewer" });
+    assert.equal(entry.sha, sb.sha);
+    assert.equal(check(sb.store, "x", sb.sha).passing, true);
+  } finally {
+    sb.dispose();
+  }
+});
+
+test("an abbreviation that is no commit here is refused by record and finds nothing in check", () => {
+  const sb = sandbox();
+  try {
+    assert.throws(
+      () => record(sb.store, { target: "x", sha: "deadbee", verdict: "test-verified", evidence: "node --test tests", verifier: "reviewer" }),
+      (error: unknown) => error instanceof UserError && /is not a commit in this repository/.test((error as Error).message),
+    );
+    assert.equal(check(sb.store, "x", "deadbee").passing, false);
+  } finally {
+    sb.dispose();
+  }
+});
+
+test("a row recorded with a short sha before sha resolution existed is still found at its full sha", () => {
+  const sb = sandbox();
+  try {
+    // The ledger is append-only, so one row in this repository carries 7 characters.
+    appendFileSync(sb.store.ledger, `x\t${sb.sha.slice(0, 7)}\ttest-verified\tnode --test tests\treviewer\t2026-01-01T00:00:00.000Z\n`);
+    const r = check(sb.store, "x", sb.sha);
+    assert.equal(r.passing, true, r.reason);
+    assert.equal(r.stale.length, 0, "the short row is the same commit, not a stale one");
+  } finally {
+    sb.dispose();
+  }
+});
+
+test("ledger record refuses an empty or blank target", () => {
+  const sb = sandbox();
+  try {
+    for (const target of ["", "   "]) {
+      assert.throws(
+        () => record(sb.store, { target, sha: sb.sha, verdict: "test-verified", evidence: "node --test tests", verifier: "reviewer" }),
+        (error: unknown) => error instanceof UserError && /needs a target/.test((error as Error).message),
+        `accepted ${JSON.stringify(target)}`,
+      );
+    }
+    assert.equal(entries(sb.store).length, 0, "nothing may have been written");
+  } finally {
+    sb.dispose();
+  }
+});
+
+test("an approval that cites a spec-author's report names the spec-author, not the implementer", () => {
+  const r = checkAfter([["test-verified", "reviewer", ".mstack/progress/spec_x.md"]]);
+  assert.equal(r.passing, false);
+  assert.match(r.reason, /spec-author's own report/);
+  assert.doesNotMatch(r.reason, /implementer's own report/);
 });

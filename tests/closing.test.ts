@@ -188,3 +188,67 @@ test("a check reporting before verifying does not claim the item is one step fro
     sb.dispose();
   }
 });
+
+// ---- item 70: the ledger verdict is a closing check, so all three surfaces refuse a standing rejection ----
+
+test("a standing rejection is refused by closingProblems, the gate and state set, and named in each", () => {
+  const sb = sandbox();
+  try {
+    sb.writeState(state([item({ status: "verifying" })], { verify: "" }));
+    trackCurrent(sb);
+    const sha = quiesce(sb);
+    const rec = (verdict: string, evidence: string, verifier = "reviewer") => {
+      const r = cli(sb.store.root, ["ledger", "record", "storage-layer", sha, verdict, "--evidence", evidence, "--verifier", verifier]);
+      assert.equal(r.code, 0, r.stderr);
+    };
+    rec("test-verified", ".mstack/progress/impl_storage-layer.md", "implementer");
+    rec("test-verified", "review_demo.md");
+    rec("verifier-failed", ".mstack/progress/review_storage-layer_r2.md; the claims in impl_storage-layer.md do not hold");
+
+    const st = parseState(sb.store.state);
+    const problems = closingProblems(sb.store, st, st.items[0]!);
+    assert.equal(problems.length, 1);
+    assert.equal(problems[0]!.check, "ledger-verdict");
+    assert.equal(problems[0]!.overridable, false, "--force cannot vouch over a rejection: the gate would still fail the closed item");
+    assert.match(problems[0]!.message, /verifier-failed at \w{8} by reviewer/);
+    assert.match(problems[0]!.message, /review_storage-layer_r2\.md/);
+
+    const gate = cli(sb.store.root, ["gate"]);
+    assert.equal(gate.code, 1, gate.stdout);
+    assert.ok(gate.stdout.includes(`one step from done, and ${problems[0]!.message}`), gate.stdout);
+
+    const refused = cli(sb.store.root, ["state", "set", "storage-layer", "--status", "done"]);
+    assert.equal(refused.code, 2, refused.stdout);
+    assert.ok(refused.stderr.includes(`storage-layer cannot close: ${problems[0]!.message}`), refused.stderr);
+
+    const forced = cli(sb.store.root, ["state", "set", "storage-layer", "--status", "done", "--force", "--closed-by", "why"]);
+    assert.equal(forced.code, 2, forced.stdout);
+    assert.equal(parseState(sb.store.state).items[0]?.status, "verifying");
+
+    // A verifier-blocked after the failure does not answer it.
+    rec("verifier-blocked", "could not re-run the suite here");
+    assert.equal(cli(sb.store.root, ["state", "set", "storage-layer", "--status", "done"]).code, 2);
+
+    // A later independent approval does.
+    rec("test-verified", ".mstack/progress/review_storage-layer_r3.md");
+    assert.deepEqual(closingProblems(sb.store, st, st.items[0]!), []);
+    assert.equal(cli(sb.store.root, ["gate"]).code, 0);
+    assert.equal(cli(sb.store.root, ["state", "set", "storage-layer", "--status", "done"]).code, 0);
+  } finally {
+    sb.dispose();
+  }
+});
+
+test("a lone verifier-blocked row does not stop state set from closing", () => {
+  const sb = sandbox();
+  try {
+    sb.writeState(state([item({ status: "verifying" })], { verify: "" }));
+    trackCurrent(sb);
+    const sha = quiesce(sb);
+    const r = cli(sb.store.root, ["ledger", "record", "storage-layer", sha, "verifier-blocked", "--evidence", "no harness in this repo", "--verifier", "reviewer"]);
+    assert.equal(r.code, 0, r.stderr);
+    assert.equal(cli(sb.store.root, ["state", "set", "storage-layer", "--status", "done"]).code, 0);
+  } finally {
+    sb.dispose();
+  }
+});
