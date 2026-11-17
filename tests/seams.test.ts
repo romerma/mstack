@@ -94,6 +94,8 @@ test("state set --seam on an item with none adds them and prints them", () => {
     assert.equal(set.code, 0, set.stderr);
     assert.deepEqual(only(sb).seams, [A, B]);
     assert.match(set.stdout, /seams: 0 seam\(s\) replaced with 2/);
+    assert.match(set.stdout, /added "CLI: `mstack state add` exit code and stdout"/);
+    assert.match(set.stdout, /added "`withLock\(file, run, opts\)` in src\/tsv\.ts"/);
   } finally {
     sb.dispose();
   }
@@ -108,6 +110,8 @@ test("--clear seams removes the key, reports it, and is a no-op the second time"
     assert.equal("seams" in rawOnly(sb), false, "--clear must remove the key, not leave []");
     assert.equal(only(sb).source, "issue #4", "clearing seams must not touch another field");
     assert.match(cleared.stdout, /seams: .* -> \(unset\)/);
+    assert.match(cleared.stdout, /dropped "CLI: `mstack state add` exit code and stdout"/);
+    assert.match(cleared.stdout, /dropped "`withLock\(file, run, opts\)` in src\/tsv\.ts"/);
 
     const again = run(sb.store.root, ["state", "set", "1", "--clear", "seams"]);
     assert.equal(again.code, 0, again.stderr);
@@ -152,6 +156,23 @@ test("a seams value that is not an array of strings is refused when the state is
       assert.equal(listed.code, 2, `seams ${JSON.stringify(bad)} must be refused`);
       assert.match(listed.stderr, /seams must be an array of strings/);
     }
+  } finally {
+    sb.dispose();
+  }
+});
+
+test("a hand-edited blank seam is refused when read, and an empty list is still accepted", () => {
+  const sb = sandbox();
+  try {
+    for (const blank of [[""], ["   "], [A, ""]]) {
+      sb.writeState(state([item({ seams: blank })]));
+      const listed = run(sb.store.root, ["state", "list"]);
+      assert.equal(listed.code, 2, `seams ${JSON.stringify(blank)} must be refused`);
+      assert.match(listed.stderr, /seams must not hold a blank string/);
+    }
+    sb.writeState(state([item({ seams: [] })]));
+    const empty = run(sb.store.root, ["state", "list"]);
+    assert.equal(empty.code, 0, "an empty list says 'no seam' and stays readable");
   } finally {
     sb.dispose();
   }

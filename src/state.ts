@@ -191,6 +191,10 @@ function parseItem(value: unknown, index: number, file: string): Item {
     throw new UserError(`${at}.seams must be an array of strings, got ${describe(seams)}`);
   }
 
+  if (Array.isArray(seams) && seams.some((s) => (s as string).trim() === "")) {
+    throw new UserError(`${at}.seams must not hold a blank string`, "name the surface, or delete the entry; an empty list is fine");
+  }
+
   const item: Item = {
     id: value["id"],
     slug: value["slug"],

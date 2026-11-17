@@ -319,6 +319,7 @@ function clearField(item: Item, name: string): string[] {
   const before = item[key];
   if (before === undefined) return [`  ${key}: already unset`];
   const lines = fieldChange(key, before as string | boolean | readonly string[], undefined);
+  if (key === "seams") for (const dropped of item.seams ?? []) lines.push(`    - dropped ${preview(dropped)}`);
   // The answer named the question. With the question gone the pointer leads to
   // a row about a fork this item no longer carries, and a different fork
   // attached later would find that pointer and be born answered.
@@ -660,6 +661,7 @@ function cmdState(argv: readonly string[]): number {
         const before = item.seams ?? [];
         changes.push(`  seams: ${before.length} seam(s) replaced with ${next.length}`);
         for (const dropped of before) changes.push(`    - dropped ${preview(dropped)}`);
+        for (const added of next) changes.push(`    + added ${preview(added)}`);
         item.seams = next;
       }
       if (values.sdd === true && item.sdd !== true) {
