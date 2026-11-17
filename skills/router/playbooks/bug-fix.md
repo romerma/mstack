@@ -1,3 +1,5 @@
+<!-- Origin: the procedure in steps 1 and 2 from mattpocock/skills, skills/engineering/diagnosing-bugs/SKILL.md @ 49dd158d1076134a641b33efb035946536778336 (MIT, licenses/mattpocock-skills-LICENSE.txt). Adapted: nothing is shown to the user for re-ranking and nothing is asked, because the source proceeds on its own ranking when the user is away and here the session always does; no human-in-the-loop script; the source's redaction, regression-test and cleanup phases are not copied, because steps 3 to 8 already cover the test-first fix, and the router's stop after three failed approaches stays. -->
+
 # Bug fix
 
 Be scientific. Every shipped line traces to runtime evidence. Belt-and-suspenders that "might
