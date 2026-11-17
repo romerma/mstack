@@ -365,6 +365,17 @@ function showLines(item: Item, raw: Record<string, unknown>): string[] {
   return lines;
 }
 
+const STATE_USAGE = [
+  "mstack state <subcommand>",
+  "  state list                          every item",
+  "  state active                        the slug of the active item",
+  "  state show <ref> [--json]           one item with every field it carries",
+  "  state add --slug S --title T [...]  add an item",
+  "  state set <ref> [...]               move or correct an item",
+  "",
+  "state add, state set and state show take --help for that command's flags.",
+].join("\n");
+
 function cmdState(argv: readonly string[]): number {
   const [sub, ...rest] = argv;
 
@@ -374,6 +385,11 @@ function cmdState(argv: readonly string[]): number {
   const helped = sub === "add" ? STATE_ADD : sub === "set" ? STATE_SET : sub === "show" ? STATE_SHOW : undefined;
   if (helped !== undefined && wantsHelp(rest)) {
     console.log(helpText(helped));
+    return 0;
+  }
+
+  if (sub === "--help" || sub === "-h") {
+    console.log(STATE_USAGE);
     return 0;
   }
 
@@ -404,8 +420,11 @@ function cmdState(argv: readonly string[]): number {
   }
 
   if (sub === "show") {
-    const [ref, ...flags] = rest;
-    if (ref === undefined || ref.startsWith("-")) throw new UserError("state show needs an item id or slug");
+    // The ref is the first argument that is not a flag, so `--json` goes on either side of it.
+    const at = rest.findIndex((arg) => !arg.startsWith("-"));
+    const ref = rest[at];
+    if (ref === undefined) throw new UserError("state show needs an item id or slug");
+    const flags = rest.filter((_, i) => i !== at);
     const { values } = parseFlags(STATE_SHOW, flags);
     const state = parseState(store.state);
     const item = findItem(state, ref);

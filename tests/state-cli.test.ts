@@ -469,3 +469,34 @@ onEach("an unknown flag is refused, naming it, on state add, state set, state sh
     sb.dispose();
   }
 });
+
+onEach("state show takes --json before or after the ref", (cli) => {
+  const sb = sandbox();
+  try {
+    sb.writeState(state([item({ id: 1, slug: "alpha", extra_key: 1 }), item({ id: 2, slug: "beta" })]));
+    const after = cli(sb.store.root, "state", "show", "alpha", "--json");
+    const before = cli(sb.store.root, "state", "show", "--json", "alpha");
+    assert.equal(before.code, 0, before.stderr);
+    assert.equal(before.stdout, after.stdout);
+    assert.equal(JSON.parse(before.stdout).slug, "alpha");
+    // still one ref, and still an error when there is none
+    const two = cli(sb.store.root, "state", "show", "--json", "alpha", "beta");
+    assert.equal(two.code, 2);
+    assert.equal(two.stdout, "");
+    const none = cli(sb.store.root, "state", "show", "--json");
+    assert.equal(none.code, 2);
+    assert.match(none.stderr, /state show needs an item id or slug/);
+  } finally {
+    sb.dispose();
+  }
+});
+
+onEach("state --help and state -h point at the subcommands and their --help, exit 0, outside a repository too", (cli) => {
+  for (const flag of ["--help", "-h"]) {
+    const result = cli("/tmp", "state", flag);
+    assert.equal(result.code, 0, result.stderr);
+    assert.equal(result.stderr, "");
+    for (const sub of ["list", "active", "show", "add", "set"]) assert.match(result.stdout, new RegExp(`state ${sub}`));
+    assert.match(result.stdout, /state add\|set\|show --help|--help/);
+  }
+});
