@@ -26,6 +26,8 @@ The reviewer did not write the code. If that is not true, stop: fetch someone wh
    - correctness and requirement coverage
    - security and failure paths
    - the tests themselves: would any of them fail if the change were reverted?
+   - `design`, only when the diff adds or changes a module's interface or moves a seam: the
+     reviewer reads the deep-module vocabulary and judges the diff with its tests
    Skip a lens that has nothing to review, and note that you skipped it.
 4. When they return, `mstack fanout check --kind review --worker ...` with the same workers as
    the plan, minus any lens you skipped. It names the ones that did not write a report. A reply

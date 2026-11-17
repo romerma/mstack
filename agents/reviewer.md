@@ -37,6 +37,13 @@ item nothing can verify is exactly what the `verifier-blocked` verdict is for.
   against an older SHA does not carry over: a rebase rewrites SHAs and silently invalidates
   every verdict without touching a single check.
 
+## The design lens
+
+Only when your brief gives you the `design` lens: read
+`${CLAUDE_PLUGIN_ROOT}/skills/design/references/deep-modules.md` first, then judge the diff's
+interfaces and seams with its terms and tests, naming the file and line each finding rests on.
+Judge what the diff changes and nothing around it. Without the lens, do not read that file.
+
 ## Your verdict
 
 Write your report to `.mstack/progress/review_<slug>_<lens>.md` when you were given a lens, and
