@@ -642,7 +642,7 @@
         "the README's 22.6 floor claim names the command that proves it",
         "the bun half of npm test scopes to ./tests/ so a local gitignored sandbox/ cannot add or fail tests (today 'bun test tests/' also runs sandbox/clima-portable/tests)"
       ],
-      "status": "pending",
+      "status": "in_progress",
       "description": "With node 22.6.0 on PATH, npm test fails before any test runs: 0/16 files, ERR_UNKNOWN_FILE_EXTENSION. CI passes the flag itself at .github/workflows/ci.yml:56, so CI is green while the documented local command is red on the documented floor.",
       "source": "item 34 round-3 review, non-blocking note 1, 2026-10-31"
     },

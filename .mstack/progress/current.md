@@ -6,10 +6,10 @@
 > On close: append the summary to `history.md` and reset this file to the
 > empty template below.
 
-- **Item:** none active (47 closed 2026-11-17; next 46 npm-test-misses-strip-types)
-- **Status:** -
-- **Branch:** main
-- **Base:** -
+- **Item:** 46 npm-test-misses-strip-types
+- **Status:** in_progress (bug-fix playbook, steps 1 and 2 done; step 4 skip: single-site fix)
+- **Branch:** fix/npm-test-misses-strip-types
+- **Base:** a9f1d1d
 - **Worktree:** none
 
 ## Plan
@@ -45,12 +45,14 @@ passes bypassPermissions. Do not run `check.mjs` or `verify.mjs` while a batch i
 
 ## Next step
 
-Phase 0 has 52, 53, 54 and 47 closed (3, 2, 2 and 2 rounds). Left in it: 46 (npm test on node
-22.6 and the bun test scope) and 50 (`plugin validate --strict`). Item 70 (the gate closes over
-a standing rejection) was found on the way and is the most serious of the follow-ups: consider
-it before phase 1.
+Item 46. Reproduced with node 22.6.0 from nvm first on PATH: `node --test 'tests/*.test.ts'`
+fails every file with ERR_UNKNOWN_FILE_EXTENSION; with `--disable-warning=ExperimentalWarning
+--experimental-strip-types` the full suite is 477 of 477 on 22.6.0, including the tests added
+in items 52, 53, 54 and 47. Mechanism: `package.json:8-10` omits the flag that
+`.github/workflows/ci.yml:56` passes, and `bun test tests/` treats the path as a filter and
+runs the gitignored `sandbox/` too. An implementer has the brief; its report goes to
+`impl_npm-test-misses-strip-types.md`. Then a fresh reviewer on a different model.
 
-Phase 1 (55 intake, 56 test-first reference) changes skills and agents and has acceptance lines
-that need the plugin really loaded (`claude --plugin-dir .`, or headless `claude -p` with it):
-a request driven through `/mstack` in the sandbox, and a subagent quoting a preloaded skill.
-Item 69 needs the same for the cost rows.
+After 46: item 50 needs the user's answer on the icon (its own acceptance says so). Item 70
+(the gate closes over a standing rejection) is the most serious follow-up. Then phase 1 and
+item 69, which need the plugin really loaded.
