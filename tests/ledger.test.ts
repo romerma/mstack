@@ -343,13 +343,14 @@ test("a reviewer rejection whose only evidence is the implementer's report still
   assert.match(r.reason, /verifier-failed.*reviewer rejects this commit/);
 });
 
-test("a verifier-blocked row that cites the implementer's report still fails", () => {
+test("a verifier-blocked row that cites the implementer's report still fails, as not independent", () => {
   const r = checkAfter([
     ["test-verified", "implementer"],
     ["verifier-blocked", "reviewer", ".mstack/progress/impl_x.md"],
   ]);
   assert.equal(r.passing, false);
-  assert.match(r.reason, /verifier-blocked.*reviewer rejects this commit/);
+  assert.match(r.reason, /verifier-blocked.*reviewer cites the implementer's own report/);
+  assert.match(r.reason, /not an independent approval/);
 });
 
 test("an approval that cites the implementer's report is not presented as an independent pass", () => {
