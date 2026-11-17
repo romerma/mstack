@@ -22,6 +22,7 @@ import {
 } from "./lifecycle.ts";
 import { lintPlugin } from "./lint.ts";
 import { cliProvenance, describeSrcComparison, findStore, requireStore, runningCliRoot, UserError } from "./paths.ts";
+import { DECIDE, helpText, parseFlags, STATE_ADD, STATE_SET, wantsHelp } from "./cliopts.ts";
 import { assertWritable, findItem, parseState, updateState, type Item } from "./state.ts";
 import { MIN_REPORT_BYTES } from "./roles.ts";
 import * as verification from "./verification.ts";
@@ -332,8 +333,18 @@ function clearField(item: Item, name: string): string[] {
 }
 
 function cmdState(argv: readonly string[]): number {
-  const store = requireStore();
   const [sub, ...rest] = argv;
+
+  // Before the store is looked for and before `<ref>` is read: `state set --help`
+  // used to resolve "--help" as an item reference, and a help request has to
+  // work outside a repository and never write.
+  const helped = sub === "add" ? STATE_ADD : sub === "set" ? STATE_SET : undefined;
+  if (helped !== undefined && wantsHelp(rest)) {
+    console.log(helpText(helped));
+    return 0;
+  }
+
+  const store = requireStore();
 
   if (sub === "list" || sub === undefined) {
     takesNothing("state list", rest);
@@ -360,21 +371,7 @@ function cmdState(argv: readonly string[]): number {
   }
 
   if (sub === "add") {
-    const { values } = parseArgs({
-      args: [...rest],
-      options: {
-        slug: { type: "string" },
-        title: { type: "string" },
-        description: { type: "string" },
-        acceptance: { type: "string", multiple: true },
-        sdd: { type: "boolean" },
-        source: { type: "string" },
-        verification: { type: "string" },
-        "decision-required": { type: "string" },
-        seam: { type: "string", multiple: true },
-      },
-      strict: true,
-    });
+    const { values } = parseFlags(STATE_ADD, rest);
     if (values.slug === undefined || values.title === undefined) {
       throw new UserError("state add needs --slug and --title");
     }
@@ -422,26 +419,7 @@ function cmdState(argv: readonly string[]): number {
   if (sub === "set") {
     const [ref, ...flags] = rest;
     if (ref === undefined) throw new UserError("state set needs an item id or slug");
-    const { values } = parseArgs({
-      args: [...flags],
-      options: {
-        status: { type: "string" },
-        "closed-by": { type: "string" },
-        title: { type: "string" },
-        description: { type: "string" },
-        acceptance: { type: "string", multiple: true },
-        "add-acceptance": { type: "string", multiple: true },
-        sdd: { type: "boolean" },
-        source: { type: "string" },
-        verification: { type: "string" },
-        "decision-required": { type: "string" },
-        seam: { type: "string", multiple: true },
-        clear: { type: "string", multiple: true },
-        slug: { type: "string" },
-        force: { type: "boolean" },
-      },
-      strict: true,
-    });
+    const { values } = parseFlags(STATE_SET, flags);
     const { item, changes } = updateState(store.state, (state) => {
       const item = findItem(state, ref);
       if (item === undefined) throw new UserError(`no item matches '${ref}'`);
@@ -800,18 +778,11 @@ function cmdLedger(argv: readonly string[]): number {
 }
 
 function cmdDecide(argv: readonly string[]): number {
-  const { values } = parseArgs({
-    args: [...argv],
-    options: {
-      phase: { type: "string" },
-      decision: { type: "string" },
-      why: { type: "string" },
-      evidence: { type: "string" },
-      result: { type: "string" },
-      resolves: { type: "string" },
-    },
-    strict: true,
-  });
+  if (wantsHelp(argv)) {
+    console.log(helpText(DECIDE));
+    return 0;
+  }
+  const { values } = parseFlags(DECIDE, argv);
   if (values.decision === undefined) throw new UserError("decide needs --decision");
   const store = requireStore();
 
