@@ -1022,3 +1022,43 @@ next to item 40.
 rounds. Filed: 52 to 71. Suite: 374 tests at the start, 529 now, green on bun and on node
 22.6.0, 24.14.0 and 26.13.1. None of it has run on CI: `main` is local only since 2026-11-08.
 No session loaded the plugin, so no hook ran for real and `costs.tsv` is still header-only.
+
+## 2026-11-17 — item 55 intake-step, closed
+
+**What changed.** `/mstack <prose>` now runs intake as step 3 of the router's orient list,
+between `state active` and copying the playbook. The method is `skills/router/references/intake.md`
+(77 lines), adapted from the structure of `mattpocock/skills` grilling and the ruling pattern of
+`obra/superpowers`, with an origin header naming both commits and both MIT notices under
+`licenses/`. Each node of the request is classified in order: a fact (found, never asked), else a
+fork (its answers give the product's user a different result, or it cannot be undone, however
+cheap the change), else a reversible decision (taken and recorded with `decide --phase intake`
+and an `if wrong:` cost). Intake ends with `state add` carrying acceptance, a source and seams;
+forks ride on `decision_required` and reach the user in one numbered round that ends the turn,
+names the slug and leaves a note in `current.md`. A partial answer never gets `--resolves`. An
+interactive mode with no cap on questions turns on only when the request asks to be questioned.
+Items gained a `seams` field (`state add --seam`, `state set --seam`, `--clear seams`).
+
+**Rounds: 3**, recorded in the `review-r3` decision row.
+- Round 1, rejected: a partly answered fork list could be marked answered, depending on the
+  order of two commands, and the item then reached `in_progress`.
+- Round 2, rejected: "reversible" and "product fork" overlapped, and in 2 of 4 live runs the
+  agent decided a user-visible pricing choice itself and launched the implementer.
+- Round 3, approved: `review_intake-step_r3.md`, `live-verified` at `ebf8757` by reviewer.
+  Three under-specified requests parked their open choice and asked once; two fully specified
+  requests parked nothing and reached `in_progress` within 41 s; fresh sessions picked up a
+  parked item from the `current.md` note.
+
+**Measured.** Every review ran headless `claude -p --plugin-dir .` sessions, the first time this
+program saw the plugin really loaded. Intake on an unmodified request: 3 tool calls, about 22 s,
+0.22 USD up to `state add`. Commit and investigate requests skip it without reading the
+reference.
+
+**Accepted limits.** A request that says nobody will answer makes the agent take forks and record
+them as reversible: item 72, which carries a fork for the user. The rule on where `--resolves`
+goes is not in context when a fresh session answers a fork, Closing a session can erase the
+parked-fork note, and nothing executable pins the router step, the header or the licences: item
+73. Agents trip on the state CLI (`state show` does not exist): item 74.
+
+**Outside the item.** `main` was pushed on 2026-11-17 at `b9a12f7` after the user's standing
+yes; CI run 44045047755 was green on `test` and `oldest-node`, the first CI run since
+2026-08-24. Suite: 529 tests at the start of the item, 542 now.

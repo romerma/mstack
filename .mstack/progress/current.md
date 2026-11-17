@@ -6,10 +6,10 @@
 > On close: append the summary to `history.md` and reset this file to the
 > empty template below.
 
-- **Item:** 55 intake-step
-- **Status:** in_progress (implementer briefed)
-- **Branch:** feat/intake-step
-- **Base:** b9a12f7
+- **Item:** none active (55 closed 2026-11-17)
+- **Status:** -
+- **Branch:** main
+- **Base:** -
 - **Worktree:** none
 
 ## Plan
@@ -32,7 +32,7 @@ watch is review rounds per item: if they do not drop after phase 1, intake is ce
 
 - Easy tier: `impl_benchmark-harness_baseline.md`.
 - Hard tier: `impl_benchmark-hard-tier_baseline.md`.
-- 2026-11-16 and 17: items 52 to 71 filed; 52, 53, 54, 47, 46 and 70 closed; see `history.md`.
+- 2026-11-16 and 17: items 52 to 74 filed; 52, 53, 54, 47, 46, 70 and 55 closed; see `history.md`.
 - Sessions launched as plain `claude` have no mstack plugin: no `mstack:*` agents, no hooks, no
   cost rows. On 2026-11-16 the user chose to continue anyway, with general-purpose agents
   briefed from `agents/*.md` (Sonnet implements, Opus reviews).
@@ -45,19 +45,19 @@ passes bypassPermissions. Do not run `check.mjs` or `verify.mjs` while a batch i
 
 ## Next step
 
-Item 55 in flight on `feat/intake-step`. Design row of 2026-11-17: intake is orient step 3 in
-the router, method in `skills/router/references/intake.md`, seams as an item field now
-(`state add --seam`), MIT notices under `licenses/`.
+Phase 0 is done except item 50, and item 55 (intake) of phase 1 is closed.
 
-1. Implementer writes `.mstack/progress/impl_intake-step.md`; check it exists.
-2. `state set 55 --status reviewing`, reviewer (other model) probes with the real CLI and a
-   headless `claude -p --plugin-dir .` run in a throwaway project.
-3. On approval: close, history entry, merge into `main`, push `main` (standing yes from the
-   user, 2026-11-17), check CI.
+Waiting on the user:
+- Item 72 `unattended-run-forks`: one fork on the item, whether an unattended run takes a
+  fork's recommended answer as a provisional ruling or stops at the fork round. Answer with
+  `mstack decide --resolves unattended-run-forks`.
+- Item 50 (`plugin validate --strict`): the icon is the user's call per its own acceptance.
 
-`main` was pushed on 2026-11-17 at `b9a12f7`; CI run 44045047755 green on both jobs (`test`
-and `oldest-node`).
+Standing: push `main` after closing work and check CI (user, 2026-11-17).
 
-Waiting on the user: item 50 (`plugin validate --strict`), the icon is their call.
-
-After 55: 56 test-first-reference, then follow-ups 71, 66, 68, 67, 69.
+Next, not blocked:
+1. 56 test-first-reference. Its live acceptance (the implementer quotes the reference without
+   reading files) can be checked the way item 55 was, with a headless
+   `claude -p --plugin-dir .` run in a throwaway project; the wrapper is described in
+   `review_intake-step.md` under Probe C.
+2. Follow-ups by weight: 73 (intake loose ends), 74 (state CLI), 71, 66, 68, 67, 69.

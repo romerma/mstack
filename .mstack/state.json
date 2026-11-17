@@ -760,7 +760,7 @@
         "text derived from mattpocock/skills or obra/superpowers carries an origin header (repository, path, commit), and both MIT notices ship inside the plugin directory",
         "one real request driven through /mstack in the sandbox produces an item with source, acceptance and seams; the transcript is pasted in the report"
       ],
-      "status": "reviewing",
+      "status": "done",
       "description": "state add appears only in setup and in the orchestrate playbook, 20 of 51 items have no source, and --resolves was used in 2 of 112 decision rows because nothing raised decision_required in time. The intake is derived from the structure of mattpocock/skills grilling (design tree, frontier, recommended answer, 'finding facts is your job') and the 'rulings, not stalls' pattern of obra/superpowers. It is not grilling and must not be called that: its author says an agent that answers its own decisions has broken the skill. Runs in the main session, because a subagent has no AskUserQuestion.",
       "decision_required": "A real grilling session is open-ended and waits for the user; the router says 'Ask at most three questions' and principles say 'Never block on the human'. Either intake is always autonomous under the three-question cap, or it is autonomous by default with an interactive mode (full rounds, no cap) that turns on only when the request asks for it, which needs a named exception to the cap.",
       "decision_resolved": "2026-11-16T16:38:47.460Z",
@@ -981,6 +981,60 @@
       "status": "pending",
       "description": "Left open by item 70, each case run by a reviewer on the real CLI. The at-sha closing check only covers a close at the exact commit that carries the rejection row: a rejection at HEAD~1, an approval of HEAD~2 recorded later, and a close at a HEAD with no rows closes and passes the gate (the same at the base). An item hand-edited to done after a two-sha rejection passes the audit, because the audit keeps the across-sha rule. A ledger row whose sha was typed as HEAD, in upper case or as a branch name is stored as typed, so the at-sha check misses it. state set --status done still closes author-only and discounted ledgers that the gate then fails. The corrected sentence in agents/reviewer.md says a rejection stands 'until a later independent approval at that commit', which is narrower than the code. Belongs with item 40, which owns item fields.",
       "source": "item 70 reviews, .mstack/progress/review_gate-closes-over-a-rejection.md and _r2.md, 2026-11-17"
+    },
+    {
+      "id": 72,
+      "slug": "unattended-run-forks",
+      "title": "Intake has no rule for a request that says nobody will answer, so an unattended run takes product forks and records them as reversible",
+      "acceptance": [
+        "intake.md says what happens to a fork when the request states that nobody will answer, in one rule, and the answer chosen through decide --resolves is the one implemented",
+        "a headless run of a bench task with the unattended suffix and one open product fork behaves as that rule says, in two runs, with the stream excerpts pasted in the report",
+        "the benchmark results record, per run, how many forks were parked and how many were taken unattended, so item 45 can count both outcomes"
+      ],
+      "status": "pending",
+      "description": "In the implementer's run C4 (bench task T3 plus the suffix 'You are running unattended: nobody will answer questions. Make reasonable decisions') the agent took 'discount-percent applies first, then codes' as a reversible decision; its own if-wrong line names a different charged total, so by intake.md it was a fork. The review-r3 decision priced the fork rule as 'an unattended run stops at the fork round'; this run shows the other outcome.",
+      "decision_required": "1) When a request says nobody will answer, should intake take each fork's recommended answer, record it with decide as a provisional ruling, keep it listed on the item and report every one in the final message, instead of stopping at the fork round? Recommended: yes, because an unattended run that stops has produced nothing, and a recorded ruling is visible and can be undone; the cost is that a run can ship behaviour the user did not choose until they read the list.",
+      "source": "item 55 round 3 review, .mstack/progress/review_intake-step_r3.md N-1, 2026-11-17",
+      "seams": [
+        "skills/router/references/intake.md as read by a headless claude -p run with the plugin loaded",
+        "sandbox/bench/run.mjs results row"
+      ]
+    },
+    {
+      "id": 73,
+      "slug": "intake-followups",
+      "title": "Loose ends the item 55 reviews accepted as non-blocking",
+      "acceptance": [
+        "a session that answers a parked fork has the --resolves placement rule in context: the current.md note carries it or router step 2 points at intake.md's Park a fork section, and a fresh headless session with a full answer to three forks writes one row that lists all three",
+        "Closing a session does not reset a current.md that records a parked fork",
+        "the fork test is stated once and the Map row, the if-wrong test and the Autonomy clause agree on labels, message text and exit codes; 'however cheap the code change is' cannot be read as qualifying only the irreversible clause",
+        "router step 2 no longer needs current.md read to know whether to read it, and the skip list covers a parked item, which is pending",
+        "lint-plugin fails when the router's intake step, the origin header of intake.md or either licence file is removed",
+        "CHANGELOG.md, docs/wiki/The-CLI.md:258 and docs/wiki/How-A-Work-Item-Flows.md:113 describe forks as intake now defines and parks them",
+        "the cost of sending every item with an answered intake fork down the spec path is measured on one small request, and the rule is kept or narrowed with the decision recorded"
+      ],
+      "status": "pending",
+      "source": "item 55 reviews, .mstack/progress/review_intake-step.md N-6, review_intake-step_r2.md N-6, review_intake-step_r3.md N-2 to N-7, 2026-11-17",
+      "seams": [
+        "skills/router/SKILL.md and references/intake.md as read by a headless claude -p run",
+        "CLI: mstack lint-plugin exit code and stdout"
+      ]
+    },
+    {
+      "id": 74,
+      "slug": "state-cli-ergonomics",
+      "title": "Agents keep tripping on the state CLI: no state show, values that start with two dashes, and --acceptance replacing the list",
+      "acceptance": [
+        "mstack state show <ref> prints one item with every field, including source, seams and decision_required",
+        "a value that starts with -- is accepted by --acceptance, --seam and decide --decision when passed as --flag=value, and the refusal message says so",
+        "state set --acceptance on an item that already has criteria names --add-acceptance in its output, so an append meant as an append is not a silent replace"
+      ],
+      "status": "pending",
+      "description": "In the item 55 live runs four agents tried 'mstack state show' first and one wrote it into a current.md note; three had a state add or decide refused because a value began with --; one replaced six criteria with one through --acceptance and had to restore them. state list prints only label and title, so nothing prints an item's seams or source.",
+      "source": "item 55 reviews: review_intake-step.md N-9, review_intake-step_r2.md N-6, review_intake-step_r3.md N-8; sandbox/PROTOCOL.md F1; 2026-11-17",
+      "seams": [
+        "CLI: mstack state show, state add, state set and decide exit codes and stdout"
+      ]
     }
   ]
 }
