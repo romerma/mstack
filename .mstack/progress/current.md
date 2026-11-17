@@ -6,10 +6,10 @@
 > On close: append the summary to `history.md` and reset this file to the
 > empty template below.
 
-- **Item:** none active (55 closed 2026-11-17)
-- **Status:** -
-- **Branch:** main
-- **Base:** -
+- **Item:** 56 test-first-reference
+- **Status:** in_progress (implementer briefed)
+- **Branch:** feat/test-first-reference
+- **Base:** 44809a5
 - **Worktree:** none
 
 ## Plan
@@ -55,8 +55,12 @@ Waiting on the user:
 
 Standing: push `main` after closing work and check CI (user, 2026-11-17).
 
+In flight: 56 on `feat/test-first-reference` (design row of 2026-11-17: internal skill
+`skills/test-first/`, preloaded through the implementer's `skills` field, hook only if the live
+run shows no injection). Then review by the other model, close, merge, push.
+
 Next, not blocked:
-1. 56 test-first-reference. Its live acceptance (the implementer quotes the reference without
+1. 56 test-first-reference (in flight). Its live acceptance (the implementer quotes the reference without
    reading files) can be checked the way item 55 was, with a headless
    `claude -p --plugin-dir .` run in a throwaway project; the wrapper is described in
    `review_intake-step.md` under Probe C.
