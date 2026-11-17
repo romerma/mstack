@@ -114,3 +114,4 @@ ledger-check-hides-a-rejection	ebd8a6bc8470f01e9c4e2b66b2485a5d641a02e2	test-ver
 ledger-check-hides-a-rejection	a16e49087d0505861833d4b277f317b6bfc4d4c7	verifier-failed	.mstack/progress/review_ledger-check-hides-a-rejection.md	reviewer	2026-11-16T23:35:30.216Z
 ledger-check-hides-a-rejection	d73b40c4066698d75aa5cc3cc94740e188125b02	test-verified	.mstack/progress/impl_ledger-check-hides-a-rejection_r2.md	implementer	2026-11-16T23:44:34.940Z
 ledger-check-hides-a-rejection	acd6b7530523bacdbdc3925ffbe91ada4babd10d	live-verified	.mstack/progress/review_ledger-check-hides-a-rejection_r2.md	reviewer	2026-11-17T00:13:38.988Z
+npm-test-misses-strip-types	7f8a95df5d35917678aefe2c7f3dc8ebc6fdcc65	live-verified	.mstack/progress/impl_npm-test-misses-strip-types.md	implementer	2026-11-17T00:31:43.639Z

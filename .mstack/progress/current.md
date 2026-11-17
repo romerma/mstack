@@ -50,8 +50,9 @@ fails every file with ERR_UNKNOWN_FILE_EXTENSION; with `--disable-warning=Experi
 --experimental-strip-types` the full suite is 477 of 477 on 22.6.0, including the tests added
 in items 52, 53, 54 and 47. Mechanism: `package.json:8-10` omits the flag that
 `.github/workflows/ci.yml:56` passes, and `bun test tests/` treats the path as a filter and
-runs the gitignored `sandbox/` too. An implementer has the brief; its report goes to
-`impl_npm-test-misses-strip-types.md`. Then a fresh reviewer on a different model.
+runs the gitignored `sandbox/` too. Implemented at 7f8a95d (scripts, docs, CI in three commits); report in
+`impl_npm-test-misses-strip-types.md`: 480/480 on bun and node under 22.6.0, 24.14.0 and 26.13.1.
+If this session stops now: a fresh reviewer on a different model judges item 46.
 
 After 46: item 50 needs the user's answer on the icon (its own acceptance says so). Item 70
 (the gate closes over a standing rejection) is the most serious follow-up. Then phase 1 and
