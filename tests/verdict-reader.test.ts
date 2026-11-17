@@ -84,7 +84,7 @@ test("readVerdict of no rows is undefined, and a target with regex metacharacter
   assert.equal(readVerdict(rows, "a.b")?.kind, "approved", "impl_axb.md is not the report for a.b");
 });
 
-test("ledger check and the gate's closing audit agree on every sequence, because both read through readVerdict", () => {
+test("ledger check and the gate's closing audit agree on every sequence, because both read through readVerdict", { timeout: 60_000 }, () => {
   for (const c of CASES) {
     const sb = sandbox();
     try {
