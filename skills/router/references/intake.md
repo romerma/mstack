@@ -8,13 +8,14 @@ to the user, and here the agent takes the reversible ones and records them.
 ## Map
 
 Write the request as a design tree. The **frontier** is every node whose prerequisites are
-settled. Classify each frontier node, handle it, recompute, and stop when the frontier is empty.
+settled. Classify each frontier node, taking the first row that fits, handle it, recompute, and
+stop when the frontier is empty.
 
 | Kind | Handle it by |
 |---|---|
-| **Fact** | Find it: the repository, its docs, `git log`, or run something. Never ask the user for one. |
-| **Reversible decision** | Take your recommended answer and record it (below). |
-| **Product fork** (different user-visible outcomes) or **irreversible choice** | Park it on the item (below). Do not take it. |
+| **Fact**: the request, the repository, its docs or tests, or a convention the project already follows settles it | Find it. Never ask the user for one. |
+| **Fork**: its answers give the product's user a different result (what is charged, allowed, refused, stored, deleted or shown as a value), or it cannot be undone, however cheap the code change is | Park it on the item (below). Do not take it. |
+| **Reversible decision**: the user sees the same result either way (where code lives, names, structure, internal approach) | Take your recommended answer and record it (below). |
 
 ## Record a reversible decision
 
@@ -24,7 +25,8 @@ mstack decide --phase intake --decision "<what was decided>" --why "<why>" \
 ```
 
 `--result` carries the cost: it is the column a later reader scans for what the decision left
-behind. Decisions that could not be undone are forks, not rows.
+behind. Write the `if wrong:` line first: if it names something the product's user would notice,
+or data that is lost, this is a fork, not a row.
 
 ## Park a fork
 

@@ -91,7 +91,8 @@ is not a cost worth optimising away.
 Proceed without asking on anything reversible: branches, code, tests, commits, PRs, CI, fixes.
 
 Stop and ask on production, secrets, new third-party dependencies, destructive or
-hard-to-reverse operations, and product decisions with different user-visible outcomes.
+hard-to-reverse operations, and product decisions with different user-visible outcomes, which
+stay product decisions however cheap they are to reverse.
 
 Before asking a "which approach" question, classify it. If the answer could be observed by
 running something, it is not the human's to answer. Run the thing. The ask is the slow path,
