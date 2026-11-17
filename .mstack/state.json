@@ -776,7 +776,7 @@
         "feature.md names a test-first step before delegation, and the implementer brief declares the item's seams as pre-agreed",
         "lint-plugin and both suites green"
       ],
-      "status": "in_progress",
+      "status": "reviewing",
       "description": "bug-fix.md and refactor.md name a failing test; feature.md does not, and test adequacy is found by the reviewer's mutations in rounds 2 to 4 (item 36: 'the suite was green from round 1'). The reference merges mattpocock/skills tdd (what a good test is: public interface, seams, independent expected values, vertical slices) with obra/superpowers test-driven-development (process: watch red for the expected reason, watch green, run the project suite). Refactoring stays out of the loop; review owns it. Seams come from the item, so no pass asks the user to confirm them (depends on item 55; the field lands with item 40).",
       "source": "reports/Mejoras mstack con skills Pocock.md, 2026-11-16"
     },
