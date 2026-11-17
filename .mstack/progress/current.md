@@ -6,10 +6,10 @@
 > On close: append the summary to `history.md` and reset this file to the
 > empty template below.
 
-- **Item:** none active (73 closed 2026-11-17)
-- **Status:** -
-- **Branch:** main
-- **Base:** -
+- **Item:** 74 state-cli-ergonomics
+- **Status:** in_progress (implementer briefed)
+- **Branch:** fix/state-cli-ergonomics
+- **Base:** 14c2b6c
 - **Worktree:** none
 
 ## Plan
@@ -57,8 +57,10 @@ Record each answer with `mstack decide --resolves <slug>`.
 
 Standing: push `main` after closing work and check CI (user, 2026-11-17).
 
+In flight: 74 on `fix/state-cli-ergonomics`; then review by the other model, close, merge, push.
+
 Next, not blocked:
-1. 74 state CLI (`state show`, `--help` on subcommands, values that start with `--`): agents
+1. 74 state CLI (in flight) (`state show`, `--help` on subcommands, values that start with `--`): agents
    tripped on it in every live run.
 2. 71, 66, 68, 67, 69.
 3. Phase 2: 57, 58, 59, 60, 61, 62, 64.
