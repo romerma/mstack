@@ -151,10 +151,9 @@ only documentation it needed.
 
 ## Closing a session
 
-1. If the work introduced or sharpened a term, or took a decision that is hard to reverse,
-   surprising without context and a real trade-off, write the glossary entry or the ADR as
-   [domain-docs](../reflect/references/domain-docs.md) says, so the reviewer reads it in the diff.
-   Otherwise write nothing and say nothing.
+1. No glossary or ADR change is left uncommitted or unreviewed: it is written before the review
+   of the item that introduced it, as [domain-docs](../reflect/references/domain-docs.md) says, and a
+   later one goes into a follow-up item.
 2. `mstack gate` green.
 3. The report files for every pass that ran exist and say something.
 4. Append the session summary to `.mstack/progress/history.md`, and reset `current.md` to its

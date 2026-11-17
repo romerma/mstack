@@ -2,11 +2,11 @@
 
 # Domain docs
 
-`GLOSSARY.md` at the repository root says what the project's words mean; one file per decision under `docs/adr/` says why a hard choice went the way it did. Both are written from the code, the skills and the session's record, and both are part of the item's diff, so a reviewer that did not write them reads them like code. Closing an item and reflect are where they are written, for what the work introduced; a session that introduced no term and took no decision meeting all three conditions below writes nothing and says nothing.
+`GLOSSARY.md` at the repository root says what the project's words mean; one file per decision under `docs/adr/` says why a hard choice went the way it did. Both are written from the code, the skills and the session's record, and both are part of the item's diff, so a reviewer that did not write them reads them like code. Each is written before the review of the item that introduced the term or took the decision, so the verdict has seen it; what reflect proposes after the verdict goes into a follow-up item, not into the closed one. A session that introduced no term and took no decision meeting all three conditions below writes nothing and says nothing.
 
 ## The glossary
 
-A term goes in when this work introduced or sharpened it. Find its uses (`rg` the term in the source, the skills and the docs), define the sense they agree on, and leave out a term they do not settle: say so in the report, or park it the way intake parks a fork. Only terms of this project belong, not general programming words.
+A term goes in when this work introduced or sharpened it. Find its uses (`rg` the term in the source, the skills and the docs), define the sense they agree on, and leave out a term they do not settle and say so in the report. Only terms of this project belong, not general programming words.
 
 ```md
 # Project name
@@ -20,10 +20,10 @@ _Avoid_: Purchase, transaction
 **Invoice**: A request for payment sent after delivery.
 ```
 
-- One entry per term: a line `**Term**:`, the definition on that line or below it, and an optional `_Avoid_:` line. Entries are separated by blank lines.
+- One entry per term: a line `**Term**:` (or `**Term:**`, with or without a `- ` list marker), the definition on that line or below it, and an optional `_Avoid_:` line. Entries are separated by blank lines. A file may use one `##` or `###` heading per term followed by a paragraph instead.
 - A definition is one or two sentences saying what the thing is, with no file names, flags, statuses or other implementation detail.
 - One word per concept; the others go under `_Avoid_`.
-- Headings and prose before the first entry are free. After it, every line belongs to an entry, and a term appears once. `mstack gate` checks this when the file exists, and nothing else.
+- Prose, rules, HTML comments and fenced blocks are free, and so are headings in a file whose terms are bold. A term appears once. When the file exists, `mstack gate` fails an entry with no definition or a repeated term (case ignored), and warns, staying green, about a definition of more than two sentences or a file in which it recognises no entry.
 
 ## ADRs
 

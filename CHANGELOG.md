@@ -8,11 +8,13 @@
   records that mstack targets Claude Code only, with the date and the trade-off. A new reference,
   `skills/reflect/references/domain-docs.md`, holds the entry format, the ADR format and the three
   conditions an ADR must meet (hard to reverse, surprising without context, a real trade-off);
-  intake and `understand` read the glossary when the project has one, and closing an item and
-  `reflect` are where terms and ADRs are written. `mstack gate` checks the root `GLOSSARY.md`
-  only when it exists: every entry needs a term and a definition of one or two sentences, no
-  term repeats, and a failure names the entry and its line. `lint-plugin` requires an origin
-  header on the new reference.
+  intake and `understand` read the glossary when the project has one, and a term or an ADR is
+  written before the review of the item that introduced it, so the verdict has seen it. `mstack
+  gate` checks the root `GLOSSARY.md` only when it exists. It recognises `**Term**:`, `**Term:**`,
+  list items and one heading per term, and fails an entry with no definition or a term that
+  repeats, naming the entry and its line. It warns and stays green about a definition of more than
+  two sentences or a file in which it recognises no entry, and it reports an unreadable file as a
+  failure. `lint-plugin` requires an origin header on the new reference.
 
 - **A deep-module vocabulary, a design lens and a `deepen` playbook.** `skills/design/references/deep-modules.md`
   defines module, interface, depth, seam and adapter, the deletion test, the interface as the

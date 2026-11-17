@@ -43,7 +43,9 @@ that separates a retro from a diary.
 | A gap in what gets verified | A new check in the gate, or a new test |
 
 [The domain docs reference](references/domain-docs.md) holds both formats and the three conditions
-for an ADR. A session that introduced no term and took no such decision writes nothing here.
+for an ADR. Reflect may propose a term or an ADR, and what it proposes after the verdict goes
+into a follow-up item, not into the closed one. A session that introduced no term and took no
+such decision writes nothing here.
 
 **Anything better enforced by a lint, a type or a test goes to Backlog as a code change, not to
 Accepted as a documentation change.** A rule that lives only in prose drifts, and the drift is

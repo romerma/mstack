@@ -64,10 +64,9 @@ stdout``. No behaviour change, no seam: say why in `--description`.
 
 ## Proportion
 
-A program of work (several changes or tracks) is not one item: hand it to the
-[orchestrate](../playbooks/orchestrate.md) playbook, whose forks still reach the user in one
-round, each parked on the item it blocks. A one-line request with nothing ambiguous is a couple
-of lookups and one `state add`.
+A one-line request with nothing ambiguous costs a couple of lookups and one `state add`. A program
+of work is not one item: hand it to the [orchestrate](../playbooks/orchestrate.md) playbook, whose
+forks still reach the user in one round, each parked on the item it blocks.
 
 ## Interactive mode
 
