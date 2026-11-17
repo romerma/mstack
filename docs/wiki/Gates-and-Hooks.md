@@ -286,9 +286,9 @@ Walking the lines that carry the weight:
   A bold label such as `**Example:**` directly under a term, indented under its list item, or
   under its heading belongs to that term; after a blank line under a bold term it is read as a
   term. Rules, HTML comments and fenced blocks are skipped, and a comment line inside an entry
-  does not end it. It reads structure and never content. Two things are failures, each naming the entry and its
-  line: an entry with no definition, and a term that appears twice (case and a trailing colon
-  ignored). A `GLOSSARY.md` that cannot be read, or is a directory, is a failure that says so.
+  does not end it. It reads structure and never content. Two things are failures, each naming
+  the entry and its line: an entry with no definition, and a term that appears twice (case and
+  a trailing colon ignored). A `GLOSSARY.md` that cannot be read, or is a directory, is a failure that says so.
   Two things are warnings and leave the gate green: a definition of more than two sentences,
   and a non-empty file in which no entry is recognised, which is how a table or any other
   style the check does not know passes. The warning lists the forms it does recognise. The
