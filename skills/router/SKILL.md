@@ -74,7 +74,7 @@ is not a cost worth optimising away.
 - Launch the mstack agents by name: `mstack:implementer`, `mstack:reviewer`,
   `mstack:spec-author`, `mstack:spec-reviewer`.
 - Give each one a brief that a stranger could execute: goal, scope, context, acceptance,
-  how to verify, what is forbidden, and what to report. **A vague brief fails quietly, because
+  the item's seams (pre-agreed), how to verify, what is forbidden, and what to report. **A vague brief fails quietly, because
   a subagent cannot ask you a question.** Missing fields are a reason not to launch it yet.
 - Tell it to write its result to `.mstack/progress/<kind>_<slug>.md` and return one line naming
   the path. The work happens in its own context and only a summary comes back, so the file is
