@@ -4,7 +4,7 @@ description: How the implementer writes tests before code, what a good test is, 
 user-invocable: false
 ---
 
-<!-- Origin: what a good test is, from mattpocock/skills, skills/engineering/tdd/SKILL.md, tests.md and mocking.md @ 49dd158d1076134a641b33efb035946536778336 (MIT, licenses/mattpocock-skills-LICENSE.txt); the process, from obra/superpowers, skills/test-driven-development/SKILL.md @ 5bf4e78011075bcfc0dc295f0724994cd123ee71 (MIT, licenses/obra-superpowers-LICENSE.txt, identical at that commit). Adapted: seams come from the item and are never confirmed with the user, refactoring is left to review, and the mutant check is added. -->
+<!-- Origin: what a good test is, from mattpocock/skills, skills/engineering/tdd/SKILL.md, tests.md and mocking.md @ 49dd158d1076134a641b33efb035946536778336 (MIT, licenses/mattpocock-skills-LICENSE.txt); the process, from obra/superpowers, skills/test-driven-development/SKILL.md @ 5bf4e78011075bcfc0dc295f0724994cd123ee71 (MIT, licenses/obra-superpowers-LICENSE.txt, identical at that commit). Adapted: seams come from the item and are never confirmed with the user, refactoring is left to review unless the brief asks for it, and the mutant check is added. -->
 
 # Test-first
 
@@ -45,17 +45,16 @@ written in bulk check an imagined shape.
 A test that passed the first time it ran has proved nothing. Break the code to see it fail,
 or call it a guard and not coverage.
 
-No restructuring beyond what the test needs: review owns refactoring.
+No restructuring beyond what the test or the brief asks for: review owns refactoring.
 
 ## Before you report: mutants
 
 List the mutants your tests should kill: flip a condition, drop a branch, return a constant,
 skip a write, change a boundary. Apply each one, run the tests, record killed or survived,
-then revert it. A survivor is a missing test, so write it or say why it does not matter. A
-reviewer will run its own mutants, and in this repository the blocks came from the ones the
-suite missed.
+then revert it. A survivor is a missing test, so write it or say why it does not matter.
 
 ## When it does not apply
 
-A change with no behaviour (docs, prose, config with nothing to observe) has no test to write
-first. Say so in one line in the report instead of inventing a test.
+A change with no behaviour (docs, prose, config with nothing to observe), or a refactor the
+brief asks for that is pinned by characterization tests, has no new test to write first. Say so
+in one line in the report instead of inventing one.
