@@ -217,16 +217,18 @@ gate goes green. The whole walkthrough, including the product-fork refusal, is
 
 ### A product fork is a gate, not a note
 
-An item can carry `decision_required`: prose naming a question whose two answers produce
-different work. Past `specifying` the gate refuses to let it move until the fork is answered, and answering it
-means `mstack decide --resolves <slug>`: the reasoning goes to `decisions.tsv` in a row that
-**names the item it answers**, and the item gets a pointer back to that row. A blank decision,
-or one whose result is still `open`, is refused by the CLI and rejected by the gate.
+An item can carry `decision_required`: prose naming a product fork, a question whose answers
+change what the product's user can do or get. Past `specifying` the gate refuses to let it move
+until the fork is answered, and answering it means `mstack decide --resolves <slug>`: the
+reasoning goes to `decisions.tsv` in a row that **names the item it answers**, and the item gets
+a pointer back to that row. A blank decision, or one whose result is still `open`, is refused by
+the CLI and rejected by the gate.
 
-Forks are usually found while `specifying`, which is after intake, so `mstack state set <ref>
---decision-required "<the question>"` attaches one there. Past that line the CLI refuses in both
-directions: an item already building cannot have a fork bolted on, because it would be past a
-gate it never passed. `--force` still does it, and prints the gate failure it just created.
+Intake parks the forks it finds with `state add --decision-required`. One that turns up later,
+usually while `specifying`, is attached with `mstack state set <ref> --decision-required "<the
+question>"`. Past `specifying` the CLI refuses in both directions: an item already building
+cannot have a fork bolted on, because it would be past a gate it never passed. `--force` still
+does it, and prints the gate failure it just created.
 
 ```bash
 $ mstack state set export-json --status spec_ready

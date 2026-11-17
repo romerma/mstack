@@ -15,11 +15,12 @@
 4. **Test-first**, before delegating. Read the item's `seams` array in `.mstack/state.json`
    (`mstack state active` prints only the slug) and write them into the brief as pre-agreed, so
    the implementer does not ask anyone to confirm them. An item that changes behaviour but has no
-   seams gets them first: `mstack state set <slug> --seam "..."`, repeated, because it replaces
-   the list. `skip: no behaviour` is only for a change with none, and you still delegate. The
-   brief asks for the first test only, run red for the expected reason with the output pasted,
-   before any code; the rest follow one slice at a time. The implementer already has the
-   test-first reference in its context; the brief does not repeat it.
+   seams gets them first: `mstack state set <slug> --seam "..." --seam "..."`, every seam in
+   that one call, because `--seam` replaces the list. `skip: no behaviour` is only for a change
+   with none, and you still delegate. The brief asks for the first test only, run red for the
+   expected reason with the output pasted, before any code; the rest follow one slice at a time.
+   The implementer already has the test-first reference in its context; the brief does not
+   repeat it.
 5. Delegate implementation to `mstack:implementer`. **Mandatory, with no skip-with-reason
    escape**: the gain here is review separation, not lines saved, so "it was faster to do it
    myself" is not a reason.
