@@ -105,10 +105,13 @@ export function wantsHelp(args: readonly string[]): boolean {
 }
 
 export function helpText(spec: CommandSpec): string {
-  const labels = Object.entries(spec.flags).map(([name, flag]) => [
-    flag.type === "string" ? `--${name} ${flag.arg ?? "<value>"}` : `--${name}`,
-    flag.help,
-  ] as const);
+  const labels = [
+    ...Object.entries(spec.flags).map(([name, flag]) => [
+      flag.type === "string" ? `--${name} ${flag.arg ?? "<value>"}` : `--${name}`,
+      flag.help,
+    ] as const),
+    ["--help, -h", "print this and exit 0"] as const,
+  ];
   const width = Math.max(...labels.map(([label]) => label.length));
   return [
     `mstack ${spec.usage}`,
@@ -116,7 +119,6 @@ export function helpText(spec: CommandSpec): string {
     "",
     "flags:",
     ...labels.map(([label, help]) => `  ${label.padEnd(width)}  ${help}`),
-    "  --help, -h".padEnd(width + 2) + "  print this and exit 0",
     "",
     "A value that starts with a dash is written --flag=value, in one argument; after a space it is read as the next flag.",
   ].join("\n");
