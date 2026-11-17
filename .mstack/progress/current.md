@@ -45,12 +45,7 @@ passes bypassPermissions. Do not run `check.mjs` or `verify.mjs` while a batch i
 
 ## Next step
 
-Item 70. Reproduced in a throwaway store: implementer pass, reviewer approval, then reviewer
-`verifier-failed` citing `impl_demo.md` at one sha. `ledger check` FAILs; `state set --status
-done` succeeds and the gate PASSES. Design recorded (row of phase `design`): one reader of the
-verdict for both, a rejection stands until a later independent approval. An implementer has the
-brief and writes the red tests first; its report goes to `impl_gate-closes-over-a-rejection.md`.
-Then a fresh reviewer on a different model.
+Item 70 is implemented (report `impl_gate-closes-over-a-rejection.md`, ledger row recorded at the last non-chore commit). Next: a fresh reviewer on a different model, who should mutate the load-bearing lines (the report has the mutant table) and run both suites. Open finding for the coordinator: `state set --status done` still closes author-only and discounted-approval ledgers (the gate then fails them); not widened here.
 
 Waiting on the user: item 50 (the plugin icon), and the go-ahead to push `main`, local only
 since 2026-11-08. Then phase 1 (55, 56) and item 69, which need the plugin really loaded.
