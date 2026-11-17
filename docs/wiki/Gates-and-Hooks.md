@@ -281,9 +281,12 @@ Walking the lines that carry the weight:
 - **"GLOSSARY.md: N entries"** appears only when a `GLOSSARY.md` exists at the repository root,
   and never otherwise: the gate does not ask for a glossary, so a repository without one gets
   no section and no line. When the file exists the check recognises `**Term**:` and `**Term:**`
-  (also as a list item, with the definition on the same line or below it) and one `##` or `###`
-  heading per term followed by a paragraph. Rules, HTML comments and fenced blocks are skipped.
-  It reads structure and never content. Two things are failures, each naming the entry and its
+  at the start of a line (also as a list item, with the definition on the same line or below it)
+  and, in a file with no such entry, one `##` or `###` heading per term followed by a paragraph.
+  A bold label such as `**Example:**` directly under a term, indented under its list item, or
+  under its heading belongs to that term; after a blank line under a bold term it is read as a
+  term. Rules, HTML comments and fenced blocks are skipped, and a comment line inside an entry
+  does not end it. It reads structure and never content. Two things are failures, each naming the entry and its
   line: an entry with no definition, and a term that appears twice (case and a trailing colon
   ignored). A `GLOSSARY.md` that cannot be read, or is a directory, is a failure that says so.
   Two things are warnings and leave the gate green: a definition of more than two sentences,

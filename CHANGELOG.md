@@ -11,8 +11,9 @@
   intake and `understand` read the glossary when the project has one, and a term or an ADR is
   written before the review of the item that introduced it, so the verdict has seen it. `mstack
   gate` checks the root `GLOSSARY.md` only when it exists. It recognises `**Term**:`, `**Term:**`,
-  list items and one heading per term, and fails an entry with no definition or a term that
-  repeats, naming the entry and its line. It warns and stays green about a definition of more than
+  list items and one heading per term, reads a bold label such as `**Example:**` under a term as
+  part of it, and fails an entry with no definition or a term that repeats, naming the entry and
+  its line. It warns and stays green about a definition of more than
   two sentences or a file in which it recognises no entry, and it reports an unreadable file as a
   failure. `lint-plugin` requires an origin header on the new reference.
 
