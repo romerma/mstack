@@ -70,8 +70,8 @@ ones you cannot.
 `file:line` has lost the part that mattered.
 
 **Never block on the human.** If an experiment can answer the question, run the experiment. The
-ask is the slow path, and it hands the human a decision instead of a result. The one named exception is intake's interactive mode, when the
-request asks to be questioned.
+ask is the slow path, and it hands the human a decision instead of a result. The exceptions are intake's interactive
+mode and its fork round, set out in the router's Autonomy section.
 
 ## Meta
 

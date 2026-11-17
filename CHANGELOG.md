@@ -9,7 +9,8 @@
   fork (parked as `decision_required`, numbered, with a recommended answer, put to the user
   once and late). It ends with `mstack state add` carrying acceptance, `--source` and
   `--seam`. It is autonomous by default; a request that asks to be questioned or have a plan
-  stress-tested turns on interactive mode, the one named exception to the three-question cap.
+  stress-tested turns on interactive mode, which, with the fork round, is exempt from the three-question
+  cap (stated once, in the router's Autonomy section).
   `seams` is a new optional item field: `state add --seam` repeats, `state set --seam`
   replaces the list and names what it dropped, `--clear seams` removes it, and an empty
   `--seam` is refused. The method adapts text from mattpocock/skills and obra/superpowers
