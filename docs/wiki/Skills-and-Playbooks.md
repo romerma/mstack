@@ -1,11 +1,11 @@
 # Skills and playbooks
 
 Skills are the commands you type; playbooks are the step lists they follow. When you start
-work with `/mstack <what you want done>`, a router matches your request to one of seven
+work with `/mstack <what you want done>`, a router matches your request to one of eight
 playbooks, or sends it straight to a single skill when one command covers the whole job. A
 matched playbook's steps are copied into the todo list before any reasoning happens, and each
 step either runs or is skipped out loud with a reason. This page introduces all fourteen skills
-(thirteen commands and one internal reference) and all seven playbooks, says what each one
+(thirteen commands and one internal reference) and all eight playbooks, says what each one
 leaves on disk, and explains the one routing decision that matters: whether your work takes the
 direct path or the spec path.
 
@@ -106,6 +106,7 @@ a source and test seams; method in `skills/router/references/intake.md`), then m
 | Something broken, wrong, or slower than it should be | the bug-fix playbook |
 | Building something new | the feature playbook |
 | Changing structure without changing behaviour | the refactor playbook |
+| Reviewing the architecture, or finding where the code should be deeper | the deepen playbook |
 | Proving a change actually works | `/mstack:verify` |
 | Judging work that already exists | `/mstack:review` |
 | Getting a change merged | `/mstack:ship` |
@@ -124,7 +125,7 @@ The shape of one request flowing through router, playbook, agents and merge gate
 [Home](Home.md); the agents the playbooks delegate to are introduced in
 [The-Agents](The-Agents.md).
 
-## The seven playbooks
+## The eight playbooks
 
 Playbooks live in `skills/router/playbooks/`, one file each. A playbook is a short numbered
 step list plus the reply it owes the user, and each one carries a discipline that is the
@@ -136,6 +137,7 @@ reason it exists:
 | `bug-fix` | Something broken, wrong, or slow | Reproduce it yourself first, and write the failing test before the fix; the repro lands before the fix in history |
 | `feature` | Building something new | Understand and design before building; a named test-first step hands the implementer the item's seams as pre-agreed; delegating implementation is mandatory, with no skip-with-reason escape, because the gain is review separation |
 | `refactor` | Changing structure without changing behaviour | Pin current behaviour with characterization tests before touching anything, and verify by running them unchanged |
+| `deepen` | Reviewing the architecture, or finding where the code should be deeper | Uses the deletion test and the other tests in `skills/design/references/deep-modules.md`; files at most five candidates as `pending` items and asks the user nothing; implements none |
 | `resume` | Picking up interrupted work | Read the recorded state, then reconcile against the repository; where they disagree, the repository wins |
 | `cleanup` | Dead branches and dead worktrees | `mstack worktree prune` lists candidates and removes nothing without `--yes`; branch deletion is `-d`, never `-D` |
 | `orchestrate` | A program of work: many changes, several tracks, more than one session | Pilot one unit end to end before fanning out; every worker gets a brief a stranger could execute |
@@ -148,6 +150,7 @@ reason it exists:
 | `bug-fix` | A failing repro test that lands before the fix in history, then the fix itself |
 | `feature` | A recorded design decision, the implementer's code, tests and report, and a ledger verdict from the verify step |
 | `refactor` | Characterization tests committed before anything moves, then one commit per transformation |
+| `deepen` | Up to five `pending` items, each with the files, the deepening, observable acceptance and the test surface as a seam; none when nothing is worth filing |
 | `resume` | Corrections to `current.md` wherever the record and the repository disagreed |
 | `cleanup` | Removals, mostly; plus a ledger verdict and a close for items whose work landed long ago and were never closed out |
 | `orchestrate` | One item per unit in `state.json`, a worktree per concurrent unit, and a report from every worker |

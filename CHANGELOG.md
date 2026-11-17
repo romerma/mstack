@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- **A deep-module vocabulary, a design lens and a `deepen` playbook.** `skills/design/references/deep-modules.md`
+  defines module, interface, depth, seam and adapter, the deletion test, the interface as the
+  test surface, one adapter against two, and the four dependency categories, as terms and tests
+  with no procedure; the design skill points at it instead of defining shallow modules itself.
+  `/mstack:review` has a `design` lens, given when a diff adds or changes an interface or moves
+  a seam, and the reviewer given it reads that file. The new `deepen` playbook, routed from
+  "review the architecture", explores with the vocabulary, ranks at most five candidates by
+  what they unblock, skips any an open item covers, and files each as a `pending` item with its
+  files, the deepening and its test surface, asking the user nothing and implementing nothing.
+  `lint-plugin` now requires an origin header on both new files.
+
 - **The state CLI answers `--help`, and shows an item.** `mstack state show <ref>` prints one
   item with every field it carries (source, seams and `decision_required` included, unknown
   keys last), and `--json` prints its raw object. `state add`, `state set`, `state show` and

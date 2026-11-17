@@ -80,7 +80,7 @@ One box is deliberately missing: the session gate, `mstack gate`, is not a step 
 The `Stop` hook runs the fast gate at the end of every turn, and every pass runs `mstack gate`
 before it acts, so it can go red at any point in the picture.
 
-## The seven playbooks
+## The eight playbooks
 
 A playbook is a short numbered step list. The router picks one from your request and copies its
 steps into the todo list verbatim. A step it declines stays in the list as `skip: <reason>`,
@@ -93,6 +93,7 @@ drops its named steps.
 | "X is broken, wrong, or slow" | **bug-fix** | Reproduce it first or stop, no repro no fix. Failing test before the fix, and the repro commit lands **before** the fix in history so the broken state stays checkoutable |
 | "build X" | **feature** | Understand the subsystem before adding a parallel one. Two structurally distinct designs before picking, or a stated reason the constraints forced the answer. A throughput checkpoint that says what can actually run in parallel. A test-first step before delegation passes the item's seams to the implementer as pre-agreed |
 | "clean this up without changing behaviour" | **refactor** | Characterization tests committed *before* anything is touched. Migrate callers and delete the old path in the same change. Verify by re-running those tests unedited |
+| "review the architecture", "where should this code be deeper" | **deepen** | Finds shallow modules with the deletion test, using the vocabulary in `skills/design/references/deep-modules.md`. Files at most five candidates as `pending` items, each naming its files, the deepening and its test surface, and asks you nothing. Implements none of them |
 | "run this whole program of work" | **orchestrate** | Many changes, several tracks, more than one session, isolated worktrees |
 | "pick up where we left off" | **resume** | Read the checkpoint and the reports that already ran rather than redoing them. Where the record and the repository disagree, the repository wins |
 | "delete the dead branches" | **cleanup** | Lists candidates and removes nothing until you have read the list. Deletes with `git branch -d`, never `-D`, because the refusal is the safety mechanism |
@@ -464,7 +465,7 @@ publish route is [docs/wiki/Publishing-the-Wiki.md](docs/wiki/Publishing-the-Wik
 | [The-Story](docs/wiki/The-Story.md) | pstack, the harness, where they agree, and what the join fixed |
 | [How-A-Work-Item-Flows](docs/wiki/How-A-Work-Item-Flows.md) | The lifecycle, the two paths, and the walkthrough of the example repo |
 | [The-Agents](docs/wiki/The-Agents.md) | The five agents: who builds, who judges, and why nobody approves their own work |
-| [Skills-and-Playbooks](docs/wiki/Skills-and-Playbooks.md) | The thirteen `/mstack` commands, the route table, and the seven playbooks |
+| [Skills-and-Playbooks](docs/wiki/Skills-and-Playbooks.md) | The thirteen `/mstack` commands, the route table, and the eight playbooks |
 | [Gates-and-Hooks](docs/wiki/Gates-and-Hooks.md) | The six hooks, every gate check, and the merge gate's rules |
 | [The-CLI](docs/wiki/The-CLI.md) | Every subcommand with real output, exit codes, the verdict enum |
 | [State-Files](docs/wiki/State-Files.md) | The anatomy of `.mstack/` column by column, and the evidence ladder |

@@ -156,6 +156,12 @@ alone, `review_<slug>_r<N>.md`; a lensed later round, `review_<slug>_r<N>-<lens>
 run in parallel, so one shared filename would mean every reviewer but the last overwrites the
 others, and losing a review silently is the failure the report exists to prevent.
 
+One lens reads a file: `design`, which the coordinator gives when the diff adds or changes a
+module's interface or moves a seam. That reviewer reads
+`skills/design/references/deep-modules.md` (the deletion test, the interface as the test
+surface, one adapter against two) and judges the diff with it; a reviewer without the lens
+never loads the file.
+
 ## Who records which ledger row
 
 The ledger is the typed record of who verified what (columns in
