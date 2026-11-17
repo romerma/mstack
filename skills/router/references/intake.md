@@ -25,7 +25,7 @@ mstack decide --phase intake --decision "<what was decided>" --why "<why>" \
 ```
 
 `--result` is the column a later reader scans for the cost. Write the `if wrong:` line first: if
-it names lost data or fails the fork test above, this is a fork, not a row.
+it names lost data or meets the fork test above, this is a fork, not a row.
 
 ## Park a fork
 
@@ -34,14 +34,13 @@ its recommended answer, worded so "yes" accepts it: `1) Should X also do Y? Reco
 because Z. 2) ...`. The user hears every fork once, in one numbered round after `state add`, and
 only once no fact or reversible decision is open. The round names the slug and asks the answers to
 name it (`<slug>: yes to 1, ...`). First write into `current.md`'s Next step the slug, its open
-forks and this rule, so a fresh session finds them: answer every fork in ONE row, `mstack decide
---phase intake --resolves <slug> --decision "1) <answer> 2) ..." --why .. --evidence "<their
-words>" --result "<chosen>"`. The round is the final message of the turn: stop there. When the
-answers arrive, resume at router step 4; an item with a fork is on the spec path.
-
-`--resolves <slug>` goes only on the row that answers every fork left in the field. A partial
-answer never gets it: record a plain `decide --phase intake` row and re-state the field with
-only the unanswered forks.
+forks and both commands below, so a fresh session can act on the note alone. A partial answer: a
+plain `mstack decide --phase intake --decision "<answers so far>" --why .. --evidence "<their
+words>" --result "<chosen>"` row with no `--resolves`, then `mstack state set <slug>
+--decision-required "<only the open forks>"`. The answer to every fork left: the same row with
+`--resolves <slug>`, its `--decision` listing each answer (`"1) <answer> 2) ..."`). The round is
+the final message of the turn: stop there. When the answers arrive, resume at router step 4; an
+item with a fork is on the spec path.
 
 ## End
 
@@ -55,8 +54,9 @@ mstack state add --slug <s> --title "<t>" \
   [--decision-required "<numbered forks>"]
 ```
 
-Then, with no fork open: `mstack state set <slug> --status in_progress`, or `--status specifying`
-on the spec path (an `sdd` item, or answered forks). A parked item stays `pending` until answered.
+Then choose the path by the triggers in the router's "The two paths" (an answered fork is one):
+`mstack state set <slug> --status specifying` on the spec path, else `--status in_progress`,
+which cannot go back to `specifying`. A parked item stays `pending` until answered.
 
 A **seam** is where the behaviour is observed, such as ``CLI: `mstack state add` exit code and
 stdout``. No behaviour change, no seam: say why in `--description`.
