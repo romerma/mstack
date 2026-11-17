@@ -1066,6 +1066,86 @@
         "skills/router/SKILL.md and references/intake.md as read by a headless claude -p run with the plugin loaded",
         "CLI: mstack lint-plugin exit code and stdout"
       ]
+    },
+    {
+      "id": 76,
+      "slug": "item-transition-module",
+      "title": "The rules for moving an item between statuses live in a closure inside cli.ts, reachable only by spawning the CLI",
+      "acceptance": [
+        "a module outside cli.ts exports the operation that applies a status change to an item and returns the changes or a typed refusal; state set --status calls it and only parses flags and prints",
+        "the unanswered-fork rule and the forced-close marker are each defined once; grep finds no second copy in cli.ts or gate.ts",
+        "the transition rules are tested by calling that module in process; the cli.test.ts tests they replace are deleted, and the CLI keeps only exit-code, stream and routing tests"
+      ],
+      "status": "pending",
+      "description": "state set --status (src/cli.ts:564-697, inside cmdState at 379) holds the fork check, legal-transition check, closing policy and forced-close marker; lifecycle.ts holds only the table and one-line predicates; gate.ts:301-325 and state.ts assertWritable re-ask parts of it. Deepen into one transition module the CLI calls and tests cross. Evidence: .mstack/progress/explore_cli-lifecycle.md F1, F2, F5.",
+      "source": "deepen playbook run, 2026-11-17, .mstack/progress/deepen_2026-11-17.md",
+      "seams": [
+        "the transition module's apply function"
+      ]
+    },
+    {
+      "id": 77,
+      "slug": "item-readiness-reading",
+      "title": "Five consumers each turn a ledger reading into their own verdict, kept in agreement by comments",
+      "acceptance": [
+        "one exported function returns the active item's readiness as structured data (item, head, verdict kind, obligations met), and gate, statusline, closing and merge-gate render from it",
+        "no module outside the readiness module switches over Reading kinds, and items.find(isActive) appears in one place",
+        "readiness cases (author-only, discounted, rejected, passing, stale) are tested once at that function; the gate and statusline tests that restate them are deleted"
+      ],
+      "status": "pending",
+      "description": "gate.ts checkClosedItems (375-440), closing.ts (100-110), ledger.ts check (286-296), statusline.ts (134-175) and mergegate.ts:165 each switch over the Reading kinds; the active item is looked up inline at about nine sites with two error contracts (state.ts:354 swallows). Deepen into one readiness reading they render from. Evidence: .mstack/progress/explore_checks-hooks.md F2, explore_persistence.md F5.",
+      "source": "deepen playbook run, 2026-11-17, .mstack/progress/deepen_2026-11-17.md",
+      "seams": [
+        "the readiness function"
+      ]
+    },
+    {
+      "id": 78,
+      "slug": "durable-store-file",
+      "title": "Whether a store write takes the lock is each caller's choice, and the ledger the gate trusts is written unlocked",
+      "acceptance": [
+        "one module owns append, header widening and atomic rewrite for store files, and every store write in src/ goes through it; grep finds no writeFileSync, appendFileSync or renameSync on a store file elsewhere",
+        "the lock decision is made inside that module, so ledger and verification writes are locked without their callers asking",
+        "a concurrent-writer test at that module's interface (N parallel appends, N rows) covers every store, and the per-store concurrency tests it replaces are deleted"
+      ],
+      "status": "pending",
+      "description": "withLock (src/tsv.ts) is taken by state, decisions and costs but not by ledger.record (ledger.ts:135) or verification.record (verification.ts:36-42, :314); ensureHeader widens by an unlocked whole-file write; three tmp-then-rename implementations differ in naming and cleanup (state.ts:308-329, costs.ts:449-451, hooklog.ts:79-82). Deepen into one module that owns a store file. Evidence: .mstack/progress/explore_persistence.md F1.",
+      "source": "deepen playbook run, 2026-11-17, .mstack/progress/deepen_2026-11-17.md",
+      "seams": [
+        "the store-file module"
+      ]
+    },
+    {
+      "id": 79,
+      "slug": "workspace-facts",
+      "title": "Git is asked from nine call sites in two incompatible ways, and 'no git, no commits, detached' has three encodings",
+      "acceptance": [
+        "grep for execFileSync(\"git\" in src/ finds exactly one call, inside the workspace module",
+        "branch state (no git, no commits, detached, on a branch), head, dirty and the git common dir each have one answer in that module, and gate, statusline, worktree, costs and hooklog call it",
+        "the three-state branch distinction and the git-dir answer are tested at that module against a temp repo; statusline formatting tests no longer need a real repo"
+      ],
+      "status": "pending",
+      "description": "git.ts says it is the one place that shells out to git, but ledger.ts:57,82 and worktree.ts:81,152 run their own execFileSync; branch, head and dirty are derived separately by gate checkWorkspace (562-590), statusline (90, 134) and worktree list; the git dir is found three ways (costs.ts:158-187, hooklog.ts:112-135, paths.ts:186-200). Deepen into a module that answers workspace questions. Evidence: .mstack/progress/explore_checks-hooks.md F1, F4; explore_persistence.md F3.",
+      "source": "deepen playbook run, 2026-11-17, .mstack/progress/deepen_2026-11-17.md",
+      "seams": [
+        "the workspace module"
+      ]
+    },
+    {
+      "id": 80,
+      "slug": "tsv-record-shape",
+      "title": "Each TSV store writes its column list four times, and a reordered header silently misaligns rows",
+      "acceptance": [
+        "each store declares its columns once, and append and read go through that declaration; no positional row array remains in ledger, decisions, verification or costs",
+        "no module reads another store's rows by string key; costs uses ledger's reader",
+        "adding a column is tested once at the table interface, including old files with the narrower header; the cell and row tests it absorbs are deleted"
+      ],
+      "status": "pending",
+      "description": "ledger (ledger.ts:37, 43, 135-142, 146-157), decisions (decisions.ts:10, 12, 59-67, 72-81), verification and costs each repeat interface, HEADER, positional append array and read-back mapping; setup.ts:149-153 repeats the headers; costs.ts:907 reads ledger rows by string key past ledger.entries. Deepen into a record-typed table defined once per store, over the store-file module. Evidence: .mstack/progress/explore_persistence.md F2, F3.",
+      "source": "deepen playbook run, 2026-11-17, .mstack/progress/deepen_2026-11-17.md",
+      "seams": [
+        "the table declaration"
+      ]
     }
   ]
 }
