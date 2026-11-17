@@ -105,14 +105,24 @@ function checkGlossary(store: Store, report: Report): void {
   const path = join(store.root, "GLOSSARY.md");
   if (!existsSync(path)) return;
   report.section("glossary");
-  const { entries, problems } = readGlossary(readFileSync(path, "utf8"));
-  for (const problem of problems) {
-    const where = problem.line > 0 ? `GLOSSARY.md:${problem.line}` : "GLOSSARY.md";
-    report.fail(`${where}: ${problem.message}`, problem.fix);
+  let source: string;
+  try {
+    source = readFileSync(path, "utf8");
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code ?? "unreadable";
+    report.fail(`GLOSSARY.md could not be read (${code})`, "make it a readable file");
+    return;
   }
-  if (problems.length === 0) {
-    report.ok(`GLOSSARY.md: ${entries} ${entries === 1 ? "entry" : "entries"}, each a term with a one or two sentence definition`);
+  const { entries, problems, warnings } = readGlossary(source);
+  const at = (line: number) => (line > 0 ? `GLOSSARY.md:${line}` : "GLOSSARY.md");
+  for (const problem of problems) report.fail(`${at(problem.line)}: ${problem.message}`, problem.fix);
+  if (problems.length > 0) {
+    for (const warning of warnings) report.warn(`${at(warning.line)}: ${warning.message}`);
+    return;
   }
+  const count = `GLOSSARY.md: ${entries} ${entries === 1 ? "entry" : "entries"}`;
+  report.ok(warnings.length === 0 ? `${count}, each a term with a one or two sentence definition` : count);
+  for (const warning of warnings) report.warn(`${at(warning.line)}: ${warning.message}`);
 }
 
 function loadOrReport(store: Store, report: Report): State | null {
