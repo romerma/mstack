@@ -15,8 +15,8 @@ $ARGUMENTS
 ## First, orient
 
 1. `mstack gate`. A red gate stops you. Report it; do not work around it.
-2. `mstack state active`. If something is in flight, read `.mstack/progress/current.md` and
-   resume its recorded next step rather than starting over.
+2. `mstack state active`. If something is in flight, or `current.md` records a parked fork, read
+   `.mstack/progress/current.md` and resume its recorded next step rather than starting over.
 3. **Intake**: turn the request into a queue item, by the method in
    [references/intake.md](references/intake.md). Skip it for routes that are not new work:
    resuming an item in flight, a request that names an existing item, understanding or

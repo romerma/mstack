@@ -34,8 +34,10 @@ All forks of one request go on the item as one `--decision-required` string, num
 with its recommended answer and worded so "yes" accepts it:
 `1) Should X also do Y? Recommended: yes, because Z. 2) ...`. The user hears every fork once,
 in one numbered round after `state add`, and only once no fact or reversible decision is open.
-That round is the final message of the turn: stop there. When the answers arrive, resume at
-router step 4 (match and copy the playbook); an item with a fork is on the spec path.
+That round names the item's slug and asks for the answers to name it (`<slug>: yes to 1, ...`).
+Write the slug and its open forks into `current.md`'s Next step first, so a fresh session finds
+them. It is the final message of the turn: stop there. When the answers arrive, resume at router
+step 4 (match and copy the playbook); an item with a fork is on the spec path.
 
 `--resolves <slug>` goes only on the `decide` row that answers every fork left in the field:
 `--decision` lists the numbered answers, `--result` says what was chosen. A partial answer never
