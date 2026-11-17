@@ -6,10 +6,10 @@
 > On close: append the summary to `history.md` and reset this file to the
 > empty template below.
 
-- **Item:** none active (74 closed 2026-11-17)
-- **Status:** -
-- **Branch:** main
-- **Base:** -
+- **Item:** 57 deep-module-vocabulary
+- **Status:** in_progress (implementer briefed)
+- **Branch:** feat/deep-module-vocabulary
+- **Base:** 9ac4e7d
 - **Worktree:** none
 
 ## Plan
@@ -57,8 +57,11 @@ Record each answer with `mstack decide --resolves <slug>`.
 
 Standing: push `main` after closing work and check CI (user, 2026-11-17).
 
+In flight: 57 on `feat/deep-module-vocabulary`; then review by the other model, close, merge,
+push.
+
 Next, not blocked:
-1. Phase 2, the rest of the skills integration: 57 deep-module-vocabulary, 58 glossary-and-adr,
+1. Phase 2 (57 in flight), the rest of the skills integration: 57 deep-module-vocabulary, 58 glossary-and-adr,
    59 diagnosis-loop-in-bug-fix, 60 ship-pr-body, 61 verify-claim-gate,
    62 review-findings-verified-first, 64 plans-for-a-contextless-executor.
 2. Durability follow-ups: 71, 66, 68, 67, 69.
