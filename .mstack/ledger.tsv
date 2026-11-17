@@ -134,3 +134,4 @@ intake-followups	3bd4859ba8169c4e8999da423ccd3d525bb5fb24	live-verified	.mstack/
 intake-followups	f6469daa3ca813a3acaad1ac6abf73bc507413ec	live-verified	.mstack/progress/review_intake-followups_r2.md	reviewer	2026-11-17T13:25:13.325Z
 state-cli-ergonomics	656ea87a7b1c9ce6956dc62bf0755adcc0ae9d42	test-verified	.mstack/progress/impl_state-cli-ergonomics.md	implementer	2026-11-17T13:57:26.160Z
 state-cli-ergonomics	a6c142f58ca619c27df4c2213ab880ea46c7af78	verifier-failed	.mstack/progress/review_state-cli-ergonomics.md	reviewer	2026-11-17T14:31:29.902Z
+state-cli-ergonomics	69b5dc4c70aa629ea4f1e7248abad28a43ce0b9e	live-verified	.mstack/progress/impl_state-cli-ergonomics_r2.md	implementer	2026-11-17T14:43:45.736Z
