@@ -15,13 +15,14 @@ $ARGUMENTS
 ## First, orient
 
 1. `mstack gate`. A red gate stops you. Report it; do not work around it.
-2. `mstack state active`. If something is in flight, or `current.md` records a parked fork, read
-   `.mstack/progress/current.md` and resume its recorded next step rather than starting over.
+2. `mstack state active`, and read `.mstack/progress/current.md` (the SessionStart hook already
+   printed it unless it is the empty template). If it records work in flight or a parked fork,
+   resume its recorded next step rather than starting over.
 3. **Intake**: turn the request into a queue item, by the method in
    [references/intake.md](references/intake.md). Skip it for routes that are not new work:
-   resuming an item in flight, a request that names an existing item, understanding or
-   investigating, verifying, reviewing, shipping, a commit message, cleanup. Say which in one
-   line (`skip: <reason>`). It ends with
+   resuming an item in flight, answering a parked fork, a request that names an existing item,
+   understanding or investigating, verifying, reviewing, shipping, a commit message, cleanup.
+   Say which in one line (`skip: <reason>`). It ends with
    `mstack state add --slug <s> --title <t> --acceptance "..." --source "..." --seam "..."`,
    plus `--decision-required "..."` when a product fork or irreversible choice is open. Facts
    are found, reversible decisions are taken and recorded, forks reach the user once, late.
@@ -91,8 +92,8 @@ is not a cost worth optimising away.
 Proceed without asking on anything reversible: branches, code, tests, commits, PRs, CI, fixes.
 
 Stop and ask on production, secrets, new third-party dependencies, destructive or
-hard-to-reverse operations, and product decisions with different user-visible outcomes, which
-stay product decisions however cheap they are to reverse.
+hard-to-reverse operations, and product forks, as the Map in
+[references/intake.md](references/intake.md) defines them.
 
 Before asking a "which approach" question, classify it. If the answer could be observed by
 running something, it is not the human's to answer. Run the thing. The ask is the slow path,
@@ -150,7 +151,7 @@ only documentation it needed.
 1. `mstack gate` green.
 2. The report files for every pass that ran exist and say something.
 3. Append the session summary to `.mstack/progress/history.md`, and reset `current.md` to its
-   empty template. `history.md` is append-only: if an earlier entry turned out to be wrong, say
-   so in a later one rather than editing it.
+   empty template, unless it records a parked fork. `history.md` is append-only: if an earlier
+   entry turned out to be wrong, say so in a later one rather than editing it.
 4. `mstack state set <ref> --status done` only after a reviewer that did not write the code
    approved, and the ledger holds a verdict at the current head SHA.
