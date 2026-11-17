@@ -789,7 +789,7 @@
         "a request such as '/mstack review the architecture' routes to a playbook that ends with candidates filed as pending items, each naming files, the deepening and its test surface, and asks the user nothing",
         "that playbook run on this repository files its candidates, pasted in the report"
       ],
-      "status": "in_progress",
+      "status": "reviewing",
       "description": "skills/design/SKILL.md already speaks of shallow modules and designing it twice; mattpocock/skills codebase-design adds the precise tests (deletion test, the interface is the test surface, one adapter is a hypothetical seam, the four dependency categories). It is vocabulary and must never run as a process: its own docs record a session burning 100k tokens redesigning unasked things. The procedure with output is adapted from improve-codebase-architecture into a playbook that files candidates as pending items instead of an HTML report. First clients: src/cli.ts, src/costs.ts, src/gate.ts.",
       "source": "reports/Mejoras mstack con skills Pocock.md, 2026-11-16",
       "seams": [
