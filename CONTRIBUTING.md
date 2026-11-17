@@ -16,7 +16,7 @@ bun install        # types only, for the typechecker; the CLI has zero runtime d
 Run what CI runs:
 
 ```bash
-bun run test                      # bun test AND node --test — both, every time
+bun run test                      # bun test ./tests AND node --test (with the 22.6 flags) — both, every time
 bun run typecheck
 ./bin/mstack lint-plugin .
 node scripts/check-doc-links.mjs README.md docs/wiki/*.md

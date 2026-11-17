@@ -406,7 +406,8 @@ already manages.
 The CLI uses only `node:` builtins with zero dependencies, so both runtimes execute it
 identically, and CI runs the tests under both plus the node branch of the launcher, so the
 fallback cannot rot. The 22.6 floor is a measured claim, not an inherited one: the full suite
-runs green on 22.6.0 and CI keeps a job pinned there. `--experimental-strip-types` is a silent
+runs green on 22.6.0 (`PATH=~/.nvm/versions/node/v22.6.0/bin:$PATH npm run test:node`, which
+carries both flags) and CI keeps a job pinned there. `--experimental-strip-types` is a silent
 no-op on versions where stripping is already the default, so passing it always widens support
 rather than narrowing it, and `--disable-warning=ExperimentalWarning` goes with it because on
 22.6 the stripper writes to stderr on every invocation — which, on the post-edit hook, means on
