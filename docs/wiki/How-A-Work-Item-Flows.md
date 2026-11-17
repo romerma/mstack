@@ -176,15 +176,18 @@ see the enforcement plane work.
 Closing is a checklist, and the gate checks the parts that can be checked
 (`skills/router/SKILL.md`):
 
-1. `mstack gate` green.
-2. The report files for every pass that ran exist and say something. A file under 40 bytes is
+1. No glossary or ADR change is left uncommitted or unreviewed: it is written before the review
+   of the item that introduced it, as `skills/reflect/references/domain-docs.md` says, and a
+   later one goes into a follow-up item.
+2. `mstack gate` green.
+3. The report files for every pass that ran exist and say something. A file under 40 bytes is
    a stub, not a report (`src/roles.ts:64`).
-3. The session summary is **appended** to `.mstack/progress/history.md`, and `current.md` is
-   reset to its empty template. The two files have opposite disciplines on purpose:
-   `current.md` is overwritten and answers "if this dies now, what should the next session do
-   first"; `history.md` is append-only, and a wrong entry is corrected by a later entry, never
-   edited.
-4. `mstack state set <ref> --status done` only after a reviewer that did not write the code
+4. The session summary is **appended** to `.mstack/progress/history.md`, and `current.md` is
+   reset to its empty template, unless it records a parked fork. The two files have opposite
+   disciplines on purpose: `current.md` is overwritten and answers "if this dies now, what
+   should the next session do first"; `history.md` is append-only, and a wrong entry is
+   corrected by a later entry, never edited.
+5. `mstack state set <ref> --status done` only after a reviewer that did not write the code
    approved, and the ledger holds a verdict at the current head SHA. The gate audits every
    closed item for exactly that, and refuses a close whose only verdict came from the
    implementer.
