@@ -6,10 +6,10 @@
 > On close: append the summary to `history.md` and reset this file to the
 > empty template below.
 
-- **Item:** none active (58 closed 2026-11-18)
-- **Status:** -
-- **Branch:** main
-- **Base:** -
+- **Item:** 59 diagnosis-loop-in-bug-fix
+- **Status:** in_progress (implementer briefed)
+- **Branch:** feat/diagnosis-loop
+- **Base:** c791f39
 - **Worktree:** none
 
 ## Plan
@@ -61,7 +61,7 @@ Also for the user: ADR 0001 states their decision of 2026-10-31 and gives no rea
 record has none; the reason is theirs to add (item 58, round 2 review, non-blocking 10).
 
 Next, not blocked:
-1. Phase 2: 59 diagnosis-loop-in-bug-fix, then 60, 61, 62, 64. Follow-up of 58: item 83.
+1. Phase 2: 59 (in flight) diagnosis-loop-in-bug-fix, then 60, 61, 62, 64. Follow-up of 58: item 83.
 2. Architecture candidates filed by the deepen playbook: 76 to 80, and 81.
 3. Durability follow-ups: 67 first (its budget test made the closing gate of 58 red three runs
    of four under outside load), then 71, 66, 68, 69.
