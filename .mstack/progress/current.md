@@ -7,7 +7,7 @@
 > empty template below.
 
 - **Item:** 58 glossary-and-adr
-- **Status:** in_progress (round 3: gate check only; implementer briefed)
+- **Status:** in_progress (round 3: implementer done at 68df839, report impl_glossary-and-adr_r3.md; next: move to reviewing and launch the round 3 review)
 - **Branch:** feat/glossary-and-adr
 - **Base:** 5449746
 - **Worktree:** none
