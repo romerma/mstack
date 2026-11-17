@@ -48,10 +48,10 @@ One judge, on a **different model** from the generators, scoring against the cri
 
 ## Red flags
 
-- **Shallow module.** The interface costs as much to learn as the implementation it hides.
+- **Shallow module.** Fails the deletion test in [deep modules](references/deep-modules.md).
 - **Information leakage.** The same design decision appears in two places.
 - **Temporal decomposition.** Modules split by execution order rather than by what they hide.
 - **Pass-through method.** A method that does nothing but call another with the same signature.
 
-A deep module concentrates capability behind one interface. A deep call chain scatters
-understanding across layers. They look similar in a diagram and are opposites in practice.
+A deep call chain scatters understanding across layers where a deep module concentrates it.
+They look similar in a diagram and are opposites in practice.
