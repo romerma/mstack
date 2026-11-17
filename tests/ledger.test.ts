@@ -500,3 +500,39 @@ test("a verifier-blocked after a verifier-failed fails the check, naming the fai
   assert.match(r.reason, /review_x_r2\.md/);
   assert.match(r.reason, /the later verifier-blocked by orchestrator \(evidence: could not re-run the suite\) does not answer it/);
 });
+
+// ---- item 70 round 2: a verifier-blocked row is discounted for citing the author's report, a verifier-failed is not ----
+
+test("a lone verifier-blocked row citing the implementer's report is not independent, and check says so", () => {
+  const r = checkAfter([["verifier-blocked", "reviewer", ".mstack/progress/impl_x.md"]]);
+  assert.equal(r.passing, false);
+  assert.equal(r.kind, "discounted");
+  assert.match(r.reason, /verifier-blocked at \w{8} by reviewer cites the implementer's own report/);
+  assert.match(r.reason, /not an independent approval/);
+});
+
+test("a genuine approval then a verifier-blocked citing the implementer's report: the approval is the answer", () => {
+  const r = checkAfter([
+    ["test-verified", "reviewer", ".mstack/progress/review_x.md"],
+    ["verifier-blocked", "reviewer", ".mstack/progress/impl_x.md"],
+  ]);
+  assert.equal(r.passing, true, r.reason);
+  assert.equal(r.kind, "approved");
+  assert.match(r.reason, /test-verified/);
+});
+
+test("a rejection then a verifier-blocked citing the implementer's report: the rejection stands and the blocked row is not named as an answer attempt", () => {
+  const r = checkAfter([
+    ["verifier-failed", "reviewer", ".mstack/progress/review_x.md"],
+    ["verifier-blocked", "reviewer", ".mstack/progress/impl_x.md"],
+  ]);
+  assert.equal(r.passing, false);
+  assert.equal(r.kind, "rejected");
+  assert.match(r.reason, /verifier-failed at \w{8} by reviewer rejects this commit/);
+});
+
+test("a lone genuine verifier-blocked row still reads as blocked", () => {
+  const r = checkAfter([["verifier-blocked", "reviewer", "no harness in this repo"]]);
+  assert.equal(r.passing, false);
+  assert.equal(r.kind, "blocked");
+});

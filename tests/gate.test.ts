@@ -1718,3 +1718,42 @@ test("a rejection followed by a later independent approval closes", () => {
     sb.dispose();
   }
 });
+
+// ---- item 70 round 2: a verifier-blocked row resting on the author's own report is not the escape hatch ----
+
+test("a lone verifier-blocked row that cites the implementer's report does not close the item", () => {
+  const sb = sandbox();
+  try {
+    sb.writeState(state([item({ status: "done" })]));
+    record(sb.store, { target: "storage-layer", sha: sb.sha, verdict: "verifier-blocked", evidence: ".mstack/progress/impl_storage-layer.md", verifier: "reviewer" });
+    expectFail(gate(sb), /cites the implementer's own report: storage-layer \(reviewer\)/, "blocked wearing the implementer's report");
+  } finally {
+    sb.dispose();
+  }
+});
+
+test("a genuine verifier-blocked row still closes, and a blocked row citing the report after an approval leaves the approval standing", () => {
+  const sb = sandbox();
+  try {
+    sb.writeState(state([item({ status: "done" })]));
+    record(sb.store, { target: "storage-layer", sha: sb.sha, verdict: "verifier-blocked", evidence: "no harness in this repo", verifier: "reviewer" });
+    expectPass(gate(sb), "the escape hatch with its own evidence");
+    record(sb.store, { target: "storage-layer", sha: sb.sha, verdict: "test-verified", evidence: ".mstack/progress/review_storage-layer.md", verifier: "reviewer" });
+    record(sb.store, { target: "storage-layer", sha: sb.sha, verdict: "verifier-blocked", evidence: ".mstack/progress/impl_storage-layer.md", verifier: "reviewer" });
+    expectPass(gate(sb), "the genuine approval stays the answer");
+  } finally {
+    sb.dispose();
+  }
+});
+
+test("a verifier-blocked row citing the implementer's report does not lift an earlier rejection", () => {
+  const sb = sandbox();
+  try {
+    sb.writeState(state([item({ status: "done" })]));
+    record(sb.store, { target: "storage-layer", sha: sb.sha, verdict: "verifier-failed", evidence: ".mstack/progress/review_storage-layer.md", verifier: "reviewer" });
+    record(sb.store, { target: "storage-layer", sha: sb.sha, verdict: "verifier-blocked", evidence: ".mstack/progress/impl_storage-layer.md", verifier: "reviewer" });
+    expectFail(gate(sb), /most recent closing verdict is verifier-failed/, "the rejection stands");
+  } finally {
+    sb.dispose();
+  }
+});
