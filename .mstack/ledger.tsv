@@ -128,3 +128,4 @@ intake-step	f8b9445b701d9d6192eb76346a33c5f536b874a2	live-verified	.mstack/progr
 intake-step	ebf8757fb80ec5b203bf68d20e6598f103829dd9	live-verified	.mstack/progress/review_intake-step_r3.md	reviewer	2026-11-17T10:31:10.779Z
 test-first-reference	2b8eaaf4debbf918dbeb0fbd827a824aacf3c2e5	live-verified	.mstack/progress/impl_test-first-reference.md	implementer	2026-11-17T10:50:20.374Z
 test-first-reference	d13d10064fee30e116210a4f879903dfc43f8775	live-verified	.mstack/progress/review_test-first-reference.md	reviewer	2026-11-17T11:11:08.686Z
+intake-followups	cc2c21573a5d01a2f9dfded09f7295ea75f5c070	test-verified	.mstack/progress/impl_intake-followups.md	implementer	2026-11-17T11:51:09.622Z
