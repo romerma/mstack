@@ -12,7 +12,7 @@
    - **Shared mutable state.** Split the target by default. Serialize only for a real
      invariant, and name it.
    - **Smallest safe decomposition.** If one worker is right, say why.
-4. **Test-first**, before delegating. Read the item's `seams` array in `.mstack/state.json`
+4. **Test-first**, before delegating. Read the item's seams with `mstack state show <ref>`
    (`mstack state active` prints only the slug) and write them into the brief as pre-agreed, so
    the implementer does not ask anyone to confirm them. An item that changes behaviour but has no
    seams gets them first: `mstack state set <slug> --seam "..." --seam "..."`, every seam in

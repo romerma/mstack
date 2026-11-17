@@ -151,7 +151,7 @@ PASSED - 0 failures, 1 warning
 
 The full walkthrough of every check is in [Gates-and-Hooks](Gates-and-Hooks.md).
 
-## state add / list / set / active
+## state add / list / show / set / active
 
 ```console
 $ mstack state add --slug greet-flag --title "greet --shout uppercases the greeting" \
@@ -169,9 +169,24 @@ $ mstack state set greet-flag --status in_progress
 
 $ mstack state active
 greet-flag
+
+$ mstack state show greet-flag
+id: 1
+slug: greet-flag
+title: greet --shout uppercases the greeting
+status: in_progress
+source: direct request
+verification: python3 -m unittest test_greet -v
+acceptance:
+  - `python3 greet.py --shout world` prints HELLO, WORLD
+  - test_greet.py covers the flag and the default
 ```
 
-`state list` marks active items with `*`. `state active` prints the slug alone to stdout so
+`state list` marks active items with `*` and prints only a label and a title. `state show <ref>`
+prints one item with every field it carries, one per line, in a fixed order, lists as indented
+lines, unknown keys that `state.json` preserves last; a field the item does not carry is not
+printed. `state show <ref> --json` prints the item's raw object from `state.json` instead. A
+missing or unmatched `<ref>` exits 2. `state active` prints the slug alone to stdout so
 `SLUG=$(mstack state active)` works, and exits 1 with a stderr note when nothing is active.
 `state set` accepts an id or a slug, refuses illegal transitions and unanswered forks (exit 2),
 and takes `--force` for the deliberate exception, which the gate will still audit.
@@ -189,8 +204,9 @@ mstack: in_progress -> done is not a legal transition
 and `--closed-by`. A field the item does not carry yet is added rather than refused, and every
 edit prints what it replaced, because a write nobody sees is indistinguishable from a no-op.
 
-`--acceptance` **replaces** the whole list and names each criterion it dropped;
-`--add-acceptance` appends. One command may not do both.
+`--acceptance` **replaces** the whole list, names each criterion it dropped, and, when there
+were any, says that `--add-acceptance` is how to append; `--add-acceptance` appends. One command
+may not do both. Neither one asks first: the CLI is run by agents and does not block.
 
 `--seam "<text>"` names a public surface where the behaviour is observed and a test attaches,
 for example ``CLI: `mstack state add` exit code and stdout``. It repeats on `state add`; on
@@ -205,10 +221,29 @@ $ mstack state set greet-flag --description "the flag is off by default" \
   acceptance: 2 criterion(s) replaced with 1
     - dropped "`python3 greet.py --shout world` prints HELLO..."
     - dropped "test_greet.py covers the flag and the default"
+    to append instead of replace, use --add-acceptance; the dropped criteria are listed above if this was meant as one
 
 $ mstack state set greet-flag --add-acceptance "test_greet.py covers the flag and the default"
 1 greet-flag (in_progress)
   acceptance: 1 added, now 2
+```
+
+### Help, and values that start with `--`
+
+`state add`, `state set`, `state show` and `decide` take `--help` (or `-h`): it prints that
+command's flags with one line each to stdout, exits 0, needs no store and changes nothing. The
+help and the parser read one table, so a flag cannot be in one and missing from the other.
+
+A value that starts with a dash is read as the next flag. Write it as one argument,
+`--flag=value`, and it is stored whole; with a space, the command exits 2 and says so:
+
+```console
+$ mstack state add --slug x --title t --acceptance --nope
+mstack: --acceptance was followed by '--nope', which starts with a dash and so reads as another flag, not as its value
+        if it is the value, pass it as one argument: --acceptance=--nope
+
+$ mstack state add --slug x --title t --acceptance=--nope
+added 2 x (pending)
 ```
 
 Removal has one spelling, and an empty value is refused rather than stored: a key whose value

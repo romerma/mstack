@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- **The state CLI answers `--help`, and shows an item.** `mstack state show <ref>` prints one
+  item with every field it carries (source, seams and `decision_required` included, unknown
+  keys last), and `--json` prints its raw object. `state add`, `state set`, `state show` and
+  `decide` take `--help`/`-h`: that command's flags, one line each, exit 0, nothing resolved or
+  written, built from the same table the parser reads so the two cannot drift. A value that
+  starts with `--` is accepted as `--flag=value` on both runtimes, and the space-separated form
+  is refused in mstack's own words naming that spelling. `state set --acceptance` on an item
+  that has criteria still replaces, and now says `--add-acceptance` is how to append. The
+  feature playbook points at `state show` instead of the file.
+
 - **Intake follow-ups, from the reviews of the intake step and the test-first reference.** The
   fork test is stated once, in intake's Map: a fork changes what the product's user can do or
   get (what is charged, allowed, refused, stored, deleted or returned as a value, including an

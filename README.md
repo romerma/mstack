@@ -324,7 +324,7 @@ append-only and never edited; if an entry turned out to be wrong, a later one sa
 | Command | |
 |---|---|
 | `mstack gate` | Fast session gate, milliseconds. `--full` also runs the project's verification, and records that it did |
-| `mstack state add\|set\|list\|active` | The work queue |
+| `mstack state add\|set\|show\|list\|active` | The work queue; each of `add`, `set`, `show` and `decide` takes `--help` |
 | `mstack ledger record\|check\|summary` | Typed verdicts keyed by `(target, sha)` |
 | `mstack decide` | One row per decision, append-only |
 | `mstack cost [slug] [--by role\|item\|model] [--json]` | Tokens per item, role and model, with review rounds and failed verdicts beside them |
