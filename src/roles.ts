@@ -158,9 +158,10 @@ export function canCloseAnItem(verifier: string): boolean {
  * viewer the ledger targets — a filename carrying one reads as the real
  * filename to a human and has to read the same way to this check.
  *
- * No escaping of `slug`: `SLUG` (src/state.ts:49) admits no regex
- * metacharacter and is enforced on load at src/state.ts:143, so interpolating
- * it directly is safe by construction, not by convention.
+ * `slug` is escaped here. `SLUG` (src/state.ts:49) admits no regex
+ * metacharacter, but a ledger target is free text and the ledger reader passes
+ * it straight through, so the escape lives in the one function that builds the
+ * RegExp rather than in each caller.
  *
  * Like `canCloseAnItem` above, this is a floor and not a proof: it stops the
  * default path, not a determined forger. What remains open: free prose that
@@ -176,7 +177,7 @@ export function citesImplementingReport(evidence: string, slug: string): string 
   for (const role of IMPLEMENTING_ROLES) {
     const kind = REPORT_KINDS[role];
     if (kind === undefined) continue;
-    const prefix = `${kind}_${slug}`;
+    const prefix = `${kind}_${slug.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`;
     const pattern = new RegExp(`(^|[^A-Za-z0-9_-])${prefix}(\\.md|_[^\\s/]*\\.md)(?=$|[^A-Za-z0-9_])`, "i");
     if (pattern.test(visible)) return role;
   }

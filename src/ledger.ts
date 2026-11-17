@@ -112,18 +112,112 @@ export function entries(store: Store): Entry[] {
     }));
 }
 
+/**
+ * What the rows for one target say, as a kind.
+ *
+ * - `approved`: the latest closing-role row that counts is an approval, and no
+ *   rejection stands over it.
+ * - `rejected`: a closing role said `verifier-failed` and no later independent
+ *   approval has answered it. A `verifier-blocked` after it is "could not
+ *   verify", not an answer, so it does not lift the rejection.
+ * - `blocked`: the latest closing row is a `verifier-blocked` with no rejection
+ *   under it: nothing could be run. The gate lets that close (the documented
+ *   escape hatch for an item nothing can verify); `ledger check` fails it.
+ * - `discounted`: every closing-role row is an approval whose evidence cites an
+ *   implementing role's own report, so none is independent.
+ * - `author-only`: no row is from a role that can close an item.
+ */
+export type VerdictKind = "approved" | "rejected" | "blocked" | "discounted" | "author-only";
+
+export interface Reading {
+  readonly kind: VerdictKind;
+  /**
+   * The row that decides: the latest independent approval, the standing
+   * rejection, the blocked row, the latest discounted approval, or the best
+   * author row. For `rejected` it is the `verifier-failed` row even when a
+   * `verifier-blocked` follows it, because that is the row to read.
+   */
+  readonly row: Entry;
+  /** For `rejected`: the latest `verifier-blocked` after the standing rejection, which did not answer it. */
+  readonly blockedAfter?: Entry;
+  /** Closing-role approvals dropped for citing an implementing role's report, in file order. */
+  readonly discounted: readonly { readonly entry: Entry; readonly role: string }[];
+}
+
+const isRejection = (e: Entry) => e.verdict === "verifier-failed" || e.verdict === "verifier-blocked";
+
+/**
+ * The one reader of the verdict. `ledger check` (one sha) and the gate's closing
+ * audit (every row of a closed item, in file order) both call it, so the two
+ * cannot disagree about the same rows again: item 47 fixed `check` and left the
+ * gate with a copy of the rule, which is how the gate kept the hole.
+ *
+ * `rows` are in file order, which is append order and so chronological. The `ts`
+ * column is not used: a row can be recorded with an explicit `ts`, rows from two
+ * machines can carry skewed clocks, and position is the one order both callers
+ * already share. Returns `undefined` for no rows; callers say that in their own words.
+ *
+ * A role "that can close an item" is `canCloseAnItem`. An APPROVAL whose evidence
+ * points at an implementing role's own report is that report under a reviewer's
+ * name and is discounted; a REJECTION is never discounted, because citing the
+ * report it rejects is ordinary prose and dropping it could only hide a failure.
+ */
+export function readVerdict(rows: readonly Entry[], slug: string): Reading | undefined {
+  if (rows.length === 0) return undefined;
+
+  const byCloser = rows.filter((e) => canCloseAnItem(e.verifier));
+  if (byCloser.length === 0) {
+    // Every row is the author's own, so the best-ranked one is the answer, labelled.
+    const best = rows.reduce((a, b) => (RANK[b.verdict] > RANK[a.verdict] ? b : a));
+    return { kind: "author-only", row: best, discounted: [] };
+  }
+
+  const cited = byCloser.map((entry) => ({ entry, role: isRejection(entry) ? undefined : citesImplementingReport(entry.evidence, slug) }));
+  const discounted = cited.flatMap((c) => (c.role === undefined ? [] : [{ entry: c.entry, role: c.role }]));
+  const closing = cited.filter((c) => c.role === undefined).map((c) => c.entry);
+
+  const latest = closing[closing.length - 1];
+  if (latest === undefined) {
+    return { kind: "discounted", row: discounted[discounted.length - 1]!.entry, discounted };
+  }
+
+  // A rejection stands from its row until a later independent approval. Walking in
+  // order keeps the LAST verifier-failed that nothing independent has answered.
+  let standing: Entry | undefined;
+  for (const e of closing) {
+    if (e.verdict === "verifier-failed") standing = e;
+    else if (e.verdict !== "verifier-blocked") standing = undefined;
+  }
+  if (standing !== undefined) {
+    const after = closing.slice(closing.indexOf(standing) + 1).filter((e) => e.verdict === "verifier-blocked");
+    const blockedAfter = after[after.length - 1];
+    return blockedAfter === undefined
+      ? { kind: "rejected", row: standing, discounted }
+      : { kind: "rejected", row: standing, blockedAfter, discounted };
+  }
+  if (latest.verdict === "verifier-blocked") return { kind: "blocked", row: latest, discounted };
+  return { kind: "approved", row: latest, discounted };
+}
+
 export interface CheckResult {
   readonly passing: boolean;
   readonly best: Entry | undefined;
+  /** What the reader made of the rows at this sha; undefined when there are none. */
+  readonly kind: VerdictKind | undefined;
   /** Rows for this target recorded against some *other* SHA. */
   readonly stale: readonly Entry[];
   readonly reason: string;
 }
 
+/** The report a discounted approval cites belongs to this role; say which. */
+function ownReport(role: string): string {
+  return `${role === "spec-author" ? "spec-author" : "implementer"}'s own report`;
+}
+
 /**
  * Does `target` hold a verdict at `sha` that clears `min`?
  *
- * Judged by the latest row from a role that can close an item; see below.
+ * Judged by `readVerdict`, the same reader the gate's closing audit calls.
  *
  * Rows recorded against a different SHA are reported as stale rather than
  * ignored, because "there was a verdict once" is the exact story that gets a
@@ -139,10 +233,12 @@ export function check(
   const here = all.filter((e) => e.sha === sha);
   const stale = all.filter((e) => e.sha !== sha);
 
-  if (here.length === 0) {
+  const reading = readVerdict(here, target);
+  if (reading === undefined) {
     return {
       passing: false,
       best: undefined,
+      kind: undefined,
       stale,
       reason:
         stale.length > 0
@@ -151,73 +247,61 @@ export function check(
     };
   }
 
-  // The rows the gate's closing audit reads (`checkClosedItems`): a role that can
-  // close an item. An APPROVAL whose evidence points at an implementing role's own
-  // report is that report under a reviewer's name, and the gate drops it. A
-  // REJECTION is never dropped: citing the report it rejects is ordinary prose,
-  // and discarding it could only hide a failure.
-  // `citesImplementingReport` builds a RegExp from the slug. The gate only sees
-  // SLUG-validated names, but a ledger target is free text, so escape it here.
-  const literal = target.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const byCloser = here.filter((e) => canCloseAnItem(e.verifier));
-  const isRejection = (e: Entry) => e.verdict === "verifier-failed" || e.verdict === "verifier-blocked";
-  const closing = byCloser.filter((e) => isRejection(e) || citesImplementingReport(e.evidence, literal) === undefined);
-  const discounted = byCloser.filter((e) => !closing.includes(e));
-
-  // The latest closing row is the answer, not the best-ranked row: a rejection
-  // after an approval retracts it, and an approval after a rejection answers it.
-  // "Latest" is row order, which is append order. The `ts` column is not used:
-  // a row can be recorded with an explicit `ts`, rows from two machines can
-  // carry skewed clocks, and the gate's audit already orders by position, so
-  // the two cannot disagree about which row is last.
-  const latest = closing[closing.length - 1];
-  if (latest !== undefined) {
-    const by = latest.verifier || "unknown";
-    if (isRejection(latest)) {
+  const { kind, row } = reading;
+  const by = row.verifier || "unknown";
+  switch (kind) {
+    case "rejected":
+    case "blocked": {
+      const later = reading.blockedAfter;
       return {
         passing: false,
-        best: latest,
+        best: row,
+        kind,
         stale,
-        reason: `${latest.verdict} at ${short(sha)} by ${by} rejects this commit, whatever an implementing role recorded (evidence: ${latest.evidence})`,
+        reason:
+          `${row.verdict} at ${short(sha)} by ${by} rejects this commit, whatever an implementing role recorded (evidence: ${row.evidence})` +
+          (later === undefined
+            ? ""
+            : `; the later verifier-blocked by ${later.verifier || "unknown"} (evidence: ${later.evidence}) does not answer it`),
       };
     }
-    const passing = RANK[latest.verdict] >= RANK[min];
-    return {
-      passing,
-      best: latest,
-      stale,
-      reason: passing
-        ? `${latest.verdict} at ${short(sha)} by ${by}`
-        : `latest closing verdict at ${short(sha)} is ${latest.verdict} by ${by}, which does not clear ${min}`,
-    };
+    case "approved": {
+      const passing = RANK[row.verdict] >= RANK[min];
+      return {
+        passing,
+        best: row,
+        kind,
+        stale,
+        reason: passing
+          ? `${row.verdict} at ${short(sha)} by ${by}`
+          : `latest closing verdict at ${short(sha)} is ${row.verdict} by ${by}, which does not clear ${min}`,
+      };
+    }
+    case "discounted": {
+      // The gate refuses to close on this, so `check` fails and says why rather
+      // than printing it as an independent PASS.
+      const role = reading.discounted[reading.discounted.length - 1]!.role;
+      return {
+        passing: false,
+        best: row,
+        kind,
+        stale,
+        reason: `${row.verdict} at ${short(sha)} by ${row.verifier} cites the ${ownReport(role)} (evidence: ${row.evidence}), so it is not an independent approval`,
+      };
+    }
+    case "author-only": {
+      const passing = RANK[row.verdict] >= RANK[min];
+      return {
+        passing,
+        best: row,
+        kind,
+        stale,
+        reason: passing
+          ? `${row.verdict} at ${short(sha)} by ${row.verifier || "unknown"} (the author's own verdict, not an independent approval)`
+          : `best verdict at ${short(sha)} is ${row.verdict}, which does not clear ${min} (the author's own verdict)`,
+      };
+    }
   }
-
-  // Closing-role approvals exist but every one cites the implementer's own report:
-  // the gate refuses to close on that, so `check` fails and says why rather than
-  // printing it as an independent PASS.
-  const forged = discounted[discounted.length - 1];
-  if (forged !== undefined) {
-    return {
-      passing: false,
-      best: forged,
-      stale,
-      reason: `${forged.verdict} at ${short(sha)} by ${forged.verifier} cites the implementer's own report (evidence: ${forged.evidence}), so it is not an independent approval`,
-    };
-  }
-
-  // No closing-role row: every row here is the author's own, so the best-ranked
-  // one is kept as before, and the message says whose verdict it is so nobody
-  // reads it as an independent approval.
-  const best = here.reduce((a, b) => (RANK[b.verdict] > RANK[a.verdict] ? b : a));
-  const passing = RANK[best.verdict] >= RANK[min];
-  return {
-    passing,
-    best,
-    stale,
-    reason: passing
-      ? `${best.verdict} at ${short(sha)} by ${best.verifier || "unknown"} (the author's own verdict, not an independent approval)`
-      : `best verdict at ${short(sha)} is ${best.verdict}, which does not clear ${min} (the author's own verdict)`,
-  };
 }
 
 function short(sha: string): string {
