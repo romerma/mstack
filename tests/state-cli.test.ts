@@ -407,3 +407,65 @@ onEach("state show --json prints exactly the item asked for when several items e
     sb.dispose();
   }
 });
+
+onEach("--help as the value of a flag is stored, and a criterion that mentions --help is not a help request", (cli) => {
+  const sb = sandbox();
+  try {
+    sb.writeState(state([]));
+    const bare = cli(sb.store.root, "state", "add", "--slug", "dashed", "--title", "t", "--acceptance=--help", "--seam=-h");
+    assert.equal(bare.code, 0, bare.stderr);
+    assert.equal(bare.stdout.trim(), "added 1 dashed (pending)");
+    const sentence = "state add --help prints the flags";
+    const prose = cli(sb.store.root, "state", "add", "--slug", "prose", "--title", "t", "--acceptance", sentence);
+    assert.equal(prose.code, 0, prose.stderr);
+    assert.equal(prose.stdout.trim(), "added 2 prose (pending)");
+    const stored = JSON.parse(stateBytes(sb)).items;
+    assert.deepEqual(stored[0].acceptance, ["--help"]);
+    assert.deepEqual(stored[0].seams, ["-h"]);
+    assert.deepEqual(stored[1].acceptance, [sentence]);
+
+    const set = cli(sb.store.root, "state", "set", "dashed", "--acceptance=--help");
+    assert.equal(set.code, 0, set.stderr);
+    assert.doesNotMatch(set.stdout, /^mstack state set <ref>/m);
+  } finally {
+    sb.dispose();
+  }
+});
+
+onEach("state set --acceptance on an item with exactly one criterion still names --add-acceptance", (cli) => {
+  const sb = sandbox();
+  try {
+    sb.writeState(state([item({ acceptance: ["the only one"] })]));
+    const result = cli(sb.store.root, "state", "set", "1", "--acceptance", "its replacement");
+    assert.equal(result.code, 0, result.stderr);
+    assert.match(result.stdout, /acceptance: 1 criterion\(s\) replaced with 1/);
+    assert.match(result.stdout, /use --add-acceptance/);
+  } finally {
+    sb.dispose();
+  }
+});
+
+onEach("an unknown flag is refused, naming it, on state add, state set, state show and decide, and nothing is written", (cli) => {
+  const sb = sandbox();
+  try {
+    sb.writeState(state([item()]));
+    const before = stateBytes(sb);
+    const decisionsBefore = readFileSync(sb.store.decisions, "utf8");
+    const attempts: string[][] = [
+      ["state", "add", "--slug", "x", "--title", "t", "--acceptence", "a"],
+      ["state", "set", "1", "--title", "t", "--acceptence", "a"],
+      ["state", "show", "1", "--josn"],
+      ["decide", "--phase", "p", "--decision", "d", "--resutl", "ok"],
+    ];
+    for (const args of attempts) {
+      const result = cli(sb.store.root, ...args);
+      assert.equal(result.code, 2, args.join(" "));
+      assert.equal(result.stdout, "");
+      assert.match(result.stderr, /Unknown option '--(acceptence|josn|resutl)'/, args.join(" "));
+    }
+    assert.equal(stateBytes(sb), before);
+    assert.equal(readFileSync(sb.store.decisions, "utf8"), decisionsBefore);
+  } finally {
+    sb.dispose();
+  }
+});
