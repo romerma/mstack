@@ -7,7 +7,7 @@
 > empty template below.
 
 - **Item:** 70 gate-closes-over-a-rejection
-- **Status:** in_progress (bug-fix playbook, steps 1, 2 and 4 done)
+- **Status:** reviewing, round 1
 - **Branch:** fix/gate-closes-over-a-rejection
 - **Base:** 7283bbe
 - **Worktree:** none
@@ -45,7 +45,17 @@ passes bypassPermissions. Do not run `check.mjs` or `verify.mjs` while a batch i
 
 ## Next step
 
-Item 70 is implemented (report `impl_gate-closes-over-a-rejection.md`, ledger row recorded at the last non-chore commit). Next: a fresh reviewer on a different model, who should mutate the load-bearing lines (the report has the mutant table) and run both suites. Open finding for the coordinator: `state set --status done` still closes author-only and discounted-approval ledgers (the gate then fails them); not widened here.
+Item 70, round 1 implementation is in: `impl_gate-closes-over-a-rejection.md`, head of the last
+non-chore commit `d8b944e`. `readVerdict` in `src/ledger.ts` is the one reader; `check`, the
+gate's closed-item audit and a new `ledger-verdict` closing check call it, so `state set
+--status done`, the gate and the Stop hook refuse a standing rejection and name the row. Short
+shas resolve through git. The status line has three states. One existing gate test that encoded
+the blocked-after-failed hole was rewritten, with a decision row. Round 1 review is out to a
+fresh reviewer on a different model, which writes `review_gate-closes-over-a-rejection.md` and
+types its own ledger row.
+
+- APPROVED: `state set 70 --status verifying`, then `done`, merge fast-forward.
+- CHANGES_REQUESTED: `state set 70 --status in_progress`, a fresh implementer, review as `_r2`.
 
 Waiting on the user: item 50 (the plugin icon), and the go-ahead to push `main`, local only
 since 2026-11-08. Then phase 1 (55, 56) and item 69, which need the plugin really loaded.
