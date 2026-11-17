@@ -487,3 +487,16 @@ test("an approval that cites a spec-author's report names the spec-author, not t
   assert.match(r.reason, /spec-author's own report/);
   assert.doesNotMatch(r.reason, /implementer's own report/);
 });
+
+test("a verifier-blocked after a verifier-failed fails the check, naming the failure and saying the blocked row does not answer it", () => {
+  const r = checkAfter([
+    ["verifier-failed", "reviewer", ".mstack/progress/review_x_r2.md"],
+    ["verifier-blocked", "orchestrator", "could not re-run the suite"],
+  ]);
+  assert.equal(r.passing, false);
+  assert.equal(r.kind, "rejected");
+  assert.equal(r.best?.verdict, "verifier-failed");
+  assert.match(r.reason, /^verifier-failed at \w{8} by reviewer rejects this commit/);
+  assert.match(r.reason, /review_x_r2\.md/);
+  assert.match(r.reason, /the later verifier-blocked by orchestrator \(evidence: could not re-run the suite\) does not answer it/);
+});
