@@ -14,7 +14,7 @@ The step that turns a request into a queue item. Facts are found, reversible dec
 A decision whose answer changes what the product's user can do or get, or that cannot be undone, so it is put to the user instead of being taken by the agent.
 
 **Seam**:
-The public surface where a behaviour is observed and a test attaches. In design vocabulary it is also the place where one implementation can stand in for another without editing in place.
+The public surface where a behaviour is observed and a test attaches. In design vocabulary it is also a place where behaviour can change without editing there.
 
 **Playbook**:
 A short numbered list of steps for one kind of request, copied whole into the todo list. A step that is not done stays listed with the reason it was skipped.
@@ -28,7 +28,7 @@ The opt-in route on which a specification is written and approved by a different
 One role's run over an item, such as implementing or reviewing. A verdict is meant to come from a pass that did not write the work.
 
 **Lens**:
-A distinct angle from which one pass examines the same work, so that a panel of reviewers does not repeat itself.
+A distinct angle, such as correctness or security, from which one pass examines the same work. Each reviewer on a panel is given its own.
 
 **Verdict**:
 A pass's recorded judgement of the work at one commit: that it holds, that it failed, or that it could not be checked. It is a judgement of the work, where a receipt is only a fact about a command.

@@ -5,7 +5,7 @@
 - **A glossary, a first ADR, and a gate check for the glossary's format.** `GLOSSARY.md` at
   the root defines the terms the code and the skills already use (item, verdict, closing role,
   receipt, fork, seam and eight more), each in one or two sentences. `docs/adr/0001-claude-code-only.md`
-  records that mstack targets Claude Code only, with the date and the trade-off. A new reference,
+  records that mstack targets Claude Code only, with the date and what was given up. A new reference,
   `skills/reflect/references/domain-docs.md`, holds the entry format, the ADR format and the three
   conditions an ADR must meet (hard to reverse, surprising without context, a real trade-off);
   intake and `understand` read the glossary when the project has one, and a term or an ADR is
