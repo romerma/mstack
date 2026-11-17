@@ -246,8 +246,8 @@ dropped the answer — the line that exists to make a write visible, showing no 
 field where this command silently un-answers a fork.
 
 `--clear` takes `description`, `source`, `verification`, `decision-required`, `sdd`,
-`closed-by` and `seams`. `acceptance` is not among them — the gate fails an item with no criteria, so
-replace them instead — and `--slug` is refused outright, because it names the branch, the spec
+`closed-by` and `seams`. `acceptance` is not among them (the gate fails an item with no criteria, so
+replace them instead), and `--slug` is refused outright, because it names the branch, the spec
 directory, the progress files and every ledger and decision row already written for the item,
 and none of those move with it. Two instructions for one field in one command (`--description
 X --clear description`) are refused rather than silently ordered, and a `state set` given
