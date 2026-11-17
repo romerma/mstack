@@ -136,3 +136,4 @@ state-cli-ergonomics	656ea87a7b1c9ce6956dc62bf0755adcc0ae9d42	test-verified	.mst
 state-cli-ergonomics	a6c142f58ca619c27df4c2213ab880ea46c7af78	verifier-failed	.mstack/progress/review_state-cli-ergonomics.md	reviewer	2026-11-17T14:31:29.902Z
 state-cli-ergonomics	69b5dc4c70aa629ea4f1e7248abad28a43ce0b9e	live-verified	.mstack/progress/impl_state-cli-ergonomics_r2.md	implementer	2026-11-17T14:43:45.736Z
 state-cli-ergonomics	a5030ee1dee12bce4acc031376d11451e6cf0e22	live-verified	.mstack/progress/review_state-cli-ergonomics_r2.md	reviewer	2026-11-17T15:36:56.431Z
+deep-module-vocabulary	ed0ff5a487e934f92ce20e3705cade004688a055	live-verified	.mstack/progress/impl_deep-module-vocabulary.md	implementer	2026-11-17T16:07:35.326Z
