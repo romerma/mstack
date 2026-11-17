@@ -6,10 +6,10 @@
 > On close: append the summary to `history.md` and reset this file to the
 > empty template below.
 
-- **Item:** 47 ledger-check-hides-a-rejection
-- **Status:** reviewing, round 2
-- **Branch:** fix/ledger-check-hides-a-rejection
-- **Base:** 5b2714c
+- **Item:** none active (47 closed 2026-11-17; next 46 npm-test-misses-strip-types)
+- **Status:** -
+- **Branch:** main
+- **Base:** -
 - **Worktree:** none
 
 ## Plan
@@ -45,18 +45,12 @@ passes bypassPermissions. Do not run `check.mjs` or `verify.mjs` while a batch i
 
 ## Next step
 
-Item 47, round 2 implementation is in: `impl_ledger-check-hides-a-rejection_r2.md`, code head
-`d73b40c`. Rejections are exempt from the citation filter; an approval whose evidence cites the
-implementer's own report now FAILS as not independent; the slug is escaped before it reaches a
-regex; `docs/wiki/The-Agents.md` is corrected. Round 2 review is out to a fresh reviewer, which
-writes `review_ledger-check-hides-a-rejection_r2.md` and types its own ledger row.
+Phase 0 has 52, 53, 54 and 47 closed (3, 2, 2 and 2 rounds). Left in it: 46 (npm test on node
+22.6 and the bun test scope) and 50 (`plugin validate --strict`). Item 70 (the gate closes over
+a standing rejection) was found on the way and is the most serious of the follow-ups: consider
+it before phase 1.
 
-- APPROVED: `state set 47 --status verifying`, then `done`, merge fast-forward, then item 46.
-- CHANGES_REQUESTED: a third round needs a `review-r3` decision row.
-
-Follow-ups to file when the item closes: shas compared exactly (abbreviated sha answers "no
-verdict", one 7-character row in the ledger); in the gate a `verifier-blocked` after a
-`verifier-failed` lets the item close (`src/gate.ts:445-448`); the status line shows an
-author-only verdict as green; `ledger check` reads one sha while the gate audits every sha.
-
-After 47: 46, 50. Then phase 1 and item 69, which need the plugin really loaded.
+Phase 1 (55 intake, 56 test-first reference) changes skills and agents and has acceptance lines
+that need the plugin really loaded (`claude --plugin-dir .`, or headless `claude -p` with it):
+a request driven through `/mstack` in the sandbox, and a subagent quoting a preloaded skill.
+Item 69 needs the same for the cost rows.

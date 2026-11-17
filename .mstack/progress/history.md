@@ -942,3 +942,28 @@ session writing rows end to end is still unproven and is in item 69.
 in every round and each blocker came from the reviewer running real processes or mutants.
 Briefs that asked for the mutant table up front cut the first-round blockers from three to one
 or two, and did not get any item through in one round.
+
+## 2026-11-17 — item 47 ledger-check-hides-a-rejection, closed
+
+**What changed.** `ledger check` answers with the latest row at the sha from a role that can
+close an item. A rejection there fails the check and names itself, whatever an implementing role
+recorded and whatever the rejection cites. An approval whose evidence cites the author's own
+report fails as not independent. With no closing-role row the old best-by-rank answer stays,
+labelled the author's own verdict. A target is matched literally. Three prose copies of the old
+"most favorable" rule were corrected (`agents/reviewer.md`, `skills/review/SKILL.md`, two wiki
+pages).
+
+**Rounds: 2.** Sonnet implements, Opus reviews, as before.
+- Round 1, rejected: the citation filter also dropped rejections, so a reviewer's
+  `verifier-failed` that mentioned `impl_<slug>.md` gave PASS on the author's row; one wiki
+  sentence still stated the old rule; and the change introduced a crash on a slug with regex
+  metacharacters.
+- Round 2, approved: `review_ledger-check-hides-a-rejection_r2.md`, `live-verified` at
+  `acd6b75` by reviewer. All 29 closed items pass at their closing sha, and all 105 (target,
+  sha) pairs in the ledger answer the same before and after.
+
+**The gate has the hole this item closed in `ledger check`.** Two shapes still close an item
+over a standing rejection. Filed as item 70; the disagreement is in the safe direction for
+`ledger check` and the unsafe one for the gate.
+
+**Filed:** item 70.
