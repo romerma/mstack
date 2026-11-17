@@ -284,8 +284,9 @@ Walking the lines that carry the weight:
   at the start of a line (also as a list item, with the definition on the same line or below it)
   and, in a file with no such entry, one `##` or `###` heading per term followed by a paragraph.
   A bold label such as `**Example:**` directly under a term, indented under its list item, or
-  under its heading belongs to that term; after a blank line under a bold term it is read as a
-  term. Rules, HTML comments and fenced blocks are skipped, and a comment line inside an entry
+  after the paragraph under its heading belongs to that term. An unindented one after a blank
+  line under a bold term is read as a term, and so is one that is the first line under a
+  heading, which then only groups. Rules, HTML comments and fenced blocks are skipped, and a comment line inside an entry
   does not end it. It reads structure and never content. Two things are failures, each naming
   the entry and its line: an entry with no definition, and a term that appears twice (case and
   a trailing colon ignored). A `GLOSSARY.md` that cannot be read, or is a directory, is a failure that says so.
