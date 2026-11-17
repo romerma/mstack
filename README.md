@@ -145,7 +145,7 @@ when you want them.
 | `/mstack:review` | Judges existing work using reviewers that did not write it |
 | `/mstack:ship` | Review threads, CI and the merge gate, to merged |
 | `/mstack:orchestrate` | A program of work across many changes and sessions |
-| `/mstack:reflect` | What should change in the workflow itself after a session |
+| `/mstack:reflect` | What should change in the workflow itself after a session, and which new terms and hard decisions go into `GLOSSARY.md` and `docs/adr/` |
 | `/mstack:unslop` | Cuts the tells that make writing read as machine-generated |
 | `/mstack:commit` | Holds a commit message to Conventional Commits 1.0.0, with the type the change earns |
 

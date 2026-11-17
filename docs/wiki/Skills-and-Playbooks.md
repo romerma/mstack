@@ -71,7 +71,10 @@ Most skills also carry a prohibition, and they are worth knowing before you run 
 - `setup` never overwrites an existing store file without `--force`, and acceptance criteria
   are quoted from the source, never paraphrased.
 - `understand` does not let an unreachable source read as an absence: "Slack was not
-  searchable" is a finding, not "there was no discussion".
+  searchable" is a finding, not "there was no discussion". When the project has a
+  `GLOSSARY.md` it reads it and uses its terms; intake does the same for an item's title and
+  acceptance, and a term the request uses differently is a fact to settle against the code,
+  not a question for the user.
 - `design` fixes its judging criteria before any candidate exists, and a design with no
   rejected alternative is a first idea, not a decision.
 - `spec` writes no code, and the item cannot leave `specifying` until all four artifacts
@@ -87,7 +90,10 @@ Most skills also carry a prohibition, and they are worth knowing before you run 
 - `orchestrate` is refused below its threshold: work one agent could finish in a session
   takes the feature route instead.
 - `reflect` never edits skills, agents or hooks unilaterally, and `history.md` is
-  append-only.
+  append-only. Closing an item and `reflect` are also where a term the work introduced goes
+  into `GLOSSARY.md` and where a decision that is hard to reverse, surprising without context
+  and a real trade-off becomes an ADR under `docs/adr/`; a decision missing any one of the three
+  stays a `decisions.tsv` row, and a session that introduced nothing writes nothing.
 - `unslop` is itself a list of prohibitions; the rule above them all is to not generate the
   bad sentence in the first place.
 - `commit` states Conventional Commits only and never presents a house rule as the

@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- **A glossary, a first ADR, and a gate check for the glossary's format.** `GLOSSARY.md` at
+  the root defines the terms the code and the skills already use (item, verdict, closing role,
+  receipt, fork, seam and eight more), each in one or two sentences. `docs/adr/0001-claude-code-only.md`
+  records that mstack targets Claude Code only, with the date and the trade-off. A new reference,
+  `skills/reflect/references/domain-docs.md`, holds the entry format, the ADR format and the three
+  conditions an ADR must meet (hard to reverse, surprising without context, a real trade-off);
+  intake and `understand` read the glossary when the project has one, and closing an item and
+  `reflect` are where terms and ADRs are written. `mstack gate` checks the root `GLOSSARY.md`
+  only when it exists: every entry needs a term and a definition of one or two sentences, no
+  term repeats, and a failure names the entry and its line. `lint-plugin` requires an origin
+  header on the new reference.
+
 - **A deep-module vocabulary, a design lens and a `deepen` playbook.** `skills/design/references/deep-modules.md`
   defines module, interface, depth, seam and adapter, the deletion test, the interface as the
   test surface, one adapter against two, and the four dependency categories, as terms and tests

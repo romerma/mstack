@@ -278,6 +278,25 @@ Walking the lines that carry the weight:
   *before* it existed still reports nothing — it closes every future round of this trap, not
   the one already on disk.
 
+- **"GLOSSARY.md: N entries"** appears only when a `GLOSSARY.md` exists at the repository root,
+  and never otherwise: the gate does not ask for a glossary, so a repository without one gets
+  no section and no line. When the file exists, each entry must be a `**Term**:` line with a
+  definition of one or two sentences, and no term may appear twice. The check reads structure
+  and never content, so a hand-written glossary is not held to a style. Every failure names the
+  entry and its line:
+
+  ```console
+  $ mstack gate
+  ...
+  -- glossary
+  [fail]  GLOSSARY.md:3: entry "Receipt" has no definition
+          fix: write one or two sentences under it, or remove the entry
+  ```
+
+  The format is stated once, in the reflect skill's domain-docs reference, and a test pins that
+  the example there passes this check. Only the root file is read: a `GLOSSARY.md` in a
+  subdirectory or under `docs/` is not.
+
 ### `gate --full`
 
 `mstack gate --full` runs everything above plus the project's own verification: the `verify`
