@@ -24,8 +24,8 @@ jobs:
       # Both runners, every time. The shim falls back from bun to node, and a
       # `Bun.*` call that slips into src/ would break that fallback silently
       # for anyone without bun. Running only one of these hides it.
-      - run: bun test tests/
-      - run: node --test 'tests/*.test.ts'
+      - run: npm run test:bun
+      - run: npm run test:node
 
       - run: ./bin/mstack lint-plugin .
 
@@ -50,7 +50,7 @@ jobs:
         with:
           node-version: "22.6"
       # No bun on this runner, so the launcher takes the node branch it exists
-      # for. Verified locally on 22.6.0: 112/112, and stderr stays clean because
-      # of --disable-warning.
+      # for. Verified locally on 22.6.0: 480/480, and stderr stays clean because
+      # of --disable-warning, which the test:node script carries.
       - run: ./bin/mstack help
-      - run: node --disable-warning=ExperimentalWarning --experimental-strip-types --test 'tests/*.test.ts'
+      - run: npm run test:node
