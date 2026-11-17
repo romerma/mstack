@@ -6,10 +6,10 @@
 > On close: append the summary to `history.md` and reset this file to the
 > empty template below.
 
-- **Item:** none active (56 closed 2026-11-17)
-- **Status:** -
-- **Branch:** main
-- **Base:** -
+- **Item:** 73 intake-followups
+- **Status:** in_progress (implementer briefed)
+- **Branch:** fix/intake-followups
+- **Base:** 07646f6
 - **Worktree:** none
 
 ## Plan
@@ -55,8 +55,10 @@ Waiting on the user:
 
 Standing: push `main` after closing work and check CI (user, 2026-11-17).
 
+In flight: 73 on `fix/intake-followups`; then review by the other model, close, merge, push.
+
 Next, not blocked:
-1. 73, the loose ends of 55 and 56 (12 criteria, prose and two lint rules). It closes real gaps
+1. 73 (in flight), the loose ends of 55 and 56 (12 criteria, prose and two lint rules). It closes real gaps
    seen in live runs: nothing moves an item to `in_progress` after intake, and `feature.md`
    points at a command that cannot print seams.
 2. 74 state CLI (`state show`), then 71, 66, 68, 67, 69.
