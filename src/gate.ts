@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { all as decisionsFor } from "./decisions.ts";
 import { gateProblems, VERIFICATION_CHECK } from "./closing.ts";
 import { defaultBranch, git, headSha } from "./git.ts";
+import { readGlossary } from "./glossary.ts";
 import { runCommand } from "./run.ts";
 import { describeRow, entries as ledgerEntries, readVerdict } from "./ledger.ts";
 import {
@@ -79,6 +80,8 @@ export function runGate(store: Store, options: GateOptions = {}): Report {
     if (options.full !== true) checkVerificationRuns(store, state, report);
   }
 
+  checkGlossary(store, report);
+
   report.section("workspace");
   checkCliProvenance(store, report);
   checkWorkspace(store, report);
@@ -90,6 +93,26 @@ export function runGate(store: Store, options: GateOptions = {}): Report {
 
   report.summary();
   return report;
+}
+
+/**
+ * The glossary is optional and the gate never asks for one: a repository
+ * without it gets no section and no line, so the gate stays green for every
+ * consumer that has not adopted the practice. When the file exists its entries
+ * are held to the format, at the repository root only.
+ */
+function checkGlossary(store: Store, report: Report): void {
+  const path = join(store.root, "GLOSSARY.md");
+  if (!existsSync(path)) return;
+  report.section("glossary");
+  const { entries, problems } = readGlossary(readFileSync(path, "utf8"));
+  for (const problem of problems) {
+    const where = problem.line > 0 ? `GLOSSARY.md:${problem.line}` : "GLOSSARY.md";
+    report.fail(`${where}: ${problem.message}`, "write a one or two sentence definition under a **Term**: line, or remove the entry (the reflect skill's domain-docs reference has the format)");
+  }
+  if (problems.length === 0) {
+    report.ok(`GLOSSARY.md: ${entries} ${entries === 1 ? "entry" : "entries"}, each a term with a one or two sentence definition`);
+  }
 }
 
 function loadOrReport(store: Store, report: Report): State | null {
