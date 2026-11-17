@@ -65,7 +65,50 @@ function isCommit(store: Store, sha: string): boolean {
   }
 }
 
+/**
+ * An abbreviation is hex shorter than a full sha. Resolved through git to the
+ * one commit it names, or `undefined` when it names none or several (git refuses
+ * an ambiguous prefix). A full sha, or anything that is not hex, is returned
+ * as typed: this never makes a git call for the sha `HEAD` produced.
+ *
+ * Rows are keyed by the exact string, so an abbreviation that is not resolved
+ * before it is stored or compared is a row nobody can find again.
+ */
+const ABBREVIATED = /^[0-9a-f]{4,39}$/i;
+
+export function resolveSha(store: Store, sha: string): string | undefined {
+  if (!ABBREVIATED.test(sha)) return sha;
+  try {
+    const full = execFileSync("git", ["rev-parse", "--verify", "--quiet", `${sha}^{commit}`], {
+      cwd: store.root,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+      timeout: 5_000,
+    }).trim();
+    return full === "" ? undefined : full;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Is this row at that commit? The same string, or a row recorded with an
+ * abbreviation before `record` resolved them (one such row, `9b36340`, is in this
+ * repository's append-only ledger) that is a prefix of the full sha. A string
+ * comparison: no git call, because the status line reads through here.
+ */
+function sameCommit(rowSha: string, sha: string): boolean {
+  if (rowSha === sha) return true;
+  return rowSha.length >= 7 && rowSha.length < sha.length && ABBREVIATED.test(rowSha) && sha.toLowerCase().startsWith(rowSha.toLowerCase());
+}
+
 export function record(store: Store, entry: Omit<Entry, "ts"> & { ts?: string }): Entry {
+  if (entry.target.trim() === "") {
+    throw new UserError(
+      "a ledger row needs a target: the item slug it is a verdict about",
+      "pass the slug first: 'mstack ledger record <slug> <sha> <verdict> ...'",
+    );
+  }
   if (entry.sha.trim() === "") {
     throw new UserError(
       "a ledger row needs the head SHA it was produced against",
@@ -81,13 +124,14 @@ export function record(store: Store, entry: Omit<Entry, "ts"> & { ts?: string })
   // The row is sold as "keyed by (target, sha)". Half that key was unvalidated:
   // forty zeros recorded fine and read back indistinguishable from a real
   // commit, so a verdict could name a state of the repository that never was.
-  if (!isCommit(store, entry.sha)) {
+  const sha = resolveSha(store, entry.sha);
+  if (sha === undefined || !isCommit(store, sha)) {
     throw new UserError(
       `${entry.sha.slice(0, 12)} is not a commit in this repository`,
-      "pass the output of 'git rev-parse HEAD'; a verdict against a SHA that does not exist proves nothing",
+      "pass the output of 'git rev-parse HEAD'; a verdict against a SHA that does not exist proves nothing, and an abbreviation that matches two commits is refused like one that matches none",
     );
   }
-  const full: Entry = { ...entry, ts: entry.ts ?? new Date().toISOString() };
+  const full: Entry = { ...entry, sha, ts: entry.ts ?? new Date().toISOString() };
   append(store.ledger, HEADER, [
     full.target,
     full.sha,
@@ -234,9 +278,12 @@ export function check(
   sha: string,
   min: Verdict = "test-verified",
 ): CheckResult {
+  // An abbreviation is resolved here, in the one function every caller reaches. One
+  // that names no commit is kept as typed and finds no row, which is `no verdict at`.
+  const at = resolveSha(store, sha) ?? sha;
   const all = entries(store).filter((e) => e.target === target);
-  const here = all.filter((e) => e.sha === sha);
-  const stale = all.filter((e) => e.sha !== sha);
+  const here = all.filter((e) => sameCommit(e.sha, at));
+  const stale = all.filter((e) => !sameCommit(e.sha, at));
 
   const reading = readVerdict(here, target);
   if (reading === undefined) {
@@ -247,7 +294,7 @@ export function check(
       stale,
       reason:
         stale.length > 0
-          ? `no verdict at ${short(sha)}; ${stale.length} row(s) exist at other SHAs and a new head SHA voids them`
+          ? `no verdict at ${short(at)}; ${stale.length} row(s) exist at other SHAs and a new head SHA voids them`
           : `no verdict recorded for ${target}`,
     };
   }
@@ -264,7 +311,7 @@ export function check(
         kind,
         stale,
         reason:
-          `${row.verdict} at ${short(sha)} by ${by} rejects this commit, whatever an implementing role recorded (evidence: ${row.evidence})` +
+          `${row.verdict} at ${short(at)} by ${by} rejects this commit, whatever an implementing role recorded (evidence: ${row.evidence})` +
           (later === undefined
             ? ""
             : `; the later verifier-blocked by ${later.verifier || "unknown"} (evidence: ${later.evidence}) does not answer it`),
@@ -278,8 +325,8 @@ export function check(
         kind,
         stale,
         reason: passing
-          ? `${row.verdict} at ${short(sha)} by ${by}`
-          : `latest closing verdict at ${short(sha)} is ${row.verdict} by ${by}, which does not clear ${min}`,
+          ? `${row.verdict} at ${short(at)} by ${by}`
+          : `latest closing verdict at ${short(at)} is ${row.verdict} by ${by}, which does not clear ${min}`,
       };
     }
     case "discounted": {
@@ -291,7 +338,7 @@ export function check(
         best: row,
         kind,
         stale,
-        reason: `${row.verdict} at ${short(sha)} by ${row.verifier} cites the ${ownReport(role)} (evidence: ${row.evidence}), so it is not an independent approval`,
+        reason: `${row.verdict} at ${short(at)} by ${row.verifier} cites the ${ownReport(role)} (evidence: ${row.evidence}), so it is not an independent approval`,
       };
     }
     case "author-only": {
@@ -302,8 +349,8 @@ export function check(
         kind,
         stale,
         reason: passing
-          ? `${row.verdict} at ${short(sha)} by ${row.verifier || "unknown"} (the author's own verdict, not an independent approval)`
-          : `best verdict at ${short(sha)} is ${row.verdict}, which does not clear ${min} (the author's own verdict)`,
+          ? `${row.verdict} at ${short(at)} by ${row.verifier || "unknown"} (the author's own verdict, not an independent approval)`
+          : `best verdict at ${short(at)} is ${row.verdict}, which does not clear ${min} (the author's own verdict)`,
       };
     }
   }
