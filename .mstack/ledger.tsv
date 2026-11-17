@@ -123,3 +123,4 @@ gate-closes-over-a-rejection	28122f69c38f41482a5cd4251e1ab30772ed4dbd	live-verif
 intake-step	745df8145172beee0ba90917a43d89bc78f634da	live-verified	.mstack/progress/impl_intake-step.md	implementer	2026-11-17T08:41:35.181Z
 intake-step	daacfbffb03c61709963aa12d2b8f0e129198983	verifier-failed	.mstack/progress/review_intake-step.md	reviewer	2026-11-17T09:10:11.922Z
 intake-step	d3d41e832c9b82e680ada817d8ed87d31d2c4482	test-verified	.mstack/progress/impl_intake-step_r2.md	implementer	2026-11-17T09:25:12.159Z
+intake-step	b61b69470a06f6ee674e80587498d8768275511a	verifier-failed	.mstack/progress/review_intake-step_r2.md	reviewer	2026-11-17T09:53:53.933Z
