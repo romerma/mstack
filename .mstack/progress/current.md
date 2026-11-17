@@ -6,10 +6,10 @@
 > On close: append the summary to `history.md` and reset this file to the
 > empty template below.
 
-- **Item:** none active (46 closed 2026-11-17; item 50 waits for the user's icon answer)
-- **Status:** -
-- **Branch:** main
-- **Base:** -
+- **Item:** 70 gate-closes-over-a-rejection
+- **Status:** in_progress (bug-fix playbook, steps 1, 2 and 4 done)
+- **Branch:** fix/gate-closes-over-a-rejection
+- **Base:** 7283bbe
 - **Worktree:** none
 
 ## Plan
@@ -45,15 +45,12 @@ passes bypassPermissions. Do not run `check.mjs` or `verify.mjs` while a batch i
 
 ## Next step
 
-Phase 0: 52, 53, 54, 47 and 46 are closed. Item 50 (`plugin validate --strict`) needs the user:
-its acceptance says the icon is the user's call, because the first saved icon becomes the
-listing icon permanently.
+Item 70. Reproduced in a throwaway store: implementer pass, reviewer approval, then reviewer
+`verifier-failed` citing `impl_demo.md` at one sha. `ledger check` FAILs; `state set --status
+done` succeeds and the gate PASSES. Design recorded (row of phase `design`): one reader of the
+verdict for both, a rejection stands until a later independent approval. An implementer has the
+brief and writes the red tests first; its report goes to `impl_gate-closes-over-a-rejection.md`.
+Then a fresh reviewer on a different model.
 
-Not blocked, in order of weight:
-1. Item 70: the gate closes an item over two kinds of standing rejection. Code only.
-2. Push `main` (local only since 2026-11-08), which needs the user's go-ahead and is the only
-   way to see CI on ubuntu and on node 22.6.
-3. Phase 1 (55 intake, 56 test-first reference). Both change skills and agents and have
-   acceptance lines that need the plugin really loaded (`claude --plugin-dir .`): a request
-   driven through `/mstack` in the sandbox, a subagent quoting a preloaded skill. Item 69 needs
-   the same for the cost rows.
+Waiting on the user: item 50 (the plugin icon), and the go-ahead to push `main`, local only
+since 2026-11-08. Then phase 1 (55, 56) and item 69, which need the plugin really loaded.
