@@ -22,7 +22,8 @@ $ARGUMENTS
    [references/intake.md](references/intake.md). Skip it for routes that are not new work:
    resuming an item in flight, answering a parked fork, a request that names an existing item (a
    `pending` one that work starts on moves as intake's End says: `in_progress` or `specifying`),
-   understanding or investigating, verifying, reviewing, shipping, a commit message, cleanup.
+   understanding or investigating, verifying, reviewing, shipping, a commit message, cleanup,
+   deepening (the playbook files its own items).
    Say which in one line (`skip: <reason>`). It ends with
    `mstack state add --slug <s> --title <t> --acceptance "..." --source "..." --seam "..."`,
    plus `--decision-required "..."` when a product fork or irreversible choice is open. Facts
@@ -42,6 +43,7 @@ the list with a one-line `skip: <reason>`. Skipping silently is not allowed.
 | Something broken, wrong, or slower than it should be | [bug-fix](playbooks/bug-fix.md) |
 | Building something new | [feature](playbooks/feature.md) |
 | Changing structure without changing behaviour | [refactor](playbooks/refactor.md) |
+| Reviewing the architecture, or finding where the code should be deeper | [deepen](playbooks/deepen.md) |
 | Proving a change actually works | `/mstack:verify` |
 | Judging work that already exists | `/mstack:review` |
 | Getting a change merged | `/mstack:ship` |
