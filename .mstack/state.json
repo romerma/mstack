@@ -760,7 +760,7 @@
         "text derived from mattpocock/skills or obra/superpowers carries an origin header (repository, path, commit), and both MIT notices ship inside the plugin directory",
         "one real request driven through /mstack in the sandbox produces an item with source, acceptance and seams; the transcript is pasted in the report"
       ],
-      "status": "pending",
+      "status": "in_progress",
       "description": "state add appears only in setup and in the orchestrate playbook, 20 of 51 items have no source, and --resolves was used in 2 of 112 decision rows because nothing raised decision_required in time. The intake is derived from the structure of mattpocock/skills grilling (design tree, frontier, recommended answer, 'finding facts is your job') and the 'rulings, not stalls' pattern of obra/superpowers. It is not grilling and must not be called that: its author says an agent that answers its own decisions has broken the skill. Runs in the main session, because a subagent has no AskUserQuestion.",
       "decision_required": "A real grilling session is open-ended and waits for the user; the router says 'Ask at most three questions' and principles say 'Never block on the human'. Either intake is always autonomous under the three-question cap, or it is autonomous by default with an interactive mode (full rounds, no cap) that turns on only when the request asks for it, which needs a named exception to the cap.",
       "decision_resolved": "2026-11-16T16:38:47.460Z",

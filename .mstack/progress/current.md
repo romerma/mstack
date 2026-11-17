@@ -6,10 +6,10 @@
 > On close: append the summary to `history.md` and reset this file to the
 > empty template below.
 
-- **Item:** none active (70 closed 2026-11-17; item 50 waits for the user's icon answer)
-- **Status:** -
-- **Branch:** main
-- **Base:** -
+- **Item:** 55 intake-step
+- **Status:** in_progress (implementer briefed)
+- **Branch:** feat/intake-step
+- **Base:** b9a12f7
 - **Worktree:** none
 
 ## Plan
@@ -45,16 +45,19 @@ passes bypassPermissions. Do not run `check.mjs` or `verify.mjs` while a batch i
 
 ## Next step
 
-Phase 0 is done except item 50: closed 52, 53, 54, 47, 46, and item 70 found on the way.
+Item 55 in flight on `feat/intake-step`. Design row of 2026-11-17: intake is orient step 3 in
+the router, method in `skills/router/references/intake.md`, seams as an item field now
+(`state add --seam`), MIT notices under `licenses/`.
 
-Waiting on the user:
-- Item 50 (`plugin validate --strict`): the icon is the user's call per its own acceptance.
-- Pushing `main`, local only since 2026-11-08: the only way to see CI on ubuntu and node 22.6.
+1. Implementer writes `.mstack/progress/impl_intake-step.md`; check it exists.
+2. `state set 55 --status reviewing`, reviewer (other model) probes with the real CLI and a
+   headless `claude -p --plugin-dir .` run in a throwaway project.
+3. On approval: close, history entry, merge into `main`, push `main` (standing yes from the
+   user, 2026-11-17), check CI.
 
-Next, not blocked:
-1. Phase 1: 55 intake-step (its fork is answered) and 56 test-first-reference. Both change
-   skills and agents and have acceptance lines that need the plugin really loaded: relaunch
-   with `claude --plugin-dir .` and run `/mstack continue with item 55`. Item 69 needs the same
-   session for the cost rows.
-2. Follow-ups filed this session, by weight: 71 (closing commit unrecorded), 66 (lock), 68
-   (state writes), 67 (three load-sensitive tests, maybe item 21), 69 (hook log).
+`main` was pushed on 2026-11-17 at `b9a12f7`; CI run 44045047755 green on both jobs (`test`
+and `oldest-node`).
+
+Waiting on the user: item 50 (`plugin validate --strict`), the icon is their call.
+
+After 55: 56 test-first-reference, then follow-ups 71, 66, 68, 67, 69.
