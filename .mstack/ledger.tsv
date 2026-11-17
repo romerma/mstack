@@ -143,3 +143,4 @@ deep-module-vocabulary	c6041be0e156bc1b5323c59c8d1c6e13e6bd2063	verifier-failed	
 deep-module-vocabulary	3a978df366b9f30b83af7534809b345fa77a90b3	test-verified	.mstack/progress/impl_deep-module-vocabulary_r3.md	implementer	2026-11-17T17:39:46.520Z
 deep-module-vocabulary	c53df60ec8b2bcf1fe7675778150c97da5c65c34	verifier-failed	.mstack/progress/review_deep-module-vocabulary_r3.md	reviewer	2026-11-17T17:55:19.913Z
 deep-module-vocabulary	d3122c26d7276035c8541fcfe4008ca84fa5dc1e	test-verified	.mstack/progress/review_deep-module-vocabulary_r4.md	reviewer	2026-11-17T18:07:02.576Z
+glossary-and-adr	7e8b2b7df639b2035f6997310f6baa2bb65bcef7	test-verified	.mstack/progress/impl_glossary-and-adr.md	implementer	2026-11-17T18:35:49.222Z
