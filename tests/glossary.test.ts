@@ -408,7 +408,7 @@ test("a bold label under a heading term belongs to that term, directly under its
   }
 });
 
-test("a file whose terms are headings is read by its headings whatever bold lines it also has", GATE_TEST, () => {
+test("a file whose terms are headings is read by its headings whatever bold lines their sections hold", GATE_TEST, () => {
   const seeAlso = check("# G\n\n## Order\n\nA request to buy something.\n\n## Invoice\n\nA bill sent after delivery.\n\n**See also:** Order.\n");
   expectPass(seeAlso.report, "one See also line");
   assert.match(seeAlso.out, /\[ok\]\s+GLOSSARY\.md: 2 entries, each a term with a one or two sentence definition/);
@@ -505,4 +505,10 @@ test("a bold phrase that starts a later line of a paragraph is not named as an e
   const { report } = check("# G\n\nThe words of the shop, written\n**before** the code that uses them.\n\n**Order**: A request.\n");
   expectPass(report, "a wrapped paragraph");
   assert.deepEqual(glossaryWarnings(report), []);
+});
+
+test("a #### heading is not a term heading: only ## and ### are", GATE_TEST, () => {
+  const { report } = check("# G\n\n#### Order\n\nA request to buy something.\n");
+  expectPass(report, "a level-4 heading");
+  assert.deepEqual(glossaryWarnings(report), ["GLOSSARY.md: no entry recognised; entries are **Term**: or **Term:** (also as a list item) followed by the definition, or a ## Term or ### Term heading followed by a paragraph"]);
 });
