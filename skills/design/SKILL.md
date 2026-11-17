@@ -48,7 +48,7 @@ One judge, on a **different model** from the generators, scoring against the cri
 
 ## Red flags
 
-- **Shallow module.** Fails the deletion test in [deep modules](references/deep-modules.md).
+- **Shallow module.** As [deep modules](references/deep-modules.md) defines it.
 - **Information leakage.** The same design decision appears in two places.
 - **Temporal decomposition.** Modules split by execution order rather than by what they hide.
 - **Pass-through method.** A method that does nothing but call another with the same signature.

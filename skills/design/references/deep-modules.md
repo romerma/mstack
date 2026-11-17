@@ -1,10 +1,10 @@
-<!-- Origin: vocabulary and tests from mattpocock/skills, skills/engineering/codebase-design/SKILL.md, DEEPENING.md and DESIGN-IT-TWICE.md @ 49dd158d1076134a641b33efb035946536778336 (MIT, licenses/mattpocock-skills-LICENSE.txt). Adapted: reduced to terms and tests with no process, because the source's own documentation records a session spending 100k tokens redesigning things nobody asked about when it ran as one. -->
+<!-- Origin: vocabulary and tests from mattpocock/skills, skills/engineering/codebase-design/SKILL.md and DEEPENING.md @ 49dd158d1076134a641b33efb035946536778336 (MIT, licenses/mattpocock-skills-LICENSE.txt). Adapted: reduced to terms and tests with no process, because the source's own documentation records a session spending 100k tokens redesigning things nobody asked about when it ran as one. -->
 
 # Deep modules
 
-Terms and tests, not a procedure. Apply them to the change in front of you and to nothing
-else: do not go looking for more to redesign. Use these words exactly; "component",
-"service", "API" and "boundary" blur them.
+Terms and tests, not a procedure. When judging or designing a change, apply them to that
+change and to nothing else: do not go looking for more to redesign. Use these words exactly;
+"component", "service", "API" and "boundary" blur them.
 
 - **Module**: anything with an interface and an implementation, at any scale: a function, a
   class, a package, a slice across tiers.
