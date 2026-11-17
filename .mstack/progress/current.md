@@ -6,10 +6,10 @@
 > On close: append the summary to `history.md` and reset this file to the
 > empty template below.
 
-- **Item:** 57 deep-module-vocabulary
-- **Status:** in_progress (implementer briefed)
-- **Branch:** feat/deep-module-vocabulary
-- **Base:** 9ac4e7d
+- **Item:** none active (57 closed 2026-11-17)
+- **Status:** -
+- **Branch:** main
+- **Base:** -
 - **Worktree:** none
 
 ## Plan
@@ -32,7 +32,7 @@ watch is review rounds per item: if they do not drop after phase 1, intake is ce
 
 - Easy tier: `impl_benchmark-harness_baseline.md`.
 - Hard tier: `impl_benchmark-hard-tier_baseline.md`.
-- 2026-11-16 and 17: items 52 to 75 filed; 52, 53, 54, 47, 46, 70, 55, 56, 73 and 74 closed; see `history.md`.
+- 2026-11-16 and 17: items 52 to 81 filed; 52, 53, 54, 47, 46, 70, 55, 56, 73, 74 and 57 closed; see `history.md`.
 - Sessions launched as plain `claude` have no mstack plugin: no `mstack:*` agents, no hooks, no
   cost rows. On 2026-11-16 the user chose to continue anyway, with general-purpose agents
   briefed from `agents/*.md` (Sonnet implements, Opus reviews).
@@ -45,7 +45,7 @@ passes bypassPermissions. Do not run `check.mjs` or `verify.mjs` while a batch i
 
 ## Next step
 
-Phases 0 and 1 are closed, except item 50 (waits for the user).
+Phases 0 and 1 are closed, except item 50 (waits for the user). Phase 2 has 57 closed.
 
 Waiting on the user, each asked on 2026-11-17 with a recommendation of yes:
 - Item 72 `unattended-run-forks`: does an unattended run take a fork's recommended answer as a
@@ -57,15 +57,13 @@ Record each answer with `mstack decide --resolves <slug>`.
 
 Standing: push `main` after closing work and check CI (user, 2026-11-17).
 
-In flight: 57 on `feat/deep-module-vocabulary`. Round 3 (items 76 to 80 rewritten, every claim
-re-run after the edit) is in `impl_deep-module-vocabulary_r3.md`; next is the round 3 review by
-a fresh Opus context, then close, merge, push.
-
 Next, not blocked:
-1. Phase 2 (57 in flight), the rest of the skills integration: 57 deep-module-vocabulary, 58 glossary-and-adr,
-   59 diagnosis-loop-in-bug-fix, 60 ship-pr-body, 61 verify-claim-gate,
-   62 review-findings-verified-first, 64 plans-for-a-contextless-executor.
-2. Durability follow-ups: 71, 66, 68, 67, 69.
+1. Phase 2: 58 glossary-and-adr (the other half of grill-with-docs), then 59, 60, 61, 62, 64.
+2. Architecture candidates filed by the deepen playbook: 76 to 80, and 81.
+3. Durability follow-ups: 71, 66, 68, 67, 69.
+
+Lesson for briefs that make an agent file items: every assertion about the code goes in only
+with the command that shows it, re-run after the edit (item 57 took four rounds over this).
 
 Read an item with `./bin/mstack state show <ref>`. Live checks: a headless
 `claude -p --plugin-dir .` run in a copy of `sandbox/bench/template`; the wrapper is in

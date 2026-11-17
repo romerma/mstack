@@ -1160,3 +1160,44 @@ formula guard in `src/tsv.ts`; nothing reads that field, and the wiki sentence w
 
 **Session tally, 2026-11-17.** Closed: 55 (3 rounds), 56 (1), 73 (2), 74 (2). Filed: 72 to 75.
 Suite: 529 tests at the start of the day, 592 now, green on bun, node 26 and node 22.6.
+
+## 2026-11-17 — item 57 deep-module-vocabulary, closed
+
+**What changed.** `skills/design/references/deep-modules.md` (40 lines) holds the deep-module
+vocabulary adapted from `mattpocock/skills` codebase-design: module, interface, depth, the
+deletion test, the interface as the test surface, seams and adapters, the dependency
+categories. It is vocabulary and contains no procedure. The design skill points at it and
+defines each term once. `design` is a review lens: a reviewer given it reads the reference
+through `${CLAUDE_PLUGIN_ROOT}`, and a reviewer without it never does. A new playbook,
+`skills/router/playbooks/deepen.md` (56 lines), is routed from "review the architecture": it
+skips intake, finds candidates with the vocabulary, keeps at most five, re-derives every count,
+file, line and function by search just before filing, files each with `state add`, asks the user
+nothing and implements nothing.
+
+**Rounds: 4**, recorded in the `review-r3` and `review-r4` decision rows. The product was sound
+from round 2; three rounds were about the truth of what the playbook filed on this repository.
+- Round 1, rejected: four of the five filed items (76 to 80) stated something false about the
+  code, such as nine git call sites where there were more, and a switch that does not exist.
+- Round 2, rejected: the corrections introduced new false statements. The playbook gained its
+  check before filing, which took three wordings and then held on the reviewer's two runs: six
+  items, every claim true.
+- Round 3, rejected: 76 of 78 assertions true; item 79 treated two dirty checks as one question,
+  while `worktree.ts` `isDirty` includes ignored files on purpose.
+- Round 4, approved: `review_deep-module-vocabulary_r4.md`, `test-verified` at `d3122c2` by
+  reviewer. Item 79 dropped the dirty state; 34 assertions re-derived.
+
+**What the rounds showed.** An agent that files work items states counts and line numbers it has
+not checked, and correcting them by rewriting adds new ones. What worked was stating less:
+every assertion kept only with the command that shows it, re-run after the edit. Round 3 was
+written by Opus and reviewed by Opus in a fresh context; round 4's edit was made by the
+coordinator and only deleted claims.
+
+**Measured.** A deepen run costs about 1 USD and two to three minutes. On a queue that already
+holds the candidates it files nothing (0.33 USD).
+
+**Filed.** Items 76 to 80 from the playbook; item 81 `cli-help-everywhere` from what the runs
+found beyond them. A third further candidate, the report filename grammar with no builder, is
+true by the round 2 review and left for the next deepen run to file with its own check.
+
+**Session tally, 2026-11-17.** Closed: 55 (3 rounds), 56 (1), 73 (2), 74 (2), 57 (4). Filed: 72
+to 81. Suite: 529 tests at the start of the day, 592 now, green on bun, node 26 and node 22.6.
