@@ -267,6 +267,7 @@ test("a file in which no entry is recognised warns once, names the recognised fo
     assert.equal(warnings.length, 1, JSON.stringify(warnings));
     assert.match(warnings[0] ?? "", /^GLOSSARY\.md: no entry recognised; entries are \*\*Term\*\*: or \*\*Term:\*\* \(also as a list item\) followed by the definition, or a ## Term or ### Term heading followed by a paragraph$/);
     assert.ok(!/delete|remove the file/i.test(out), out);
+    assert.ok(!/\[ok\]\s+GLOSSARY\.md/.test(out), `an [ok] line for a file with no entry:\n${out}`);
   }
 });
 

@@ -121,7 +121,9 @@ function checkGlossary(store: Store, report: Report): void {
     return;
   }
   const count = `GLOSSARY.md: ${entries} ${entries === 1 ? "entry" : "entries"}`;
-  report.ok(warnings.length === 0 ? `${count}, each a term with a one or two sentence definition` : count);
+  if (entries > 0 || warnings.length === 0) {
+    report.ok(warnings.length === 0 ? `${count}, each a term with a one or two sentence definition` : count);
+  }
   for (const warning of warnings) report.warn(`${at(warning.line)}: ${warning.message}`);
 }
 
