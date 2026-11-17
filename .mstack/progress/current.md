@@ -6,10 +6,10 @@
 > On close: append the summary to `history.md` and reset this file to the
 > empty template below.
 
-- **Item:** 74 state-cli-ergonomics
-- **Status:** in_progress (implementer briefed)
-- **Branch:** fix/state-cli-ergonomics
-- **Base:** 14c2b6c
+- **Item:** none active (74 closed 2026-11-17)
+- **Status:** -
+- **Branch:** main
+- **Base:** -
 - **Worktree:** none
 
 ## Plan
@@ -32,7 +32,7 @@ watch is review rounds per item: if they do not drop after phase 1, intake is ce
 
 - Easy tier: `impl_benchmark-harness_baseline.md`.
 - Hard tier: `impl_benchmark-hard-tier_baseline.md`.
-- 2026-11-16 and 17: items 52 to 75 filed; 52, 53, 54, 47, 46, 70, 55, 56 and 73 closed; see `history.md`.
+- 2026-11-16 and 17: items 52 to 75 filed; 52, 53, 54, 47, 46, 70, 55, 56, 73 and 74 closed; see `history.md`.
 - Sessions launched as plain `claude` have no mstack plugin: no `mstack:*` agents, no hooks, no
   cost rows. On 2026-11-16 the user chose to continue anyway, with general-purpose agents
   briefed from `agents/*.md` (Sonnet implements, Opus reviews).
@@ -57,13 +57,12 @@ Record each answer with `mstack decide --resolves <slug>`.
 
 Standing: push `main` after closing work and check CI (user, 2026-11-17).
 
-In flight: 74 on `fix/state-cli-ergonomics`; then review by the other model, close, merge, push.
-
 Next, not blocked:
-1. 74 state CLI (in flight) (`state show`, `--help` on subcommands, values that start with `--`): agents
-   tripped on it in every live run.
-2. 71, 66, 68, 67, 69.
-3. Phase 2: 57, 58, 59, 60, 61, 62, 64.
+1. Phase 2, the rest of the skills integration: 57 deep-module-vocabulary, 58 glossary-and-adr,
+   59 diagnosis-loop-in-bug-fix, 60 ship-pr-body, 61 verify-claim-gate,
+   62 review-findings-verified-first, 64 plans-for-a-contextless-executor.
+2. Durability follow-ups: 71, 66, 68, 67, 69.
 
-Live checks: a headless `claude -p --plugin-dir .` run in a copy of `sandbox/bench/template`;
-the wrapper is in `review_intake-step.md` under Probe C.
+Read an item with `./bin/mstack state show <ref>`. Live checks: a headless
+`claude -p --plugin-dir .` run in a copy of `sandbox/bench/template`; the wrapper is in
+`review_intake-step.md` under Probe C.

@@ -1131,3 +1131,32 @@ add `Co-Authored-By` trailers (item 35), and `tests/costs.test.ts:698` failed on
 
 **Session tally, 2026-11-17.** Closed: 55 (3 rounds), 56 (1), 73 (2). Filed: 72 to 75. Suite:
 553 tests, green on both runtimes.
+
+## 2026-11-17 — item 74 state-cli-ergonomics, closed
+
+**What changed.** `mstack state show <ref> [--json]` prints one item with every field it
+carries, unknown keys included; `--json` is the raw object, accepted before or after the ref.
+`--help` and `-h` on `state add`, `state set`, `state show` and `decide` print that command's
+flags from option tables in a new `src/cliopts.ts` that the parsers also read, so help and
+parser cannot drift; `state --help` points at them. A value that starts with `--` is refused in
+mstack's own words, the same on bun and node, naming the `--flag=value` form. `state set
+--acceptance` that replaces existing criteria prints a line naming `--add-acceptance`.
+`feature.md` and `agents/implementer.md` now name `state show` as the way to read seams.
+
+**Rounds: 2.**
+- Round 1, rejected: on a store where two items share an id, `state show <second-slug>` printed
+  the first item at exit 0.
+- Round 2, approved: `review_state-cli-ergonomics_r2.md`, `live-verified` at `a5030ee` by
+  reviewer. `state show` refuses an item whose id another item shares, the way the writers do.
+  Ten duplicate-id stores on bun, node 26 and node 22.6: every shared-id item refused, every
+  unique one printing itself; at the round 1 head the same calls answered for the wrong item in
+  8 of 10 stores. A 109-command matrix of existing commands differs only where the item asked.
+
+**Accepted limits, added to item 68.** `state show` on a shared slug still prints the first
+item; `updateState` copies unknown keys between duplicates on a duplicate-id store (both
+unchanged from before); a done duplicate and `state --help` writing nothing are unpinned; the
+docs do not mention the refusal. `decide --decision=--z` is stored as `'--z` by the older
+formula guard in `src/tsv.ts`; nothing reads that field, and the wiki sentence was corrected.
+
+**Session tally, 2026-11-17.** Closed: 55 (3 rounds), 56 (1), 73 (2), 74 (2). Filed: 72 to 75.
+Suite: 529 tests at the start of the day, 592 now, green on bun, node 26 and node 22.6.

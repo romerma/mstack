@@ -931,7 +931,10 @@
         "a state.json that is a symlink stays a symlink across a write, and the file's mode is kept; a test shows both",
         "a leftover temp file with a recurring pid never fails a write",
         "the known-key lists cannot drift from parseItem: one source, or a test that fails when they differ",
-        "state set --status done holds the state lock only for the read-modify-write, or the report shows why the git work has to sit inside it; surviving mutants M7b and M16 are killed or the code removed"
+        "state set --status done holds the state lock only for the read-modify-write, or the report shows why the git work has to sit inside it; surviving mutants M7b and M16 are killed or the code removed",
+        "on a store where two items share an id or a slug, no command answers for or writes to the wrong item: state show on a shared slug refuses as the writers do, and updateState and decide --resolves do not copy unknown keys between the duplicates",
+        "a test pins that state show refuses a shared id when the first of the pair is done, and that state --help writes nothing",
+        "CHANGELOG.md, docs/wiki/The-CLI.md and mstack help mention the state show refusal, --json in either position and state --help"
       ],
       "status": "pending",
       "description": "Item 53 closed with a list of non-blocking findings, each run by a reviewer. decide --resolves takes the decisions lock and then the state lock, never nested: a state-lock timeout after the row is written leaves a row with no pointer, and the message does not say the row was recorded. updateState renames a new file over the target, so a symlinked state.json becomes a regular file and the file mode is not kept. A leftover temp file whose pid comes round again fails one write with EEXIST. state set --status done does git work while holding the lock. The lists of known keys are kept in step with parseItem by hand.",
@@ -1035,7 +1038,7 @@
         "state set --acceptance on an item that already has criteria names --add-acceptance in its output, so an append meant as an append is not a silent replace",
         "state add --help, state set --help and decide --help print that command's flags and exit 0, so an agent does not hand-edit state.json after a failed --help"
       ],
-      "status": "reviewing",
+      "status": "done",
       "description": "In the item 55 live runs four agents tried 'mstack state show' first and one wrote it into a current.md note; three had a state add or decide refused because a value began with --; one replaced six criteria with one through --acceptance and had to restore them. state list prints only label and title, so nothing prints an item's seams or source.",
       "source": "item 55 reviews: review_intake-step.md N-9, review_intake-step_r2.md N-6, review_intake-step_r3.md N-8; sandbox/PROTOCOL.md F1; 2026-11-17",
       "seams": [
