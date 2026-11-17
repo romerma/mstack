@@ -81,6 +81,20 @@ test("state set --seam replaces the list, says what it dropped, and counts as an
     assert.match(set.stdout, /seams: 2 seam\(s\) replaced with 1/);
     assert.match(set.stdout, /dropped "CLI: `mstack state add` exit code and stdout"/);
     assert.match(set.stdout, /dropped "`withLock\(file, run, opts\)` in src\/tsv\.ts"/);
+    assert.match(set.stdout, /added "the only seam left"/, "a replacement names what it added too");
+  } finally {
+    sb.dispose();
+  }
+});
+
+test("clearing another field on an item with seams does not report a dropped seam", () => {
+  const sb = sandbox();
+  try {
+    sb.writeState(state([item({ seams: [A, B], source: "issue #4" })]));
+    const cleared = run(sb.store.root, ["state", "set", "1", "--clear", "source"]);
+    assert.equal(cleared.code, 0, cleared.stderr);
+    assert.deepEqual(only(sb).seams, [A, B], "the seams are untouched");
+    assert.doesNotMatch(cleared.stdout, /dropped/, "nothing was dropped, so nothing may say so");
   } finally {
     sb.dispose();
   }
