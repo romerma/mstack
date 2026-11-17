@@ -97,7 +97,7 @@ export function resolveSha(store: Store, sha: string): string | undefined {
  * repository's append-only ledger) that is a prefix of the full sha. A string
  * comparison: no git call, because the status line reads through here.
  */
-function sameCommit(rowSha: string, sha: string): boolean {
+export function sameCommit(rowSha: string, sha: string): boolean {
   if (rowSha === sha) return true;
   return rowSha.length >= 7 && rowSha.length < sha.length && ABBREVIATED.test(rowSha) && sha.toLowerCase().startsWith(rowSha.toLowerCase());
 }
@@ -193,7 +193,13 @@ export function describeRow(e: Entry): string {
   return `${e.verdict} at ${short(e.sha)} by ${e.verifier || "unnamed"} (evidence: ${e.evidence})`;
 }
 
-const isRejection = (e: Entry) => e.verdict === "verifier-failed" || e.verdict === "verifier-blocked";
+/**
+ * Only a `verifier-failed` is exempt from the citation filter. A `verifier-blocked`
+ * is a closing verdict in the gate (the escape hatch for an item nothing can
+ * verify), so one resting on the author's own report is that report under a
+ * reviewer's name, exactly like an approval that does, and is discounted.
+ */
+const isRejection = (e: Entry) => e.verdict === "verifier-failed";
 
 /**
  * The one reader of the verdict. `ledger check` (one sha) and the gate's closing
@@ -208,8 +214,10 @@ const isRejection = (e: Entry) => e.verdict === "verifier-failed" || e.verdict =
  *
  * A role "that can close an item" is `canCloseAnItem`. An APPROVAL whose evidence
  * points at an implementing role's own report is that report under a reviewer's
- * name and is discounted; a REJECTION is never discounted, because citing the
- * report it rejects is ordinary prose and dropping it could only hide a failure.
+ * name and is discounted, and so is a `verifier-blocked` that does (it would
+ * otherwise be the escape hatch); a `verifier-failed` is never discounted, because
+ * citing the report it rejects is ordinary prose and dropping it could only hide a
+ * failure.
  */
 export function readVerdict(rows: readonly Entry[], slug: string): Reading | undefined {
   if (rows.length === 0) return undefined;
@@ -356,6 +364,6 @@ export function check(
   }
 }
 
-function short(sha: string): string {
+export function short(sha: string): string {
   return sha.slice(0, 8);
 }
