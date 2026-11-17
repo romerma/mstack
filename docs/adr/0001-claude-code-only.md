@@ -2,8 +2,14 @@
 
 Status: accepted. Decided 2026-10-31, written down 2026-11-17.
 
-On 2026-10-31 the maintainer dropped `feat/portable-core`, a branch begun on 2026-08-25 that added Grok and Cursor hook envelopes, a root manifest for the Agent Plugins format, a `.cursor-plugin/` directory and a setup step that wrote `.grok/` and `.cursor/` hook files. mstack stays a Claude Code plugin: its enforcement lives in hooks and subagents, which belong to the host, so a second host means a second hook and agent contract to keep correct beside the first.
+On 2026-10-31 the maintainer dropped the branch `feat/portable-core`, and mstack stays a Claude Code plugin only. By the project's note of that day, which is kept outside this repository, the branch held Grok and Cursor hook envelopes, an Agent Plugins root manifest, a `.cursor-plugin/` directory and a setup that wrote `.grok/` and `.cursor/` hook files. The decision came after a two-month pause, and two defects in the port were still open: setup overwrote an existing `.cursor/hooks.json`, and it wrote absolute binary paths specific to one machine.
 
-The trade-off is reach against upkeep. Users of Cursor and Grok are given up; in return there is one contract, and every hook, agent and setup change is checked against one host. The branch also had open defects when it was dropped: setup overwrote an existing `.cursor/hooks.json` and wrote absolute binary paths specific to one machine.
+Given up: running mstack on Grok or Cursor. Kept: one host to target.
 
-All three conditions hold. Reversing it is hard because the branch no longer exists in the repository, so a port starts again from nothing. It is surprising because mstack is built on pstack, a Cursor plugin, and the research notes under `docs/` still discuss Cursor. It is a real trade-off because the port was built, worked on for two months, and weighed against its upkeep before it was dropped.
+The note records this as a product decision and gives no further reasoning, so this ADR adds none.
+
+## What the record shows against the three conditions
+
+- **Hard to reverse.** The branch ref is gone, and none of its four commits in this clone is on a remote branch. In this clone the four commits are still in the object store (`git cat-file -t 760a281` prints `commit`) until a gc prunes them.
+- **Surprising without context.** The README says mstack is built on pstack, and `docs/wiki/The-Story.md` calls pstack a Cursor plugin.
+- **The result of a real trade-off.** The record names what was given up and what was kept. It names no alternative that was weighed.
