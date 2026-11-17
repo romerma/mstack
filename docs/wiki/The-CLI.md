@@ -561,10 +561,10 @@ $ mstack lint-plugin .
 [ok]    plugin name: mstack
 ...
 -- shipped commands
-[ok]    33 file(s), no command that would hang on stdin
+[ok]    35 file(s), no command that would hang on stdin
 
 -- cross-references
-[ok]    18 skills and agents, every cross-reference in 38 file(s) resolves
+[ok]    19 skills and agents, every cross-reference in 40 file(s) resolves
 
 -- single source of truth
 [ok]    the lifecycle enum appears only in src/lifecycle.ts
