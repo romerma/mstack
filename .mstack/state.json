@@ -807,7 +807,7 @@
         "intake and understand read the glossary; closing an item and reflect are where terms and ADRs are written, and only decisions meeting all three conditions become ADRs",
         "mstack gate checks the glossary's entry format"
       ],
-      "status": "verifying",
+      "status": "done",
       "description": "Derived from mattpocock/skills domain-modeling (the writing half of grill-with-docs). Reading the glossary and settling terms against the code need no human. An ADR is written only when a decision is hard to reverse, surprising without context and the result of a real trade-off. Its docs warn that an unreviewed agent-authored glossary is worse than none; here the glossary diff is part of the item and passes a reviewer that did not write it.",
       "source": "reports/Mejoras mstack con skills Pocock.md, 2026-11-16",
       "seams": [
@@ -924,7 +924,9 @@
       "acceptance": [
         "the cause of each failure is identified with runtime evidence, not guessed from the code",
         "each test passes 0 failures in at least 20 suites per runtime under the same load, with the load harness named in the report",
-        "the report says whether either one is item 21's unidentified failure, and item 21 is closed or updated accordingly"
+        "the report says whether either one is item 21's unidentified failure, and item 21 is closed or updated accordingly",
+        "the stop-minus-bare assertion at tests/costs.test.ts:743 (each side the max of three runs, difference under 50 ms) no longer fails on outside load: the closing gate of item 58 was red on it three runs of four on 2026-11-18 at load average 19 to 24",
+        "tests/verdict-reader.test.ts 'agree on every sequence' was given a 60 s timeout while closing item 58 (about 6 s under that load against bun's 5 s default); the report says whether the time is the test's or the code's"
       ],
       "status": "pending",
       "description": "Measured during the item 52, 53 and 54 reviews with four bun and two node suites running together. tests/run.test.ts:54 ('a temp directory was left behind') failed 7 of 20 bun and 2 of 10 node suites in one round and 3 of 8 bun suites in another; tests/costs.test.ts:698 failed 9 of 12, 2 of 10 and 4 of 4 node suites; tests/run.test.ts:239 (the SIGINT survivor) failed 2 of 4 node suites. None was touched by those items. Item 21 is a suite run that failed once and was never identified; this may be the same failure.",
@@ -1183,6 +1185,25 @@
       "source": "item 58 review, .mstack/progress/review_glossary-and-adr.md blocking finding 2, 2026-11-17; next to item 71",
       "seams": [
         "CLI: mstack ledger record --verifier <role>, state set --status done and gate, exit codes and stdout"
+      ]
+    },
+    {
+      "id": 83,
+      "slug": "glossary-check-followups",
+      "title": "The glossary check under-reads mixed files and three doc sentences overstate it: what the reviews of item 58 left non-blocking",
+      "acceptance": [
+        "a decide row settles which reading wins in a file with both bold entries and term headings; one bold line before the first ## (round 3 non-blocking 1, case b19) or one label-first heading (round 4 non-blocking 3, case m1) no longer lets a heading-per-term file's missing definition or repeated term pass, or the docs say that it does",
+        "a heading-per-term file whose bold label is the first line under each heading (round 3 blocking 1, cases x5 and b21) is not failed as a repeated term, or the decision to leave it failing is recorded",
+        "CHANGELOG.md:14-15 states the label exception the two docs state (round 4 non-blocking 1); domain-docs.md:23 does not say 'directly' of a label that follows a blank line (round 4 non-blocking 2); Gates-and-Hooks.md:289 is wrapped like its neighbours",
+        "'## C#' is read as the term C# (round 3 non-blocking 2); a duplicate written with emphasis or a code span is a repeated term (round 2 non-blocking 2); a four-backtick fence holding a three-backtick line is one block (round 2 non-blocking 4)",
+        "a dangling GLOSSARY.md symlink is a failure that says so (round 2 non-blocking 5); the ok line for an empty file does not say 'each a term with a one or two sentence definition' (round 2 non-blocking 6); the no-entry warning says entries start at the start of a line (round 3 non-blocking 4)",
+        "the Closing role or Verdict entry says an approval citing the author's own report does not count (round 2 non-blocking 12)",
+        "a step before the review writes the glossary entry or ADR, in the playbooks or the router, so 'written before the review' is something a pass meets (round 2 non-blocking 13)"
+      ],
+      "status": "pending",
+      "source": ".mstack/progress/review_glossary-and-adr_r2.md, _r3.md and _r4.md, non-blocking findings, 2026-11-17",
+      "seams": [
+        "CLI: mstack gate output and exit code on the cases named in the criteria"
       ]
     }
   ]

@@ -1201,3 +1201,35 @@ true by the round 2 review and left for the next deepen run to file with its own
 
 **Session tally, 2026-11-17.** Closed: 55 (3 rounds), 56 (1), 73 (2), 74 (2), 57 (4). Filed: 72
 to 81. Suite: 529 tests at the start of the day, 592 now, green on bun, node 26 and node 22.6.
+
+## 2026-11-18 - item 58 glossary-and-adr closed (4 rounds)
+
+`GLOSSARY.md` (14 terms), `docs/adr/0001-claude-code-only.md`, the format reference
+`skills/reflect/references/domain-docs.md`, and a gate check for the glossary's entry format
+(`src/glossary.ts`, wired in `src/gate.ts`). Intake and `understand` read the glossary; a term or
+an ADR is written before the review of the item that introduced it.
+
+- Round 1, rejected: six blocking findings. The coordinator's brief had invented a trade-off for
+  the ADR, and the implementer wrote "worked on for two months" where the record says a two-month
+  pause; two glossary entries were wrong; the check failed hand-written glossaries.
+- Round 2, rejected: glossary, ADR and criteria 1 to 3 sound. The check failed a repeated bold
+  label (`**Example:**`) as a repeated term, and one bold line stopped a heading-per-term file
+  from being read.
+- Round 3, rejected: the code matched the decided design in 77 cases; two docs said a bold label
+  anywhere under a term heading belongs to it, which the label-first layout contradicts.
+- Round 4, approved: `review_glossary-and-adr_r4.md`, `test-verified` at `af2edff` by reviewer.
+  Two doc sentences, written by the coordinator, each clause checked against `readGlossary`.
+
+**What the rounds showed.** A format check on free-form Markdown has no rule that reads every
+hand-written layout; each round found a new one. What ended it was one stated rule (a bold line
+inside an entry belongs to it), the limits written into the docs, and the rest filed. The ADR
+states only what the record shows and gives no reason for the decision; that is the user's to add.
+
+**Closing.** `gate --full` was red four times before it was green: once on
+`tests/verdict-reader.test.ts` (about 6 s under load against bun's 5 s default; the coordinator
+gave it a 60 s timeout, unreviewed, no assertion changed) and three times on
+`tests/costs.test.ts:743` in node at load average 19 to 24 from processes outside this work. It
+passed on the next run with nothing changed. Both are now in item 67.
+
+**Filed.** Item 82 `any-role-name-closes`; item 83 `glossary-check-followups` (the non-blocking
+findings of rounds 2 to 4); two criteria added to item 67.
