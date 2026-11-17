@@ -151,8 +151,18 @@ export function render(input: StatusInput, options: StatusOptions = {}): string 
       // ordinary sequence there is: verify, commit, verify again, fail.
       if (result.best !== undefined) {
         const verdict = result.best.verdict;
-        const colour = result.passing ? GREEN : verdict === "verifier-failed" ? RED : YELLOW;
-        parts.push(paint(colour, verdict, colours));
+        // Three states that all rendered as the same green: an independent approval,
+        // the author's own verdict, and an approval that cites the author's report.
+        // The kind comes from the reader `ledger check` and the gate share, so this
+        // adds no git call and no second reading of the rows.
+        if (result.kind === "author-only" && verdict !== "verifier-failed") {
+          parts.push(paint(YELLOW, `${verdict} (author only)`, colours));
+        } else if (result.kind === "discounted") {
+          parts.push(paint(RED, `${verdict} (not independent)`, colours));
+        } else {
+          const colour = result.passing ? GREEN : verdict === "verifier-failed" ? RED : YELLOW;
+          parts.push(paint(colour, verdict, colours));
+        }
       } else if (result.stale.length > 0) {
         // The whole reason this file exists. No count: `stale.length` is every
         // row at any other SHA, so it grew with the age of the item and said

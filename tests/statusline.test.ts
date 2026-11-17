@@ -559,3 +559,16 @@ test("an independent approval, an author-only verdict and a discounted approval 
   assert.ok(lines["discounted"]!.coloured.includes(`${RED}test-verified (not independent)`), JSON.stringify(lines["discounted"]));
   assert.doesNotMatch(lines["independent"]!.plain, /author|independent/);
 });
+
+test("an author's own verifier-failed stays a plain red failure, not an author-only label", () => {
+  const box = sandbox();
+  try {
+    box.writeState(state([item({ status: "verifying" })]));
+    record(box.store, { target: "storage-layer", sha: box.sha, verdict: "verifier-failed", evidence: "3 tests failed", verifier: "implementer" });
+    const coloured = render({ workspace: { current_dir: box.store.root } }, { colours: true });
+    assert.ok(coloured.includes(`${ESC}[31mverifier-failed${ESC}[0m`), JSON.stringify(coloured));
+    assert.doesNotMatch(coloured, /author only/);
+  } finally {
+    box.dispose();
+  }
+});
