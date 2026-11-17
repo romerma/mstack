@@ -18,9 +18,10 @@ $ARGUMENTS
 2. `mstack state active`. If something is in flight, read `.mstack/progress/current.md` and
    resume its recorded next step rather than starting over.
 3. **Intake**: turn the request into a queue item, by the method in
-   [references/intake.md](references/intake.md). Skip it when an item is already in flight and
-   you are resuming it, when the request names an existing item, or when it is not item-shaped
-   (a commit message, a cleanup); say which in one line. It ends with
+   [references/intake.md](references/intake.md). Skip it for routes that are not new work:
+   resuming an item in flight, a request that names an existing item, understanding or
+   investigating, verifying, reviewing, shipping, a commit message, cleanup. Say which in one
+   line (`skip: <reason>`). It ends with
    `mstack state add --slug <s> --title <t> --acceptance "..." --source "..." --seam "..."`,
    plus `--decision-required "..."` when a product fork or irreversible choice is open. Facts
    are found, reversible decisions are taken and recorded, forks reach the user once, late.
@@ -97,8 +98,9 @@ running something, it is not the human's to answer. Run the thing. The ask is th
 and it hands them a decision to make instead of a result to react to.
 
 Ask at most three questions, except in intake's interactive mode, which the request has to
-ask for and which has no cap. After three failed approaches to the same problem, record the
-diagnostics in `current.md` and stop.
+ask for and which has no cap, and except the fork round, which is one ask however many forks it
+carries. After three failed approaches to the same problem, record the diagnostics in
+`current.md` and stop.
 
 ## Principles
 

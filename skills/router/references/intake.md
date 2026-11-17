@@ -30,11 +30,15 @@ behind. Decisions that could not be undone are forks, not rows.
 
 All forks of one request go on the item as one `--decision-required` string, numbered, each
 with its recommended answer and worded so "yes" accepts it:
-`1) Should X also do Y? Recommended: yes, because Z. 2) ...`. One field and one `decide
---resolves <slug>` row answer them all: `--decision` lists the numbered answers and
-`--result` says what was chosen. If the user answers only some, re-state the field with the
-rest. Ask nothing about a fork while a fact or a reversible decision is still open: the user
-hears all forks once, late, in one numbered round, after `state add`.
+`1) Should X also do Y? Recommended: yes, because Z. 2) ...`. The user hears every fork once,
+in one numbered round after `state add`, and only once no fact or reversible decision is open.
+That round is the final message of the turn: stop there. When the answers arrive, resume at
+router step 4 (match and copy the playbook); an item with a fork is on the spec path.
+
+`--resolves <slug>` goes only on the `decide` row that answers every fork left in the field:
+`--decision` lists the numbered answers, `--result` says what was chosen. A partial answer never
+gets `--resolves`: record it as a plain `mstack decide --phase intake ...` row and re-state the
+field with only the unanswered forks, in either order.
 
 ## End
 
@@ -56,7 +60,8 @@ carries no seam, and the `--description` says why.
 
 A one-line request with nothing ambiguous costs a couple of lookups and one `state add`, not a
 study. If the request is a program of work (several changes, several tracks), do not make it one
-item: hand it to the [orchestrate](../playbooks/orchestrate.md) playbook, which adds its own items.
+item: hand it to the [orchestrate](../playbooks/orchestrate.md) playbook, which adds its own items. The forks of that
+request still reach the user in one round, each parked on the item it blocks.
 
 ## Interactive mode
 
