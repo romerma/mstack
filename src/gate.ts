@@ -108,7 +108,7 @@ function checkGlossary(store: Store, report: Report): void {
   const { entries, problems } = readGlossary(readFileSync(path, "utf8"));
   for (const problem of problems) {
     const where = problem.line > 0 ? `GLOSSARY.md:${problem.line}` : "GLOSSARY.md";
-    report.fail(`${where}: ${problem.message}`, "write a one or two sentence definition under a **Term**: line, or remove the entry (the reflect skill's domain-docs reference has the format)");
+    report.fail(`${where}: ${problem.message}`, problem.fix);
   }
   if (problems.length === 0) {
     report.ok(`GLOSSARY.md: ${entries} ${entries === 1 ? "entry" : "entries"}, each a term with a one or two sentence definition`);

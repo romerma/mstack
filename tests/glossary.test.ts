@@ -66,7 +66,7 @@ test("an entry with no definition fails and names the entry", () => {
   const sb = withGlossary("# G\n\n**Order**:\nA request to buy.\n\n**Receipt**:\n\n**Fork**: A choice.\n");
   try {
     const { report } = gate(sb);
-    expectFail(report, /GLOSSARY\.md:6: entry "Receipt" has no definition/, "empty definition");
+    expectFail(report, /GLOSSARY\.md:6: entry "Receipt" has no definition -> write one or two sentences under it, or remove the entry/, "empty definition");
     assert.equal(report.failures.length, 1, JSON.stringify(report.failures));
   } finally {
     sb.dispose();
@@ -76,7 +76,7 @@ test("an entry with no definition fails and names the entry", () => {
 test("a term defined twice fails, case-insensitively, naming both lines", () => {
   const sb = withGlossary("**Item**: A unit of work.\n\n**item**: Another unit.\n");
   try {
-    expectFail(gate(sb).report, /GLOSSARY\.md:3: entry "item" repeats "Item" from line 1/, "duplicate");
+    expectFail(gate(sb).report, /GLOSSARY\.md:3: entry "item" repeats "Item" from line 1 -> merge the two or rename one/, "duplicate");
   } finally {
     sb.dispose();
   }
@@ -85,7 +85,7 @@ test("a term defined twice fails, case-insensitively, naming both lines", () => 
 test("text after the first entry that belongs to no entry fails", () => {
   const sb = withGlossary("**Order**: A request.\n\nReceipt: a record of a run.\n");
   try {
-    expectFail(gate(sb).report, /GLOSSARY\.md:3: text outside any entry/, "no bold term");
+    expectFail(gate(sb).report, /GLOSSARY\.md:3: text outside any entry.* -> start it with a \*\*Term\*\*: line or delete it/, "no bold term");
   } finally {
     sb.dispose();
   }
@@ -95,7 +95,7 @@ test("a definition of three sentences fails; two pass, with abbreviations and co
   const long = withGlossary("**Order**: A request. It is placed. It is paid.\n");
   const ok = withGlossary("**Order**: A request, e.g. Basket or Cart. It ends at `deliver.ts. Done` or later, i.e. At the door.\n");
   try {
-    expectFail(gate(long).report, /GLOSSARY\.md:1: entry "Order" has 3 sentences/, "three sentences");
+    expectFail(gate(long).report, /GLOSSARY\.md:1: entry "Order" has 3 sentences.* -> cut it to the two that say what it is/, "three sentences");
     expectPass(gate(ok).report, "two sentences with abbreviations");
   } finally {
     long.dispose();

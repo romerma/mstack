@@ -21,6 +21,8 @@ export interface GlossaryProblem {
   /** The entry the problem is about, or null for a problem with the file. */
   readonly term: string | null;
   readonly message: string;
+  /** The next action, in one line. */
+  readonly fix: string;
 }
 
 export interface GlossaryReading {
@@ -61,12 +63,22 @@ export function readGlossary(source: string): GlossaryReading {
       return;
     }
     if (seenEntry) {
-      problems.push({ line: number, term: null, message: `text outside any entry: ${quote(line)}` });
+      problems.push({
+        line: number,
+        term: null,
+        message: `text outside any entry: ${quote(line)}`,
+        fix: "start it with a **Term**: line or delete it",
+      });
     }
   });
 
   if (entries.length === 0) {
-    problems.push({ line: 0, term: null, message: "no entries: each term is a line starting **Term**:" });
+    problems.push({
+      line: 0,
+      term: null,
+      message: "no entries: each term is a line starting **Term**:",
+      fix: "add an entry, or delete the file if the project has no glossary yet",
+    });
   }
 
   const first = new Map<string, Entry>();
@@ -78,13 +90,19 @@ export function readGlossary(source: string): GlossaryReading {
         line: entry.line,
         term: entry.term,
         message: `entry "${entry.term}" repeats "${earlier.term}" from line ${earlier.line}`,
+        fix: "merge the two or rename one",
       });
       continue;
     }
     first.set(key, entry);
     const definition = entry.text.join(" ").trim();
     if (definition === "") {
-      problems.push({ line: entry.line, term: entry.term, message: `entry "${entry.term}" has no definition` });
+      problems.push({
+        line: entry.line,
+        term: entry.term,
+        message: `entry "${entry.term}" has no definition`,
+        fix: "write one or two sentences under it, or remove the entry",
+      });
       continue;
     }
     const sentences = countSentences(definition);
@@ -93,6 +111,7 @@ export function readGlossary(source: string): GlossaryReading {
         line: entry.line,
         term: entry.term,
         message: `entry "${entry.term}" has ${sentences} sentences; a definition is one or two`,
+        fix: "cut it to the two that say what it is",
       });
     }
   }
