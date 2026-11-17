@@ -144,6 +144,11 @@ export interface Reading {
   readonly discounted: readonly { readonly entry: Entry; readonly role: string }[];
 }
 
+/** A row as one clause, for the messages that have to name the row that rejects. */
+export function describeRow(e: Entry): string {
+  return `${e.verdict} at ${short(e.sha)} by ${e.verifier || "unnamed"} (evidence: ${e.evidence})`;
+}
+
 const isRejection = (e: Entry) => e.verdict === "verifier-failed" || e.verdict === "verifier-blocked";
 
 /**

@@ -1,4 +1,5 @@
 import { headSha } from "./git.ts";
+import { describeRow, entries as ledgerEntries, readVerdict } from "./ledger.ts";
 import { requiresVerification, VERIFICATION_REQUIRED_FROM, type Status } from "./lifecycle.ts";
 import type { Store } from "./paths.ts";
 import type { Item, State } from "./state.ts";
@@ -69,8 +70,61 @@ const verificationReceipts: ClosingCheck = {
   },
 };
 
+export const LEDGER_VERDICT_CHECK = "ledger-verdict";
+
+/**
+ * A standing rejection from a role that can close an item.
+ *
+ * Reads the rows through `readVerdict`, the function `ledger check` and the
+ * gate's audit of closed items also call. Only a rejection is refused here:
+ * "no verdict yet", the author's own verdict and a discounted approval are the
+ * audit's findings about an item already closed, and a `verifier-blocked` with no
+ * rejection under it is the documented escape hatch for an item nothing can verify.
+ *
+ * Never overridable. `--force` vouches for a finding the gate does not hold
+ * against a closed item; the gate holds a rejection against one for as long as
+ * the ledger, which is append-only, carries it, so a forced close would only
+ * leave the store red with the item already out of the active set.
+ */
+const standingRejection: ClosingCheck = {
+  name: LEDGER_VERDICT_CHECK,
+  reportedAt: [],
+  run: (store, _state, item) => {
+    let reading;
+    try {
+      reading = readVerdict(
+        ledgerEntries(store).filter((e) => e.target === item.slug),
+        item.slug,
+      );
+    } catch (error) {
+      // Fails closed, like the receipts: an unreadable ledger is not a clean one.
+      return [
+        {
+          check: LEDGER_VERDICT_CHECK,
+          message: `the ledger could not be read, so nothing here can say whether a rejection stands: ${(error as Error).message}`,
+          hint: "fix ledger.tsv; an unreadable record of verdicts is not a record of none",
+          overridable: false,
+        },
+      ];
+    }
+    if (reading?.kind !== "rejected") return [];
+    const later =
+      reading.blockedAfter === undefined
+        ? ""
+        : `; the later verifier-blocked by ${reading.blockedAfter.verifier || "unnamed"} does not answer it`;
+    return [
+      {
+        check: LEDGER_VERDICT_CHECK,
+        message: `a rejection stands in the ledger: ${describeRow(reading.row)}${later}`,
+        hint: "fix what it found and record an independent approval from a closing role at the new commit; 'could not verify' does not answer a rejection and --force does not close over one",
+        overridable: false,
+      },
+    ];
+  },
+};
+
 /** Exported mutable so a test can register a second check; production code never does. */
-export const CLOSING_CHECKS: ClosingCheck[] = [verificationReceipts];
+export const CLOSING_CHECKS: ClosingCheck[] = [verificationReceipts, standingRejection];
 
 /**
  * Every problem that stops this item closing.

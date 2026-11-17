@@ -5,7 +5,7 @@ import { all as decisionsFor } from "./decisions.ts";
 import { gateProblems, VERIFICATION_CHECK } from "./closing.ts";
 import { defaultBranch, git, headSha } from "./git.ts";
 import { runCommand } from "./run.ts";
-import { entries as ledgerEntries } from "./ledger.ts";
+import { describeRow, entries as ledgerEntries, readVerdict } from "./ledger.ts";
 import {
   isActive,
   requiresDecision,
@@ -30,7 +30,7 @@ const SUBSTANTIAL = /[a-z0-9]/i;
 import { errorsSince } from "./hooklog.ts";
 import { cliProvenance, describeSrcComparison, HOOK_LOG, runningCliRoot, UserError, type Store } from "./paths.ts";
 import { Report } from "./report.ts";
-import { canCloseAnItem, citesImplementingReport, MIN_REPORT_BYTES } from "./roles.ts";
+import { MIN_REPORT_BYTES } from "./roles.ts";
 import { EMPTY_ITEM_LINE, EMPTY_NEXT_STEP } from "./setup.ts";
 import { parseState, type Item, type State } from "./state.ts";
 
@@ -406,45 +406,36 @@ function checkClosedItems(store: Store, state: State, report: Report): void {
       failed.push(item.slug);
       continue;
     }
-    // The pass that wrote the code does not get to close the item. Nothing
-    // read this column, so the implementer's own row was sufficient.
-    const closingRows = rows.filter((entry) => canCloseAnItem(entry.verifier));
-    if (closingRows.length === 0) {
+    // One reader for `ledger check` and for this audit (`readVerdict`, src/ledger.ts),
+    // so the two cannot disagree about the same rows. Every row of the item, in
+    // file order: a closed item was verified at the SHA it closed on, and that is
+    // not necessarily today's HEAD. What each kind means here:
+    //  - author-only: the pass that wrote the code does not get to close the item.
+    //  - discounted: every closing row is an approval citing an implementing
+    //    role's own report, the column saying one thing and the evidence another.
+    //  - rejected: a closing role's `verifier-failed` that no later independent
+    //    approval answered. It is never dropped for what its evidence cites, and a
+    //    `verifier-blocked` after it ("could not verify") does not answer it.
+    //  - blocked: the latest closing row says nothing could be run. That is the
+    //    documented escape hatch for an item nothing can verify, so it closes.
+    const reading = readVerdict(rows, item.slug)!;
+    if (reading.kind === "author-only") {
       selfClosed.push(`${item.slug} (only ${[...new Set(rows.map((r) => r.verifier || "unnamed"))].join(", ")})`);
-      continue;
-    }
-    // A closing-role row whose evidence is an implementing role's own report is
-    // that report wearing a reviewer's name: the column says one thing, the
-    // evidence says another, and the evidence wins. Dropped here, before the
-    // ordering below, so a forged row can neither close an item nor supersede
-    // a genuine failure.
-    const cited = closingRows.map((entry) => ({ entry, role: citesImplementingReport(entry.evidence, item.slug) }));
-    const legitimate = cited.filter((c) => c.role === undefined).map((c) => c.entry);
-    if (legitimate.length === 0) {
-      // Every closing row cites some implementing pass's report. The item is
-      // reported under the kind actually cited, so the message states the
-      // fact; an item whose rows cite both kinds lands on the implementer
-      // list — one list is enough, and each detail names only the verifiers
-      // whose rows cited that kind.
-      const verifiers = (role: string) =>
-        [...new Set(cited.filter((c) => c.role === role).map((c) => c.entry.verifier || "unnamed"))];
+    } else if (reading.kind === "discounted") {
+      // The item is reported under the kind actually cited, so the message states
+      // the fact; an item whose rows cite both kinds lands on the implementer
+      // list, and each detail names only the verifiers whose rows cited that kind.
+      const verifiers = (role: string) => [
+        ...new Set(reading.discounted.filter((d) => d.role === role).map((d) => d.entry.verifier || "unnamed")),
+      ];
       const implVerifiers = verifiers("implementer");
       if (implVerifiers.length > 0) {
         forgedImpl.push(`${item.slug} (${implVerifiers.join(", ")})`);
       } else {
         forgedSpec.push(`${item.slug} (${verifiers("spec-author").join(", ")})`);
       }
-      continue;
-    }
-    // The operative state of a closed item is whatever its most recent
-    // legitimate closing row says — `entries()` returns file order, which is
-    // chronological, and `filter` keeps it. An earlier failure a later row
-    // superseded is exactly what "closed" is supposed to mean; a later failure
-    // after an earlier pass is approval retracted, and does not get waved
-    // through because the item once passed.
-    const latest = legitimate[legitimate.length - 1]!;
-    if (latest.verdict === "verifier-failed") {
-      unsupersededFailure.push(`${item.slug} (${latest.verifier || "unnamed"})`);
+    } else if (reading.kind === "rejected") {
+      unsupersededFailure.push(`${item.slug} (${reading.row.verifier || "unnamed"}): ${describeRow(reading.row)}`);
     }
   }
 
@@ -480,8 +471,8 @@ function checkClosedItems(store: Store, state: State, report: Report): void {
   }
   if (unsupersededFailure.length > 0) {
     report.fail(
-      `items marked done whose most recent closing verdict is verifier-failed: ${unsupersededFailure.join(", ")}`,
-      "the ledger is append-only, so the failed row stays; a later verdict from a closing role is what clears it — re-run the review after the fix and record a fresh one",
+      `items marked done whose most recent closing verdict is verifier-failed, or verifier-blocked after one: ${unsupersededFailure.join("; ")}`,
+      "the ledger is append-only, so the failed row stays; only a later independent approval from a closing role clears it, and 'could not verify' does not — re-run the review after the fix and record a fresh one",
     );
   }
   if (

@@ -230,8 +230,10 @@ test("an item closed on a failed verifier is rejected", () => {
     });
     expectFail(gate(sb), /only verdict is verifier-failed/, "closed on a failure");
 
-    // verifier-blocked is the honest way to close something no check could
-    // reach. It is typed, keyed to a SHA, and carries its reason.
+    // A verifier-blocked AFTER the failure used to close the item here ("blocked
+    // is a verdict"). It does not any more: "could not verify" is not an answer to
+    // "this is wrong" (item 70). The escape hatch for an item nothing can verify
+    // is a verifier-blocked with no rejection under it, in the next test.
     record(sb.store, {
       target: "storage-layer",
       sha: sb.sha,
@@ -239,7 +241,7 @@ test("an item closed on a failed verifier is rejected", () => {
       evidence: "no harness in this repo",
       verifier: "test",
     });
-    expectPass(gate(sb), "blocked is a verdict");
+    expectFail(gate(sb), /verifier-blocked after one/, "blocked does not answer a failure");
   } finally {
     sb.dispose();
   }
