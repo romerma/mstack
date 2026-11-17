@@ -110,10 +110,13 @@ the merge gate. The route changes how work is planned. It never changes what cou
 
 ## decision_required is a gate, not an announcement
 
-An item can carry `decision_required`: prose naming a product fork whose two answers produce
-different work. While the item is `pending` or `specifying`, the fork is allowed to be open;
-investigating it is the work. From `spec_ready` onward the CLI and the gate both refuse to move
-the item until the fork is answered (`src/lifecycle.ts:49-55`, `src/cli.ts:497-507`), and
+An item can carry `decision_required`: prose naming a product fork, which is a choice that
+changes what the product's user can do or get (what is charged, allowed, refused, stored,
+deleted or returned as a value, including an exit code a script would branch on) or that cannot
+be undone. Intake parks it at `state add`, numbered, each with a recommended answer; a
+reversible choice is recorded as a decision instead. While the item is `pending` or
+`specifying`, the fork is allowed to be open; investigating it is the work. From `spec_ready`
+onward the CLI and the gate both refuse to move the item until the fork is answered (`src/lifecycle.ts:49-55`, `src/cli.ts:497-507`), and
 `state set --decision-required` refuses to attach one to an item already sitting there:
 
 ```console

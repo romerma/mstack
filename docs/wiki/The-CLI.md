@@ -255,9 +255,10 @@ nothing to set exits 2 instead of reporting success.
 
 ### Attaching a product fork after intake
 
-A fork is usually found while `specifying`, which is after intake, so `--decision-required` has
-to be attachable there. That is the whole reason these flags exist: the gate the README leads
-with could previously only be attached by hand-editing `state.json`.
+Intake parks the forks it finds when it adds the item, with `state add --decision-required`. A
+fork can also turn up later, usually while `specifying`, so `state set --decision-required` has
+to attach one there. That is the whole reason these flags exist: the gate the README leads with
+could previously only be attached by hand-editing `state.json`.
 
 ```console
 $ mstack state set export-json --status specifying

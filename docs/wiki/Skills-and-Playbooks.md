@@ -4,9 +4,10 @@ Skills are the commands you type; playbooks are the step lists they follow. When
 work with `/mstack <what you want done>`, a router matches your request to one of seven
 playbooks, or sends it straight to a single skill when one command covers the whole job. A
 matched playbook's steps are copied into the todo list before any reasoning happens, and each
-step either runs or is skipped out loud with a reason. This page introduces all thirteen skills
-and all seven playbooks, says what each one leaves on disk, and explains the one routing
-decision that matters: whether your work takes the direct path or the spec path.
+step either runs or is skipped out loud with a reason. This page introduces all fourteen skills
+(thirteen commands and one internal reference) and all seven playbooks, says what each one
+leaves on disk, and explains the one routing decision that matters: whether your work takes the
+direct path or the spec path.
 
 A skill here is a `/mstack:<name>` command: a set of instructions Claude Code reads into the
 conversation when you invoke it. Each lives in `skills/<name>/SKILL.md`, and its frontmatter

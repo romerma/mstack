@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+- **Intake follow-ups, from the reviews of the intake step and the test-first reference.** The
+  fork test is stated once, in intake's Map: a fork changes what the product's user can do or
+  get (what is charged, allowed, refused, stored, deleted or returned as a value, including an
+  exit code a script would branch on) or cannot be undone, and a cheap code change makes
+  neither reversible; a message, label or format that follows what the project already prints
+  is a reversible decision. The `if wrong:` test and the router's Autonomy clause point at it.
+  A parked fork's `current.md` note now carries the `--resolves` rule (one `decide` row listing
+  every answer), router step 2 reads `current.md` instead of reading it only if it says so, the
+  skip list names answering a parked fork, and closing a session does not reset a `current.md`
+  that records one. Intake's End moves an item with no open fork to `in_progress` (or
+  `specifying` on the spec path); a parked item stays `pending`. The feature playbook's
+  test-first step names where the seams are read, gives an item with behaviour and no seams
+  `state set --seam` before delegation, and asks for the first test run red. The test-first
+  skill drops its sentence about a reviewer's mutants and says a refactor pinned by
+  characterization tests writes no new test. `lint-plugin` now fails when an origin header
+  names no licence file or one that is missing, when intake.md or the test-first skill loses its
+  header, when the router's orient steps stop linking `references/intake.md`, and when an
+  agent's `skills` entry names no skill under `skills/` or one with
+  `disable-model-invocation: true`.
+
 - **The implementer now starts with a test-first reference in its context.** A new internal
   skill, `skills/test-first/SKILL.md` (`user-invocable: false`), holds it: what a good test is
   (public interface at a seam, independent expected value, vertical slices, mocks only at
