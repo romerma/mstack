@@ -117,9 +117,39 @@ export function helpText(spec: CommandSpec): string {
     "flags:",
     ...labels.map(([label, help]) => `  ${label.padEnd(width)}  ${help}`),
     "  --help, -h".padEnd(width + 2) + "  print this and exit 0",
+    "",
+    "A value that starts with a dash is written --flag=value, in one argument; after a space it is read as the next flag.",
   ].join("\n");
 }
 
+/**
+ * Refuse `--flag --value` in mstack's own words.
+ *
+ * `parseArgs` already refuses it, on both runtimes, but with its own text, which
+ * differs between node versions and which bun inherits only by accident. This
+ * runs first and never reads the runtime's wording, so the sentence an agent sees
+ * is the same everywhere and says the one thing that fixes it: `--flag=value`.
+ * A lone `-` is an ordinary value, as it is for the parser.
+ */
+function refuseDashedValues(flags: Flags, args: readonly string[]): void {
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i] as string;
+    if (arg === "--") return;
+    const spec = arg.startsWith("--") && !arg.includes("=") ? flags[arg.slice(2)] : undefined;
+    if (spec === undefined || spec.type !== "string") continue;
+    const next = args[i + 1];
+    if (next !== undefined && next.length > 1 && next.startsWith("-")) {
+      const shown = next.length > 40 ? `${next.slice(0, 37)}...` : next;
+      throw new UserError(
+        `${arg} was followed by '${shown}', which starts with a dash and so reads as another flag, not as its value`,
+        `if it is the value, pass it as one argument: ${arg}=${shown}${/\s/.test(shown) ? " (quote the whole argument, it has spaces)" : ""}`,
+      );
+    }
+    i++;
+  }
+}
+
 export function parseFlags<F extends Flags>(spec: { readonly flags: F }, args: readonly string[]) {
+  refuseDashedValues(spec.flags, args);
   return parseArgs({ args: [...args], options: optionsOf(spec.flags), strict: true });
 }

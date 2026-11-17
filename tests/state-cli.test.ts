@@ -71,6 +71,7 @@ onEach("--help on state add and decide prints their flags to stdout, exits 0 and
     const add = cli(sb.store.root, "state", "add", "--help");
     assert.equal(add.code, 0, add.stderr);
     assert.equal(add.stderr, "");
+    assert.ok(add.stdout.includes("--flag=value"), "the help says how to pass a value that starts with a dash");
     for (const flag of ["--slug", "--title", "--acceptance", "--seam", "--decision-required"]) {
       assert.ok(add.stdout.includes(flag), `state add --help should name ${flag}:\n${add.stdout}`);
     }
@@ -241,4 +242,81 @@ onEach("the global help names state show and says subcommands take --help", (cli
   assert.equal(result.code, 0);
   assert.match(result.stdout, /state show <ref>/);
   assert.match(result.stdout, /--help/);
+});
+
+onEach("a value that starts with -- is stored whole when passed as --flag=value", (cli) => {
+  const sb = sandbox();
+  try {
+    sb.writeState(state([]));
+    const added = cli(
+      sb.store.root,
+      "state", "add", "--slug=dashed", "--title=--a title",
+      "--acceptance=--first criterion", "--acceptance=--second criterion",
+      "--seam=--a seam", "--description=--prose", "--source=--origin", "--verification=--cmd",
+      "--decision-required=--a fork",
+    );
+    assert.equal(added.code, 0, added.stderr);
+    const [created] = JSON.parse(stateBytes(sb)).items;
+    assert.equal(created.title, "--a title");
+    assert.deepEqual(created.acceptance, ["--first criterion", "--second criterion"]);
+    assert.deepEqual(created.seams, ["--a seam"]);
+    assert.equal(created.description, "--prose");
+    assert.equal(created.source, "--origin");
+    assert.equal(created.verification, "--cmd");
+    assert.equal(created.decision_required, "--a fork");
+
+    const set = cli(sb.store.root, "state", "set", "dashed", "--add-acceptance=--third", "--acceptance=--only", "--status=pending");
+    assert.equal(set.code, 2, "--acceptance and --add-acceptance in one command stay refused");
+    const added2 = cli(sb.store.root, "state", "set", "dashed", "--add-acceptance=--third");
+    assert.equal(added2.code, 0, added2.stderr);
+    assert.deepEqual(JSON.parse(stateBytes(sb)).items[0].acceptance, ["--first criterion", "--second criterion", "--third"]);
+
+    const decided = cli(sb.store.root, "decide", "--phase=implement", "--decision=--z is kept", "--result=--y");
+    assert.equal(decided.code, 0, decided.stderr);
+    const rows = readFileSync(sb.store.decisions, "utf8");
+    assert.ok(rows.includes("--z is kept") && rows.includes("--y"), rows);
+  } finally {
+    sb.dispose();
+  }
+});
+
+onEach("a value that starts with -- and follows its flag after a space is refused in mstack's words, naming --flag=value", (cli) => {
+  const sb = sandbox();
+  try {
+    sb.writeState(state([item()]));
+    const before = stateBytes(sb);
+    const decisionsBefore = readFileSync(sb.store.decisions, "utf8");
+    for (const [args, flag, value] of [
+      [["state", "add", "--slug", "x", "--title", "t", "--acceptance", "--needs the equals"], "--acceptance", "--needs the equals"],
+      [["state", "add", "--slug", "x", "--title", "t", "--seam", "--surface"], "--seam", "--surface"],
+      [["state", "set", "1", "--add-acceptance", "--appended"], "--add-acceptance", "--appended"],
+      [["state", "set", "1", "--description", "-x"], "--description", "-x"],
+      [["decide", "--decision", "--z"], "--decision", "--z"],
+    ] as const) {
+      const result = cli(sb.store.root, ...args);
+      assert.equal(result.code, 2, `${args.join(" ")}: ${result.stdout}`);
+      assert.equal(result.stdout, "");
+      // mstack's own sentence, not the runtime's: node says "ambiguous", and the
+      // text is not the same across versions.
+      assert.match(result.stderr, new RegExp(`${flag} was followed by '${value}'`));
+      assert.ok(result.stderr.includes(`${flag}=${value}`), `no ${flag}=${value} in: ${result.stderr}`);
+      assert.doesNotMatch(result.stderr, /ambiguous|Did you forget/);
+    }
+    assert.equal(stateBytes(sb), before);
+    assert.equal(readFileSync(sb.store.decisions, "utf8"), decisionsBefore);
+  } finally {
+    sb.dispose();
+  }
+});
+
+onEach("a flag followed by an ordinary value, a boolean flag, or a lone dash is not refused", (cli) => {
+  const sb = sandbox();
+  try {
+    sb.writeState(state([]));
+    const result = cli(sb.store.root, "state", "add", "--slug", "plain", "--sdd", "--title", "-", "--acceptance", "fine");
+    assert.equal(result.code, 0, result.stderr);
+    assert.equal(JSON.parse(stateBytes(sb)).items[0].title, "-");
+  } finally {
+    sb.dispose();
+  }
 });
