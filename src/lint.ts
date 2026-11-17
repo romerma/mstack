@@ -419,7 +419,12 @@ function nameOf(file: string): string | null {
  * must carry an `<!-- Origin: ... -->` header. This is the one place the list is
  * declared; a new derived file is added here and the rule covers it.
  */
-const ORIGIN_REQUIRED = ["skills/router/references/intake.md", "skills/test-first/SKILL.md"];
+const ORIGIN_REQUIRED = [
+  "skills/router/references/intake.md",
+  "skills/test-first/SKILL.md",
+  "skills/design/references/deep-modules.md",
+  "skills/router/playbooks/deepen.md",
+];
 
 /**
  * Every origin header in a skill or agent file names a licence file the plugin
