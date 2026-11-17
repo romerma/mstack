@@ -5,9 +5,9 @@
   "type": "module",
   "description": "Dev tooling for the mstack Claude Code plugin. There is no build step: src/ is what ships and what runs.",
   "scripts": {
-    "test": "bun test tests/ && node --test 'tests/*.test.ts'",
-    "test:bun": "bun test tests/",
-    "test:node": "node --test 'tests/*.test.ts'",
+    "test": "npm run test:bun && npm run test:node",
+    "test:bun": "bun test ./tests",
+    "test:node": "node --disable-warning=ExperimentalWarning --experimental-strip-types --test 'tests/*.test.ts'",
     "typecheck": "bunx --bun tsc --noEmit",
     "lint": "./bin/mstack lint-plugin ."
   },
