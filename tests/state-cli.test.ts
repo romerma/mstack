@@ -353,3 +353,57 @@ onEach("state set --acceptance on an item that has criteria names --add-acceptan
     sb.dispose();
   }
 });
+
+onEach("state show refuses an item whose id another item shares, by id, by either slug, text and --json", (cli) => {
+  const sb = sandbox();
+  try {
+    sb.writeState(
+      state([
+        item({ id: 5, slug: "first", title: "first", acceptance: ["x"], secret: "belongs to first" }),
+        item({ id: 5, slug: "second", title: "second", acceptance: ["y"], mine: "second's" }),
+        item({ id: 6, slug: "third", title: "third", acceptance: ["z"] }),
+      ]),
+    );
+    const before = stateBytes(sb);
+    for (const ref of ["5", "first", "second"]) {
+      for (const extra of [[], ["--json"]]) {
+        const result = cli(sb.store.root, "state", "show", ref, ...extra);
+        assert.equal(result.code, 2, `${ref} ${extra.join(" ")}: ${result.stdout}`);
+        assert.equal(result.stdout, "", "nothing that looks like an item is printed");
+        assert.match(result.stderr, /an item with id 5 already exists/);
+        assert.doesNotMatch(result.stderr, /belongs to first/);
+      }
+    }
+    assert.equal(stateBytes(sb), before);
+
+    // an item whose id is unique is still answered for, on the same store
+    const third = cli(sb.store.root, "state", "show", "third", "--json");
+    assert.equal(third.code, 0, third.stderr);
+    assert.equal(JSON.parse(third.stdout).slug, "third");
+    // and the read path that never mis-answered is unchanged
+    assert.equal(cli(sb.store.root, "state", "list").code, 0);
+  } finally {
+    sb.dispose();
+  }
+});
+
+onEach("state show --json prints exactly the item asked for when several items exist", (cli) => {
+  const sb = sandbox();
+  try {
+    const items = [
+      item({ id: 1, slug: "alpha", title: "alpha", acceptance: ["a"], note_a: "from alpha" }),
+      item({ id: 2, slug: "beta", title: "beta", acceptance: ["b"], note_b: "from beta" }),
+      item({ id: 3, slug: "gamma", title: "gamma", acceptance: ["c"], note_c: "from gamma" }),
+    ];
+    sb.writeState(state(items));
+    for (const it of items) {
+      for (const ref of [String(it["slug"]), String(it["id"])]) {
+        const result = cli(sb.store.root, "state", "show", ref, "--json");
+        assert.equal(result.code, 0, result.stderr);
+        assert.deepEqual(JSON.parse(result.stdout), it, `ref ${ref}`);
+      }
+    }
+  } finally {
+    sb.dispose();
+  }
+});

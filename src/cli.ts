@@ -23,7 +23,7 @@ import {
 import { lintPlugin } from "./lint.ts";
 import { cliProvenance, describeSrcComparison, findStore, requireStore, runningCliRoot, UserError } from "./paths.ts";
 import { DECIDE, helpText, parseFlags, STATE_ADD, STATE_SET, STATE_SHOW, wantsHelp } from "./cliopts.ts";
-import { assertWritable, findItem, parseState, rawItem, unknownItemFields, updateState, type Item } from "./state.ts";
+import { assertUniqueId, assertWritable, findItem, parseState, rawItem, unknownItemFields, updateState, type Item } from "./state.ts";
 import { MIN_REPORT_BYTES } from "./roles.ts";
 import * as verification from "./verification.ts";
 
@@ -407,8 +407,10 @@ function cmdState(argv: readonly string[]): number {
     const [ref, ...flags] = rest;
     if (ref === undefined || ref.startsWith("-")) throw new UserError("state show needs an item id or slug");
     const { values } = parseFlags(STATE_SHOW, flags);
-    const item = findItem(parseState(store.state), ref);
+    const state = parseState(store.state);
+    const item = findItem(state, ref);
     if (item === undefined) throw new UserError(`no item matches '${ref}'`);
+    assertUniqueId(item, state);
     const raw = rawItem(store.state, item.id) ?? {};
     if (values.json === true) console.log(JSON.stringify(raw, null, 2));
     else for (const line of showLines(item, raw)) console.log(line);

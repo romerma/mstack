@@ -77,8 +77,17 @@ export function assertWritable(item: Item, state: State): void {
   if (state.items.some((other) => other !== item && other.slug === item.slug)) {
     throw new UserError(`an item with slug '${item.slug}' already exists`);
   }
+  assertUniqueId(item, state);
+}
+
+/**
+ * Refuse an item whose id another item carries. The writers use it before they
+ * write, and `state show` before it answers: with two items on one id the raw
+ * object a reader finds by id may belong to the other one.
+ */
+export function assertUniqueId(item: Item, state: State): void {
   if (state.items.some((other) => other !== item && other.id === item.id)) {
-    throw new UserError(`an item with id ${item.id} already exists`);
+    throw new UserError(`an item with id ${item.id} already exists`, "make every id unique in .mstack/state.json; 'mstack gate' lists the duplicates");
   }
 }
 
