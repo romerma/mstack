@@ -35,15 +35,18 @@ Every term below (module, interface, depth, seam, adapter, the deletion test) is
      --acceptance "<observable: what the deepened module's interface is>" \
      --acceptance "<observable: what stops being duplicated or passed through>" \
      --acceptance "<observable: tests that go through the interface>" \
-     --source "deepen playbook run, <date>" \
+     --source "deepen playbook run, <date>, .mstack/progress/deepen_<date>.md" \
      --seam "<the interface that becomes the test surface>"
    ```
 
    The title names the problem, not the fix. Each acceptance criterion can be checked by
    reading or running something. Do not sketch the interface beyond what the criterion says;
    that is the item's own design step.
-7. **Stop.** Do not ask which candidate to take. `mstack decide` any call that shaped the
-   ranking, with the evidence path.
+7. **Stop.** Write what you checked and rejected to `.mstack/progress/deepen_<date>.md`, the
+   path the items' `--source` names, and `mstack decide` any call that shaped the ranking.
+   Do not ask which candidate to take, do not offer to file or fix anything else, and end
+   the reply with a statement, not a question. A defect you met on the way is one line in the
+   reply, under "found, not filed".
 
 **Reply:** what was filed, each with its ref and one line on why it ranks where it does; what
 an open item already covered; what you looked at and rejected, and why. If nothing was filed,
