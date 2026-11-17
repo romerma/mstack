@@ -29,15 +29,15 @@ it names lost data or fails the fork test above, this is a fork, not a row.
 
 ## Park a fork
 
-All forks of one request go on the item as one `--decision-required` string, numbered, each
-with its recommended answer and worded so "yes" accepts it:
-`1) Should X also do Y? Recommended: yes, because Z. 2) ...`. The user hears every fork once,
-in one numbered round after `state add`, and only once no fact or reversible decision is open.
-That round names the item's slug and asks for the answers to name it (`<slug>: yes to 1, ...`).
-First write into `current.md`'s Next step the slug, its open forks and this rule, so a fresh
-session finds them: answer every fork in ONE row, `mstack decide --phase intake --resolves <slug>
---decision "1) <answer> 2) <answer> ..."`. The round is the final message of the turn: stop
-there. When the answers arrive, resume at router step 4; an item with a fork is on the spec path.
+All forks of one request go on the item as one `--decision-required` string, numbered, each with
+its recommended answer, worded so "yes" accepts it: `1) Should X also do Y? Recommended: yes,
+because Z. 2) ...`. The user hears every fork once, in one numbered round after `state add`, and
+only once no fact or reversible decision is open. The round names the slug and asks the answers to
+name it (`<slug>: yes to 1, ...`). First write into `current.md`'s Next step the slug, its open
+forks and this rule, so a fresh session finds them: answer every fork in ONE row, `mstack decide
+--phase intake --resolves <slug> --decision "1) <answer> 2) ..." --why .. --evidence "<their
+words>" --result "<chosen>"`. The round is the final message of the turn: stop there. When the
+answers arrive, resume at router step 4; an item with a fork is on the spec path.
 
 `--resolves <slug>` goes only on the row that answers every fork left in the field. A partial
 answer never gets it: record a plain `decide --phase intake` row and re-state the field with
