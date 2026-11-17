@@ -57,8 +57,9 @@ Record each answer with `mstack decide --resolves <slug>`.
 
 Standing: push `main` after closing work and check CI (user, 2026-11-17).
 
-In flight: 57 on `feat/deep-module-vocabulary`; then review by the other model, close, merge,
-push.
+In flight: 57 on `feat/deep-module-vocabulary`. Round 3 (items 76 to 80 rewritten, every claim
+re-run after the edit) is in `impl_deep-module-vocabulary_r3.md`; next is the round 3 review by
+a fresh Opus context, then close, merge, push.
 
 Next, not blocked:
 1. Phase 2 (57 in flight), the rest of the skills integration: 57 deep-module-vocabulary, 58 glossary-and-adr,
