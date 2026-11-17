@@ -200,6 +200,7 @@ const CLEARABLE = {
   "decision-required": "decision_required",
   sdd: "sdd",
   "closed-by": "closed_by",
+  seams: "seams",
 } as const satisfies Readonly<Record<string, keyof Item>>;
 
 /** Fields every item always has, with the reason each one cannot be removed. */
@@ -221,8 +222,9 @@ export const FORCED_UNVERIFIED = "closed unverified (forced): ";
 /** How much of a long field to echo back when reporting what changed. */
 const PREVIEW = 48;
 
-function preview(value: string | boolean | undefined): string {
+function preview(value: string | boolean | readonly string[] | undefined): string {
   if (value === undefined) return "(unset)";
+  if (typeof value !== "string" && typeof value !== "boolean") return `${value.length} seam(s)`;
   if (typeof value === "boolean") return String(value);
   const flat = value.replace(/\s+/g, " ").trim();
   return `"${flat.length > PREVIEW ? `${flat.slice(0, PREVIEW - 3)}...` : flat}"`;
@@ -262,9 +264,14 @@ function detail(value: string | boolean | undefined): string {
  * command silently un-answers a fork. When the previews collide the values go
  * out in full instead.
  */
-function fieldChange(field: string, from: string | boolean | undefined, to: string | boolean | undefined): string[] {
+function fieldChange(
+  field: string,
+  from: string | boolean | readonly string[] | undefined,
+  to: string | boolean | readonly string[] | undefined,
+): string[] {
   const before = preview(from);
   const after = preview(to);
+  if (typeof from === "object" || typeof to === "object") return [`  ${field}: ${before} -> ${after}`];
   if (before !== after) return [`  ${field}: ${before} -> ${after}`];
   return [
     `  ${field}: changed, and the short forms match, so both in full`,
@@ -295,6 +302,13 @@ function required(flag: string, value: string, fix: string): string {
   return trimmed;
 }
 
+/** Each seam is a value, so each clears the same floor an acceptance criterion does. */
+function seamList(values: readonly string[]): string[] {
+  return values.map((v) =>
+    required("--seam", v, "name the public surface where a test attaches, or run 'state set <ref> --clear seams'"),
+  );
+}
+
 function clearField(item: Item, name: string): string[] {
   const blocked = UNCLEARABLE[name];
   if (blocked !== undefined) throw new UserError(`${name} cannot be cleared`, blocked);
@@ -304,7 +318,7 @@ function clearField(item: Item, name: string): string[] {
   }
   const before = item[key];
   if (before === undefined) return [`  ${key}: already unset`];
-  const lines = fieldChange(key, before as string | boolean, undefined);
+  const lines = fieldChange(key, before as string | boolean | readonly string[], undefined);
   // The answer named the question. With the question gone the pointer leads to
   // a row about a fork this item no longer carries, and a different fork
   // attached later would find that pointer and be born answered.
@@ -356,6 +370,7 @@ function cmdState(argv: readonly string[]): number {
         source: { type: "string" },
         verification: { type: "string" },
         "decision-required": { type: "string" },
+        seam: { type: "string", multiple: true },
       },
       strict: true,
     });
@@ -387,6 +402,7 @@ function cmdState(argv: readonly string[]): number {
       if (values.verification !== undefined) {
         item.verification = required("--verification", values.verification, "leave the flag off instead");
       }
+      if (values.seam !== undefined) item.seams = seamList(values.seam);
       if (values["decision-required"] !== undefined) {
         item.decision_required = required(
           "--decision-required",
@@ -418,6 +434,7 @@ function cmdState(argv: readonly string[]): number {
         source: { type: "string" },
         verification: { type: "string" },
         "decision-required": { type: "string" },
+        seam: { type: "string", multiple: true },
         clear: { type: "string", multiple: true },
         slug: { type: "string" },
         force: { type: "boolean" },
@@ -453,6 +470,7 @@ function cmdState(argv: readonly string[]): number {
           values.source,
           values.verification,
           values["decision-required"],
+          values.seam,
         ].filter((v) => v !== undefined).length;
       // `state set 3` used to rewrite the file unchanged and print the label,
       // which is the shape `takesNothing` exists to stop elsewhere: a command that
@@ -460,20 +478,21 @@ function cmdState(argv: readonly string[]): number {
       if (instructions === 0) {
         throw new UserError(
           `state set ${ref} was given nothing to set`,
-          `pass --status, --clear <field>, or a value flag: ${Object.keys(CLEARABLE).join(", ")}, title, acceptance, add-acceptance`,
+          `pass --status, --clear <field>, or a value flag: ${Object.keys(CLEARABLE).join(", ")}, title, acceptance, add-acceptance, seam`,
         );
       }
-      for (const [flag, given] of [
-        ["description", values.description !== undefined],
-        ["source", values.source !== undefined],
-        ["verification", values.verification !== undefined],
-        ["decision-required", values["decision-required"] !== undefined],
-        ["closed-by", values["closed-by"] !== undefined],
-        ["sdd", values.sdd === true],
+      for (const [flag, clearName, given] of [
+        ["description", "description", values.description !== undefined],
+        ["source", "source", values.source !== undefined],
+        ["verification", "verification", values.verification !== undefined],
+        ["decision-required", "decision-required", values["decision-required"] !== undefined],
+        ["closed-by", "closed-by", values["closed-by"] !== undefined],
+        ["sdd", "sdd", values.sdd === true],
+        ["seam", "seams", values.seam !== undefined],
       ] as const) {
-        if (given && clears.includes(flag)) {
+        if (given && clears.includes(clearName)) {
           throw new UserError(
-            `--${flag} and --clear ${flag} in one command contradict each other`,
+            `--${flag} and --clear ${clearName} in one command contradict each other`,
             "run one or the other; which one won would depend on an order this CLI does not promise",
           );
         }
@@ -635,6 +654,13 @@ function cmdState(argv: readonly string[]): number {
         );
         item.acceptance = [...item.acceptance, ...added];
         changes.push(`  acceptance: ${added.length} added, now ${item.acceptance.length}`);
+      }
+      if (values.seam !== undefined) {
+        const next = seamList(values.seam);
+        const before = item.seams ?? [];
+        changes.push(`  seams: ${before.length} seam(s) replaced with ${next.length}`);
+        for (const dropped of before) changes.push(`    - dropped ${preview(dropped)}`);
+        item.seams = next;
       }
       if (values.sdd === true && item.sdd !== true) {
         changes.push(...fieldChange("sdd", item.sdd, true));

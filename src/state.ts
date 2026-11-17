@@ -31,6 +31,11 @@ export interface Item {
   source?: string;
   /** The exact command that proves this item works. */
   verification?: string;
+  /**
+   * The public surfaces where the behaviour is observed and where a test attaches,
+   * one string each. Absent for a change that alters no behaviour.
+   */
+  seams?: string[];
   closed_by?: string;
 }
 
@@ -181,6 +186,10 @@ function parseItem(value: unknown, index: number, file: string): Item {
   if (!Array.isArray(acceptance) || acceptance.some((a) => typeof a !== "string")) {
     throw new UserError(`${at}.acceptance must be an array of strings, got ${describe(acceptance)}`);
   }
+  const seams = value["seams"];
+  if (seams !== undefined && (!Array.isArray(seams) || seams.some((s) => typeof s !== "string"))) {
+    throw new UserError(`${at}.seams must be an array of strings, got ${describe(seams)}`);
+  }
 
   const item: Item = {
     id: value["id"],
@@ -196,6 +205,7 @@ function parseItem(value: unknown, index: number, file: string): Item {
   if (typeof value["source"] === "string") item.source = value["source"];
   if (typeof value["verification"] === "string") item.verification = value["verification"];
   if (typeof value["closed_by"] === "string") item.closed_by = value["closed_by"];
+  if (seams !== undefined) item.seams = seams as string[];
   return item;
 }
 
@@ -211,7 +221,7 @@ const KNOWN_STATE_KEYS = new Set(["version", "project", "description", "verify",
 const KNOWN_RULE_KEYS = new Set(["one_active_item", "require_verdict_to_close", "require_spec_for_sdd_items", "record_costs"]);
 const KNOWN_ITEM_KEYS = new Set([
   "id", "slug", "title", "description", "acceptance", "status", "sdd",
-  "decision_required", "decision_resolved", "source", "verification", "closed_by",
+  "decision_required", "decision_resolved", "source", "verification", "closed_by", "seams",
 ]);
 
 function extras(value: unknown, known: ReadonlySet<string>): Record<string, unknown> {

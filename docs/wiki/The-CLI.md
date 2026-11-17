@@ -185,12 +185,17 @@ mstack: in_progress -> done is not a legal transition
 ### Correcting a field after intake
 
 `state set` takes every field `state add` takes: `--title`, `--description`, `--source`,
-`--verification`, `--acceptance`, `--add-acceptance`, `--sdd`, `--decision-required` and
-`--closed-by`. A field the item does not carry yet is added rather than refused, and every
+`--verification`, `--acceptance`, `--add-acceptance`, `--seam`, `--sdd`, `--decision-required`
+and `--closed-by`. A field the item does not carry yet is added rather than refused, and every
 edit prints what it replaced, because a write nobody sees is indistinguishable from a no-op.
 
 `--acceptance` **replaces** the whole list and names each criterion it dropped;
 `--add-acceptance` appends. One command may not do both.
+
+`--seam "<text>"` names a public surface where the behaviour is observed and a test attaches,
+for example ``CLI: `mstack state add` exit code and stdout``. It repeats on `state add`; on
+`state set` it **replaces** the list and names each seam it dropped. An item that changes no
+behaviour carries none.
 
 ```console
 $ mstack state set greet-flag --description "the flag is off by default" \
@@ -240,8 +245,8 @@ abbreviated form printed them identically on either side of an arrow while the s
 dropped the answer — the line that exists to make a write visible, showing no change, on the
 field where this command silently un-answers a fork.
 
-`--clear` takes `description`, `source`, `verification`, `decision-required`, `sdd` and
-`closed-by`. `acceptance` is not among them — the gate fails an item with no criteria, so
+`--clear` takes `description`, `source`, `verification`, `decision-required`, `sdd`,
+`closed-by` and `seams`. `acceptance` is not among them — the gate fails an item with no criteria, so
 replace them instead — and `--slug` is refused outright, because it names the branch, the spec
 directory, the progress files and every ledger and decision row already written for the item,
 and none of those move with it. Two instructions for one field in one command (`--description
