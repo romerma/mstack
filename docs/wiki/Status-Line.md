@@ -20,7 +20,7 @@ The segments: model, branch, active item, its status, the verdict state for that
 current head, and context usage. The verdict segment reports a verdict at HEAD as itself,
 whatever it says — a `verifier-failed` at HEAD renders red as the failure it is, not as
 "stale" — falls back to `verdict stale` when rows exist only at older SHAs, and says
-`unverified` when there are no rows at all (`src/statusline.ts:146-163`). Deliberately no
+`unverified` when there are no rows at all (`src/statusline.ts:146-172`). An approval is not always an independent one, so two more states are told apart from the green `test-verified`: a verdict that is only the author's own renders yellow as `test-verified (author only)`, and an approval whose evidence cites the implementer's or spec-author's own report renders red as `test-verified (not independent)`, the state the gate refuses to close on. Deliberately no
 count on "stale": the count of rows at other SHAs grows with the age of the item and says
 nothing about how stale anything is. Here is a real render against a scratch repository whose
 active item has no verdict yet:

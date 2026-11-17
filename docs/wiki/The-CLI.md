@@ -316,16 +316,27 @@ $ mstack ledger summary
 2026-08-19T21:08:56.136Z  greet-flag  4b63888b  test-verified  reviewer re-ran python3 -m unittest test_greet: 2 tests, OK; diff read against both acceptance bullets
 ```
 
-The SHA must name a commit that exists in this repository, and the evidence must be at least a
-phrase; forty zeros and a one-character evidence both used to record fine, and no longer do.
+The SHA must name a commit that exists in this repository, the target must not be empty, and
+the evidence must be at least a phrase; forty zeros, a blank target and a one-character
+evidence all used to record fine, and no longer do. An abbreviated SHA (4 to 39 hex characters)
+is resolved through git to the one commit it names, to the full 40 characters, by both `record`
+(which stores the full one) and `check`; one that names no commit, or two, is refused by
+`record` and finds no row in `check`. A row recorded with 7 characters before that
+(this repository's ledger has one) is still read as the commit it is a prefix of.
 `check` takes an optional SHA (default: the current head) and `--min <verdict>` for a floor.
-It judges a SHA by the latest row from a role that can close an item, the rows the gate's
-closing audit reads: a later `verifier-failed` or `verifier-blocked` from a reviewer fails the
-check and names itself, whatever an implementer recorded at that SHA (a rejection counts even
-when its evidence cites the implementer's report), and a later approval answers it. An approval
-whose evidence cites the implementer's own report is not independent, so when every closing-role
-row is of that kind the check fails and says so, as the gate does. Only when every row at the SHA is the author's own does it fall back to the best
-one, and then it says so, as above.
+It judges a SHA through `readVerdict`, the one function the gate's closing audit also calls,
+by the latest row from a role that can close an item: a `verifier-failed` from a reviewer fails
+the check and names itself, whatever an implementer recorded at that SHA (a rejection counts
+even when its evidence cites the implementer's report), and it stands until a later
+*independent approval* answers it. A `verifier-blocked` after it does not: "could not verify"
+is not an answer to "this is wrong", and the check names both rows. A lone `verifier-blocked`
+fails the check (nothing was verified) but is what the gate accepts for an item nothing can
+verify. An approval whose evidence cites the implementer's own report, or the spec-author's, is
+not independent, so when every closing-role row is of that kind the check fails and names the
+role whose report it cites, as the gate does. Only when every row at the SHA is the author's
+own does it fall back to the best one, and then it says so, as above.
+`state set --status done` refuses an item whose standing verdict is a rejection, and says which
+row, with the same function.
 The row is keyed by `(target, sha)`, so a new commit voids it:
 
 ```console

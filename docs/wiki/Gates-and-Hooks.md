@@ -205,19 +205,23 @@ Walking the lines that carry the weight:
   gate if the ledger holds no verdict for it, if its only verdict is `verifier-failed`, or if
   every verdict it has came from the pass that wrote the code (`only implementer`). Three more
   refusals audit the rows that *look* closing. A closing-role row whose evidence cites the
-  implementer's own report — or the spec-author's — does not count: the verifier column says
-  one thing, the evidence says another, and the evidence wins. And a `done` item whose most
-  recent legitimate closing verdict is `verifier-failed` stays refused until a later closing
-  row supersedes it; a forged row cannot be that later row, because it is dropped before the
-  ordering:
+  implementer's own report — or the spec-author's — does not count as an approval: the verifier
+  column says one thing, the evidence says another, and the evidence wins. A rejection is never
+  dropped for what its evidence cites. And a `done` item whose most recent closing verdict is
+  `verifier-failed` stays refused until a later *independent* approval from a closing role
+  answers it; a `verifier-blocked` after the failure ("could not verify") does not, and the row
+  named is the failure. The same rows are read by `mstack ledger check` through one function,
+  `readVerdict` (`src/ledger.ts`), and `state set --status done` refuses a standing rejection
+  through the closing checks (`ledger-verdict` in `src/closing.ts`) with the same reason, so
+  the two commands and the gate cannot disagree about one ledger:
 
   ```console
   [fail]  items closed on a verdict whose evidence cites the implementer's own report: storage-layer (reviewer)
           fix: a closing verdict needs evidence from the closing pass's own work, not a pointer to the implementer's report; re-run the check and record what actually happened
   [fail]  items closed on a verdict whose evidence cites the spec-author's own report: other-item (spec-reviewer)
           fix: a closing verdict needs evidence from the closing pass's own work, not a pointer to the spec-author's report; re-run the check and record what actually happened
-  [fail]  items marked done whose most recent closing verdict is verifier-failed: third-item (reviewer)
-          fix: the ledger is append-only, so the failed row stays; a later verdict from a closing role is what clears it — re-run the review after the fix and record a fresh one
+  [fail]  items marked done whose most recent closing verdict is verifier-failed, or verifier-blocked after one: third-item (reviewer): verifier-failed at 867d13cb by reviewer (evidence: node --test tests)
+          fix: the ledger is append-only, so the failed row stays; only a later independent approval from a closing role clears it, and 'could not verify' does not — re-run the review after the fix and record a fresh one
   ```
 
   One run, three items, one per refusal: an item lands on at most one of these lists, so

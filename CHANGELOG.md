@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- **The gate no longer lets an item close, or stay closed, over a standing rejection.** One
+  function, `readVerdict` in `src/ledger.ts`, reads the verdict from a ledger's rows and both
+  `ledger check` and the gate's audit of closed items call it, so they cannot disagree about
+  the same rows. A `verifier-failed` from a closing role stands until a later independent
+  approval, whatever its evidence cites; a `verifier-blocked` after it does not answer it
+  (a lone `verifier-blocked` is still the escape hatch for an item nothing can verify).
+  `state set --status done` refuses a standing rejection and names the row. An abbreviated sha
+  is resolved to the full commit by `ledger record` and `ledger check`, `ledger record` refuses
+  an empty target, the status line tells an author-only verdict and a discounted approval apart
+  from an independent approval, and the check names the spec-author when that is whose report
+  is cited. `mstack gate` still passes for all 31 closed items of this repository.
+
 - **A thirteenth skill, `/mstack:commit`, holds a commit message to Conventional Commits
   1.0.0.** It carries the shape, the two types the specification actually fixes (`feat` and
   `fix`, everything else is convention), how a breaking change is marked in the prefix or the
