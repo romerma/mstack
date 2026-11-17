@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- **The bug-fix playbook builds a loop before it theorises.** Steps 1 and 2 of
+  `skills/router/playbooks/bug-fix.md` now say to build one command that goes red on the
+  reported symptom (and, for a bug that is not constant, to raise its rate and pin it) before any
+  theory, then to shrink the repro, rank three to five hypotheses each with a prediction, and
+  probe one variable at a time with tagged debug lines. The text is adapted from mattpocock/skills
+  `diagnosing-bugs`, with an origin header; nothing is shown to the user for re-ranking and nothing
+  is asked. `lint-plugin` requires that header.
+
 - **A glossary, a first ADR, and a gate check for the glossary's format.** `GLOSSARY.md` at
   the root defines the terms the code and the skills already use (item, verdict, closing role,
   receipt, fork, seam and eight more), each in one or two sentences. `docs/adr/0001-claude-code-only.md`

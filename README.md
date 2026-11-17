@@ -90,7 +90,7 @@ drops its named steps.
 | When your request sounds like | Playbook | What it forces |
 |---|---|---|
 | "how does X work", "why is it like this" | **investigate** | Splits how-it-works from why-it-is. Past three moving parts, fans out narrow readers instead of one broad one, and says where each claim's evidence stopped |
-| "X is broken, wrong, or slow" | **bug-fix** | Reproduce it first or stop, no repro no fix. Failing test before the fix, and the repro commit lands **before** the fix in history so the broken state stays checkoutable |
+| "X is broken, wrong, or slow" | **bug-fix** | Build a command that goes red on the bug first or stop, no loop no fix. Failing test before the fix, and the repro commit lands **before** the fix in history so the broken state stays checkoutable |
 | "build X" | **feature** | Understand the subsystem before adding a parallel one. Two structurally distinct designs before picking, or a stated reason the constraints forced the answer. A throughput checkpoint that says what can actually run in parallel. A test-first step before delegation passes the item's seams to the implementer as pre-agreed |
 | "clean this up without changing behaviour" | **refactor** | Characterization tests committed *before* anything is touched. Migrate callers and delete the old path in the same change. Verify by re-running those tests unedited |
 | "review the architecture", "where should this code be deeper" | **deepen** | Finds shallow modules with the deletion test, using the vocabulary in `skills/design/references/deep-modules.md`. Files at most five candidates as `pending` items, each naming its files, the deepening and its test surface, and asks you nothing. Implements none of them |

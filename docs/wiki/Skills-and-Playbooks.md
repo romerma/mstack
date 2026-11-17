@@ -141,7 +141,7 @@ reason it exists:
 | Playbook | For | Its discipline |
 |---|---|---|
 | `investigate` | Answering a question about the system; produces understanding, not a change | Every claim says where it stopped on the evidence ladder |
-| `bug-fix` | Something broken, wrong, or slow | Reproduce it yourself first, and write the failing test before the fix; the repro lands before the fix in history |
+| `bug-fix` | Something broken, wrong, or slow | Build a command that goes red on the bug first, rank three to five hypotheses with their predictions, and write the failing test before the fix; the repro lands before the fix in history |
 | `feature` | Building something new | Understand and design before building; a named test-first step hands the implementer the item's seams as pre-agreed; delegating implementation is mandatory, with no skip-with-reason escape, because the gain is review separation |
 | `refactor` | Changing structure without changing behaviour | Pin current behaviour with characterization tests before touching anything, and verify by running them unchanged |
 | `deepen` | Reviewing the architecture, or finding where the code should be deeper | Uses the deletion test and the other tests in `skills/design/references/deep-modules.md`; files at most five candidates as `pending` items and asks the user nothing; implements none |
