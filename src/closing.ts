@@ -1,5 +1,5 @@
 import { headSha } from "./git.ts";
-import { describeRow, entries as ledgerEntries, readVerdict } from "./ledger.ts";
+import { describeRow, entries as ledgerEntries, readVerdict, sameCommit, short } from "./ledger.ts";
 import { requiresVerification, VERIFICATION_REQUIRED_FROM, type Status } from "./lifecycle.ts";
 import type { Store } from "./paths.ts";
 import type { Item, State } from "./state.ts";
@@ -76,7 +76,10 @@ export const LEDGER_VERDICT_CHECK = "ledger-verdict";
  * A standing rejection from a role that can close an item.
  *
  * Reads the rows through `readVerdict`, the function `ledger check` and the
- * gate's audit of closed items also call. Only a rejection is refused here:
+ * gate's audit of closed items also call, twice: over the rows at the commit being
+ * closed (what `ledger check` answers for that sha), and over every row of the
+ * item (the audit of a closed item cannot do better, because an item records no
+ * closing commit). A rejection in either refuses the close. Only a rejection is refused here:
  * "no verdict yet", the author's own verdict and a discounted approval are the
  * audit's findings about an item already closed, and a `verifier-blocked` with no
  * rejection under it is the documented escape hatch for an item nothing can verify.
@@ -91,11 +94,21 @@ const standingRejection: ClosingCheck = {
   reportedAt: [],
   run: (store, _state, item) => {
     let reading;
+    let atClosingSha = false;
     try {
-      reading = readVerdict(
-        ledgerEntries(store).filter((e) => e.target === item.slug),
-        item.slug,
-      );
+      const rows = ledgerEntries(store).filter((e) => e.target === item.slug);
+      // The verdict AT the commit being closed, through the reader `ledger check` calls.
+      const sha = headSha(store);
+      const here = sha === null ? [] : rows.filter((e) => sameCommit(e.sha, sha));
+      const atHead = readVerdict(here, item.slug);
+      if (atHead?.kind === "rejected") {
+        reading = atHead;
+        atClosingSha = true;
+      } else {
+        // And across every sha: a rejection recorded against another commit, after
+        // the last approval, is not answered by an approval it was never about.
+        reading = readVerdict(rows, item.slug);
+      }
     } catch (error) {
       // Fails closed, like the receipts: an unreadable ledger is not a clean one.
       return [
@@ -112,10 +125,13 @@ const standingRejection: ClosingCheck = {
       reading.blockedAfter === undefined
         ? ""
         : `; the later verifier-blocked by ${reading.blockedAfter.verifier || "unnamed"} does not answer it`;
+    const elsewhere = atClosingSha
+      ? ""
+      : `; it was recorded against another commit (${short(reading.row.sha)}) and only a later independent approval answers it`;
     return [
       {
         check: LEDGER_VERDICT_CHECK,
-        message: `a rejection stands in the ledger: ${describeRow(reading.row)}${later}`,
+        message: `a rejection stands in the ledger: ${describeRow(reading.row)}${later}${elsewhere}`,
         hint: "fix what it found and record an independent approval from a closing role at the new commit; 'could not verify' does not answer a rejection and --force does not close over one",
         overridable: false,
       },
