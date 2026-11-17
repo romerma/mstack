@@ -807,7 +807,7 @@
         "intake and understand read the glossary; closing an item and reflect are where terms and ADRs are written, and only decisions meeting all three conditions become ADRs",
         "mstack gate checks the glossary's entry format"
       ],
-      "status": "reviewing",
+      "status": "in_progress",
       "description": "Derived from mattpocock/skills domain-modeling (the writing half of grill-with-docs). Reading the glossary and settling terms against the code need no human. An ADR is written only when a decision is hard to reverse, surprising without context and the result of a real trade-off. Its docs warn that an unreviewed agent-authored glossary is worse than none; here the glossary diff is part of the item and passes a reviewer that did not write it.",
       "source": "reports/Mejoras mstack con skills Pocock.md, 2026-11-16",
       "seams": [
@@ -1168,6 +1168,21 @@
       "source": "item 57 deepen runs and item 74; checked by the coordinator on 2026-11-17: ledger record --help exits 2, state add --help exits 0, rg -c \"parseArgs\\(\" src/cli.ts prints 9",
       "seams": [
         "CLI: --help on each command, exit code and stdout"
+      ]
+    },
+    {
+      "id": 82,
+      "slug": "any-role-name-closes",
+      "title": "A verdict recorded under any role name other than implementer and spec-author closes an item, including self or coordinator",
+      "acceptance": [
+        "the roles whose verdict may close an item are decided by a rule the code states, and a verdict recorded as self, coordinator or an unknown name does not close an item, or the report shows why an open set is intended and the decision is recorded",
+        "an item whose only verdict is the implementer's is refused at state set --status done with the reason the gate gives, instead of closing and turning the gate red afterwards",
+        "GLOSSARY.md's Closing role entry and docs/wiki describe the rule as the code then implements it"
+      ],
+      "status": "pending",
+      "source": "item 58 review, .mstack/progress/review_glossary-and-adr.md blocking finding 2, 2026-11-17; next to item 71",
+      "seams": [
+        "CLI: mstack ledger record --verifier <role>, state set --status done and gate, exit codes and stdout"
       ]
     }
   ]
