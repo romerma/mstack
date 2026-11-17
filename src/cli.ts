@@ -22,8 +22,8 @@ import {
 } from "./lifecycle.ts";
 import { lintPlugin } from "./lint.ts";
 import { cliProvenance, describeSrcComparison, findStore, requireStore, runningCliRoot, UserError } from "./paths.ts";
-import { DECIDE, helpText, parseFlags, STATE_ADD, STATE_SET, wantsHelp } from "./cliopts.ts";
-import { assertWritable, findItem, parseState, updateState, type Item } from "./state.ts";
+import { DECIDE, helpText, parseFlags, STATE_ADD, STATE_SET, STATE_SHOW, wantsHelp } from "./cliopts.ts";
+import { assertWritable, findItem, parseState, rawItem, unknownItemFields, updateState, type Item } from "./state.ts";
 import { MIN_REPORT_BYTES } from "./roles.ts";
 import * as verification from "./verification.ts";
 
@@ -39,6 +39,7 @@ const USAGE = `mstack - durable state and gates for the mstack Claude Code plugi
   gate [--full] [--quiet]             fast session gate; --full also runs verification
                                       --quiet: failures only, one line each, on stderr
   state list | active                 show work items
+  state show <ref> [--json]           print one item with every field it carries
   state add --slug S --title T [...]  add an item
   state set <ref> [--status S] [...]  move or correct an item
   state set <ref> --clear <field>     remove a field an item carries
@@ -46,6 +47,7 @@ const USAGE = `mstack - durable state and gates for the mstack Claude Code plugi
   ledger check <target> [sha] [--min V]
   ledger summary
   decide --phase P --decision D --why W --evidence E --result R [--resolves <ref>]
+  state add|set|show, decide --help   that command's flags with one line each; changes nothing
   worktree new <slug> [--prefix fix] [--base origin/main]
   worktree list
   worktree prune [--yes]
@@ -332,13 +334,44 @@ function clearField(item: Item, name: string): string[] {
   return lines;
 }
 
+/**
+ * Every field the item carries as one labelled line, lists as indented lines.
+ *
+ * The order is fixed so two runs diff cleanly: identity, then where the item
+ * stands, then the prose about it, then the two lists, then whatever else
+ * `state.json` holds that this CLI does not know. A field the item does not
+ * carry prints nothing, so a line's presence is itself information.
+ */
+function showLines(item: Item, raw: Record<string, unknown>): string[] {
+  const lines: string[] = [];
+  const scalar = (label: string, value: unknown): void => {
+    const text = typeof value === "string" ? value : JSON.stringify(value);
+    lines.push(`${label}: ${text.split("\n").join("\n  ")}`);
+  };
+  const list = (label: string, values: readonly string[] | undefined): void => {
+    if (values === undefined) return;
+    lines.push(values.length === 0 ? `${label}: (empty)` : `${label}:`, ...values.map((v) => `  - ${v.split("\n").join("\n    ")}`));
+  };
+  scalar("id", item.id);
+  scalar("slug", item.slug);
+  scalar("title", item.title);
+  scalar("status", item.status);
+  for (const key of ["source", "description", "sdd", "decision_required", "decision_resolved", "verification", "closed_by"] as const) {
+    if (item[key] !== undefined) scalar(key, item[key]);
+  }
+  list("acceptance", item.acceptance);
+  list("seams", item.seams);
+  for (const [key, value] of Object.entries(unknownItemFields(raw))) scalar(key, value);
+  return lines;
+}
+
 function cmdState(argv: readonly string[]): number {
   const [sub, ...rest] = argv;
 
   // Before the store is looked for and before `<ref>` is read: `state set --help`
   // used to resolve "--help" as an item reference, and a help request has to
   // work outside a repository and never write.
-  const helped = sub === "add" ? STATE_ADD : sub === "set" ? STATE_SET : undefined;
+  const helped = sub === "add" ? STATE_ADD : sub === "set" ? STATE_SET : sub === "show" ? STATE_SHOW : undefined;
   if (helped !== undefined && wantsHelp(rest)) {
     console.log(helpText(helped));
     return 0;
@@ -367,6 +400,18 @@ function cmdState(argv: readonly string[]): number {
       return 1;
     }
     console.log(item.slug);
+    return 0;
+  }
+
+  if (sub === "show") {
+    const [ref, ...flags] = rest;
+    if (ref === undefined || ref.startsWith("-")) throw new UserError("state show needs an item id or slug");
+    const { values } = parseFlags(STATE_SHOW, flags);
+    const item = findItem(parseState(store.state), ref);
+    if (item === undefined) throw new UserError(`no item matches '${ref}'`);
+    const raw = rawItem(store.state, item.id) ?? {};
+    if (values.json === true) console.log(JSON.stringify(raw, null, 2));
+    else for (const line of showLines(item, raw)) console.log(line);
     return 0;
   }
 

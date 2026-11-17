@@ -61,6 +61,14 @@ export const STATE_SET = {
   },
 } as const satisfies CommandSpec;
 
+export const STATE_SHOW = {
+  usage: "state show <ref> [--json]",
+  summary: "print one item with every field it carries; <ref> is an id or a slug",
+  flags: {
+    json: { type: "boolean", help: "print the item's raw object from state.json as JSON instead" },
+  },
+} as const satisfies CommandSpec;
+
 export const DECIDE = {
   usage: "decide --phase P --decision D --why W --evidence E --result R [--resolves <ref>]",
   summary: "append one row to .mstack/decisions.tsv; --resolves also answers that item's fork",

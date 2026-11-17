@@ -228,6 +228,22 @@ const KNOWN_ITEM_KEYS = new Set([
   "decision_required", "decision_resolved", "source", "verification", "closed_by", "seams",
 ]);
 
+/**
+ * The item as `state.json` holds it, unknown keys included, found by id the way
+ * `updateState` matches them. `parseState` rebuilds an item from known fields, so
+ * a reader that has to show everything the file carries has to go back to the file.
+ */
+export function rawItem(file: string, id: number): Record<string, unknown> | undefined {
+  const raw = JSON.parse(readFileSync(file, "utf8")) as unknown;
+  if (!isRecord(raw) || !Array.isArray(raw["items"])) return undefined;
+  return raw["items"].find((it): it is Record<string, unknown> => isRecord(it) && it["id"] === id);
+}
+
+/** The keys an item carries that this CLI does not know, in file order. */
+export function unknownItemFields(raw: Record<string, unknown>): Record<string, unknown> {
+  return extras(raw, KNOWN_ITEM_KEYS);
+}
+
 function extras(value: unknown, known: ReadonlySet<string>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   if (!isRecord(value)) return out;
