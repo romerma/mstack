@@ -7,7 +7,7 @@
 > empty template below.
 
 - **Item:** 46 npm-test-misses-strip-types
-- **Status:** in_progress (bug-fix playbook, steps 1 and 2 done; step 4 skip: single-site fix)
+- **Status:** reviewing, round 1
 - **Branch:** fix/npm-test-misses-strip-types
 - **Base:** a9f1d1d
 - **Worktree:** none
@@ -45,14 +45,15 @@ passes bypassPermissions. Do not run `check.mjs` or `verify.mjs` while a batch i
 
 ## Next step
 
-Item 46. Reproduced with node 22.6.0 from nvm first on PATH: `node --test 'tests/*.test.ts'`
-fails every file with ERR_UNKNOWN_FILE_EXTENSION; with `--disable-warning=ExperimentalWarning
---experimental-strip-types` the full suite is 477 of 477 on 22.6.0, including the tests added
-in items 52, 53, 54 and 47. Mechanism: `package.json:8-10` omits the flag that
-`.github/workflows/ci.yml:56` passes, and `bun test tests/` treats the path as a filter and
-runs the gitignored `sandbox/` too. Implemented at 7f8a95d (scripts, docs, CI in three commits); report in
-`impl_npm-test-misses-strip-types.md`: 480/480 on bun and node under 22.6.0, 24.14.0 and 26.13.1.
-If this session stops now: a fresh reviewer on a different model judges item 46.
+Item 46, round 1 implementation is in: `impl_npm-test-misses-strip-types.md`, head of the last
+non-chore commit `7f8a95d`. `npm test` is `npm run test:bun && npm run test:node`; the node
+half carries both flags, the bun half is `bun test ./tests`; CI calls the same scripts;
+`tests/scripts.test.ts` pins them. Reported: 480 of 480 on bun and on node with 22.6.0, 24.14.0
+and 26.13.1 first on PATH. Round 1 review is out to a fresh reviewer on a different model,
+which writes `review_npm-test-misses-strip-types.md` and types its own ledger row.
+
+- APPROVED: `state set 46 --status verifying`, then `done`, merge fast-forward.
+- CHANGES_REQUESTED: `state set 46 --status in_progress`, a fresh implementer, review as `_r2`.
 
 After 46: item 50 needs the user's answer on the icon (its own acceptance says so). Item 70
 (the gate closes over a standing rejection) is the most serious follow-up. Then phase 1 and
