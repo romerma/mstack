@@ -6,10 +6,10 @@
 > On close: append the summary to `history.md` and reset this file to the
 > empty template below.
 
-- **Item:** none active (57 closed 2026-11-17)
-- **Status:** -
-- **Branch:** main
-- **Base:** -
+- **Item:** 58 glossary-and-adr
+- **Status:** in_progress (implementer briefed)
+- **Branch:** feat/glossary-and-adr
+- **Base:** 5449746
 - **Worktree:** none
 
 ## Plan
@@ -57,8 +57,10 @@ Record each answer with `mstack decide --resolves <slug>`.
 
 Standing: push `main` after closing work and check CI (user, 2026-11-17).
 
+In flight: 58 on `feat/glossary-and-adr`; then review by the other model, close, merge, push.
+
 Next, not blocked:
-1. Phase 2: 58 glossary-and-adr (the other half of grill-with-docs), then 59, 60, 61, 62, 64.
+1. Phase 2: 58 (in flight) glossary-and-adr (the other half of grill-with-docs), then 59, 60, 61, 62, 64.
 2. Architecture candidates filed by the deepen playbook: 76 to 80, and 81.
 3. Durability follow-ups: 71, 66, 68, 67, 69.
 

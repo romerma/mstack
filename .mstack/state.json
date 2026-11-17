@@ -807,9 +807,13 @@
         "intake and understand read the glossary; closing an item and reflect are where terms and ADRs are written, and only decisions meeting all three conditions become ADRs",
         "mstack gate checks the glossary's entry format"
       ],
-      "status": "pending",
+      "status": "in_progress",
       "description": "Derived from mattpocock/skills domain-modeling (the writing half of grill-with-docs). Reading the glossary and settling terms against the code need no human. An ADR is written only when a decision is hard to reverse, surprising without context and the result of a real trade-off. Its docs warn that an unreviewed agent-authored glossary is worse than none; here the glossary diff is part of the item and passes a reviewer that did not write it.",
-      "source": "reports/Mejoras mstack con skills Pocock.md, 2026-11-16"
+      "source": "reports/Mejoras mstack con skills Pocock.md, 2026-11-16",
+      "seams": [
+        "CLI: mstack gate output and exit code on a repository with a well-formed, a malformed and no GLOSSARY.md",
+        "skills/router/references/intake.md and skills/understand/SKILL.md as read by a headless /mstack run in a project that has a GLOSSARY.md"
+      ]
     },
     {
       "id": 59,
