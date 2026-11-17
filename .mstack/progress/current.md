@@ -7,7 +7,7 @@
 > empty template below.
 
 - **Item:** 70 gate-closes-over-a-rejection
-- **Status:** reviewing, round 1
+- **Status:** in_progress, round 2 after CHANGES_REQUESTED
 - **Branch:** fix/gate-closes-over-a-rejection
 - **Base:** 7283bbe
 - **Worktree:** none
@@ -45,17 +45,24 @@ passes bypassPermissions. Do not run `check.mjs` or `verify.mjs` while a batch i
 
 ## Next step
 
-Item 70, round 1 implementation is in: `impl_gate-closes-over-a-rejection.md`, head of the last
-non-chore commit `d8b944e`. `readVerdict` in `src/ledger.ts` is the one reader; `check`, the
-gate's closed-item audit and a new `ledger-verdict` closing check call it, so `state set
---status done`, the gate and the Stop hook refuse a standing rejection and name the row. Short
-shas resolve through git. The status line has three states. One existing gate test that encoded
-the blocked-after-failed hole was rewritten, with a decision row. Round 1 review is out to a
-fresh reviewer on a different model, which writes `review_gate-closes-over-a-rejection.md` and
-types its own ledger row.
+Item 70, round 1 review: CHANGES_REQUESTED, `review_gate-closes-over-a-rejection.md`, ledger
+row `verifier-failed` at 4425f38. Three blockers:
 
-- APPROVED: `state set 70 --status verifying`, then `done`, merge fast-forward.
-- CHANGES_REQUESTED: `state set 70 --status in_progress`, a fresh implementer, review as `_r2`.
+1. `agents/reviewer.md:94-95` and `skills/review/SKILL.md:56-57` still say a `verifier-failed`
+   row "is not itself a gate". It is one now.
+2. The new closing check judges a rejection across every sha, not at the closing sha: a
+   rejection at HEAD, then an approval recorded later at HEAD~1, closes with a passing gate
+   while `ledger check` fails (case B-9r). No test covers a two-sha ledger.
+3. Regression: a lone reviewer `verifier-blocked` whose evidence is `impl_<slug>.md` now closes
+   the item; the old gate refused it (`src/ledger.ts:224`).
+
+Every one-sha sequence refuses on all three surfaces; the 31 closed items still pass. The
+round 2 design is recorded (latest `design` row). A fresh implementer has the three blockers.
+When it returns: `state set 70 --status reviewing`, then a fresh reviewer writes
+`review_gate-closes-over-a-rejection_r2.md`.
+
+Follow-ups to file when the item closes: `state set --status done` still closes author-only and
+discounted ledgers that the gate then fails; surviving mutants M10, M11, M15, M16, M20, M24, M25.
 
 Waiting on the user: item 50 (the plugin icon), and the go-ahead to push `main`, local only
 since 2026-11-08. Then phase 1 (55, 56) and item 69, which need the plugin really loaded.

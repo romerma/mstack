@@ -117,3 +117,4 @@ ledger-check-hides-a-rejection	acd6b7530523bacdbdc3925ffbe91ada4babd10d	live-ver
 npm-test-misses-strip-types	7f8a95df5d35917678aefe2c7f3dc8ebc6fdcc65	live-verified	.mstack/progress/impl_npm-test-misses-strip-types.md	implementer	2026-11-17T00:31:43.639Z
 npm-test-misses-strip-types	cd836732f707e41d522a492984beaa48f206fde9	test-verified	.mstack/progress/review_npm-test-misses-strip-types.md	reviewer	2026-11-17T00:53:25.774Z
 gate-closes-over-a-rejection	d8b944e0408565d88f47cd5a1b601746bf3e6f29	test-verified	.mstack/progress/impl_gate-closes-over-a-rejection.md	implementer	2026-11-17T01:19:43.318Z
+gate-closes-over-a-rejection	4425f3808f97cdcfd3a4dbdf15052847f8a7c393	verifier-failed	.mstack/progress/review_gate-closes-over-a-rejection.md	reviewer	2026-11-17T02:13:04.941Z
