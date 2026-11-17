@@ -1018,7 +1018,7 @@
         "lint-plugin fails when an agent's skills entry names no skill under skills/ or names one with disable-model-invocation: true",
         "docs/wiki/Skills-and-Playbooks.md counts the skills it introduces correctly"
       ],
-      "status": "reviewing",
+      "status": "done",
       "source": "item 55 reviews, .mstack/progress/review_intake-step.md N-6, review_intake-step_r2.md N-6, review_intake-step_r3.md N-2 to N-7, 2026-11-17",
       "seams": [
         "skills/router/SKILL.md and references/intake.md as read by a headless claude -p run",
@@ -1032,13 +1032,32 @@
       "acceptance": [
         "mstack state show <ref> prints one item with every field, including source, seams and decision_required",
         "a value that starts with -- is accepted by --acceptance, --seam and decide --decision when passed as --flag=value, and the refusal message says so",
-        "state set --acceptance on an item that already has criteria names --add-acceptance in its output, so an append meant as an append is not a silent replace"
+        "state set --acceptance on an item that already has criteria names --add-acceptance in its output, so an append meant as an append is not a silent replace",
+        "state add --help, state set --help and decide --help print that command's flags and exit 0, so an agent does not hand-edit state.json after a failed --help"
       ],
       "status": "pending",
       "description": "In the item 55 live runs four agents tried 'mstack state show' first and one wrote it into a current.md note; three had a state add or decide refused because a value began with --; one replaced six criteria with one through --acceptance and had to restore them. state list prints only label and title, so nothing prints an item's seams or source.",
       "source": "item 55 reviews: review_intake-step.md N-9, review_intake-step_r2.md N-6, review_intake-step_r3.md N-8; sandbox/PROTOCOL.md F1; 2026-11-17",
       "seams": [
         "CLI: mstack state show, state add, state set and decide exit codes and stdout"
+      ]
+    },
+    {
+      "id": 75,
+      "slug": "spec-path-for-answered-forks",
+      "title": "One answered intake fork sends a small change down the spec path at about three times the cost of the direct path",
+      "acceptance": [
+        "the router's two paths section and intake's End say which path an item with answered forks takes, as the user chose through decide --resolves",
+        "the measurement is repeated with two runs per arm on a second request, and the report gives cost, wall time, turns and subagent launches for both arms",
+        "intake's End says an in_progress item reaches specifying only through blocked, or stops saying it cannot go back; the note's --why placeholder is long enough for a --resolves row; README's fork definition includes a choice that cannot be undone; CHANGELOG describes both halves of the note; lint checks every origin header in a file, not only the first"
+      ],
+      "status": "pending",
+      "description": "Measured on 2026-11-17, n=1 per arm, the same cleaning-fee request: answered forks then spec path 3.44 USD, 686 s, 41 turns, 4 subagent launches; answers written into the request, direct path, 1.13 USD, 296 s, 15 turns, 2 launches. A reviewer checked the numbers against the streams; charging the whole worktree-question pause to that stop, the spec path still costs about 2.8 times as much. Item 73 kept the rule.",
+      "decision_required": "1) Should an item whose intake forks are all answered take the direct path, unless it is sdd, crosses several subsystems, or the user will step away? Recommended: yes, because one answered question about a small change now triples its cost, and the answer is already recorded with decide; the cost is that such changes get no written, reviewed spec.",
+      "source": "item 73 reports and reviews, .mstack/progress/impl_intake-followups.md (criterion 7), review_intake-followups.md Probe E, review_intake-followups_r2.md N-1 to N-7, 2026-11-17",
+      "seams": [
+        "skills/router/SKILL.md and references/intake.md as read by a headless claude -p run with the plugin loaded",
+        "CLI: mstack lint-plugin exit code and stdout"
       ]
     }
   ]

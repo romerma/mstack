@@ -1095,3 +1095,39 @@ which silently removes the reference.
 **Session tally, 2026-11-17.** Closed: 55 in 3 rounds, 56 in 1. Filed: 72, 73, 74. Suite: 542
 tests, green on both runtimes. `main` pushed twice with CI green on `test` and `oldest-node`.
 Phase 1 of the program (front end) is closed.
+
+## 2026-11-17 — item 73 intake-followups, closed
+
+**What changed.** The loose ends of items 55 and 56, twelve criteria. Lint gained three rules:
+the router must link `references/intake.md` from its orient steps, every origin header in a
+skill or agent file must name a licence file that ships under `licenses/`, and each agent
+`skills` entry must name a skill of this plugin that does not block model invocation. Intake's
+End now moves the item on after `state add` (`in_progress` on the direct path, `specifying` on
+the spec path, by the triggers of the router's "The two paths"). The fork test is stated once,
+in intake's Map; its reach is what the product's user can do or gets, and message wording,
+labels and formatting are not forks. The note intake leaves in `current.md` for a parked fork
+carries the whole answer rule as commands, so a session that skips intake can act on it. The
+router's step 2 reads `current.md` whenever it is not the empty template, Closing keeps a note
+that records a parked fork, and `feature.md` says where seams are read and asks for the first
+test red. The test-first skill lost a sentence that was false in a consumer project and gained
+the delegated refactor.
+
+**Rounds: 2.**
+- Round 1, rejected: a regression made in the same round. The note carried only the
+  full-answer half of the rule, and 0 of 3 fresh partial-answer sessions re-stated the field,
+  against 3 of 3 at the base.
+- Round 2, approved: `review_intake-followups_r2.md`, `live-verified` at `f6469da` by reviewer.
+  Three partial answers in fresh sessions, worded three ways, each wrote a plain row and
+  re-stated only the open forks; no session read `intake.md`.
+
+**Measured (criterion 7), n=1 per arm.** The same request: answered forks then the spec path,
+3.44 USD, 686 s, 41 turns, 4 subagent launches; direct path, 1.13 USD, 296 s, 15 turns, 2
+launches. The rule was kept. Narrowing it is the user's call: item 75.
+
+**Accepted limits.** Small notes of the approving review went to item 75; `--help` on the state
+subcommands to item 74. Seen again and owned elsewhere: headless agents in a consumer project
+add `Co-Authored-By` trailers (item 35), and `tests/costs.test.ts:698` failed once under load
+(item 67).
+
+**Session tally, 2026-11-17.** Closed: 55 (3 rounds), 56 (1), 73 (2). Filed: 72 to 75. Suite:
+553 tests, green on both runtimes.
