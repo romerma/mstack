@@ -20,7 +20,8 @@ $ARGUMENTS
    resume its recorded next step rather than starting over.
 3. **Intake**: turn the request into a queue item, by the method in
    [references/intake.md](references/intake.md). Skip it for routes that are not new work:
-   resuming an item in flight, answering a parked fork, a request that names an existing item,
+   resuming an item in flight, answering a parked fork, a request that names an existing item (a
+   `pending` one that work starts on moves as intake's End says: `in_progress` or `specifying`),
    understanding or investigating, verifying, reviewing, shipping, a commit message, cleanup.
    Say which in one line (`skip: <reason>`). It ends with
    `mstack state add --slug <s> --title <t> --acceptance "..." --source "..." --seam "..."`,
