@@ -255,6 +255,22 @@ test("an origin header that names a licence file the plugin does not ship is cau
   }
 });
 
+test("an origin header outside the required list that names a missing licence is caught", () => {
+  for (const rel of [
+    ["skills", "review", "SKILL.md"],
+    ["agents", "reviewer.md"],
+  ]) {
+    const c = copy();
+    try {
+      const file = join(c.root, ...rel);
+      writeFileSync(file, `${readFileSync(file, "utf8")}\n<!-- Origin: x/y @ abc (MIT, licenses/no-such-LICENSE.txt) -->\n`);
+      expectFail(c.root, /licenses\/no-such-LICENSE\.txt.*does not exist/, `header in ${rel.join("/")}`);
+    } finally {
+      c.dispose();
+    }
+  }
+});
+
 test("an origin header that names no licence file is caught", () => {
   const c = copy();
   try {

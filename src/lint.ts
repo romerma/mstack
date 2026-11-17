@@ -422,15 +422,18 @@ function nameOf(file: string): string | null {
 const ORIGIN_REQUIRED = ["skills/router/references/intake.md", "skills/test-first/SKILL.md"];
 
 /**
- * Every origin header names a licence file the plugin ships under `licenses/`,
- * and every file in ORIGIN_REQUIRED has a header. Without this, deleting a
- * header or a licence leaves the derived text unattributed with nothing red.
+ * Every origin header in a skill or agent file names a licence file the plugin
+ * ships under `licenses/`, and every file in ORIGIN_REQUIRED has a header.
+ * Without this, deleting a header or a licence leaves the derived text
+ * unattributed with nothing red.
  */
 function lintOrigins(root: string, report: Report): void {
   const header = /<!--\s*Origin:([\s\S]*?)-->/;
   let problems = 0;
   let headers = 0;
-  const files = new Set(collectAll(join(root, "skills")).filter((f) => extname(f) === ".md"));
+  const files = new Set(
+    [...collectAll(join(root, "skills")), ...collectAll(join(root, "agents"))].filter((f) => extname(f) === ".md"),
+  );
   for (const required of ORIGIN_REQUIRED) {
     const file = join(root, required);
     if (existsSync(file)) files.add(file);
