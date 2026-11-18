@@ -2,7 +2,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 import { all as decisionsFor } from "./decisions.ts";
-import { gateProblems, VERIFICATION_CHECK } from "./closing.ts";
+import { FORGED_IMPL_FIX, FORGED_SPEC_FIX, gateProblems, SELF_CLOSED_FIX, VERIFICATION_CHECK } from "./closing.ts";
 import { defaultBranch, git, headSha } from "./git.ts";
 import { readGlossary } from "./glossary.ts";
 import { runCommand } from "./run.ts";
@@ -538,19 +538,19 @@ function checkClosedItems(store: Store, state: State, report: Report): void {
   if (selfClosed.length > 0) {
     report.fail(
       `items closed on a verdict from the pass that wrote the code: ${selfClosed.join(", ")}`,
-      "a closing verdict has to come from somewhere other than the implementer; run the verification again from a pass that did not write it",
+      SELF_CLOSED_FIX,
     );
   }
   if (forgedImpl.length > 0) {
     report.fail(
       `items closed on a verdict whose evidence cites the implementer's own report: ${forgedImpl.join(", ")}`,
-      "a closing verdict needs evidence from the closing pass's own work, not a pointer to the implementer's report; re-run the check and record what actually happened",
+      FORGED_IMPL_FIX,
     );
   }
   if (forgedSpec.length > 0) {
     report.fail(
       `items closed on a verdict whose evidence cites the spec-author's own report: ${forgedSpec.join(", ")}`,
-      "a closing verdict needs evidence from the closing pass's own work, not a pointer to the spec-author's report; re-run the check and record what actually happened",
+      FORGED_SPEC_FIX,
     );
   }
   if (unsupersededFailure.length > 0) {

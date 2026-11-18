@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
+import { closingProblems } from "../src/closing.ts";
 import { check, readVerdict, record, type Entry, type VerdictKind } from "../src/ledger.ts";
 import { runGate } from "../src/gate.ts";
 import { captured, item, sandbox, state } from "./helpers.ts";
@@ -106,6 +107,45 @@ test("ledger check and the gate's closing audit agree on every sequence, because
       assert.equal(checked.kind, c.kind, `${c.name}: kind on the check result`);
     } finally {
       sb.dispose();
+    }
+  }
+});
+
+/**
+ * Item 82: the close asks the gate's question. Every sequence above, plus the names the
+ * closing-role rule now refuses, goes to the real `closingProblems` (what `state set
+ * --status done` runs) and to the real gate over the same rows once the item is done.
+ * An item the close lets through must be one the gate then passes, and the reverse.
+ */
+const ROLE_CASES: { name: string; rows: Row[]; closes: boolean }[] = [
+  ...CASES.map((c) => ({ name: c.name, rows: c.rows, closes: c.gate === "pass" })),
+  { name: "self alone", rows: [["test-verified", "self"]], closes: false },
+  { name: "Spec_Author alone", rows: [["test-verified", "Spec_Author"]], closes: false },
+  { name: "dev then coder", rows: [["test-verified", "dev"], ["test-verified", "Coder"]], closes: false },
+  { name: "an empty verifier alone", rows: [["test-verified", ""]], closes: false },
+  { name: "me, then a coordinator", rows: [["test-verified", "me"], ["test-verified", "coordinator"]], closes: true },
+  { name: "dev-ci alone", rows: [["test-verified", "dev-ci"]], closes: true },
+  { name: "a session citing the implementer's report", rows: [["test-verified", "session", IMPL]], closes: false },
+];
+
+test("the close and the gate agree on every sequence, and on the names the closing-role rule refuses", { timeout: 120_000 }, () => {
+  for (const c of ROLE_CASES) {
+    const open = sandbox();
+    const closed = sandbox();
+    try {
+      for (const [sb, status] of [[open, "verifying"], [closed, "done"]] as const) {
+        sb.writeState(state([item({ status })]));
+        for (const [verdict, verifier, evidence] of c.rows) {
+          record(sb.store, { target: SLUG, sha: sb.sha, verdict, evidence: evidence ?? "node --test tests", verifier });
+        }
+      }
+      const problems = closingProblems(open.store, state([item({ status: "verifying" })]) as never, item({ status: "verifying" }) as never);
+      const { value: report } = captured(() => runGate(closed.store, { quiet: true }));
+      assert.equal(problems.length === 0, c.closes, `${c.name}: closing problems ${JSON.stringify(problems.map((p) => p.message))}`);
+      assert.equal(!report.failed, c.closes, `${c.name}: gate ${JSON.stringify(report.failures)}`);
+    } finally {
+      open.dispose();
+      closed.dispose();
     }
   }
 });

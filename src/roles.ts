@@ -111,23 +111,76 @@ export function substantialReports(progressDir: string, kind: string, slug: stri
 }
 
 /**
- * Roles whose verdict does not close an item, because they wrote the thing.
+ * Roles whose report is the work itself: the passes that wrote the thing.
  *
  * `skills/ship/SKILL.md` defines safe as "a verdict from a pass that did not
  * write the code", and `agents/implementer.md` tells the implementer to record
  * `--verifier implementer`. Nothing checked the column, so the pass that wrote
  * the code closed the item: `closed_by` again, in a different costume.
  *
- * The column is free text — a verifier can be a person, a CI job, a session —
- * so this is a floor and not a proof. Someone typing `--verifier impl` gets
- * past it. That is worth having anyway: it stops the default path, which is the
- * one everybody takes.
+ * This set also drives `citesImplementingReport`: it names the roles whose own
+ * report (`impl_<slug>.md`, `spec_<slug>.md`) cannot back an approval.
  */
 export const IMPLEMENTING_ROLES: ReadonlySet<string> = new Set(["implementer", "spec-author"]);
 
+/**
+ * Names that mean "the one who wrote it", in the spellings people type, written
+ * in normalised form (`normalisedRole`). `implementer` and `spec-author` are the
+ * two roles this plugin ships, and `spec author` and `spec_author` are the same
+ * name once normalised; the rest are what someone types for the same thing, plus
+ * `self` and `me`, which say it outright.
+ */
+const WROTE_THE_WORK: ReadonlySet<string> = new Set([
+  ...IMPLEMENTING_ROLES,
+  "impl",
+  "implementor",
+  "author",
+  "developer",
+  "dev",
+  "coder",
+  "self",
+  "me",
+].map((name) => normalisedRole(name)));
+
+/**
+ * The rule for who may close an item, stated once.
+ *
+ * The set of closing roles is OPEN on purpose. A verdict closes an item when its
+ * verifier names someone other than the pass that wrote the work: a reviewer, a
+ * panel's synthesising session, an orchestrator, a person, a CI job. A closed
+ * list would refuse the documented flow, where `skills/review/SKILL.md` has the
+ * session that synthesises a panel record the row under its own name. So what is
+ * refused is a short list of names for the author (`WROTE_THE_WORK`), compared
+ * as the WHOLE name after `normalisedRole`: `dev-ci`, `self-hosted runner` and
+ * `impl review bot` merely contain one of those words and keep closing. An empty
+ * verifier names nobody and does not close.
+ *
+ * The column is free text, so this is a floor and not a proof: someone who wants
+ * to approve their own work types another name. What stands behind the name is
+ * the second floor, `citesImplementingReport` (a row whose evidence is the
+ * implementing pass's own report does not close whatever name it carries), and
+ * the reviewer's own written report.
+ */
 export function canCloseAnItem(verifier: string): boolean {
-  const role = roleOf(verifier).trim().toLowerCase();
-  return role !== "" && !IMPLEMENTING_ROLES.has(role);
+  const role = normalisedRole(roleOf(verifier));
+  return role !== "" && !WROTE_THE_WORK.has(role);
+}
+
+/**
+ * A role name for comparison: lower case, with every run of spaces, hyphens and
+ * underscores one space, trimmed. `Spec_Author`, `spec-author` and `spec  author`
+ * are the same name; `mstack:` is stripped by `roleOf` before this runs.
+ *
+ * The one apostrophe the ledger writer puts in front of a cell that starts with
+ * `-`, `=`, `+` or `@` (`cell` in src/tsv.ts) is not part of the name and is read
+ * back with it, so it is dropped: `-self-` is stored as `'-self-`, and is `self`.
+ */
+export function normalisedRole(name: string): string {
+  return name
+    .replace(/^'(?=[-=+@])/, "")
+    .toLowerCase()
+    .replace(/[\s_-]+/g, " ")
+    .trim();
 }
 
 /**

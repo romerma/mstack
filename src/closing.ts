@@ -141,6 +141,71 @@ const standingRejection: ClosingCheck = {
   },
 };
 
+export const INDEPENDENT_VERDICT_CHECK = "independent-verdict";
+
+/** What the gate says about an item closed on the author's own verdicts, and what `state set` says at the door. Shared so the two cannot drift. */
+export const SELF_CLOSED_FIX =
+  "a closing verdict has to come from somewhere other than the implementer; run the verification again from a pass that did not write it";
+export const FORGED_IMPL_FIX =
+  "a closing verdict needs evidence from the closing pass's own work, not a pointer to the implementer's report; re-run the check and record what actually happened";
+export const FORGED_SPEC_FIX =
+  "a closing verdict needs evidence from the closing pass's own work, not a pointer to the spec-author's report; re-run the check and record what actually happened";
+
+/**
+ * An independent verdict, from a role that did not write the work.
+ *
+ * The gate audits every closed item for this (`checkClosedItems`) and went red
+ * AFTER `state set --status done` had succeeded: the close and the audit asked
+ * different questions. This asks the audit's question at the door, through the
+ * audit's reader (`readVerdict`) over the same rows (every row of the item: an
+ * item records no closing commit, and the gate accepts a verdict at any sha), so
+ * the two agree on every sequence with a row. Refused: rows that are only the
+ * author's (an implementing role's name, `self`, an empty verifier: see
+ * `canCloseAnItem`), and approvals whose evidence is the implementing pass's own
+ * report. A rejection is `standingRejection`'s, and a `verifier-blocked` is the
+ * documented escape hatch and closes.
+ *
+ * Held only while `rules.require_verdict_to_close` is on, the rule the gate's
+ * audit is held to.
+ *
+ * Not overridable, for the reason `standingRejection` is not: `--force` would
+ * only close the item over a finding the gate holds against every closed item
+ * for as long as the ledger carries it, leaving the store red with the item out
+ * of the active set. The way out that exists is a `verifier-blocked` row from a
+ * pass that did not write the work, and an independent approval.
+ */
+const independentVerdict: ClosingCheck = {
+  name: INDEPENDENT_VERDICT_CHECK,
+  reportedAt: [],
+  run: (store, state, item) => {
+    if (!state.rules.require_verdict_to_close) return [];
+    let rows;
+    try {
+      rows = ledgerEntries(store).filter((e) => e.target === item.slug);
+    } catch {
+      // `standingRejection` reports an unreadable ledger, and fails closed.
+      return [];
+    }
+    const refuse = (message: string, hint: string): ClosingProblem[] => [{ check: INDEPENDENT_VERDICT_CHECK, message, hint, overridable: false }];
+    const reading = readVerdict(rows, item.slug);
+    // No row at all is left to the gate (`items marked done with no ledger verdict`): a close with none is
+    // what many callers do before a verdict exists, and this check is about whose verdict stands.
+    if (reading === undefined) return [];
+    if (reading.kind === "author-only") {
+      const names = [...new Set(rows.map((r) => r.verifier || "unnamed"))].join(", ");
+      return refuse(`its only verdicts are from the pass that wrote the code (only ${names})`, SELF_CLOSED_FIX);
+    }
+    if (reading.kind === "discounted") {
+      const own = (role: string) => [...new Set(reading.discounted.filter((d) => d.role === role).map((d) => d.entry.verifier || "unnamed"))];
+      const impl = own("implementer");
+      return impl.length > 0
+        ? refuse(`its closing verdict cites the implementer's own report (${impl.join(", ")})`, FORGED_IMPL_FIX)
+        : refuse(`its closing verdict cites the spec-author's own report (${own("spec-author").join(", ")})`, FORGED_SPEC_FIX);
+    }
+    return [];
+  },
+};
+
 export const R_TO_TEST_CHECK = "r-to-test";
 
 /**
@@ -190,7 +255,7 @@ const reviewBudget: ClosingCheck = {
 };
 
 /** Exported mutable so a test can register a second check; production code never does. */
-export const CLOSING_CHECKS: ClosingCheck[] = [verificationReceipts, standingRejection, requirementTable, reviewBudget];
+export const CLOSING_CHECKS: ClosingCheck[] = [verificationReceipts, standingRejection, independentVerdict, requirementTable, reviewBudget];
 
 /**
  * Every problem that stops this item closing.
