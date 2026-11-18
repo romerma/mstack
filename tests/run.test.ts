@@ -52,15 +52,30 @@ test("exit code and signal are reported", () => {
 });
 
 test("tail keeps the last lines of stdout and stderr, and the temp file is removed", () => {
-  const before = readdirSync(tmpdir()).filter((n) => n.startsWith("mstack-run-"));
-  const result = runCommand("for i in 1 2 3 4 5; do echo out$i; done; echo err >&2", {
-    cwd,
-    output: "capture",
-    tailLines: 3,
-  });
-  assert.equal(result.tail, "out4\nout5\nerr");
-  const after = readdirSync(tmpdir()).filter((n) => n.startsWith("mstack-run-"));
-  assert.deepEqual(after, before, "a temp directory was left behind");
+  // The command gets a temp directory of its own to make its directory in. The
+  // system one is shared with every suite running at the same time, and another
+  // suite's directory appearing there between two listings is not a leak.
+  const own = mkdtempSync(join(tmpdir(), "mstack-own-tmp-"));
+  const saved = process.env["TMPDIR"];
+  process.env["TMPDIR"] = own;
+  try {
+    // Where the directory is made: a listing taken while the command runs. The
+    // path is in the command, not read from $TMPDIR: bun does not pass a change
+    // to process.env on to the child.
+    const during = runCommand(`ls '${own}'`, { cwd, output: "capture" });
+    assert.match(during.tail, /^mstack-run-\w+$/, "the command's temp directory is not in the TMPDIR it was given");
+    const result = runCommand("for i in 1 2 3 4 5; do echo out$i; done; echo err >&2", {
+      cwd,
+      output: "capture",
+      tailLines: 3,
+    });
+    assert.equal(result.tail, "out4\nout5\nerr");
+    assert.deepEqual(readdirSync(own), [], "a temp directory was left behind");
+  } finally {
+    if (saved === undefined) delete process.env["TMPDIR"];
+    else process.env["TMPDIR"] = saved;
+    rmSync(own, { recursive: true, force: true });
+  }
   assert.equal(existsSync(cwd), true);
 });
 
