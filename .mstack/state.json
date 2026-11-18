@@ -580,8 +580,9 @@
         "base is recorded automatically on the first move to in_progress only, editable with --base, and refused by --clear",
         "The gate fails an item with base and size s whose code diff from base exceeds 60 lines or 3 files, and sdd with size s is refused"
       ],
-      "status": "reviewing",
+      "status": "done",
       "base": "d8b20c14ba679897b85255c21bc1d79843b1000e",
+      "closed_by": "two rounds; review_item-fields-base-size_r2.md APPROVED at b0a3d58; gate --full green on the first run",
       "seams": [
         "CLI: mstack state add, state set and state show with --size, --base and --clear: output and exit code",
         "CLI: mstack gate on a store whose active item has a base and size s, in a git repository whose code diff from that base is under and over each limit"
@@ -1360,6 +1361,24 @@
       "status": "pending",
       "description": "Two live runs (n=1 each): session on Opus, implementer on claude-sonnet-5-5 and reviewer on claude-opus-5-5 (0.96 USD, 19 turns, 257 s); session on Sonnet, both implementer passes on Sonnet and both reviewer passes on Opus (1.08 USD, 37 turns, 354 s). spec-author and spec-reviewer were checked by frontmatter only. No cost comparison against inherit was made; items 49 and 45 measure it.",
       "source": "item 39 reviews, .mstack/progress/review_role-models.md and _r2.md, 2026-11-18"
+    },
+    {
+      "id": 92,
+      "slug": "size-check-followups",
+      "title": "Follow-ups from item 40: false reds the size-s check still gives, closing around it, and gaps in what it measures",
+      "acceptance": [
+        "a base on the branch itself with the default branch merged in (also a second item after a squash-merge, and a stacked branch that merges main) no longer reads a 10-line fix as 210 lines in 6 files: measured from git merge-tree --write-tree <base> <fork> when neither is an ancestor of the other, or at least the line says main was merged in and does not say 'it is not small'; with a test",
+        "a remote not named origin (a fork that rebases onto upstream/main) and a stale remote-tracking ref (git pull origin feat/one after a merge made on the remote) no longer bring the false red back, or the line names the remote it compared against",
+        "a rewritten base does not count the branch's commits from before the item (a stacked branch rebased onto main with its parent unmerged showed 170 lines in 5 files)",
+        "an over-limit size-s item cannot be closed around the check: state set --status done from verifying is refused through CLOSING_CHECKS in src/closing.ts, or the reason it is allowed is recorded",
+        "renames are decided (a pure git mv of a 100-line file counts 200 lines in 2 files today, pinned by a test); untracked files count as git would after git add (a late NUL byte, .gitattributes binary, symlinks, a last line without a newline)",
+        "when git cannot answer (more than 1 MiB of untracked names, a timeout) the fix line does not name --base; a base in state.json that is not a full commit id (a hand-edited HEAD) is refused at read",
+        "tests exist for a detached HEAD, a linked worktree and a shallow clone; the mutant that checks only the insertions count at src/size.ts:154 is killed; criterion wording 'code diff from base' and the CHANGELOG mention the fork-point rule and its limit",
+        "housekeeping: the --clear help's duplicated field list in src/cli.ts; commit 1273254 has 8 failing tests; the shared git sandbox helper fails under a global commit.gpgsign"
+      ],
+      "status": "pending",
+      "description": "The size-s check measures from the item's base or from where the branch left the default branch (local and origin together), under the store's root. It gives the item's own work in the one-item-per-branch flow the reviewer ran (rebase, merge, fetch then rebase onto origin/main, pull --rebase, a stacked branch, a detached HEAD, a linked worktree, a shallow clone). What is left is below.",
+      "source": "item 40 reviews, .mstack/progress/review_item-fields-base-size.md and _r2.md, 2026-11-18"
     }
   ]
 }

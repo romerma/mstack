@@ -1383,3 +1383,31 @@ live run is left under `/private/tmp/claude-501/` outside any project; its remov
 the reviewer and not retried.
 
 **Filed.** Item 91 `role-models-followups`.
+
+## 2026-11-18 - item 40 item-fields-base-size closed (2 rounds)
+
+**What shipped.** An item carries `size` (`s`, `m`, `l`; absent reads as `m`; an invalid value
+is refused) and `base` (the commit HEAD was at on its first move to `in_progress`; changed with
+`--base`, never cleared). The gate measures an active size-s item: code files under the store's
+root, base or fork point to working tree, more than 60 changed lines or 3 files fails with a fix
+naming `--size m`. `sdd` with size s is refused in either order. New module `src/size.ts`; 64
+tests in `tests/item-size-base.test.ts`.
+
+**What the rounds taught.** The design row said "from base", and a reviewer rebased: five files
+landing on main turned a 10-line item into 210 lines with advice to re-size. A measurement
+against a recorded commit has to say what happens when history moves under it; the rule now
+takes the later of base and the point where the branch left the default branch, and the line
+names the commit it used. The implementer departed from the brief (local and origin main
+together, not local first) and was right: after `fetch` and `rebase origin/main` local main is
+behind. One false red is left and documented: a base on the branch itself with main merged in.
+
+**Incident.** The round 1 reviewer's probe script broke on a zsh alias and its commands ran in
+this checkout: two commits on the item's branch, `.gitignore` replaced, `README.md` overwritten,
+14 files written. It undid all of it; the coordinator checked that tracked files matched the
+reviewed head, that the ignored directories were present and that nothing was pushed. The two
+commits remain in the reflog. Briefs now require probes in `bash` script files with a checked
+`cd` into the scratch directory.
+
+**Closing.** `gate --full` green on the first run (bun 698/0, node 698/0).
+
+**Filed.** Item 92 `size-check-followups`.
