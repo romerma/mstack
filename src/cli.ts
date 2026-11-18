@@ -38,7 +38,8 @@ import * as worktree from "./worktree.ts";
 const USAGE = `mstack - durable state and gates for the mstack Claude Code plugin
 
   setup [--force]                     create .mstack/ in the current repository
-  gate [--full] [--quiet]             fast session gate; --full also runs verification
+  gate [--full] [--quiet]             fast session gate; --full also runs verification, and reports the same
+                                      closing checks (table, budget) the plain gate does
                                       --quiet: failures only, one line each, on stderr
   state list | active                 show work items
   state show <ref> [--json]           print one item with every field it carries
@@ -48,7 +49,7 @@ const USAGE = `mstack - durable state and gates for the mstack Claude Code plugi
   ledger record <target> <sha> <verdict> --evidence E [--verifier V]
   ledger check <target> [sha] [--min V]
   ledger summary
-  decide --phase P --decision D --why W --evidence E --result R [--resolves <ref>]
+  decide --phase P --decision D --why W --evidence E --result R [--resolves <ref>] [--item <slug>]
   state add|set|show, decide --help   that command's flags with one line each; changes nothing
   worktree new <slug> [--prefix fix] [--base origin/main]
   worktree list
@@ -343,7 +344,6 @@ function seamList(values: readonly string[]): string[] {
   );
 }
 
-/** One of s, m or l, or a refusal that names what was given and what is allowed. */
 /**
  * How many requirements `spec.md` declares against what the size allows, when it
  * declares more. Counted by `specRequirementIds`, the reader the table check
@@ -368,6 +368,7 @@ function specOverLimit(
   return { count, limit, size: size ?? "m", shown: relative(store.root, file).split(sep).join("/") };
 }
 
+/** One of s, m or l, or a refusal that names what was given and what is allowed. */
 function parseSize(value: string): Size {
   const trimmed = value.trim();
   if (!isSize(trimmed)) {
