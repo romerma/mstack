@@ -59,3 +59,11 @@ test("the implementer prose says a later round writes impl_<slug>_r<N>.md with t
     assert.match(text, /carries the whole table again, every id/, name);
   }
 });
+
+// Round 2 of item 43: a dash after the marker with nothing behind it is not a lens
+// separator, so `_r2-` is not round 2. It reads as a lens named `r2-` in round 1,
+// the same way `_r3-` must not be taken for round 3 (which needs a decision row).
+test("roundOf reads review_slug_r2-.md and review_slug_r3-.md as round 1 with the whole remainder as the lens", () => {
+  assert.deepEqual(roundOf("review_slug_r2-.md", "review", "slug"), { round: 1, lens: "r2-" });
+  assert.deepEqual(roundOf("review_slug_r3-.md", "review", "slug"), { round: 1, lens: "r3-" });
+});
