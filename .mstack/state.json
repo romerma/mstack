@@ -1240,9 +1240,10 @@
         "an item whose only verdict is the implementer's is refused at state set --status done with the reason the gate gives, instead of closing and turning the gate red afterwards",
         "GLOSSARY.md's Closing role entry and docs/wiki describe the rule as the code then implements it"
       ],
-      "status": "reviewing",
+      "status": "done",
       "base": "7d71f2eab9e52371ec0004993cc1159c969485e2",
       "source": "item 58 review, .mstack/progress/review_glossary-and-adr.md blocking finding 2, 2026-11-17; next to item 71",
+      "closed_by": "two rounds; review_any-role-name-closes_r2.md APPROVED at aa09c28; gate --full green on the first run",
       "seams": [
         "CLI: mstack ledger record --verifier <role>, state set --status done and gate, exit codes and stdout"
       ]
@@ -1440,7 +1441,9 @@
       "acceptance": [
         "state set --status done refuses an item with no ledger row while require_verdict_to_close is on, with the gate's words, or the reason it stays allowed is recorded",
         "the 50 tests that close with no row are changed to record a verdict or to turn the rule off, each deliberately; the comment at tests/verdict-reader.test.ts:113-118 is true",
-        "verifier names are compared after stripping zero-width and look-alike characters, as the evidence check already does; the reason at the door matches the audit's for a lone verifier-failed row; the refusal prints the name without the stored apostrophe"
+        "verifier names are compared after stripping zero-width and look-alike characters, as the evidence check already does; the reason at the door matches the audit's for a lone verifier-failed row; the refusal prints the name without the stored apostrophe",
+        "the gate's side of the two message fixes has a test (dropping the apostrophe fix at src/gate.ts:507 and changing the fix line at :541 both survive); the list printed for an approval that cites the implementer's report drops the stored apostrophe too (src/closing.ts:200, src/gate.ts:513)",
+        "docs/wiki/The-CLI.md:474-475 says what follows the last colon is compared, not 'a whole name'; docs/wiki/Gates-and-Hooks.md:283-284 names the empty name, and the long lines there and at tests/verdict-reader.test.ts:118 are wrapped"
       ],
       "status": "pending",
       "description": "Item 82 made state set --status done refuse an item whose only verdicts are the implementing pass's. A close with zero rows still exits 0 and the next gate prints 'items marked done with no ledger verdict at all'. Refusing it broke 50 existing tests (bun 825 pass, 50 fail): all of them close with require_verdict_to_close on, which tests/helpers.ts:179 defaults to true, and rely on the gap. May be a product fork: whether a store with the rule on may ever close an item nobody verified.",
@@ -1453,7 +1456,8 @@
       "acceptance": [
         "docs/wiki/Getting-Started.md, README.md and docs/wiki/The-Agents.md walkthroughs are followed literally in a fresh repository, command by command, and every step succeeds or shows the refusal the page says it shows",
         "each page shows the report with its table and the verification run where a close needs them, from one real run",
-        "a test or a script in the repository reruns the Getting-Started sequence, so a new closing check that breaks it is seen before a reader does"
+        "a test or a script in the repository reruns the Getting-Started sequence, so a new closing check that breaks it is seen before a reader does",
+        "the older drift a literal run shows is corrected: mstack setup prints two more lines (costs.tsv, .gitattributes) and commits 8 files and 64 insertions where the page shows 6 and 56, and the move to in_progress prints a base line; at 7d71f2e the page's own close was already refused for a missing receipt and report"
       ],
       "status": "pending",
       "description": "state add records a base in a git repository (item 40), so the walkthrough's item is held to the requirement-to-test table (item 41), the budget (item 43) and the receipt. The page shows neither the implementation report nor gate --full, so someone following it literally is refused at done after recording the reviewer's row. Item 82's rerun of the page had both in place off the page.",

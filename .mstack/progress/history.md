@@ -1483,3 +1483,29 @@ and the reviewers' reports were held to the cap (9.6 KB and 7.8 KB against 20 KB
 **Closing.** `gate --full` green on the first run (bun 865/0, node 865/0).
 
 **Filed.** Item 94 `review-budget-followups`.
+
+## 2026-11-18 - item 82 any-role-name-closes closed (2 rounds)
+
+**What shipped.** One rule in `src/roles.ts`: the set of closing roles stays open, and a verdict
+closes an item when its verifier is not a name for the pass that wrote the work. Refused as the
+whole normalised name (case, spaces, hyphens and underscores ignored, what follows the last colon
+compared): `implementer`, `spec-author`, `impl`, `implementor`, `author`, `developer`, `dev`,
+`coder`, `self`, `me`. A new closing check refuses `state set --status done` when an item's only
+verdicts are the author's, with the gate's own words and fix line; it is not overridable. A
+bypass through the TSV writer's leading apostrophe (`--verifier=-self-`) is closed. The three
+walkthroughs that closed on the implementer's row now show the refusal. 879 tests.
+
+**What the rounds taught.** The code was right in round 1; three user-facing walkthroughs were
+not, because a new refusal changes every transcript that used to pass through it. The reviewer
+also showed the coordinator's review brief attributing a requirement to the design row that the
+row never held: a brief quotes the row or does not cite it.
+
+**Found on the way.** `docs/wiki/Getting-Started.md` cannot be followed literally since items 40
+and 41: its item gets a base, so its close needs a report with the table and a verification run
+that the page never shows. At the base of this item the page's own close was already refused.
+Filed as item 96, with a criterion for a script that reruns the sequence.
+
+**Closing.** `gate --full` green on the first run (bun 879/0, node 879/0). No non-blocking
+finding was taken after the verdict; they went to items 95 and 96.
+
+**Filed.** Item 95 `close-with-no-verdict`; item 96 `walkthroughs-after-closing-checks`.
