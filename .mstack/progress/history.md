@@ -1509,3 +1509,28 @@ Filed as item 96, with a criterion for a script that reruns the sequence.
 finding was taken after the verdict; they went to items 95 and 96.
 
 **Filed.** Item 95 `close-with-no-verdict`; item 96 `walkthroughs-after-closing-checks`.
+
+## 2026-11-18 - item 96 walkthroughs-after-closing-checks closed (3 rounds)
+
+**What shipped.** The three walkthroughs (Getting-Started, the README's, The-Agents') run as
+written again. Each shows the steps a close needs since items 40, 41, 43 and 82: the
+implementer's report with its table, the verification run, the reviewer's `gate --full` at
+`reviewing` (green) before its row, and the refusal on the author's row alone as a forced close
+that `--force` does not get past. Getting-Started shows the repository it starts from, with a
+`.gitignore`, and both files its table cites. `tests/walkthrough.test.ts` runs that page's
+sequence through the real CLI: four tests, the main one and three refusals. 883 tests.
+
+**What the rounds taught.** Round 1's run script replaced a file where the page says to edit two
+lines, and the script that compared page with run executed the same script, so it agreed with
+itself: a check has to follow the page, not the author's copy of it. Round 2's page reproduced
+only with a python3 that keeps bytecode out of the tree, and the test hid that behind a variable
+a reader does not have: an environment the test sets is an environment the reader lacks. Each
+reviewer followed the pages from the page alone, and the third did it on three Pythons.
+
+**Why it existed.** Three earlier reviews (items 40, 41, 43) each reran only the blocks their
+item touched, and none followed the onboarding page end to end after adding a closing check.
+The test now fails first.
+
+**Closing.** `gate --full` green on the first run (bun 883/0, node 883/0).
+
+**Filed.** Item 97 `walkthrough-pages-checked-in-repo`.
