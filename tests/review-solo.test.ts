@@ -34,9 +34,10 @@ test("round 1 is review_<slug>.md, and nothing is created", SPAWNING, () => {
   });
 });
 
-test("the next round is one more than the highest lone round on disk; lensed reports do not count", SPAWNING, () => {
+test("the next round is one more than the highest round on disk, lone or lensed", SPAWNING, () => {
   inWorld({ reports: { "review_bud.md": BODY, "review_bud_r5-facts.md": BODY, "review_bud_facts.md": BODY } }, (box) => {
-    assert.equal(line(cli(box, ...PLAN).stdout, 1), path(box, "review_bud_r2.md"));
+    const r = cli(box, ...PLAN, "--justify", "a late round");
+    assert.equal(line(r.stdout, 1), path(box, "review_bud_r6.md"));
   });
   inWorld({ reports: { "review_bud.md": BODY, "review_bud_r2.md": BODY, "review_bud_r10.md": BODY } }, (box) => {
     const r = cli(box, ...PLAN, "--justify", "a late round");
