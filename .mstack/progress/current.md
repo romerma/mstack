@@ -6,10 +6,10 @@
 > On close: append the summary to `history.md` and reset this file to the
 > empty template below.
 
-- **Item:** none active (82 closed 2026-11-18; 42 parked on a fork for the user)
-- **Status:** -
-- **Branch:** main
-- **Base:** -
+- **Item:** 96 walkthroughs-after-closing-checks
+- **Status:** in_progress (round 1)
+- **Branch:** docs/walkthroughs-run-as-written
+- **Base:** c6e35e9
 - **Worktree:** none
 
 ## Plan
