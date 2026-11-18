@@ -274,6 +274,28 @@ Walking the lines that carry the weight:
   One run, three items, one per refusal: an item lands on at most one of these lists, so
   three lines naming one slug is a state no single run can print.
 
+  The same audit now runs at the door. `state set --status done` reads the item's rows through
+  `readVerdict` and refuses (check `independent-verdict` in `src/closing.ts`) an item with only
+  verdicts from the pass that wrote the code, or whose closing verdict cites the implementer's
+  or the spec-author's own report, in the audit's words and with its fix line,
+  instead of closing and turning the gate red after. Which names are the author's is
+  `canCloseAnItem` in `src/roles.ts`: `implementer`, `spec-author`, `impl`, `implementor`,
+  `spec author`, `author`, `developer`, `dev`, `coder`, `self` and `me`, as a whole name, ignoring
+  case, spaces, hyphens and underscores; every other name, `session`, `orchestrator`, a person
+  or a CI job, closes. Only while `require_verdict_to_close` is on, and `--force` does not
+  override it, for the reason a standing rejection is not overridable: the gate would hold the
+  same finding against the closed item for as long as the ledger carries it.
+
+  ```console
+  $ mstack ledger record demo "$(git rev-parse HEAD)" test-verified --evidence "node --test tests" --verifier implementer
+  recorded test-verified for demo at fc90d6f2
+  $ mstack ledger record demo "$(git rev-parse HEAD)" test-verified --evidence "node --test tests" --verifier self
+  recorded test-verified for demo at fc90d6f2
+  $ mstack state set demo --status done
+  mstack: demo cannot close: its only verdicts are from the pass that wrote the code (only implementer, self)
+          a closing verdict has to come from somewhere other than the implementer; run the verification again from a pass that did not write it
+  ```
+
   The escape hatch for "no check could be run" is not a prose note but a typed verdict:
   `verifier-blocked`, keyed to a SHA, carrying its reason.
 

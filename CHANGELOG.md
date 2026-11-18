@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+- **Closing an item needs a verdict from a role that did not write the work, and `state set
+  --status done` says so up front.** Before, an item whose only verdicts were the implementer's
+  closed (an item with no verdict at all still does, and the gate still flags it), and the gate went red afterwards. Now `state set --status done` refuses an item with only
+  verdicts from the pass that wrote the code, or whose closing verdict cites the
+  implementer's or the spec-author's own report, in the gate's words and with its fix line (a
+  new `independent-verdict` closing check, read through `readVerdict` over every row of the item,
+  so the close and the gate agree). It is not overridable by `--force`, as a standing rejection
+  is not, and it holds only while `require_verdict_to_close` is on. The set of closing roles stays
+  open on purpose (the review skill has the session that synthesises a panel record its row under
+  its own name), and the names refused are now stated in `src/roles.ts`: `implementer`,
+  `spec-author`, `impl`, `implementor`, `spec author`, `author`, `developer`, `dev`, `coder`,
+  `self` and `me`, as a whole name, ignoring case, spaces, hyphens and underscores, so `dev-ci`
+  and `self-hosted runner` still close; before, only the first two were refused,
+  and `impl`, `spec_author` or `self` closed an item. GLOSSARY.md and the wiki describe the rule.
+
 - **Review rounds, report sizes and spec sizes have a budget.** `decisions.tsv` gains a trailing
   `item` column: `mstack decide` fills it with the active item's slug (`--item <slug>` overrides it
   and a slug that is not an item is refused; empty with no item active). A file from before the

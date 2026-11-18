@@ -467,7 +467,12 @@ way, so it does not count as that escape hatch.
 `state set --status done` refuses an item whose standing verdict is a rejection, and says which
 row, with the same function. It reads the rows at the commit being closed and, too, every row
 of the item, so a rejection recorded later against another commit also refuses the close
-where `check` at the current head passes.
+where `check` at the current head passes. It also refuses, with the gate's own words and fix
+line, an item whose rows are all the author's: only rows
+under a name for the pass that wrote the work (`implementer`, `spec-author`, their spellings,
+`self`, `me`, or an empty `--verifier`), or an approval citing that pass's report; `--force`
+does not override it. Any other `--verifier` name closes: the set is open on purpose, and a
+whole name is compared, ignoring case, spaces, hyphens and underscores (`dev-ci` is not `dev`).
 The row is keyed by `(target, sha)`, so a new commit voids it:
 
 ```console

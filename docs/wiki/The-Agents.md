@@ -216,6 +216,12 @@ The ledger is the typed record of who verified what (columns in
 | reviewer, as one lens of a panel | Nothing. `ledger check` reads the latest closing-role row per item and commit, so several lens rows would collapse to whichever lens recorded last, and a split panel means its worst lens, not the last one. The pass that synthesizes the panel's verdict records the one row, under its own name |
 | spec-author, spec-reviewer | No ledger rows. Their artifacts are the spec and `spec_review_<slug>.md` |
 
+The `--verifier` name is free text, and the rule for it is open on purpose: any name closes an
+item except the names for the pass that wrote the work (`implementer`, `spec-author`, their
+common spellings, `self`, `me`, or nothing at all), so a panel's synthesising session, an
+orchestrator, a person or a CI job each close under their own name. `state set --status done`
+refuses an item without such a verdict, as the gate does.
+
 Nobody types a row on another pass's behalf. A row ghost-written by the coordinating pass is
 prose separation with no typed artifact behind it, which is the exact failure the verifier
 column exists to catch.
