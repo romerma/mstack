@@ -32,6 +32,13 @@ const timer = setTimeout(() => {
     .split("\n").filter((l) => /bun|node/.test(l)).join("\n");
   try { process.kill(-child.pid, "SIGKILL"); } catch { /* already gone */ }
 }, Number(watchdog) * 1000);
+// The suite is in a process group of its own, so a signal to this process does not reach it.
+for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"]) {
+  process.on(signal, () => {
+    try { process.kill(-child.pid, "SIGKILL"); } catch { /* already gone */ }
+    process.exit(1);
+  });
+}
 
 child.on("close", () => {
   clearTimeout(timer);

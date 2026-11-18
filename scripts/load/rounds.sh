@@ -8,6 +8,8 @@ if [ $# -ne 2 ]; then echo "usage: scripts/load/rounds.sh <rounds> <out-dir>" >&
 here="$(cd "$(dirname "$0")" && pwd)"
 out="$2"
 mkdir -p "$out"
+pids=()
+trap 'kill ${pids[@]+"${pids[@]}"} 2> /dev/null; exit 1' INT TERM
 for round in $(seq 1 "$1"); do
   echo "round $round start $(date -u +%T) $(uptime)" >> "$out/rounds.log"
   pids=()

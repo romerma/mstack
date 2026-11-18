@@ -18,7 +18,9 @@ That runs 10 rounds. A round starts 4 bun suites (`bun test ./tests`) and 2 node
 40 bun and 20 node runs. Each run is under a SIGKILL watchdog on its process group, 820 s by
 default. On the 18-core machine item 67 used, a round took 150 s on 2026-11-18 and up to
 430 s the night before, with the same code. `BUN`, `NODE` and `WATCHDOG` in the environment
-change the counts and the watchdog. The output directory should be outside
+change the counts and the watchdog. Ctrl-C, or a TERM to `rounds.sh`, stops the round's suites
+too; each suite is in a process group of its own, so killing a suite's parent alone would leave
+it running. The output directory should be outside
 the repository: the suites must leave `git status` as they found it.
 
 ## Reading the result
