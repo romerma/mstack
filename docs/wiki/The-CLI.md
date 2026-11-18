@@ -381,15 +381,18 @@ $ mstack state set greet --status spec_ready --force
 mstack: --force would move greet to spec_ready past the 12 requirement limit, and that has to be on the record
         add --closed-by "<why this many is right>"; it is written to decisions.tsv as a spec-size row
 
+$ mstack state set greet --status in_progress --force
+mstack: --force would move greet to in_progress past the 12 requirement limit, and that has to be on the record
+        add --closed-by "<why this many is right>"; it is written to decisions.tsv as a spec-size row
+
 $ mstack state set greet --status spec_ready --force --closed-by "the 13 parts ship as one release and cannot be split"
 1 greet (spec_ready)
   forced: greet has 13 requirements, over the 12 a size m item may have; the reason is recorded as a spec-size decision row
   status: "specifying" -> "spec_ready"
-
-$ mstack state set greet --status in_progress --force
-mstack: --force would move greet to in_progress past the 12 requirement limit, and that has to be on the record
-        add --closed-by "<why this many is right>"; it is written to decisions.tsv as a spec-size row
 ```
+
+Each of the first three is run on the item at `specifying`; once it is at `spec_ready` the limit
+has been answered and the move to `in_progress` is not asked again.
 
 The question in that block is the one `examples/notes-cli` ships, character for character, which
 is what the promise at the top of this page is worth: same item, same id, same fork.
