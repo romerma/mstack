@@ -62,8 +62,10 @@ export interface Start {
  * The fork point wins only when HEAD has commits of its own past the default
  * branch and the base is no later than that point. Everywhere else the base is
  * used: on the default branch itself, on a branch stacked on another (a base
- * later than the fork point, so the parent branch's work is not counted), and
- * where no default branch resolves.
+ * later than the fork point, so the parent branch's work is not counted),
+ * where no default branch resolves, and where the base is a commit of the
+ * branch's own with the default branch merged in after it (neither commit is
+ * an ancestor of the other), which then counts the merged commits.
  */
 export function measureStart(store: Store, base: string): Start {
   const branch = defaultBranch(store);
