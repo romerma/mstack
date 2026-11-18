@@ -925,18 +925,18 @@
     {
       "id": 67,
       "slug": "load-sensitive-tests",
-      "title": "Three tests fail on correct code when several suites run at once: tests/run.test.ts:54 and :239, tests/costs.test.ts:698",
+      "title": "Tests fail on correct code when several suites run at once: tests/run.test.ts:54, tests/costs.test.ts:698, and 5 s timeouts in gate.test.ts and launcher.test.ts",
       "acceptance": [
-        "the cause of each failure is identified with runtime evidence, not guessed from the code",
-        "each test passes 0 failures in at least 20 suites per runtime under the same load, with the load harness named in the report",
+        "the cause of each failure is identified with runtime evidence, not guessed from the code (tests/run.test.ts:239 and :154 moved to item 86 on 2026-11-18: their red is a pid still alive after the signal, so load sensitivity is not shown for them)",
+        "each test this item keeps passes 0 failures in at least 20 suites per runtime under the same load, with the load harness named in the report",
         "the report says whether either one is item 21's unidentified failure, and item 21 is closed or updated accordingly",
         "the stop-minus-bare assertion at tests/costs.test.ts:743 (each side the max of three runs, difference under 50 ms) no longer fails on outside load: the closing gate of item 58 was red on it three runs of four on 2026-11-18 at load average 19 to 24",
         "tests/verdict-reader.test.ts 'agree on every sequence' was given a 60 s timeout while closing item 58 (about 6 s under that load against bun's 5 s default); the report says whether the time is the test's or the code's",
         "the closing gate of item 59 was red on tests/costs.test.ts:698 in node three runs of four on 2026-11-18 at load average 19 to 23; the max of three at tests/costs.test.ts:732-733 keeps the slowest run on each side, so a min or a median is the first remedy to try",
         "tests/gate.test.ts:681 and tests/launcher.test.ts:55 exceed bun's 5 s default beside other suites (40 of 40 and 29 of 40 bun runs in rounds of four bun and two node suites, .mstack/progress/diagnosis_unidentified-flaky-test.md); each gets a cause and either an explicit timeout or a faster test",
-        "tests/run.test.ts:54 compares two listings of mstack-run-* in the shared temp directory, so another suite's directory fails it (read from the code and one log, not tested by removing the sharing); tests/run.test.ts:154 failed once on node beside the shrink loops"
+        "tests/run.test.ts:54 compares two listings of mstack-run-* in the shared temp directory, so another suite's directory fails it (read from the code and one log, not tested by removing the sharing)"
       ],
-      "status": "reviewing",
+      "status": "in_progress",
       "description": "Measured during the item 52, 53 and 54 reviews with four bun and two node suites running together. tests/run.test.ts:54 ('a temp directory was left behind') failed 7 of 20 bun and 2 of 10 node suites in one round and 3 of 8 bun suites in another; tests/costs.test.ts:698 failed 9 of 12, 2 of 10 and 4 of 4 node suites; tests/run.test.ts:239 (the SIGINT survivor) failed 2 of 4 node suites. None was touched by those items. Item 21 is a suite run that failed once and was never identified; this may be the same failure.",
       "source": "item 52 round-3 review, .mstack/progress/review_withlock-enters-without-the-lock_r3.md, 2026-11-16",
       "seams": [
@@ -1243,6 +1243,19 @@
       "status": "pending",
       "description": "Two live headless runs (n=2, one per review round) ran a code search in the same tool call that read bug-fix.md, before the symptom command; the playbook text cannot shape a call issued together with its own read, so the fix belongs to the router. Round 1's run did not copy the playbook into the todo list; round 2's did.",
       "source": "item 59 reviews, .mstack/progress/review_diagnosis-loop-in-bug-fix_r2.md and _r3.md, 2026-11-18"
+    },
+    {
+      "id": 86,
+      "slug": "run-survivor-checks-under-load",
+      "title": "tests/run.test.ts:239 and :154 report a child still alive after the signal when suites run at once; whether the test or the code is wrong is not shown",
+      "acceptance": [
+        "a loop raises the rate of each failure enough to study it, with the rate written down",
+        "runtime evidence says whether the surviving pid is a child the code failed to kill or one the test counted wrongly",
+        "the fix is in whichever is wrong, test-first, and each test passes 0 failures in at least 20 suites per runtime under the load that reproduced it"
+      ],
+      "status": "pending",
+      "description": "Moved out of item 67 on 2026-11-18. tests/run.test.ts:239 ('a SIGINT while the command is forking leaves no survivor') failed 2 of 4 node suites in the item 52 to 54 reviews and 2 of 60 suites in the item 21 diagnosis; one log reads 'run 1: children survived the Ctrl-C' with one pid in the actual list. tests/run.test.ts:154 ('a timeout kills children that are being forked at that moment') failed once on node beside the shrink loops. Both showed 0 failures in item 67's rounds (40 bun and 20 node suites, and two rounds of 10 bun and 4 node), which ran on a lighter machine. A pid alive after the signal may be a real survivor, so 'fails on correct code' is not shown.",
+      "source": "item 67 round 1 review, .mstack/progress/review_load-sensitive-tests.md, 2026-11-18"
     }
   ]
 }
