@@ -6,7 +6,7 @@ import { gateProblems, VERIFICATION_CHECK } from "./closing.ts";
 import { defaultBranch, git, headSha } from "./git.ts";
 import { readGlossary } from "./glossary.ts";
 import { runCommand } from "./run.ts";
-import { measureDiff, resolveCommit, SMALL_MAX_FILES, SMALL_MAX_LINES } from "./size.ts";
+import { measureDiff, measureStart, resolveCommit, SMALL_MAX_FILES, SMALL_MAX_LINES } from "./size.ts";
 import { describeRow, entries as ledgerEntries, readVerdict } from "./ledger.ts";
 import {
   isActive,
@@ -289,27 +289,39 @@ function checkInvariants(store: Store, state: State, report: Report): void {
  */
 function checkSmallDiff(store: Store, item: Item, report: Report): void {
   if (item.size !== "s" || item.base === undefined) return;
-  const base = item.base;
-  const short = base.slice(0, 8);
   const fixBase = `'mstack state set ${item.slug} --base <commit>' points it at a commit that exists`;
-  if (resolveCommit(store, base) === null) {
-    report.fail(`${itemLabel(item)} is size s but its base ${base} is not a commit git can find, so its diff cannot be measured`, fixBase);
+  const base = resolveCommit(store, item.base);
+  if (base === null) {
+    report.fail(`${itemLabel(item)} is size s but its base ${item.base} is not a commit git can find, so its diff cannot be measured`, fixBase);
     return;
   }
-  const size = measureDiff(store, base);
+  // `measureStart` says why it picked the commit; the line says it too, so a
+  // start that is not the base is visible rather than silently applied.
+  const start = measureStart(store, base);
+  if (start.from === null) {
+    report.fail(
+      `${itemLabel(item)} is size s but its base ${base.slice(0, 8)} is not in this branch's history (a rebase rewrites it), and there is no point where the branch left ${start.branch} to measure from instead`,
+      `'mstack state set ${item.slug} --base <commit>' names the commit the item's work starts after`,
+    );
+    return;
+  }
+  const from = start.why === "base"
+    ? start.from.slice(0, 8)
+    : `${start.from.slice(0, 8)} (where this branch left ${start.branch}; base ${base.slice(0, 8)} ${start.why === "older" ? "is older" : "is not in this branch's history"})`;
+  const size = measureDiff(store, start.from);
   if (size === null) {
-    report.fail(`${itemLabel(item)} is size s but git could not measure its diff from ${short}`, fixBase);
+    report.fail(`${itemLabel(item)} is size s but git could not measure its diff from ${from}`, fixBase);
     return;
   }
   const plural = (n: number, word: string): string => `${n} ${word}${n === 1 ? "" : "s"}`;
   const found = `${plural(size.lines, "line")} in ${plural(size.files, "file")}`;
   if (size.lines > SMALL_MAX_LINES || size.files > SMALL_MAX_FILES) {
     report.fail(
-      `${itemLabel(item)} is size s but its code diff from ${short} is ${found}, over the limits of ${SMALL_MAX_LINES} lines and ${SMALL_MAX_FILES} files`,
+      `${itemLabel(item)} is size s but its code diff from ${from} is ${found}, over the limits of ${SMALL_MAX_LINES} lines and ${SMALL_MAX_FILES} files`,
       `it is not small: 'mstack state set ${item.slug} --size m' (or split the work)`,
     );
   } else {
-    report.ok(`${item.slug} is size s: ${found} of code since ${short}, within ${SMALL_MAX_LINES} lines and ${SMALL_MAX_FILES} files`);
+    report.ok(`${item.slug} is size s: ${found} of code since ${from}, within ${SMALL_MAX_LINES} lines and ${SMALL_MAX_FILES} files`);
   }
 }
 

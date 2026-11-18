@@ -1,11 +1,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { runGate } from "../src/gate.ts";
+import { defaultBranch } from "../src/git.ts";
+import type { Store } from "../src/paths.ts";
 import { captured, item, sandbox, state, trackCurrent } from "./helpers.ts";
 
 /**
@@ -469,6 +471,190 @@ test("a base git cannot resolve fails with a fix that names --base", GATE, () =>
     assert.equal(failures.length, 1, JSON.stringify(failures));
     assert.ok(failures[0]!.includes("f".repeat(40)), failures[0]);
     assert.match(failures[0]!, /--base/);
+  });
+});
+
+// ------------------------------------------------- where the measurement starts
+
+/**
+ * Put the sandbox on a branch called `name` (renamed, so no `main` or `master`
+ * is left behind unless `name` is one), with the store outside git's view, so
+ * checkouts, rebases and merges leave `.mstack/` alone and `add -A` never
+ * commits it.
+ */
+function onBranch(box: Box, name: string): void {
+  appendFileSync(join(box.store.root, ".git", "info", "exclude"), "\n.mstack/\n");
+  git(box, "branch", "-m", name);
+}
+
+/** The one line the gate prints for the size check, `[ok]` or `[fail]`. */
+function sizeLine(box: Box, store: Store = box.store): string {
+  const { out } = captured(() => runGate(store));
+  const found = out.split("\n").filter((l) => l.includes(" is size s"));
+  assert.equal(found.length, 1, out);
+  return found[0]!;
+}
+
+/** The gate's failures from the size check alone, each with its fix after `->`. */
+function sizeFailures(box: Box, store: Store = box.store): readonly string[] {
+  return captured(() => runGate(store, { quiet: true })).value.failures.filter((f) => f.includes(" is size s"));
+}
+
+const short = (sha: string): string => sha.slice(0, 8);
+
+/**
+ * The round 1 review's repro: a 10-line fix on a branch, then five 40-line
+ * files land on main, then the branch takes them in. Returns the base and the
+ * tip of main after the other work.
+ */
+function branchThenMainMoves(box: Box): { base: string; mainTip: string } {
+  onBranch(box, "main");
+  const base = git(box, "rev-parse", "HEAD");
+  git(box, "checkout", "-q", "-b", "feat/one");
+  smallItem(box, {}, base);
+  put(box, "fix.ts", lines("f", 10));
+  commitAll(box, "fix");
+  git(box, "checkout", "-q", "main");
+  for (const n of ["p", "q", "r", "s", "t"]) put(box, `${n}.ts`, lines(n, 40));
+  const mainTip = commitAll(box, "other work on main");
+  git(box, "checkout", "-q", "feat/one");
+  return { base, mainTip };
+}
+
+test("after a rebase onto a main that moved, only the branch's own lines count, from where it left main", GATE, () => {
+  withBox((box) => {
+    const { base, mainTip } = branchThenMainMoves(box);
+    git(box, "rebase", "-q", "main");
+    assert.deepEqual(sizeFailures(box), []);
+    const line = sizeLine(box);
+    assert.match(line, /10 lines in 1 file of code/);
+    assert.ok(line.includes(`since ${short(mainTip)} (where this branch left main; base ${short(base)} is older)`), line);
+  });
+});
+
+test("after main is merged into the branch, only the branch's own lines count, from where it left main", GATE, () => {
+  withBox((box) => {
+    const { base, mainTip } = branchThenMainMoves(box);
+    git(box, "merge", "-q", "--no-ff", "--no-edit", "main");
+    assert.deepEqual(sizeFailures(box), []);
+    const line = sizeLine(box);
+    assert.match(line, /10 lines in 1 file of code/);
+    assert.ok(line.includes(`since ${short(mainTip)} (where this branch left main; base ${short(base)} is older)`), line);
+  });
+});
+
+test("a main that moved but was not brought in changes nothing: the branch is measured from its base", GATE, () => {
+  withBox((box) => {
+    const { base } = branchThenMainMoves(box);
+    const line = sizeLine(box);
+    assert.ok(line.includes(`10 lines in 1 file of code since ${short(base)}, within`), line);
+  });
+});
+
+test("after a fetch and a rebase onto origin/main, a local main left behind does not hold the start back", GATE, () => {
+  withBox((box) => {
+    const { base, mainTip } = branchThenMainMoves(box);
+    git(box, "update-ref", "refs/remotes/origin/main", mainTip);
+    git(box, "branch", "-f", "main", base);
+    git(box, "rebase", "-q", "origin/main");
+    const line = sizeLine(box);
+    assert.ok(line.includes(`10 lines in 1 file of code since ${short(mainTip)} (where this branch left main; base ${short(base)} is older)`), line);
+  });
+});
+
+test("a branch stacked on another is measured from its base, so the parent branch's work does not count", GATE, () => {
+  withBox((box) => {
+    onBranch(box, "main");
+    git(box, "checkout", "-q", "-b", "parent");
+    for (const n of ["p", "q", "r", "s"]) put(box, `${n}.ts`, lines(n, 40));
+    const base = commitAll(box, "the parent branch's work");
+    git(box, "checkout", "-q", "-b", "child");
+    smallItem(box, {}, base);
+    put(box, "fix.ts", lines("f", 10));
+    commitAll(box, "fix");
+    const line = sizeLine(box);
+    assert.ok(line.includes(`10 lines in 1 file of code since ${short(base)}, within`), line);
+  });
+});
+
+test("work committed straight onto main is measured from the base", GATE, () => {
+  withBox((box) => {
+    onBranch(box, "main");
+    const base = git(box, "rev-parse", "HEAD");
+    smallItem(box, {}, base);
+    put(box, "fix.ts", lines("f", 61));
+    commitAll(box, "fix on main");
+    const failures = sizeFailures(box);
+    assert.equal(failures.length, 1, JSON.stringify(failures));
+    assert.ok(failures[0]!.includes(`code diff from ${short(base)} is 61 lines in 1 file`), failures[0]);
+  });
+});
+
+test("a base a rebase rewrote is replaced by where the branch left main, and the line says so", GATE, () => {
+  withBox((box) => {
+    onBranch(box, "main");
+    git(box, "checkout", "-q", "-b", "feat/one");
+    put(box, "first.ts", lines("a", 5));
+    const base = commitAll(box, "the branch's first commit, where the item starts");
+    smallItem(box, {}, base);
+    put(box, "fix.ts", lines("f", 10));
+    commitAll(box, "fix");
+    git(box, "checkout", "-q", "main");
+    for (const n of ["p", "q", "r", "s", "t"]) put(box, `${n}.ts`, lines(n, 40));
+    const mainTip = commitAll(box, "other work on main");
+    git(box, "checkout", "-q", "feat/one");
+    git(box, "rebase", "-q", "main");
+    const line = sizeLine(box);
+    assert.ok(
+      line.includes(`15 lines in 2 files of code since ${short(mainTip)} (where this branch left main; base ${short(base)} is not in this branch's history)`),
+      line,
+    );
+  });
+});
+
+test("a base a rebase rewrote, with no fork point to use, fails with a fix that names --base", GATE, () => {
+  // On main itself HEAD has no commits past main; on a repository with no
+  // default branch there is no main at all. Either way nothing replaces the base.
+  for (const branch of ["main", "stem"]) {
+    withBox((box) => {
+      onBranch(box, branch);
+      put(box, "first.ts", lines("a", 5));
+      const base = commitAll(box, "where the item starts");
+      smallItem(box, {}, base);
+      put(box, "fix.ts", lines("f", 10));
+      commitAll(box, "fix");
+      // A new parent under the item's commits, so the rebase has to rewrite
+      // them: `--force-rebase` alone gives back the same ids within a second.
+      git(box, "checkout", "-q", "-b", "side", box.sha);
+      put(box, "side.txt", "side\n");
+      commitAll(box, "side");
+      git(box, "checkout", "-q", branch);
+      git(box, "rebase", "-q", "side");
+      const failures = sizeFailures(box);
+      assert.equal(failures.length, 1, `${branch}: ${JSON.stringify(failures)}`);
+      assert.ok(failures[0]!.includes(`its base ${short(base)} is not in this branch's history`), failures[0]);
+      assert.match(failures[0]!, /-> .*mstack state set storage-layer --base <commit>/);
+    });
+  }
+});
+
+test("with no main, no master and no origin/HEAD the default branch reads as main, which does not resolve, so the base is used", GATE, () => {
+  withBox((box) => {
+    onBranch(box, "stem");
+    assert.equal(defaultBranch(box.store), "main");
+    const base = git(box, "rev-parse", "HEAD");
+    git(box, "checkout", "-q", "-b", "feat/one");
+    smallItem(box, {}, base);
+    put(box, "fix.ts", lines("f", 10));
+    commitAll(box, "fix");
+    git(box, "checkout", "-q", "stem");
+    for (const n of ["p", "q", "r", "s", "t"]) put(box, `${n}.ts`, lines(n, 40));
+    commitAll(box, "other work on stem");
+    git(box, "checkout", "-q", "feat/one");
+    git(box, "merge", "-q", "--no-ff", "--no-edit", "stem");
+    const failures = sizeFailures(box);
+    assert.equal(failures.length, 1, JSON.stringify(failures));
+    assert.ok(failures[0]!.includes(`code diff from ${short(base)} is 210 lines in 6 files`), failures[0]);
   });
 });
 

@@ -1,7 +1,7 @@
 import { readFileSync, realpathSync } from "node:fs";
 import { isAbsolute, join, relative } from "node:path";
 
-import { git } from "./git.ts";
+import { defaultBranch, git, headSha } from "./git.ts";
 import type { Store } from "./paths.ts";
 import { classifyPath } from "./pathclass.ts";
 
@@ -38,6 +38,69 @@ export function resolveCommit(store: Store, ref: string): string | null {
   // A value that starts with a dash would be read by git as an option.
   if (ref === "" || ref.startsWith("-")) return null;
   return git(store, ["rev-parse", "--verify", "--quiet", `${ref}^{commit}`]);
+}
+
+/**
+ * The commit an item's diff is measured from, and why that one.
+ *
+ * - `base`: the item's own base.
+ * - `older`: where HEAD left the default branch, because the base is an
+ *   ancestor of that point: a rebase onto the default branch, or a merge of it
+ *   into the branch, brought in commits that are not the item's.
+ * - `rewritten`: the same point, because the base is not in HEAD's history
+ *   any more (a rebase rewrote it).
+ * - `lost`: the base is not in HEAD's history and there is no such point, so
+ *   there is nothing honest to measure from.
+ */
+export interface Start {
+  readonly from: string | null;
+  readonly why: "base" | "older" | "rewritten" | "lost";
+  /** The default branch, by name, that the fork point was looked for on. */
+  readonly branch: string;
+}
+
+/**
+ * Where to measure from, given `base` in full (`resolveCommit`'s answer).
+ *
+ * The fork point wins only when HEAD has commits of its own past the default
+ * branch and the base is no later than that point. Everywhere else the base is
+ * used: on the default branch itself, on a branch stacked on another (a base
+ * later than the fork point, so the parent branch's work is not counted), and
+ * where no default branch resolves.
+ */
+export function measureStart(store: Store, base: string): Start {
+  const branch = defaultBranch(store);
+  const fork = forkPoint(store, branch);
+  if (!isAncestor(store, base, "HEAD")) {
+    return fork === null ? { from: null, why: "lost", branch } : { from: fork, why: "rewritten", branch };
+  }
+  if (fork !== null && fork !== base && isAncestor(store, base, fork)) return { from: fork, why: "older", branch };
+  return { from: base, why: "base", branch };
+}
+
+/**
+ * Where HEAD left the default branch: the newest commit in HEAD's history that
+ * the local branch or `origin/<branch>` also has. Null when neither ref exists,
+ * or when HEAD has no commits of its own past that point.
+ *
+ * Both refs, not the local one alone: after `git fetch && git rebase
+ * origin/main` the local `main` is usually behind, and its merge base with HEAD
+ * is the old point, which counts everything the fetch brought in. Given more
+ * than two commits, `git merge-base` answers for HEAD and a hypothetical merge
+ * of the rest, which is the later of the two points when one contains the other.
+ */
+function forkPoint(store: Store, branch: string): string | null {
+  const refs = [`refs/heads/${branch}`, `refs/remotes/origin/${branch}`].filter(
+    (ref) => git(store, ["rev-parse", "--verify", "--quiet", ref]) !== null,
+  );
+  if (refs.length === 0) return null;
+  const fork = git(store, ["merge-base", "HEAD", ...refs]);
+  return fork === null || fork === "" || fork === headSha(store) ? null : fork;
+}
+
+/** True when `commit` is `of` or one of its ancestors; any git error reads as false. */
+function isAncestor(store: Store, commit: string, of: string): boolean {
+  return git(store, ["merge-base", "--is-ancestor", commit, of]) !== null;
 }
 
 /**
