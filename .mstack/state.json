@@ -711,8 +711,9 @@
         "the five hidden tests that check more than their mapped sentence get the extra README sentences in meta.json (review_benchmark-hard-tier.md finding 1), verify.mjs still green",
         "README v1 discount wording vs the v1 fixture (finding 2) and the cosmetic items (finding 3) are fixed only if the hard tier is re-baselined; otherwise a decision row records leaving them"
       ],
-      "status": "reviewing",
+      "status": "done",
       "base": "5ab0d1b71718695ce5633d2c86c55eecf1734056",
+      "closed_by": "two rounds; review_bench-hygiene-followups_r2.md APPROVED at be33e23; gate --full green on the first run",
       "seams": [
         "node sandbox/bench/check.mjs and node sandbox/bench/verify.mjs: exit code and output"
       ]
@@ -1514,7 +1515,8 @@
       "acceptance": [
         "the harness and the baseline results are under version control or backed up where the user decides, before item 45 reruns the benchmark",
         "the other 39 hidden tests of H3 and H4 are matched to mapped sentences assertion by assertion, or the gap is stated in DESIGN.md",
-        "from item 49's review: check.mjs's assertion also covers the default home when TMPDIR is unset; DESIGN.md gives finding 5's reason for the self-check rule and its stale lines 53 and 97-99 are corrected; one H4 assertion that reads two ways is settled"
+        "from item 49's review: check.mjs's assertion also covers the default home when TMPDIR is unset; DESIGN.md gives finding 5's reason for the self-check rule and its stale lines 53 and 97-99 are corrected; one H4 assertion that reads two ways is settled",
+        "from item 49's round 2 review: one H4 test's line 138 holds only if an entry stands for its whole sentence (entry 3's stored text is a prefix of the issue line); adding the test to H4 entry 1 and storing the whole sentence leaves verify.mjs output byte-identical"
       ],
       "status": "pending",
       "description": "sandbox/ is gitignored in this repository and bench/ is untracked in the nested sandbox repository: the harness, the tasks, the recorded baseline results, streams and evidence exist only on disk. Item 49 matched five hidden tests of H3 and H4 to README sentences assertion by assertion; the other 39 were not checked.",

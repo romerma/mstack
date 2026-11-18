@@ -1555,3 +1555,27 @@ as closed.
 program to close in one round. Nothing was taken after the verdict.
 
 **Filed.** Item 98 `closing-rule-wording-followups`.
+
+## 2026-11-18 - item 49 bench-hygiene-followups closed (2 rounds)
+
+**What shipped (under `sandbox/bench/`, which no repository tracks).** `check.mjs` creates its
+scratch root and `BENCH_HOME` as separate directories under the temp directory and asserts that
+the root is neither an ancestor of nor under the runs directory. `DESIGN.md`'s leak rule now
+covers hidden values, assertions, patch contents and which side or fix is correct, and says
+self-checks are not run while a batch is running. The five hidden tests that checked more than
+their mapped sentence are matched assertion by assertion to entries of `meta.json`. The hard
+tier is not re-baselined; the design row records leaving its README wording and cosmetic items.
+
+**What the rounds taught.** Round 1 applied the old finding as written, and the reviewer found
+three gaps the finding itself had missed: a criterion that names a list is checked against the
+thing the list was drawn from. The baseline does not depend on the mappings: the scoring never
+reads them.
+
+**For the user.** The harness, its tasks and the recorded baseline are under no version control;
+the only copies of the pre-change files are in the session scratchpad. Item 99 holds the fork on
+where it should live.
+
+**Closing.** `gate --full` green on the first run (bun 891/0, node 891/0). Nothing was taken
+after the verdict.
+
+**Filed.** Item 99 `bench-trace-and-durability`.
