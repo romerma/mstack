@@ -7,7 +7,7 @@
 > empty template below.
 
 - **Item:** 49 bench-hygiene-followups
-- **Status:** reviewing (round 1)
+- **Status:** in_progress (round 2: three tests still reach past their mapped sentences)
 - **Branch:** chore/bench-hygiene
 - **Base:** 5ab0d1b
 - **Worktree:** none
@@ -77,6 +77,8 @@ Waiting on the user, each asked on 2026-11-17 with a recommendation of yes:
   the tree, or not at all); its spec and two spec reviews are in `.mstack/specs/mutation-check/` and
   `.mstack/progress/spec_review_mutation-check*.md`. Recommended: the copy of the tree.
 - Item 60 `ship-pr-body`: may a real PR be opened on GitHub for its third criterion?
+- Item 99 `bench-trace-and-durability`: where the benchmark harness and its baseline live; today
+  `sandbox/bench/` is under no version control.
 Record each answer with `mstack decide --resolves <slug>`.
 
 Standing: push `main` after closing work and check CI (user, 2026-11-17).
