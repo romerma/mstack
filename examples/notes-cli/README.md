@@ -65,7 +65,7 @@ mstack state set 2 --status in_progress
 mstack state set 3 --status specifying                        # gate now fails
 
 # A verdict that no longer applies.
-mstack ledger record cli-search "$(git rev-parse HEAD)" test-verified --evidence x --verifier me
+mstack ledger record cli-search "$(git rev-parse HEAD)" test-verified --evidence "python3 -m unittest" --verifier me
 mstack ledger check cli-search 0000000000000000000000000000000000000000   # stale, exit 1
 ```
 

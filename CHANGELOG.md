@@ -300,6 +300,18 @@
   items. The three `Merge pull request` subjects are left alone: Conventional Commits does not
   cover merge commits and commitlint ignores them by default.
 
+- **The three first-item walkthroughs (Getting-Started, the README, The-Agents) run as written
+  again, and a test keeps Getting-Started running.** Since items 40 and 41 an item moved to
+  `in_progress` in a git repository gets a `base`, so its close needs the implementer's report with
+  its `| R | Test | Where |` table and a verification that has run at the tree being closed; the pages
+  showed neither, and a reader who followed them was refused at the close. Each page now shows the
+  report and, where the item has a verification, `mstack gate --full`; every console block was
+  replaced from one real run, including the older drift (`mstack setup` prints two more lines and
+  commits 8 files, and the move to `in_progress` prints a `base:` line).
+  `tests/walkthrough.test.ts` runs the Getting-Started sequence through the CLI in a throwaway
+  repository and needs `python3`. `examples/notes-cli/README.md` records its stale verdict with
+  evidence the ledger accepts.
+
 ## 0.2.1
 
 Two corrections to what 0.2.0 shipped. No behaviour changed.
