@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -218,6 +219,64 @@ for (const p of problems) {
     });
   });
 }
+
+test("a citation may carry a column, which is ignored: the line is what is checked", T, () => {
+  inWorld({ reports: { "impl_tbl.md": GOOD.replace("`tests/a.test.ts:3`", "tests/a.test.ts:3:5") } }, (box) => {
+    const gate = cli(box, "gate");
+    assert.equal(gate.code, 0, gate.stdout);
+  });
+  inWorld({ reports: { "impl_tbl.md": GOOD.replace("`tests/a.test.ts:3`", "tests/a.test.ts:3-4:9") } }, (box) => {
+    assert.equal(cli(box, "gate").code, 0);
+  });
+  inWorld({ reports: { "impl_tbl.md": GOOD.replace("`tests/a.test.ts:3`", "tests/a.test.ts:21:5") } }, (box) => {
+    const gate = cli(box, "gate");
+    assert.equal(gate.code, 1);
+    assert.ok(gate.stdout.includes(`${REPORT} line 6 (A1): tests/a.test.ts:21:5 is past the end of tests/a.test.ts, which has 20 lines`), gate.stdout);
+  });
+});
+
+test("a citation that names a directory says so, and one that names a file it cannot read says that", T, () => {
+  inWorld({ files: { "tests/fixtures/x.json": "{}\n" }, reports: { "impl_tbl.md": GOOD.replace("`tests/a.test.ts:3`", "tests/fixtures:3") } }, (box) => {
+    const gate = cli(box, "gate");
+    assert.equal(gate.code, 1);
+    assert.ok(gate.stdout.includes(`${REPORT} line 6 (A1): tests/fixtures:3 is a directory, not a test file`), gate.stdout);
+    assert.ok(!gate.stdout.includes("does not exist"), gate.stdout);
+  });
+  if (process.getuid?.() === 0) return; // root reads mode 000
+  inWorld({ files: { "tests/locked.test.ts": lines(5) }, reports: { "impl_tbl.md": GOOD.replace("`tests/a.test.ts:3`", "tests/locked.test.ts:3") } }, (box) => {
+    chmodSync(join(box.store.root, "tests/locked.test.ts"), 0);
+    const gate = cli(box, "gate");
+    assert.equal(gate.code, 1);
+    assert.ok(gate.stdout.includes(`${REPORT} line 6 (A1): tests/locked.test.ts:3 could not be read (EACCES)`), gate.stdout);
+    assert.ok(!gate.stdout.includes("does not exist"), gate.stdout);
+  });
+});
+
+test("a symlink inside tests/ that points out of the store's root is outside it", T, () => {
+  const away = mkdtempSync(join(tmpdir(), "r-table-away-"));
+  try {
+    writeFileSync(join(away, "real.test.ts"), lines(10), "utf8");
+    inWorld({ reports: { "impl_tbl.md": GOOD.replace("`tests/a.test.ts:3`", "tests/link.test.ts:3") } }, (box) => {
+      symlinkSync(join(away, "real.test.ts"), join(box.store.root, "tests/link.test.ts"));
+      const gate = cli(box, "gate");
+      assert.equal(gate.code, 1);
+      assert.ok(gate.stdout.includes(`${REPORT} line 6 (A1): tests/link.test.ts:3 is outside the store's root`), gate.stdout);
+    });
+  } finally {
+    rmSync(away, { recursive: true, force: true });
+  }
+});
+
+test("the last line of a file with no trailing newline is a line", T, () => {
+  const body = "one\ntwo\nthree"; // 3 lines, the last unterminated
+  inWorld({ files: { "tests/nonl.test.ts": body }, reports: { "impl_tbl.md": GOOD.replace("`tests/a.test.ts:3`", "tests/nonl.test.ts:3") } }, (box) => {
+    assert.equal(cli(box, "gate").code, 0, "line 3 of 3 passes");
+  });
+  inWorld({ files: { "tests/nonl.test.ts": body }, reports: { "impl_tbl.md": GOOD.replace("`tests/a.test.ts:3`", "tests/nonl.test.ts:4") } }, (box) => {
+    const gate = cli(box, "gate");
+    assert.ok(gate.stdout.includes("tests/nonl.test.ts:4 is past the end of tests/nonl.test.ts, which has 3 lines"), gate.stdout);
+  });
+});
 
 test("an n/a reason of 12 characters passes, and the count is of the trimmed reason", T, () => {
   inWorld({ reports: { "impl_tbl.md": GOOD.replace("`tests/a.test.ts:3`", "n/a: 123456789012") } }, (box) => {

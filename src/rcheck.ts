@@ -85,7 +85,9 @@ function lineCount(file: string): number {
 /** What is wrong with one citation of a Where cell, or undefined. */
 function citationProblem(store: Store, raw: string, counts: Map<string, number>): string | undefined {
   const text = raw.replace(/`/g, "").trim();
-  const m = /^(.+):(\d+)(?:-(\d+))?$/.exec(text);
+  // `path:line`, `path:from-to`, and either with a `:column` after it, which is ignored
+  // (editors and stack traces print one; the table proves a line, not a column).
+  const m = /^(.+?):(\d+)(?:-(\d+))?(?::\d+)?$/.exec(text);
   if (m === null) return `"${text}" is not path:line`;
   const path = m[1] as string;
   const from = Number(m[2]);
@@ -98,13 +100,16 @@ function citationProblem(store: Store, raw: string, counts: Map<string, number>)
   const file = join(store.root, rel);
   let size: number | undefined;
   try {
-    if (!statSync(file).isFile()) throw new Error("not a file");
+    if (statSync(file).isDirectory()) return `${text} is a directory, not a test file`;
     const inside = relative(realpathSync(store.root), realpathSync(file));
     if (inside.startsWith("..") || isAbsolute(inside)) return `${text} is outside the store's root`;
     size = counts.get(rel) ?? lineCount(file);
     counts.set(rel, size);
-  } catch {
-    return `${text} names a file that does not exist`;
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    return code === "ENOENT" || code === "ENOTDIR"
+      ? `${text} names a file that does not exist`
+      : `${text} could not be read (${code ?? (error as Error).message})`;
   }
   if (from < 1 || to < 1) return `${text} is not a line; lines start at 1`;
   if (to < from) return `${text} runs backwards`;
