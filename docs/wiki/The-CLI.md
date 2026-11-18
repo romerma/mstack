@@ -361,39 +361,6 @@ mstack: export-json has an unanswered decision: "Is this a stable public contrac
         answer it with 'mstack decide --resolves export-json ...' first
 ```
 
-A spec has a size too. `state set <ref> --status spec_ready` from `specifying` is refused, and so is every
-other move that lands an sdd item at or past `spec_ready` from before it (`specifying -> in_progress` and `pending
--> spec_ready` with `--force`, `pending -> in_progress`, `blocked -> in_progress`), when
-`.mstack/specs/<slug>/spec.md` declares more requirements than the item's size allows: 12 for
-`m` or no size, 30 for `l` (`s` cannot be sdd). The count is the number of distinct
-`### Requirement: R<n>` ids, the same ones the requirement-to-test table is checked against.
-The refusal names the count and the limit and the two ways out. `--force` alone is refused
-too, because the move has to be on the record: it needs `--closed-by "<why>"`, and with both the
-item moves and the reason is written as a `spec-size` decision row (item column set). The reason is
-that row's and nothing else's: an open item does not get a `closed_by`, so no later close picks it up as its note:
-
-```console
-$ mstack state set greet --status spec_ready
-mstack: .mstack/specs/greet/spec.md declares 13 requirements, and a size m item may have 12
-        cut the spec to 12 or fewer, or pass --force with --closed-by "<why this many is right>"
-
-$ mstack state set greet --status spec_ready --force
-mstack: --force would move greet to spec_ready past the 12 requirement limit, and that has to be on the record
-        add --closed-by "<why this many is right>"; it is written to decisions.tsv as a spec-size row
-
-$ mstack state set greet --status in_progress --force
-mstack: --force would move greet to in_progress past the 12 requirement limit, and that has to be on the record
-        add --closed-by "<why this many is right>"; it is written to decisions.tsv as a spec-size row
-
-$ mstack state set greet --status spec_ready --force --closed-by "the 13 parts ship as one release and cannot be split"
-1 greet (spec_ready)
-  forced: greet has 13 requirements, over the 12 a size m item may have; the reason is recorded as a spec-size decision row
-  status: "specifying" -> "spec_ready"
-```
-
-Each of the first three is run on the item at `specifying`; once it is at `spec_ready` the limit
-has been answered and the move to `in_progress` is not asked again.
-
 The question in that block is the one `examples/notes-cli` ships, character for character, which
 is what the promise at the top of this page is worth: same item, same id, same fork.
 
@@ -424,6 +391,42 @@ Rewriting the fork prose drops `decision_resolved`, and `--clear decision-requir
 The row that answered the old question does not answer the new one, and the gate matches a row
 on its timestamp and the slug it resolves, never on the question — so a pointer left behind
 would let the next fork be born answered.
+
+### The size of a spec
+
+A spec has a size too. `state set <ref> --status spec_ready` from `specifying` is refused, and so is every
+other move that lands an sdd item at or past `spec_ready` from before it (`specifying -> in_progress` and `pending
+-> spec_ready` with `--force`, `pending -> in_progress`, `blocked -> in_progress`), when
+`.mstack/specs/<slug>/spec.md` declares more requirements than the item's size allows: 12 for
+`m` or no size, 30 for `l` (`s` cannot be sdd). The count is the number of distinct
+`### Requirement: R<n>` ids, the same ones the requirement-to-test table is checked against.
+The refusal names the count and the limit and the two ways out. `--force` alone is refused
+too, because the move has to be on the record: it needs `--closed-by "<why>"`, and with both the
+item moves and the reason is written as a `spec-size` decision row (item column set). The reason is
+that row's and nothing else's: an open item does not get a `closed_by`, so no later close picks it up as its note:
+
+```console
+$ mstack state set greet --status spec_ready
+mstack: .mstack/specs/greet/spec.md declares 13 requirements, and a size m item may have 12
+        cut the spec to 12 or fewer, or pass --force with --closed-by "<why this many is right>"
+
+$ mstack state set greet --status spec_ready --force
+mstack: --force would move greet to spec_ready past the 12 requirement limit, and that has to be on the record
+        add --closed-by "<why this many is right>"; it is written to decisions.tsv as a spec-size row
+
+$ mstack state set greet --status in_progress --force
+mstack: --force would move greet to in_progress past the 12 requirement limit, and that has to be on the record
+        add --closed-by "<why this many is right>"; it is written to decisions.tsv as a spec-size row
+
+$ mstack state set greet --status spec_ready --force --closed-by "the 13 parts ship as one release and cannot be split"
+1 greet (spec_ready)
+  forced: greet has 13 requirements, over the 12 a size m item may have; the reason is recorded as a spec-size decision row
+  status: "specifying" -> "spec_ready"
+```
+
+Each of the first three is run on the item at `specifying`; from `spec_ready` the move to
+`in_progress` is not asked again. This block is from a scratch store of its own, where `greet` is
+an sdd item with a spec of 13 requirements.
 
 ## ledger record / check / summary
 

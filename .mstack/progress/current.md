@@ -7,7 +7,7 @@
 > empty template below.
 
 - **Item:** 43 review-budget
-- **Status:** reviewing (round 3: one wiki transcript reordered)
+- **Status:** reviewing (round 4: the spec-size section moved after the fork narrative)
 - **Branch:** feat/review-budget
 - **Base:** 362536f
 - **Worktree:** none
