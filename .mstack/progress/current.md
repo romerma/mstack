@@ -6,10 +6,10 @@
 > On close: append the summary to `history.md` and reset this file to the
 > empty template below.
 
-- **Item:** 61 verify-claim-gate
-- **Status:** reviewing (round 1)
-- **Branch:** feat/verify-claim-gate
-- **Base:** 2264027
+- **Item:** none active (61 closed 2026-11-18)
+- **Status:** -
+- **Branch:** main
+- **Base:** -
 - **Worktree:** none
 
 ## Plan
@@ -32,7 +32,7 @@ watch is review rounds per item: if they do not drop after phase 1, intake is ce
 
 - Easy tier: `impl_benchmark-harness_baseline.md`.
 - Hard tier: `impl_benchmark-hard-tier_baseline.md`.
-- 2026-11-16 and 17: items 52 to 87 filed; 52, 53, 54, 47, 46, 70, 55, 56, 73, 74, 57, 58, 59 and 67 closed; see `history.md`.
+- 2026-11-16 and 17: items 52 to 88 filed; 52, 53, 54, 47, 46, 70, 55, 56, 73, 74, 57, 58, 59, 67 and 61 closed; see `history.md`. Item 60 needs the user's yes to open a real PR.
 - Sessions launched as plain `claude` have no mstack plugin: no `mstack:*` agents, no hooks, no
   cost rows. On 2026-11-16 the user chose to continue anyway, with general-purpose agents
   briefed from `agents/*.md` (Sonnet implements, Opus reviews).

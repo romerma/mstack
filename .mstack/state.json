@@ -853,9 +853,10 @@
         "the verify skill and the evidence ladder carry the five-step procedure with an origin header",
         "the text adds no new stop and no question to the user"
       ],
-      "status": "reviewing",
+      "status": "done",
       "description": "Adapted from obra/superpowers verification-before-completion (MIT, about 580 words, asks nothing): identify the command that proves the claim, run it, read the whole output, check it against the claim, and only then state it. It sharpens the evidence ladder rather than adding a gate.",
       "source": "reports/Mejoras mstack con skills Pocock.md, 2026-11-16",
+      "closed_by": "one round; review_verify-claim-gate.md APPROVED (live-verified) at 99ca8cc; gate --full green on the first run",
       "seams": [
         "CLI: mstack lint-plugin output and exit code on a plugin whose skills/verify/SKILL.md or skills/router/references/evidence-ladder.md has no origin header",
         "skills/verify/SKILL.md as followed by a headless /mstack:verify run on a claim in a copy of sandbox/bench/template"
@@ -1277,6 +1278,21 @@
       "status": "pending",
       "description": "At 5c05f6c the old wall-time test failed twice in CI's oldest-node job with a steady gap (94.5 against 37.0 ms, 91.4 against 37.5 ms) that no local run on node 22.6 reproduced. The new test prints every run in its budget line. CI run 44250772559 at 1e48798 passed both jobs; its budget lines: oldest-node cpu max 9.1 against 8.5 ms, wall with [17.6,36.3,59.5,24.7,20.6] against without [24.4,53.4,44.9,28.9,20.5]; test job on node cpu max 17.6 against 19.5 ms with single runs from 11.0 to 19.5 ms; on bun 4.4 against 3.3 ms. No steady with-transcript gap shows in that one run, and single CPU runs on the node runner vary by about 8 ms against the 20 ms bound.",
       "source": "item 67 reviews, .mstack/progress/review_load-sensitive-tests.md, _r2.md and _r3.md, 2026-11-18"
+    },
+    {
+      "id": 88,
+      "slug": "verify-claim-gate-followups",
+      "title": "Follow-ups from item 61: whether the five-step text changes a verify reply, and wording left in the ladder, the changelog and the README credit",
+      "acceptance": [
+        "the same planted state is run once with the verify text at 2264027 and once at head, and the report says what the two replies contain that differs",
+        "the ladder says once that a run from before the last edit is not evidence (it is at :58 and :70)",
+        "verify step 4 and the CHANGELOG entry agree on 'only then', and 'at this head' in verify is clear before HEAD is mentioned",
+        "README's Credit section lists every file that carries an origin header (the ladder, the verify skill and four mattpocock-derived files are missing)",
+        "the origin headers name the source's parts by their headings (Common Failures, Rationalization Prevention)"
+      ],
+      "status": "pending",
+      "description": "One live run with the new text (n=1, 12 turns, 0.34 USD, 77 s) showed all five moves and caught a claim wider than a green suite, and recorded verifier-failed. No run of the old text was compared, so whether the text changed anything is open: the design row says that if a live run shows no change, the text is ceremony.",
+      "source": "item 61 review, .mstack/progress/review_verify-claim-gate.md, 2026-11-18"
     }
   ]
 }

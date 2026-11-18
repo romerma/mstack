@@ -1291,3 +1291,24 @@ made by the coordinator and read by a fresh reviewer. Item 21's description carr
 stays open on the two hangs.
 
 **Filed.** Item 86 `run-survivor-checks-under-load`; item 87 `stop-budget-test-followups`.
+
+## 2026-11-18 - item 61 verify-claim-gate closed (1 round)
+
+**What shipped.** The evidence ladder has a section "Between the run and the claim": name the
+command that proves the claim, run all of it now at this head, read the whole output with its exit
+code and counts, check it against the claim as worded, only then state the claim or what the
+output shows. Steps 3 and 4 of the verify skill carry the same moves in short. Both files have an
+origin header to obra/superpowers `verification-before-completion` at a pinned sha and are in
+`ORIGIN_REQUIRED`. No new stop and no question.
+
+**Evidence.** One live headless run (n=1, 12 turns, 0.34 USD, 77 s) on a commit whose tests pass
+while the reported CLI bug still reproduces: the session ran the real repro and the suite at HEAD,
+rejected a pasted older green run, wrote that a green suite does not prove the bug fixed, and
+recorded `verifier-failed`. The old text was not run against the same state (the reviewer's second
+run was denied by the permission classifier and not retried), so whether the text changed the
+reply is not shown.
+
+**Closing.** `gate --full` green on the first run (bun 631/0, node 631/0). First item of the
+program to close in one round.
+
+**Filed.** Item 88 `verify-claim-gate-followups`.
