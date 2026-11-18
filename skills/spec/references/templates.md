@@ -65,7 +65,7 @@ The system MUST <EARS obligation>.
 
 ```markdown
 ## 1. <group>
-- [ ] 1.1 <task> (covers R1)
+- [ ] 1.1 <task: what it changes, in which `path`; its test in `tests/path`; done when `<exact command>` prints `<what it prints>`> (covers R1)
 - [ ] 1.2 <task> (covers R2, R3)
 
 ## 2. Verification and close

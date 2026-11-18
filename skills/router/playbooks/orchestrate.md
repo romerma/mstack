@@ -1,3 +1,5 @@
+<!-- Origin: the unit-size rule in steps 1 and 2 and the no-placeholder rule in step 5, from obra/superpowers, skills/writing-plans/SKILL.md (its Task Right-Sizing, Overview, No Placeholders and Remember) @ 8e1262a3bae92b640d87fa81c51c53b65e490590 (MIT, licenses/obra-superpowers-LICENSE.txt, identical at that commit). Adapted: Task Right-Sizing is carried as the definition of a unit, reworded, with "scaffolding" left out of what is folded in; from No Placeholders, "TBD" (of its first bullet), "handle edge cases" (of its second, without "add validation" and "add error handling"), "Similar to Task N" (as "as in unit N", with a different remedy: the brief says it in full) and the references to names defined in no task are carried, and its "Write tests for the above" and "Steps that describe what to do without showing how" are not; from Overview only the premise that the reader has none of the author's context is carried, and from Remember "Exact file paths always" and "Exact commands with expected output" (as paths and the VERIFY command), not "Complete code in every step"; Bite-Sized Task Granularity, Plan Document Header, Task Structure, Scope Check, File Structure, Self-Review and Execution Handoff are not copied, nor are its announcement line and save path. -->
+
 # Orchestrate
 
 A program of work: many changes, several tracks, more than one session.
@@ -9,7 +11,10 @@ use [feature](feature.md) and move on. Choosing this playbook is a decision wort
 with `mstack decide`, including why the simpler route was rejected.
 
 1. **Frame.** One sentence naming the outcome. Then the tracks: groups of work that do not
-   write the same files.
+   write the same files. A unit is the smallest piece that carries its own test cycle and
+   deserves a fresh reviewer's gate; setup, configuration and docs fold into the unit whose
+   deliverable needs them, and two units are separate only where a reviewer could reject one and
+   approve the other.
 2. **Seed the state.** One item per unit in `.mstack/state.json`, each with its own slug and a
    real acceptance list. `mstack state add --slug <s> --title <t> --acceptance "..." --source "..." --seam "..."`;
    [intake](../references/intake.md) says how each field is derived.
@@ -35,7 +40,9 @@ with `mstack decide`, including why the simpler route was rejected.
    ```
 
    **The brief is the product.** A vague one fails quietly, because a worker cannot ask a
-   question. Missing fields are a reason not to launch it yet.
+   question. Missing fields are a reason not to launch it yet. Write it for a worker with only
+   the brief: exact paths, the exact VERIFY command and what it prints; never "TBD", "handle
+   edge cases", "as in unit 3", or a name the brief and the repository do not define.
 6. **Land continuously.** Integration starts with the first verified unit, not after the last.
    Walk up from the lowest unmerged change and stop at the first without a passing verdict: a
    verified change sitting above an unverified one is not landable, because merging it pulls

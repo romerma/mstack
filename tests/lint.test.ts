@@ -295,6 +295,7 @@ test("a file that must carry an origin header and does not is caught", () => {
     "agents/implementer.md",
     "skills/spec/SKILL.md",
     "skills/router/playbooks/orchestrate.md",
+    "agents/spec-author.md",
   ]) {
     const c = copy();
     try {

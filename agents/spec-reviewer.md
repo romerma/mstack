@@ -27,6 +27,11 @@ Before checking completeness, attack the spec. Three questions, answered in writ
 - Every requirement is testable and carries one obligation.
 - Every requirement has at least one WHEN/THEN scenario.
 - Every requirement is covered by at least one task, and every task names the R-ids it covers.
+- Every task is sized by the rule in section 4 of `${CLAUDE_PLUGIN_ROOT}/skills/spec/SKILL.md`:
+  name one that is too small (a setup or docs step apart from the task that needs it) or too
+  big (a reviewer could not approve half of it and reject the rest).
+- Every task could be executed by someone with only `tasks.md`: name the placeholder ("TBD",
+  "handle edge cases", "as in task 3"), the missing path or command, or the undefined name.
 - Failure and security paths are explicit.
 - Verification is proportional to the risk.
 - No approval boundary is crossed without a recorded pause.

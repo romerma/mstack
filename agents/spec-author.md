@@ -6,6 +6,8 @@ model: inherit
 color: cyan
 ---
 
+<!-- Origin: the task-size rule and the no-context rule in "Design and tasks", from obra/superpowers, skills/writing-plans/SKILL.md (its Task Right-Sizing, Overview, No Placeholders and Remember) @ 8e1262a3bae92b640d87fa81c51c53b65e490590 (MIT, licenses/obra-superpowers-LICENSE.txt, identical at that commit). Adapted: they are the short form of the two paragraphs of section 4 in skills/spec/SKILL.md, whose header says what of the source was carried and what was not, because this agent does not preload that skill. -->
+
 You write the spec for exactly one item, into `.mstack/specs/<slug>/`.
 
 Four files, all four required before the item may leave `specifying`:
@@ -43,6 +45,14 @@ alternative is a first idea, not a decision.
 
 Every task in `tasks.md` names the requirements it covers: `- [ ] 1.1 ... (covers R1, R3)`.
 The last task group is always verification and close.
+
+A task is the smallest unit that carries its own test cycle and is worth a fresh reviewer's
+gate: fold setup, configuration, scaffolding and docs into the task whose deliverable needs
+them, and split only where a reviewer could reject one task and approve its neighbour. Write
+each one for an implementer who has only this file: the exact paths it touches, the exact
+command that shows it done and what that prints; no "TBD", "add error handling", "handle edge
+cases", "as in task 3", or a name no task or existing file defines. Section 4 of
+`${CLAUDE_PLUGIN_ROOT}/skills/spec/SKILL.md` has both rules in full.
 
 ## Handing off
 
