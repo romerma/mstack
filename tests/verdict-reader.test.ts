@@ -115,7 +115,7 @@ test("ledger check and the gate's closing audit agree on every sequence, because
  * Item 82: the close asks the gate's question. Every sequence above, plus the names the
  * closing-role rule now refuses, goes to the real `closingProblems` (what `state set
  * --status done` runs) and to the real gate over the same rows once the item is done.
- * An item the close lets through must be one the gate then passes, and the reverse.
+ * For an item with a row, one the close lets through is one the gate then passes, and the reverse; an item with no row is let through and failed by the gate (item 95).
  */
 const ROLE_CASES: { name: string; rows: Row[]; closes: boolean }[] = [
   ...CASES.map((c) => ({ name: c.name, rows: c.rows, closes: c.gate === "pass" })),
