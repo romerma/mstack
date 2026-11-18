@@ -111,6 +111,19 @@ the orchestrator checks for the report file rather than trusting the one-line su
 pauses for a human only at a real product fork: an item with `decision_required`, a direct
 request with no issue behind it, or a fork a spec pass surfaced.
 
+### The report cap, for every role
+
+Every role that writes a report (spec-author, spec-reviewer, implementer, reviewer) is told in its
+own agent file that a report stays under 24 KB (24576 bytes): paste the lines that matter, name the
+file that holds the rest, check the size before returning. The gate fails an item whose report is
+over it ([Gates and hooks](Gates-and-Hooks.md)), and that red does not stop the next role: a
+gate red **only** on the budget of the item under review (a report over the cap, a review round
+without its decision row) is a finding for the reviewer and for an implementer of a later round, and
+a coordinating session launches the role that fixes it. When the author of an over-cap report is
+gone, the coordinating session moves the pasted output, unchanged, to
+`.mstack/progress/attachments/<report file name>` and leaves a pointer in the report; it edits no
+finding and no verdict line ([A report over the cap](Gates-and-Hooks.md#a-report-over-the-cap)).
+
 ## spec-author
 
 Writes the spec for one item into `.mstack/specs/<slug>/`: `proposal.md`, `design.md`,

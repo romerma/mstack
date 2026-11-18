@@ -349,16 +349,32 @@ Walking the lines that carry the weight:
 
   And no report of the item may be over 24576 bytes (`MAX_REPORT_BYTES`, one constant):
   `spec_<slug>`, `spec_review_<slug>`, `impl_<slug>` and `review_<slug>` files, lensed or of a
-  later round. The check is on the file's size, so pasted evidence that does not fit goes in a
-  scratch file the report names. From a separate run:
+  later round. The check is on the file's size, and every role that writes a report is told the
+  number in its agent file: paste the lines that matter, name the file that holds the rest, check
+  the size before returning. From a separate run, with the way out in the fix line:
 
   ```console
-  [fail]  1 greet (in_progress) cannot close as it stands, and its report .mstack/progress/impl_greet.md is 25009 bytes, over the 24576 byte limit
-          fix: cut impl_greet.md to 24576 bytes or fewer: keep the findings and the lines that matter, and leave bulk output in a scratch file outside .mstack/progress that the report names
+  [fail]  1 greet (reviewing) cannot close as it stands, and its report .mstack/progress/impl_greet.md is 25009 bytes, over the 24576 byte limit
+          fix: cut impl_greet.md to 24576 bytes or fewer: keep the findings and the lines that matter, and name the file that holds the rest; when the pass that wrote it is gone, the coordinating session moves the pasted output, unchanged, to .mstack/progress/attachments/impl_greet.md and leaves a pointer in the report, editing no finding and no verdict line (docs/wiki/Gates-and-Hooks.md, "A report over the cap")
   ```
 
-  Like the table check it is reported by `mstack gate` and not by `mstack gate --full`, which
-  does not read the closing checks while it runs the verification for real.
+  Both parts are reported by `mstack gate` and by `mstack gate --full` alike: `--full` leaves
+  out only the verification receipts, because it is about to run the verification for real.
+
+  #### A report over the cap
+
+  A gate that is red **only** on the budget of the item under review (a report over the cap, a
+  review round without its decision row) does not stop the next role. The reviewer takes it as a
+  finding and the review goes on; the implementer of a later round takes it as one too, cutting
+  its own reports and naming another pass's in its own; a coordinating session launches the role
+  that fixes it. Any other red still stops a pass.
+
+  When the pass that wrote the over-cap report is gone, the coordinating session moves the pasted
+  output, unchanged, into `.mstack/progress/attachments/<report file name>` and leaves a pointer
+  to it in the report. It edits no finding and no verdict line: a `verifier-failed` ledger row
+  cites that report as its evidence, and the findings are what the row is about. Nothing under
+  `attachments/` is read as a report (`src/roles.ts` lists only `progress/`'s own files) or
+  counted against the cap.
 
 - **"store root is an mstack checkout"** does not appear in the transcript above, and in your
   repository it never will: it speaks only where the store's root is a checkout of this

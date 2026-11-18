@@ -7,20 +7,28 @@
   and a slug that is not an item is refused; empty with no item active). A file from before the
   column keeps reading, its rows with an empty item, and the first write widens the header line in
   place. `mstack fanout plan --kind review --solo` allocates the next lone report,
-  `review_<slug>.md` and then `review_<slug>_r<N>.md` (N one more than the highest lone round on
-  disk), refuses round 3 or later without `--justify "<why>"`, writes the `review-r<N>` decision
+  `review_<slug>.md` and then `review_<slug>_r<N>.md` (N one more than the highest round of any review
+  report of the item, lone or lensed, so the review after a round-1 panel is round 2), refuses round 3 or later without `--justify "<why>"`, writes the `review-r<N>` decision
   row itself, and prints the last commit a reviewer recorded for the item that is still an
   ancestor of `HEAD`. The gate, and `state set --status done`, now fail the active item when a
   review report of round 3 or later (lone or lensed) has no `review-r<N>` row filed under its
   slug, and when any report of the item (`spec_`, `spec_review_`, `impl_`, `review_`) is over
   24576 bytes; both name the file, neither is overridable by `--force`, and **only items with a
-  `base` are checked**, so nothing in flight breaks. moving an item from writing its spec to having it ready
-  is refused when `spec.md` declares more requirements than the size allows (12 for
-  `m` or no size, 30 for `l`), unless `--force` carries a `--closed-by` reason, which is recorded
-  as a `spec-size` row. A report name's remainder has one rule in code, prose and tests: a
+  `base` are checked**, so nothing in flight breaks. Moving an item from writing its spec to having it ready
+  is refused, and so is every other move that lands an sdd item at or past having its spec ready, when
+  `spec.md` declares more requirements than the size allows (12 for `m` or no size, 30 for `l`),
+  unless `--force` carries a `--closed-by` reason, which is recorded as a `spec-size` row and
+  nowhere else (an open item gets no `closed_by`). A report name's remainder has one rule in code, prose and tests: a
   leading `r<digits>` is a round marker only when nothing or a dash follows, so `_r2x` is a lens
   named `r2x` in round 1; `fanout plan` still refuses every `r<digit>` worker name. A later
-  implementer round writes `impl_<slug>_r<N>.md` with what changed and the whole table.
+  implementer round writes `impl_<slug>_r<N>.md` with what changed and the whole table. Every role
+  that writes a report is told the 24 KB cap in its agent file; a gate red only on the budget of
+  the item under review is a finding and does not stop the next role; and when the author of an
+  over-cap report is gone, the coordinating session moves the pasted output, unchanged, to
+  `.mstack/progress/attachments/<report file name>` (not read as a report, not counted), which the
+  gate's failure line names. `mstack gate --full` now reports the closing checks the plain gate
+  reports (the table and the budget) and leaves out only the verification receipts; before, it
+  printed `PASSED` over a 30 KB report and a missing table.
 
 - **The gate reads the requirement-to-test table instead of trusting it.** From `reviewing` on,
   and when `state set --status done` closes the item, the newest implementation report

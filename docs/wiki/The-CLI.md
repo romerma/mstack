@@ -76,6 +76,11 @@ and the active item's `verification` command, and **records what it ran** so the
 hold an item at `verifying` to a run that really happened. The whole mechanism is in
 [Gates-and-Hooks](Gates-and-Hooks.md#verification-that-actually-ran).
 
+`--full` reports the same closing checks the plain gate reports (the requirement-to-test table, the
+review budget) and leaves out only the verification receipts, which it is about to write itself. A
+`--full` used to skip all of them and print `PASSED` over a 30 KB report and over a missing table,
+where `gate` failed. Now it is red exactly where `gate` is, and still runs the verification.
+
 `--full` that runs nothing is a failure, not a pass. It used to warn and exit 0, which made
 "you asked for the full gate and got no verification at all" indistinguishable from "you asked
 for it and it passed":
@@ -356,14 +361,16 @@ mstack: export-json has an unanswered decision: "Is this a stable public contrac
         answer it with 'mstack decide --resolves export-json ...' first
 ```
 
-A spec has a size too. `state set <ref> --status spec_ready` from `specifying` is refused when
+A spec has a size too. `state set <ref> --status spec_ready` from `specifying` is refused, and so is every
+other move that lands an sdd item at or past `spec_ready` from before it (`specifying -> in_progress` and `pending
+-> spec_ready` with `--force`, `pending -> in_progress`, `blocked -> in_progress`), when
 `.mstack/specs/<slug>/spec.md` declares more requirements than the item's size allows: 12 for
 `m` or no size, 30 for `l` (`s` cannot be sdd). The count is the number of distinct
 `### Requirement: R<n>` ids, the same ones the requirement-to-test table is checked against.
 The refusal names the count and the limit and the two ways out. `--force` alone is refused
 too, because the move has to be on the record: it needs `--closed-by "<why>"`, and with both the
-item moves and the reason is written as a `spec-size` decision row (item column set; the text is
-also kept in the item's `closed_by`, as any `--closed-by` is):
+item moves and the reason is written as a `spec-size` decision row (item column set). The reason is
+that row's and nothing else's: an open item does not get a `closed_by`, so no later close picks it up as its note:
 
 ```console
 $ mstack state set greet --status spec_ready
@@ -378,7 +385,10 @@ $ mstack state set greet --status spec_ready --force --closed-by "the 13 parts s
 1 greet (spec_ready)
   forced: greet has 13 requirements, over the 12 a size m item may have; the reason is recorded as a spec-size decision row
   status: "specifying" -> "spec_ready"
-  closed_by: (unset) -> "the 13 parts ship as one release and cannot b..."
+
+$ mstack state set greet --status in_progress --force
+mstack: --force would move greet to in_progress past the 12 requirement limit, and that has to be on the record
+        add --closed-by "<why this many is right>"; it is written to decisions.tsv as a spec-size row
 ```
 
 The question in that block is the one `examples/notes-cli` ships, character for character, which
@@ -633,7 +643,8 @@ mstack: 'r2' is not a usable worker name: it would be read as a round marker
 
 A lone reviewer asks for its path with `--solo`, and the tool counts the rounds. The path is
 `review_<slug>.md` for round 1 and `review_<slug>_r<N>.md` after, where N is one more than the
-highest lone round on disk (a lensed report belongs to a panel and does not count). Round 3 or
+highest round of any review report of the item on disk, lone or lensed: a round-1 panel is round 1, so
+the next lone review is round 2, and with only `_r3` on disk the next is `_r4`. Round 3 or
 later is refused without `--justify "<why>"`, and with it the command writes the item's
 `review-r<N>` decision row itself, which `mstack gate` asks for ([Gates and
 hooks](Gates-and-Hooks.md)); asking again for a round that has its row writes no second one.
@@ -645,7 +656,7 @@ is none. `--solo` takes no `--worker` and no `--round`, only `--kind review`, an
 ```console
 $ mstack fanout plan --kind review --solo
 review round 2 of greet, one lone reviewer; the report goes to:
-/tmp/demo/solo/.mstack/progress/review_greet_r2.md
+/private/tmp/.../.mstack/progress/review_greet_r2.md
 last reviewed commit, still an ancestor of HEAD:
 beb01d1a139af19dc4918630327944f80ce25e56
 
@@ -655,7 +666,7 @@ mstack: round 3 of a lone review of greet needs a reason
 
 $ mstack fanout plan --kind review --solo --justify "round 2 left the empty-flag case open; one more pass on that only"
 review round 3 of greet, one lone reviewer; the report goes to:
-/tmp/demo/solo/.mstack/progress/review_greet_r3.md
+/private/tmp/.../.mstack/progress/review_greet_r3.md
 last reviewed commit, still an ancestor of HEAD:
 beb01d1a139af19dc4918630327944f80ce25e56
 recorded the review-r3 decision row for greet
