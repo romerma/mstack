@@ -7,7 +7,7 @@
 > empty template below.
 
 - **Item:** 95 close-with-no-verdict
-- **Status:** in_progress (round 1)
+- **Status:** reviewing (round 1)
 - **Branch:** fix/close-needs-a-verdict
 - **Base:** 23abeaf
 - **Worktree:** none
