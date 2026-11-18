@@ -7,7 +7,7 @@
 > empty template below.
 
 - **Item:** 67 load-sensitive-tests
-- **Status:** in_progress (round 1)
+- **Status:** in_progress (round 1, implementer done; review next)
 - **Branch:** fix/load-sensitive-tests
 - **Base:** 5c05f6c
 - **Worktree:** none
@@ -42,6 +42,15 @@ watch is review rounds per item: if they do not drop after phase 1, intake is ce
 Headless runs: `run.mjs` builds a clean `env -i` env, uses the claude.ai login, and never
 passes bypassPermissions. Do not run `check.mjs` or `verify.mjs` while a batch is running
 (item 49).
+
+## Item 67 in flight (implementer, 2026-11-18)
+
+- Implemented and reported: `.mstack/progress/impl_load-sensitive-tests.md` (final tree `fd1e3fd`). Next is
+  the review pass by someone who did not write it. Read the report's mutant table first (C6 is the one
+  loosening: a no-CPU wait on the gate branch passes the Stop test now).
+- Harness committed at `scripts/load/` (decision row; `sandbox/` is ignored and a nested repo).
+- Scratch evidence: `/private/tmp/claude-501/-Users-romerma-Code-mstack/4aadee9d-d352-4d5b-825b-4d11a47e2193/scratchpad/impl67/`.
+- Item 21 is not changed; the report has a recommendation for it.
 
 ## Next step
 
