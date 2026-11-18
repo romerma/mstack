@@ -1,4 +1,4 @@
-<!-- Origin: the procedure in steps 1 and 2 from mattpocock/skills, skills/engineering/diagnosing-bugs/SKILL.md @ 49dd158d1076134a641b33efb035946536778336 (MIT, licenses/mattpocock-skills-LICENSE.txt). Adapted: nothing is shown to the user for re-ranking and nothing is asked, because the source proceeds on its own ranking when the user is away and here the session always does; no human-in-the-loop script; the source's redaction, regression-test and cleanup phases are not copied, because steps 3 to 8 already cover the test-first fix, and the router's stop after three failed approaches stays. -->
+<!-- Origin: the procedure in steps 1 and 2 from mattpocock/skills, skills/engineering/diagnosing-bugs/SKILL.md @ 49dd158d1076134a641b33efb035946536778336 (MIT, licenses/mattpocock-skills-LICENSE.txt). Adapted: the source asks the user three times (to re-rank the hypotheses, for an environment or artifact when no loop can be built, and when redacted output is not enough) and here nothing is asked: the session proceeds on its ranking, and with no loop it says what was tried and stops; no human-in-the-loop script; the redaction section is not copied; of the regression-test and cleanup phases only the removal of tagged debug lines is carried, because steps 3 to 8 cover the test-first fix; the `skip:` in step 2 is mstack's addition; the router's stop after three failed approaches stays. -->
 
 # Bug fix
 
@@ -7,20 +7,20 @@ help" is a hypothesis, not a fix, and it does not ship. When evidence refutes a 
 revert what it motivated.
 
 1. **Build the loop first**, on the surface where the bug happens: one command that goes red
-   on it, already run once, invocation and output in hand. It asserts the reported symptom
-   (not "did not crash"), gives the same verdict every run, takes seconds, runs unattended. A
+   on it, already run, with its output. It asserts the reported symptom (not
+   "did not crash"), gives the same verdict every run, takes seconds, runs unattended. A
    bug that is not constant needs a higher rate, not a clean repro: loop the trigger, run it
-   in parallel, add load, pin the rate. Reading code for a theory before this command exists
-   is the failure this step prevents. Do not hand the repro back to the user. No loop, no
-   fix: say what was tried and stop.
+   in parallel, add load, pin the rate. Do not read code for a theory before it exists. Do not
+   hand the repro back to the user. No loop, no fix: say what was tried and stop.
 2. **Find the cause.** Shrink the repro to what is load-bearing. Write three to five ranked
    hypotheses, each with its prediction ("if X is the cause, changing Y makes it go away"),
    before testing any; take them in rank order without asking. One probe per prediction, one
    variable at a time. Tag debug lines with one unique string and remove them before review.
    A performance regression is measured against a baseline and bisected, not logged. Seed the
    search with `/mstack:understand` when the subsystem is unfamiliar. Confirm the *mechanism*
-   with runtime evidence before designing anything. If the loop's red output already shows
-   the cause (a stack trace at the faulty line): `skip: cause shown by the loop`.
+   with runtime evidence before designing anything. If the loop already shows the cause
+   at one line, by a stack trace or a wrong literal or boundary on the only path the command
+   takes: ``skip: cause shown by the loop, `pricing.py:12` ``.
 3. Write the failing test first. It must fail without the fix. If it passes on unmodified code,
    you have not found the bug.
 4. `/mstack:design` only if the fix crosses a function boundary. A one-line fix inside one
