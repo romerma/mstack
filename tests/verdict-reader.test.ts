@@ -112,10 +112,10 @@ test("ledger check and the gate's closing audit agree on every sequence, because
 });
 
 /**
- * Item 82: the close asks the gate's question. Every sequence above, plus the names the
- * closing-role rule now refuses, goes to the real `closingProblems` (what `state set
- * --status done` runs) and to the real gate over the same rows once the item is done.
- * For an item with a row, one the close lets through is one the gate then passes, and the reverse; an item with no row is let through and failed by the gate (item 95).
+ * Item 82: the close asks the gate's question. Every sequence above, the names the closing-role
+ * rule refuses, and an item with no row (item 95) go to the real `closingProblems` (what
+ * `state set --status done` runs) and to the real gate over the same rows once the item is
+ * done: the close lets an item through exactly when the gate then passes it.
  */
 const ROLE_CASES: { name: string; rows: Row[]; closes: boolean }[] = [
   ...CASES.map((c) => ({ name: c.name, rows: c.rows, closes: c.gate === "pass" })),
@@ -123,6 +123,7 @@ const ROLE_CASES: { name: string; rows: Row[]; closes: boolean }[] = [
   { name: "Spec_Author alone", rows: [["test-verified", "Spec_Author"]], closes: false },
   { name: "dev then coder", rows: [["test-verified", "dev"], ["test-verified", "Coder"]], closes: false },
   { name: "an empty verifier alone", rows: [["test-verified", ""]], closes: false },
+  { name: "no row at all", rows: [], closes: false },
   { name: "me, then a coordinator", rows: [["test-verified", "me"], ["test-verified", "coordinator"]], closes: true },
   { name: "dev-ci alone", rows: [["test-verified", "dev-ci"]], closes: true },
   { name: "a session citing the implementer's report", rows: [["test-verified", "session", IMPL]], closes: false },

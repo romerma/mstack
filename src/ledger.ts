@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
 
 import { UserError, type Store } from "./paths.ts";
-import { canCloseAnItem, citesImplementingReport } from "./roles.ts";
+import { canCloseAnItem, citesImplementingReport, typedName } from "./roles.ts";
 import { append, readRecords } from "./tsv.ts";
 
 /**
@@ -190,7 +190,7 @@ export interface Reading {
 
 /** A row as one clause, for the messages that have to name the row that rejects. */
 export function describeRow(e: Entry): string {
-  return `${e.verdict} at ${short(e.sha)} by ${e.verifier || "unnamed"} (evidence: ${e.evidence})`;
+  return `${e.verdict} at ${short(e.sha)} by ${typedName(e.verifier) || "unnamed"} (evidence: ${e.evidence})`;
 }
 
 /**
@@ -308,7 +308,7 @@ export function check(
   }
 
   const { kind, row } = reading;
-  const by = row.verifier || "unknown";
+  const by = typedName(row.verifier) || "unknown";
   switch (kind) {
     case "rejected":
     case "blocked": {
@@ -322,7 +322,7 @@ export function check(
           `${row.verdict} at ${short(at)} by ${by} rejects this commit, whatever an implementing role recorded (evidence: ${row.evidence})` +
           (later === undefined
             ? ""
-            : `; the later verifier-blocked by ${later.verifier || "unknown"} (evidence: ${later.evidence}) does not answer it`),
+            : `; the later verifier-blocked by ${typedName(later.verifier) || "unknown"} (evidence: ${later.evidence}) does not answer it`),
       };
     }
     case "approved": {
@@ -346,7 +346,7 @@ export function check(
         best: row,
         kind,
         stale,
-        reason: `${row.verdict} at ${short(at)} by ${row.verifier} cites the ${ownReport(role)} (evidence: ${row.evidence}), so it is not an independent approval`,
+        reason: `${row.verdict} at ${short(at)} by ${typedName(row.verifier)} cites the ${ownReport(role)} (evidence: ${row.evidence}), so it is not an independent approval`,
       };
     }
     case "author-only": {
@@ -357,7 +357,7 @@ export function check(
         kind,
         stale,
         reason: passing
-          ? `${row.verdict} at ${short(at)} by ${row.verifier || "unknown"} (the author's own verdict, not an independent approval)`
+          ? `${row.verdict} at ${short(at)} by ${typedName(row.verifier) || "unknown"} (the author's own verdict, not an independent approval)`
           : `best verdict at ${short(at)} is ${row.verdict}, which does not clear ${min} (the author's own verdict)`,
       };
     }

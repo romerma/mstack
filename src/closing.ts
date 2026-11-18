@@ -75,6 +75,9 @@ const verificationReceipts: ClosingCheck = {
 
 export const LEDGER_VERDICT_CHECK = "ledger-verdict";
 
+/** Every row of the item is a `verifier-failed`, whoever recorded it. */
+export const loneFailure = (rows: readonly { readonly verdict: string }[]): boolean => rows.length > 0 && rows.every((r) => r.verdict === "verifier-failed");
+
 /**
  * A standing rejection from a role that can close an item.
  *
@@ -97,9 +100,10 @@ const standingRejection: ClosingCheck = {
   reportedAt: [],
   run: (store, _state, item) => {
     let reading;
+    let rows;
     let atClosingSha = false;
     try {
-      const rows = ledgerEntries(store).filter((e) => e.target === item.slug);
+      rows = ledgerEntries(store).filter((e) => e.target === item.slug);
       // The verdict AT the commit being closed, through the reader `ledger check` calls.
       const sha = headSha(store);
       const here = sha === null ? [] : rows.filter((e) => sameCommit(e.sha, sha));
@@ -124,10 +128,12 @@ const standingRejection: ClosingCheck = {
       ];
     }
     if (reading?.kind !== "rejected") return [];
+    // A lone `verifier-failed` is one reason at the door and in the audit.
+    if (loneFailure(rows)) return [{ check: LEDGER_VERDICT_CHECK, message: `its ${ONLY_FAILED_WORDS}`, hint: ONLY_FAILED_FIX, overridable: false }];
     const later =
       reading.blockedAfter === undefined
         ? ""
-        : `; the later verifier-blocked by ${reading.blockedAfter.verifier || "unnamed"} does not answer it`;
+        : `; the later verifier-blocked by ${typedName(reading.blockedAfter.verifier) || "unnamed"} does not answer it`;
     const elsewhere = atClosingSha
       ? ""
       : `; it was recorded against another commit than the one being closed, and only a later independent approval answers it`;
@@ -147,6 +153,12 @@ export const INDEPENDENT_VERDICT_CHECK = "independent-verdict";
 /** What the gate says about an item closed on the author's own verdicts, and what `state set` says at the door. Shared so the two cannot drift. */
 export const SELF_CLOSED_FIX =
   "a closing verdict has to come from a pass that did not write the code; run the verification again from one and record the row under a name that is not the author's (your own name, or `ci`), or, if no check could be run, record `verifier-blocked` under such a name";
+/** An item with no ledger row at all. `NO_VERDICT_WORDS` follows "with " in the gate's audit and "it has " at the door. */
+export const NO_VERDICT_WORDS = "no ledger verdict at all";
+export const NO_VERDICT_FIX = "record it with 'mstack ledger record'; if no check could be run, that verdict is 'verifier-blocked'";
+/** An item whose only row is a `verifier-failed`: follows "whose " in the audit and "its " at the door. */
+export const ONLY_FAILED_WORDS = "only verdict is verifier-failed";
+export const ONLY_FAILED_FIX = "a failed verifier is a reason to reopen the item, not to close it";
 export const FORGED_IMPL_FIX =
   "a closing verdict needs evidence from the closing pass's own work, not a pointer to the implementer's report; re-run the check and record what actually happened";
 export const FORGED_SPEC_FIX =
@@ -163,8 +175,8 @@ export const FORGED_SPEC_FIX =
  * the two agree on every sequence with a row. Refused: rows that are only the
  * author's (an implementing role's name, `self`, an empty verifier: see
  * `canCloseAnItem`), and approvals whose evidence is the implementing pass's own
- * report. A rejection is `standingRejection`'s, and a `verifier-blocked` is the
- * documented escape hatch and closes.
+ * report, and an item with no row at all. A rejection is `standingRejection`'s, and a
+ * `verifier-blocked` is the documented escape hatch and closes.
  *
  * Held only while `rules.require_verdict_to_close` is on, the rule the gate's
  * audit is held to.
@@ -189,15 +201,16 @@ const independentVerdict: ClosingCheck = {
     }
     const refuse = (message: string, hint: string): ClosingProblem[] => [{ check: INDEPENDENT_VERDICT_CHECK, message, hint, overridable: false }];
     const reading = readVerdict(rows, item.slug);
-    // No row at all is left to the gate (`items marked done with no ledger verdict`): a close with none is
-    // what many callers do before a verdict exists, and this check is about whose verdict stands.
-    if (reading === undefined) return [];
+    // No row at all is refused in the gate's own words (`items marked done with no ledger verdict at all`).
+    if (reading === undefined) return refuse(`it has ${NO_VERDICT_WORDS}`, NO_VERDICT_FIX);
+    // A lone `verifier-failed` is `standingRejection`'s when a closing role recorded it; here it is the author's.
+    if (loneFailure(rows)) return reading.kind === "author-only" ? refuse(`its ${ONLY_FAILED_WORDS}`, ONLY_FAILED_FIX) : [];
     if (reading.kind === "author-only") {
       const names = [...new Set(rows.map((r) => typedName(r.verifier) || "unnamed"))].join(", ");
       return refuse(`its only verdicts are from the pass that wrote the code (only ${names})`, SELF_CLOSED_FIX);
     }
     if (reading.kind === "discounted") {
-      const own = (role: string) => [...new Set(reading.discounted.filter((d) => d.role === role).map((d) => d.entry.verifier || "unnamed"))];
+      const own = (role: string) => [...new Set(reading.discounted.filter((d) => d.role === role).map((d) => typedName(d.entry.verifier) || "unnamed"))];
       const impl = own("implementer");
       return impl.length > 0
         ? refuse(`its closing verdict cites the implementer's own report (${impl.join(", ")})`, FORGED_IMPL_FIX)

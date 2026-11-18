@@ -2,7 +2,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 
 import { all as decisionsFor } from "./decisions.ts";
-import { FORGED_IMPL_FIX, FORGED_SPEC_FIX, gateProblems, SELF_CLOSED_FIX, VERIFICATION_CHECK } from "./closing.ts";
+import { FORGED_IMPL_FIX, FORGED_SPEC_FIX, gateProblems, NO_VERDICT_FIX, NO_VERDICT_WORDS, ONLY_FAILED_FIX, ONLY_FAILED_WORDS, SELF_CLOSED_FIX, VERIFICATION_CHECK } from "./closing.ts";
 import { defaultBranch, git, headSha } from "./git.ts";
 import { readGlossary } from "./glossary.ts";
 import { runCommand } from "./run.ts";
@@ -510,7 +510,7 @@ function checkClosedItems(store: Store, state: State, report: Report): void {
       // the fact; an item whose rows cite both kinds lands on the implementer
       // list, and each detail names only the verifiers whose rows cited that kind.
       const verifiers = (role: string) => [
-        ...new Set(reading.discounted.filter((d) => d.role === role).map((d) => d.entry.verifier || "unnamed")),
+        ...new Set(reading.discounted.filter((d) => d.role === role).map((d) => typedName(d.entry.verifier) || "unnamed")),
       ];
       const implVerifiers = verifiers("implementer");
       if (implVerifiers.length > 0) {
@@ -519,20 +519,20 @@ function checkClosedItems(store: Store, state: State, report: Report): void {
         forgedSpec.push(`${item.slug} (${verifiers("spec-author").join(", ")})`);
       }
     } else if (reading.kind === "rejected") {
-      unsupersededFailure.push(`${item.slug} (${reading.row.verifier || "unnamed"}): ${describeRow(reading.row)}`);
+      unsupersededFailure.push(`${item.slug} (${typedName(reading.row.verifier) || "unnamed"}): ${describeRow(reading.row)}`);
     }
   }
 
   if (missing.length > 0) {
     report.fail(
-      `items marked done with no ledger verdict at all: ${missing.join(", ")}`,
-      "record it with 'mstack ledger record'; if no check could be run, that verdict is 'verifier-blocked'",
+      `items marked done with ${NO_VERDICT_WORDS}: ${missing.join(", ")}`,
+      NO_VERDICT_FIX,
     );
   }
   if (failed.length > 0) {
     report.fail(
-      `items marked done whose only verdict is verifier-failed: ${failed.join(", ")}`,
-      "a failed verifier is a reason to reopen the item, not to close it",
+      `items marked done whose ${ONLY_FAILED_WORDS}: ${failed.join(", ")}`,
+      ONLY_FAILED_FIX,
     );
   }
   if (selfClosed.length > 0) {

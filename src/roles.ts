@@ -151,7 +151,8 @@ const WROTE_THE_WORK: ReadonlySet<string> = new Set([
  * list would refuse the documented flow, where `skills/review/SKILL.md` has the
  * session that synthesises a panel record the row under its own name. So what is
  * refused is a short list of names for the author (`WROTE_THE_WORK`), compared
- * as the WHOLE name after `normalisedRole`: `dev-ci`, `self-hosted runner` and
+ * as the WHOLE name after `normalisedRole` (which also removes format characters, as the
+ * evidence check does; look-alike letters are not folded): `dev-ci`, `self-hosted runner` and
  * `impl review bot` merely contain one of those words and keep closing. An empty
  * verifier names nobody and does not close.
  *
@@ -176,10 +177,21 @@ export function canCloseAnItem(verifier: string): boolean {
  * back with it, so it is dropped: `-self-` is stored as `'-self-`, and is `self`.
  */
 export function normalisedRole(name: string): string {
-  return typedName(name)
+  return typedName(withoutFormatCharacters(name))
     .toLowerCase()
     .replace(/[\s_-]+/g, " ")
     .trim();
+}
+
+/**
+ * Text as a reader sees it: without format characters (Unicode category Cf: zero-width
+ * spaces and joiners, the word joiner, the BOM), which render as nothing. The one
+ * stripping both `citesImplementingReport` (evidence) and `normalisedRole` (names) do, so
+ * the two cannot drift. Look-alike letters (a Cyrillic `е`) are NOT folded: neither
+ * check does that.
+ */
+export function withoutFormatCharacters(text: string): string {
+  return text.replace(/\p{Cf}/gu, "");
 }
 
 /** A verifier as it was typed: without the one apostrophe the ledger writer puts before a cell starting with `-`, `=`, `+` or `@`. */
@@ -233,7 +245,7 @@ export function typedName(verifier: string): string {
  * prefix is built from the audited item's own slug.
  */
 export function citesImplementingReport(evidence: string, slug: string): string | undefined {
-  const visible = evidence.replace(/\p{Cf}/gu, "");
+  const visible = withoutFormatCharacters(evidence);
   for (const role of IMPLEMENTING_ROLES) {
     const kind = REPORT_KINDS[role];
     if (kind === undefined) continue;
