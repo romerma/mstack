@@ -870,9 +870,13 @@
         "the implementer's round 2+ instructions say to verify each finding against the code and to record a rebuttal with evidence instead of applying a wrong one",
         "no step in it asks the user; a disputed finding becomes a mstack decide row the next reviewer reads"
       ],
-      "status": "pending",
+      "status": "in_progress",
       "description": "Adapted from obra/superpowers receiving-code-review: verify each finding, push back with reasons when it is wrong, and where the original says ASK, record a decision instead. Applies to implementer rounds 2 and later, where ten items spent three or four rounds.",
-      "source": "reports/Mejoras mstack con skills Pocock.md, 2026-11-16"
+      "source": "reports/Mejoras mstack con skills Pocock.md, 2026-11-16",
+      "seams": [
+        "CLI: mstack lint-plugin output and exit code on a plugin whose agents/implementer.md has no origin header",
+        "agents/implementer.md as followed by a headless later-round run given a review with one finding that holds and one that does not, in a copy of sandbox/bench/template"
+      ]
     },
     {
       "id": 63,
