@@ -725,22 +725,44 @@ test("hook paths stay within budget on a 50 MB transcript", () => {
     };
 
     // Stop: a stat and a compare. It must not read the transcript at all, so the
-    // size of the file cannot matter. `onStop` is timed on its own because the
-    // gate that runs beside it is not this item's cost; the whole hook is
-    // reported for context.
+    // size of the file cannot matter. A read and parse of these 50 MB measured 25 to
+    // 35 ms for item 67, under the 50 ms margin of the whole-hook comparison, so the claim is
+    // carried by the two in-process timings, each the worst of three so that a read
+    // made only on the first Stop counts as well:
+    // - `onStopMs`: the mark check alone, the only part of the hook given the path.
+    // - `stopPathMs`: the whole Stop hook except the gate, which `stop_hook_active`
+    //   skips, so a read added anywhere else on the Stop path counts.
+    // Neither starts a child process, so outside load barely moves them.
+    //
+    // `stopMs - bare` is the whole hook, gate included, with the transcript against
+    // without one: a budget, not a detector of a small read. The gate spawns git,
+    // and outside load can add seconds to any one run of it, so each side is the
+    // best of five runs, taken in turn: load only ever adds time, the fastest run
+    // is the one it added least to, and work done on every Stop is in the fastest
+    // run too. Taking the sides in turn gives both the same load and the same
+    // place after the 50 MB write.
     const onStopMs = Math.max(...[1, 2, 3].map(() => time(() => costs.onStop(box.store, input))));
-    const stopMs = Math.max(...[1, 2, 3].map(() => time(() => stop(input))));
-    const bare = Math.max(...[1, 2, 3].map(() => time(() => stop({ cwd: box.store.root }))));
+    const stopPathMs = Math.max(...[1, 2, 3].map(() => time(() => stop({ ...input, stop_hook_active: true }))));
+    const withTranscript: number[] = [];
+    const without: number[] = [];
+    for (let run = 0; run < 5; run += 1) {
+      withTranscript.push(time(() => stop(input)));
+      without.push(time(() => stop({ cwd: box.store.root })));
+    }
+    const stopMs = Math.min(...withTranscript);
+    const bare = Math.min(...without);
+    const runs = (ms: number[]) => ms.map((m) => m.toFixed(1)).join(",");
     // SessionEnd: the one place the transcript is read, streamed from the mark.
     const endMs = time(() => sessionEnd(input));
     const again = time(() => sessionEnd(input));
 
     console.log(
-      `budget: transcript=${(statSync(f.transcript).size / 1048576).toFixed(1)}MB messages=${n} onStop=${onStopMs.toFixed(2)}ms stop(hook)=${stopMs.toFixed(1)}ms stop(no transcript)=${bare.toFixed(1)}ms session-end=${endMs.toFixed(0)}ms repeat=${again.toFixed(1)}ms`,
+      `budget: transcript=${(statSync(f.transcript).size / 1048576).toFixed(1)}MB messages=${n} onStop=${onStopMs.toFixed(2)}ms stop(no gate)=${stopPathMs.toFixed(2)}ms stop(hook)=${stopMs.toFixed(1)}ms of [${runs(withTranscript)}] stop(no transcript)=${bare.toFixed(1)}ms of [${runs(without)}] session-end=${endMs.toFixed(0)}ms repeat=${again.toFixed(1)}ms`,
     );
     assert.equal(rows(box).reduce((a, r) => a + Number(r["messages"]), 0), n, "every message counted once");
     assert.ok(onStopMs < 20, `the Stop mark check took ${onStopMs}ms`);
-    assert.ok(stopMs - bare < 50, `Stop with a 50 MB transcript took ${stopMs}ms against ${bare}ms without one`);
+    assert.ok(stopPathMs < 20, `the Stop hook without its gate took ${stopPathMs}ms`);
+    assert.ok(stopMs - bare < 50, `Stop with a 50 MB transcript took ${stopMs}ms against ${bare}ms without one, the best of five runs each`);
     assert.ok(endMs < 2_500, `SessionEnd flush took ${endMs}ms against a 5 s hook timeout`);
     assert.ok(again < 100, `an unchanged re-flush took ${again}ms`);
   } finally {
