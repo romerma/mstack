@@ -1240,12 +1240,12 @@
         "an item whose only verdict is the implementer's is refused at state set --status done with the reason the gate gives, instead of closing and turning the gate red afterwards",
         "GLOSSARY.md's Closing role entry and docs/wiki describe the rule as the code then implements it"
       ],
-      "status": "in_progress",
+      "status": "reviewing",
+      "base": "7d71f2eab9e52371ec0004993cc1159c969485e2",
       "source": "item 58 review, .mstack/progress/review_glossary-and-adr.md blocking finding 2, 2026-11-17; next to item 71",
       "seams": [
         "CLI: mstack ledger record --verifier <role>, state set --status done and gate, exit codes and stdout"
-      ],
-      "base": "7d71f2eab9e52371ec0004993cc1159c969485e2"
+      ]
     },
     {
       "id": 83,

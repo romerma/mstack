@@ -7,7 +7,7 @@
 > empty template below.
 
 - **Item:** 82 any-role-name-closes
-- **Status:** in_progress (round 1)
+- **Status:** reviewing (round 1)
 - **Branch:** fix/closing-role-rule
 - **Base:** 7d71f2e
 - **Worktree:** none
