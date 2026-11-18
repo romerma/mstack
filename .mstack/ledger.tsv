@@ -204,3 +204,4 @@ walkthroughs-after-closing-checks	63436fdd8ac0ef54fd35cff8faff04e6efe3871f	live-
 close-with-no-verdict	2ced766178de3f2b695d26faca93aebab8a7a083	test-verified	.mstack/progress/impl_close-with-no-verdict.md: bun and node 891 pass each, typecheck, lint-plugin, gate PASSED, mutants killed	implementer	2026-11-18T19:42:12.800Z
 close-with-no-verdict	5ca8888ce0ac5c2a40a3f6a1364dc70ff5f11a98	live-verified	.mstack/progress/review_close-with-no-verdict.md	reviewer	2026-11-18T20:11:01.415Z
 bench-hygiene-followups	ea018815b1462c1ade8af8c758a08d1f477d63e8	type-check-only	.mstack/progress/impl_bench-hygiene-followups.md	implementer	2026-11-18T20:27:13.075Z
+bench-hygiene-followups	4f646230f3c9736040558e16bf97bd41f2290406	verifier-failed	.mstack/progress/review_bench-hygiene-followups.md	reviewer	2026-11-18T20:41:45.412Z
