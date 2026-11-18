@@ -219,8 +219,10 @@ Walking the lines that carry the weight:
   which is no longer in `HEAD`'s history, is replaced by that point too; with no such point to
   use, the check fails with a fix that names `--base`. Everywhere else it measures from `base`:
   on the default branch itself, on a branch stacked on another (whose base is later than that
-  point, so the parent branch's work does not count), and where no default branch exists. The
-  line names the commit it measured from and says when that is not the base:
+  point, so the parent branch's work does not count), where no default branch exists, and where
+  `base` is a commit of the branch's own and `main` was merged in after it, in which case the
+  merged commits do count. The line names the commit it measured from and says when that is not
+  the base:
 
   ```console
   $ git rebase -q main
