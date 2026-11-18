@@ -2,7 +2,7 @@
 name: spec-author
 description: Writes the spec for one item under the mstack spec path. Produces proposal, design, tasks and requirements with stable R-ids, then hands off. Never reviews its own spec.
 tools: Read, Write, Edit, Glob, Grep, Bash
-model: inherit
+model: sonnet
 color: cyan
 ---
 

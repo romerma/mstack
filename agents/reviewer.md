@@ -2,7 +2,7 @@
 name: reviewer
 description: Independently reviews one mstack implementation against its requirements, its tests and the real diff. Runs the verification itself. Returns APPROVED or CHANGES_REQUESTED and never edits the code.
 tools: Read, Glob, Grep, Bash
-model: inherit
+model: opus
 color: orange
 ---
 

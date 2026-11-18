@@ -4,7 +4,7 @@ description: Implements exactly one mstack work item, writes the tests that prov
 tools: Read, Write, Edit, Glob, Grep, Bash
 skills:
   - test-first
-model: inherit
+model: sonnet
 color: green
 ---
 

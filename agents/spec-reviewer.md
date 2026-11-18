@@ -2,7 +2,7 @@
 name: spec-reviewer
 description: Reviews one mstack spec independently and adversarially before any code is written. Returns APPROVED or CHANGES_REQUESTED. Never edits the spec and never reviews a spec it wrote.
 tools: Read, Glob, Grep, Bash
-model: inherit
+model: opus
 color: yellow
 ---
 
