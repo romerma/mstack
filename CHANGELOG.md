@@ -3,19 +3,29 @@
 ## Unreleased
 
 - **Closing an item needs a verdict from a role that did not write the work, and `state set
-  --status done` says so up front.** Before, an item whose only verdicts were the implementer's
-  closed (an item with no verdict at all still does, and the gate still flags it), and the gate went red afterwards. Now `state set --status done` refuses an item with only
+  --status done` refuses an item whose only verdicts are the author's.** Before, such an item
+  closed (an item with no verdict at all still does, and the gate still flags it), and the gate
+  went red afterwards. Now `state set --status done` refuses an item with only
   verdicts from the pass that wrote the code, or whose closing verdict cites the
   implementer's or the spec-author's own report, in the gate's words and with its fix line (a
   new `independent-verdict` closing check, read through `readVerdict` over every row of the item,
   so the close and the gate agree). It is not overridable by `--force`, as a standing rejection
-  is not, and it holds only while `require_verdict_to_close` is on. The set of closing roles stays
+  is not, and it holds only while `require_verdict_to_close` is on. The fix line names the way out
+  for someone working alone: a row under a name that is not the author's (your own name, or `ci`),
+  or a `verifier-blocked` row under such a name. The set of closing roles stays
   open on purpose (the review skill has the session that synthesises a panel record its row under
   its own name), and the names refused are now stated in `src/roles.ts`: `implementer`,
   `spec-author`, `impl`, `implementor`, `spec author`, `author`, `developer`, `dev`, `coder`,
-  `self` and `me`, as a whole name, ignoring case, spaces, hyphens and underscores, so `dev-ci`
+  `self` and `me`, as a whole name after the last `:` (so `mstack:implementer` and `ci:dev` are
+  refused and `dev:ci` closes), ignoring case, spaces, hyphens and underscores, so `dev-ci`
   and `self-hosted runner` still close; before, only the first two were refused,
   and `impl`, `spec_author` or `self` closed an item. GLOSSARY.md and the wiki describe the rule.
+  **Upgrading:** a store in which an item was closed on a row under `dev`, `author`, `self` or
+  another name now refused turns red at the gate after the upgrade (`items closed on a verdict
+  from the pass that wrote the code: <slug> (only dev)`); one independent row for that item
+  (`mstack ledger record <slug> <sha> <verdict> --evidence <e> --verifier reviewer`) clears it.
+  The gate at `verifying` now also fails on rows that are only the author's, where it said
+  nothing before.
 
 - **Review rounds, report sizes and spec sizes have a budget.** `decisions.tsv` gains a trailing
   `item` column: `mstack decide` fills it with the active item's slug (`--item <slug>` overrides it

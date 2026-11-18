@@ -34,7 +34,7 @@ A distinct angle, such as correctness or security, from which one pass examines 
 A pass's recorded judgement of the work at one commit: that it holds, that it failed, or that it could not be checked. It is a judgement of the work, where a receipt is only a fact about a command.
 
 **Closing role**:
-A role whose verdict can close an item. The set is open on purpose: any name qualifies except the names for the pass that wrote the work (the implementer, the spec author, their common spellings, `self`, `me` and an empty name), compared whole and ignoring case, spaces, hyphens and underscores, and an approval that cites the implementing pass's own report is discounted under any name.
+A role whose verdict can close an item. The set is open on purpose: any name qualifies except the names for the pass that wrote the work (the implementer, the spec author, their common spellings, `self`, `me` and an empty name), compared as the whole part after the last colon (so `ci:dev` is refused and `dev:ci` closes), ignoring case, spaces, hyphens and underscores, and an approval that cites the implementing pass's own report is discounted under any name.
 
 **Receipt**:
 A recorded fact that a verification command ran, against which commit and working tree, and whether it passed. It shows that something ran, not that the work is good.
