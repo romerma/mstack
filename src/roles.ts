@@ -63,6 +63,9 @@ export function reportFiles(progressDir: string, kind: string, slug: string): st
  */
 export const MIN_REPORT_BYTES = 40;
 
+/** The first review round that needs a written reason. Next to the other report limits; the planner and the gate both read it. */
+export const JUSTIFY_FROM_ROUND = 3;
+
 /**
  * Which round of a review, and which lens, a report file belongs to.
  *

@@ -5,7 +5,7 @@ import * as decisions from "./decisions.ts";
 import { git } from "./git.ts";
 import { entries as ledgerEntries } from "./ledger.ts";
 import { activeItem } from "./state.ts";
-import { canCloseAnItem, FANOUT_KINDS, MIN_REPORT_BYTES, reportFiles, roundOf } from "./roles.ts";
+import { canCloseAnItem, FANOUT_KINDS, JUSTIFY_FROM_ROUND, MIN_REPORT_BYTES, reportFiles, roundOf } from "./roles.ts";
 import { Report } from "./report.ts";
 import { UserError, type Store } from "./paths.ts";
 
@@ -60,9 +60,6 @@ const WORKER = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
  * a new one, and agents/reviewer.md says both.
  */
 const ROUND_LIKE = /^r\d/;
-
-/** The first round that needs a written reason. */
-export const JUSTIFY_FROM_ROUND = 3;
 
 export interface FanoutPlan {
   kind: string;
@@ -166,9 +163,10 @@ export function check(store: Store, plan: FanoutPlan): Report {
 /**
  * A lone review report for the active item: the next round, and what to tell the reviewer.
  *
- * The round is one more than the highest lone round on disk (`review_<slug>.md`
- * is round 1, `review_<slug>_r<N>.md` is round N; a lensed report belongs to a
- * panel and does not count). From `JUSTIFY_FROM_ROUND` on, a reason is required
+ * The round is one more than the highest round of any review report on disk,
+ * lone or lensed (`review_<slug>.md` and a round-1 lens are round 1,
+ * `review_<slug>_r<N>[-lens].md` is round N), so a panel counts as the round it
+ * was and the third review of any shape needs its reason. From `JUSTIFY_FROM_ROUND` on, a reason is required
  * and is written as the item's `review-r<N>` decision row here, so the row the
  * gate asks for exists because the round was allocated, not because someone
  * remembered. Asking again for a round that already has its row writes none.
@@ -190,8 +188,8 @@ export function planSolo(store: Store, options: { kind: string; justify?: string
 
   let highest = 0;
   for (const file of reportFiles(store.progress, "review", item.slug)) {
-    const { round, lens } = roundOf(file, "review", item.slug);
-    if (lens === undefined && round > highest) highest = round;
+    const { round } = roundOf(file, "review", item.slug);
+    if (round > highest) highest = round;
   }
   const round = highest + 1;
   const name = round === 1 ? `review_${item.slug}.md` : `review_${item.slug}_r${round}.md`;

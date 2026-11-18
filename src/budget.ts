@@ -3,9 +3,8 @@ import { basename, relative } from "node:path";
 
 import * as decisions from "./decisions.ts";
 import type { Store } from "./paths.ts";
-import { REPORT_KINDS, reportFiles, roundOf } from "./roles.ts";
+import { JUSTIFY_FROM_ROUND, REPORT_KINDS, reportFiles, roundOf } from "./roles.ts";
 import type { Item } from "./state.ts";
-import { JUSTIFY_FROM_ROUND } from "./fanout.ts";
 
 /**
  * What an item's reports may cost a reader.

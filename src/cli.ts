@@ -135,7 +135,7 @@ function cmdFanout(argv: readonly string[]): number {
       throw new UserError("--solo allocates one lone report, so it takes no --worker", "for a panel, give --worker once per lens and leave --solo out");
     }
     if (values.round !== undefined) {
-      throw new UserError("--solo works out the round itself, so it takes no --round", "the round is one more than the highest lone round on disk");
+      throw new UserError("--solo works out the round itself, so it takes no --round", "the round is one more than the highest round of any review report on disk");
     }
     const solo = fanout.planSolo(requireStore(), { kind: values.kind, justify: values.justify });
     console.log(`review round ${solo.round} of ${solo.slug}, one lone reviewer; the report goes to:`);
