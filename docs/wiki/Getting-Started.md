@@ -43,8 +43,9 @@ in `hooks/hooks.json` are active.
 ## The repository this page starts from
 
 A git repository with at least one commit, on a branch named `main` (on `master` the gate's
-workspace line below reads `on master`). The scratch one used here has `greet.py` and
-`test_greet.py`:
+workspace line below reads `on master`). The scratch one used here has `greet.py`,
+`test_greet.py` and a `.gitignore`, so the `__pycache__/` that Python writes beside the files
+never lands in a commit:
 
 ```bash
 git init -b main
@@ -74,6 +75,12 @@ from greet import greet
 class TestGreet(unittest.TestCase):
     def test_default(self):
         self.assertEqual(greet("world"), "Hello, world")
+```
+
+`.gitignore`:
+
+```text
+__pycache__/
 ```
 
 ```bash
@@ -256,8 +263,7 @@ $ python3 greet.py --shout world
 HELLO, WORLD
 
 $ python3 -m unittest test_greet -v
-test_default (test_greet.TestGreet) ... ok
-test_shout (test_greet.TestGreet) ... ok
+...
 
 ----------------------------------------------------------------------
 Ran 2 tests in 0.000s
@@ -328,14 +334,20 @@ is indistinguishable from a no-op.
 
 ### The close is audited, and the author's word is not enough
 
-The close needs a verdict from a pass that did not write the code. With only the implementer's
-row, `state set --status done` refuses with `its only verdicts are from the pass that wrote the
-code (only implementer)`; this is `require_verdict_to_close` doing its job, `--force` does not
-get past it, and the gate audits every closed item for the same thing.
+The close needs a verdict from a pass that did not write the code. With only the
+implementer's row, the close is refused, and `--force` does not get past it (this is
+`require_verdict_to_close` doing its job; the gate audits every closed item for the same thing):
+
+```console
+$ mstack state set greet-flag --status done --force --closed-by "demo walkthrough"
+mstack: greet-flag cannot close: its only verdicts are from the pass that wrote the code (only implementer)
+        a closing verdict has to come from a pass that did not write the code; run the verification again from one and record the row under a name that is not the author's (your own name, or `ci`), or, if no check could be run, record `verifier-blocked` under such a name
+```
 
 The item is at `reviewing`, which is where the reviewer runs. It runs the verification itself:
-`gate --full` executes it and keeps the receipt the close reads. The gate is green here. Then
-the reviewer records its own row at the same SHA, and the item moves to `verifying` and closes:
+`gate --full` executes it and keeps the receipt the close reads. The gate is green; its one
+warning is the uncommitted `.mstack/` edits, expected mid-session. Then the reviewer records its
+own row at the same SHA, and the item moves to `verifying` and closes:
 
 ```console
 $ mstack gate --full

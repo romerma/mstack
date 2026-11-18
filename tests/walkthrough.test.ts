@@ -19,7 +19,7 @@ import { fileURLToPath } from "node:url";
 
 const CLI = join(dirname(fileURLToPath(import.meta.url)), "..", "src", "cli.ts");
 const FLAGS = process.execPath.endsWith("bun") ? [] : ["--disable-warning=ExperimentalWarning", "--experimental-strip-types"];
-const ENV = { ...process.env, HOME: "", GIT_CONFIG_GLOBAL: "/dev/null", PYTHONDONTWRITEBYTECODE: "1" };
+const ENV = { ...process.env, HOME: "", GIT_CONFIG_GLOBAL: "/dev/null" };
 const VERIFICATION = "python3 -m unittest test_greet -v";
 
 const hasPython = spawnSync("python3", ["--version"], { encoding: "utf8", timeout: 10_000 }).status === 0;
@@ -66,6 +66,7 @@ const TEST_PY = `${TEST_PY_0}
     def test_shout(self):
         self.assertEqual(greet("world", shout=True), "HELLO, WORLD")
 `;
+const GITIGNORE = "__pycache__/\n";
 const ITEM_LINE = "- **Item:** _none_";
 const NEXT_STEP_LINE = "_If this session dies right now, the first thing the next one should do._";
 const REPORT = `# greet-flag: implementation report
@@ -95,6 +96,7 @@ function walkthrough(root: string, leaveOut: { report?: boolean; gateFull?: bool
   step("git init", git("init", "-q", "-b", "main"), 0);
   step("git user.name", git("config", "user.name", "demo"), 0);
   step("git user.email", git("config", "user.email", "demo@example.com"), 0);
+  writeFileSync(join(root, ".gitignore"), GITIGNORE);
   writeFileSync(join(root, "greet.py"), GREET_PY_0);
   writeFileSync(join(root, "test_greet.py"), TEST_PY_0);
   step("git add", git("add", "-A"), 0);
@@ -152,13 +154,17 @@ function walkthrough(root: string, leaveOut: { report?: boolean; gateFull?: bool
   assert.match(shortcut.out, /mstack: in_progress -> done is not a legal transition/);
   step("state set reviewing", mstack("state", "set", "greet-flag", "--status", "reviewing"), 0);
 
-  // "The close is audited": the reviewer runs gate --full at reviewing, where it is green, then records its row
+  // "The close is audited": with the implementer's row alone the close is refused, and --force does not get past it
+  const author = step("forced close on the author's row alone", mstack("state", "set", "greet-flag", "--status", "done", "--force", "--closed-by", "demo walkthrough"), 2);
+  assert.match(author.out, /mstack: greet-flag cannot close: its only verdicts are from the pass that wrote the code \(only implementer\)/);
+  // then the reviewer runs gate --full at reviewing, where it is green, and records its row
   if (leaveOut.gateFull !== true) {
     // without the report the gate has a second failure to show; the close below is what the mutant checks
     const full = mstack("gate", "--full");
     if (leaveOut.report !== true) {
       assert.equal(full.code, 0, `gate --full at reviewing: exit ${full.code}\n${full.out}`);
       assert.match(full.out, /\[ok\] {4}python3 -m unittest test_greet -v/);
+      assert.match(full.out, /\[warn\] {2}2 uncommitted change\(s\); expected mid-session, not at close/);
       assert.match(full.out, /PASSED - 0 failures, 1 warning/);
     }
   }

@@ -315,7 +315,12 @@
   the one a reader gets; the README commits the work before the implementer's row; Getting-Started
   starts from a shown repository (`git init -b main`, `greet.py`, `test_greet.py`) and shows both
   files in full, so the table's `test_greet.py:6` and `:9` are lines of a file on the page; and
-  The-Agents says what its item already has.
+  The-Agents says what its item already has. A third round made the stat the same whichever
+  `python3` the reader has: the starting repository has a `.gitignore` with `__pycache__/`, so
+  `git add -A` does not commit bytecode (it did with stock CPython and Homebrew's), and the test no
+  longer sets `PYTHONDONTWRITEBYTECODE`. The per-test lines of `unittest -v`, which differ between
+  Python 3.9 and 3.11 and later, are elided; the refusal on the author's row alone is a console
+  block again, as the forced close at `reviewing`; and the one warning of `gate --full` is named.
   `tests/walkthrough.test.ts` runs the Getting-Started sequence through the CLI in a throwaway
   repository and needs `python3`. `examples/notes-cli/README.md` records its stale verdict with
   evidence the ledger accepts.

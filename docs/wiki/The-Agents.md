@@ -89,8 +89,9 @@ The implementer's row is not worthless; it is evidence the code works, recorded 
 of [the evidence ladder](Skills-and-Playbooks.md#the-evidence-ladder) the implementer
 honestly reached. It is just not sufficient to close, and `--force` does not change that. A
 reviewer re-runs the verification at `reviewing` (`gate --full` executes it and keeps the receipt
-the close reads; the gate is green) and records its own row at the same SHA; the item moves to
-`verifying`, and the close goes through:
+the close reads; the gate is green, and its one warning is the uncommitted changes, expected
+mid-session) and records its own row at the same SHA; the item moves to `verifying`, and the
+close goes through:
 
 ```console
 $ mstack gate --full
