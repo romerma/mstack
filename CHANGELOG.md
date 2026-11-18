@@ -10,8 +10,9 @@
   time of the worst of three, so the gate's child processes waiting on a busy machine no longer
   count; and it adds an in-process bound on the whole Stop path without its gate. Together the
   bounds catch a read and parse of the transcript, including one made on only some Stops. They do
-  not catch a wait that uses no CPU, nor a plain read without a parse (4 to 14 ms of CPU, under
-  the 20 ms bounds). The temp-directory test of
+  not catch a wait that uses no CPU, and they catch a read without a parse on some runtimes only
+  (a decoded read is over the 20 ms bounds on node 22.6 and under them on bun 1.3 and node 26).
+  The temp-directory test of
   `runCommand` gives the command a temp directory of its own instead of listing the shared one.
   Two tests that start many child processes have explicit timeouts sized from runs under load.
 

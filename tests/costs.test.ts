@@ -725,8 +725,9 @@ test("hook paths stay within budget on a 50 MB transcript", () => {
     };
 
     // Stop: a stat and a compare. It must not read the transcript at all, so the
-    // size of the file cannot matter. A read and parse of these 50 MB measured 25 to
-    // 35 ms for item 67. Three assertions carry the claim:
+    // size of the file cannot matter. A read and parse of these 50 MB cost more CPU
+    // than the 20 ms bounds on every runtime measured for item 67 (bun 1.3, node 22.6,
+    // 24 and 26). Three assertions carry the claim:
     // - `onStopMs`: the mark check alone, the only part of the hook given the path.
     // - `stopPathMs`: the whole Stop hook except the gate, which `stop_hook_active`
     //   skips. Both are wall time in-process, the worst of three, so a read made
@@ -742,9 +743,10 @@ test("hook paths stay within budget on a 50 MB transcript", () => {
     //   (the first one, say) is not dropped. The first run is timed too, on purpose.
     //   Wall time is printed for context. Two limits, both measured for item 67:
     //   a wait that uses no CPU on the gate's branch (a sleep, a child process) is
-    //   not counted; and a plain read of the file, with or without a split, costs
-    //   4 to 14 ms of CPU, under the 20 ms bounds, so what these bounds catch is a
-    //   read and a parse (26 ms and more), not a read alone.
+    //   not counted; and a read without a parse is caught on some runtimes only. A
+    //   read of the bytes with no decode stayed under the bounds on every runtime
+    //   measured; a decoded read stayed under them on bun 1.3 and node 26 and went
+    //   over on node 22.6. What these bounds catch everywhere is a read and a parse.
     const onStopMs = Math.max(...[1, 2, 3].map(() => time(() => costs.onStop(box.store, input))));
     const stopPathMs = Math.max(...[1, 2, 3].map(() => time(() => stop({ ...input, stop_hook_active: true }))));
     const cpu = (fn: () => void): number => {
