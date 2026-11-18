@@ -74,8 +74,8 @@ export const STATE_SHOW = {
 } as const satisfies CommandSpec;
 
 export const DECIDE = {
-  usage: "decide --phase P --decision D --why W --evidence E --result R [--resolves <ref>]",
-  summary: "append one row to .mstack/decisions.tsv; --resolves also answers that item's fork",
+  usage: "decide --phase P --decision D --why W --evidence E --result R [--resolves <ref>] [--item <slug>]",
+  summary: "append one row to .mstack/decisions.tsv, tagged with the active item; --resolves also answers that item's fork",
   flags: {
     phase: { type: "string", arg: "<phase>", help: "where in the work the decision was taken, e.g. design or implement" },
     decision: { type: "string", arg: "<text>", help: "the decision, on one line (required)" },
@@ -83,6 +83,7 @@ export const DECIDE = {
     evidence: { type: "string", arg: "<text>", help: "what the decision rests on" },
     result: { type: "string", arg: "<text>", help: "the outcome; 'open' means undecided" },
     resolves: { type: "string", arg: "<ref>", help: "the item (id or slug) whose decision_required this answers" },
+    item: { type: "string", arg: "<slug>", help: "the item the row belongs to; default is the active item, and empty when none is" },
   },
 } as const satisfies CommandSpec;
 

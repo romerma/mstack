@@ -7,7 +7,7 @@ import { append, readRecords, withLock } from "./tsv.ts";
  * new row that supersedes it, never an edit.
  */
 
-export const HEADER = ["ts", "phase", "decision", "why", "evidence", "result", "resolves"] as const;
+export const HEADER = ["ts", "phase", "decision", "why", "evidence", "result", "resolves", "item"] as const;
 
 export interface Decision {
   ts: string;
@@ -26,6 +26,17 @@ export interface Decision {
    * said which fork a row was about.
    */
   resolves: string;
+  /**
+   * The slug of the item the row was written while working on, or empty.
+   *
+   * Not `resolves`: that names the item whose fork the row answers and is
+   * usually empty. This one says which item's work the row belongs to, so a
+   * check can ask for "the decision row of round 3 of this item" without
+   * reading prose. It is the trailing column, so a file written before it
+   * existed still reads (those rows get an empty item) and its first write
+   * widens the header in place, as `resolves` did.
+   */
+  item: string;
 }
 
 /**
@@ -46,7 +57,7 @@ function freeTimestamp(store: Store, wanted: string): string {
   return new Date(at).toISOString();
 }
 
-export function add(store: Store, entry: Omit<Decision, "ts" | "resolves"> & { ts?: string; resolves?: string }): Decision {
+export function add(store: Store, entry: Omit<Decision, "ts" | "resolves" | "item"> & { ts?: string; resolves?: string; item?: string }): Decision {
   // The uniqueness check and the append are one critical section. Apart, they
   // are a read followed by a write with every other process free to run in
   // between, which is exactly how the duplicate timestamps happened.
@@ -54,6 +65,7 @@ export function add(store: Store, entry: Omit<Decision, "ts" | "resolves"> & { t
     const full: Decision = {
       ...entry,
       resolves: entry.resolves ?? "",
+      item: entry.item ?? "",
       ts: freeTimestamp(store, entry.ts ?? new Date().toISOString()),
     };
     append(store.decisions, HEADER, [
@@ -64,6 +76,7 @@ export function add(store: Store, entry: Omit<Decision, "ts" | "resolves"> & { t
       full.evidence,
       full.result,
       full.resolves,
+      full.item,
     ]);
     return full;
   });
@@ -78,5 +91,6 @@ export function all(store: Store): Decision[] {
     evidence: r["evidence"] ?? "",
     result: r["result"] ?? "",
     resolves: r["resolves"] ?? "",
+    item: r["item"] ?? "",
   }));
 }

@@ -24,7 +24,7 @@ import { lintPlugin } from "./lint.ts";
 import { cliProvenance, describeSrcComparison, findStore, requireStore, runningCliRoot, UserError } from "./paths.ts";
 import { DECIDE, helpText, parseFlags, STATE_ADD, STATE_SET, STATE_SHOW, wantsHelp } from "./cliopts.ts";
 import { isSize, resolveCommit, type Size } from "./size.ts";
-import { assertUniqueId, assertWritable, findItem, parseState, rawItem, unknownItemFields, updateState, type Item } from "./state.ts";
+import { activeItem, assertUniqueId, assertWritable, findItem, parseState, rawItem, unknownItemFields, updateState, type Item } from "./state.ts";
 import { MIN_REPORT_BYTES } from "./roles.ts";
 import * as verification from "./verification.ts";
 
@@ -932,6 +932,19 @@ function cmdLedger(argv: readonly string[]): number {
   throw new UserError(`unknown 'ledger' subcommand '${sub}'`);
 }
 
+/**
+ * The item column of a decision row: `--item` when given (refused when it is not
+ * an item, so a typo does not file a row under nothing), else the active item,
+ * else empty. A store that cannot be read gives empty, like every caller of
+ * `activeItem`: the row is still worth writing.
+ */
+function rowItem(store: Store, given: string | undefined): string {
+  if (given === undefined) return activeItem(store)?.slug ?? "";
+  const found = findItem(parseState(store.state), given);
+  if (found === undefined) throw new UserError(`no item matches '${given}'`, "--item takes the slug (or id) of an item in state.json");
+  return found.slug;
+}
+
 function cmdDecide(argv: readonly string[]): number {
   if (wantsHelp(argv)) {
     console.log(helpText(DECIDE));
@@ -997,6 +1010,7 @@ function cmdDecide(argv: readonly string[]): number {
   }
 
   const written = decisions.add(store, {
+    item: rowItem(store, values.item),
     phase: values.phase ?? "",
     decision: values.decision,
     why: values.why ?? "",
