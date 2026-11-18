@@ -7,7 +7,7 @@
 > empty template below.
 
 - **Item:** 96 walkthroughs-after-closing-checks
-- **Status:** reviewing (round 2)
+- **Status:** in_progress (round 3: the page reproduces on any python3; the refusal block is back)
 - **Branch:** docs/walkthroughs-run-as-written
 - **Base:** c6e35e9
 - **Worktree:** none
