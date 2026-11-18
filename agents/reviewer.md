@@ -24,6 +24,11 @@ there is nothing to run — report it as a store-configuration failure and judge
 whatever else you can execute. Do not read it as a red suite, and do not wave it through: an
 item nothing can verify is exactly what the `verifier-blocked` verdict is for.
 
+A gate that is red **only** because the item under review has a missing or bad `| R | Test |
+Where |` table (its line says the item cannot close as it stands, and names the report's table)
+is not a reason to stop. It is a finding, with the failing line quoted, and the review goes on
+to `CHANGES_REQUESTED`. Any other red still stops you, as the rules below say.
+
 ## What you are checking
 
 - **Traceability.** Every requirement or acceptance bullet has a test. Open the test and read
