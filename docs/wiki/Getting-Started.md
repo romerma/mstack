@@ -218,10 +218,6 @@ $ mstack state set greet-flag --status reviewing
 $ mstack state set greet-flag --status verifying
 1 greet-flag (verifying)
   status: "reviewing" -> "verifying"
-$ mstack state set greet-flag --status done --closed-by "demo walkthrough"
-1 greet-flag (done)
-  status: "verifying" -> "done"
-  closed_by: (unset) -> "demo walkthrough"
 ```
 
 Every `state set` prints one line per field it touched. It is the same mechanism that names each
@@ -230,25 +226,29 @@ is indistinguishable from a no-op.
 
 ### The close is audited, and the author's word is not enough
 
-The item is `done`, a verdict exists, and the gate still refuses:
+The item is at `verifying` and the only verdict on it is the author's, so the close itself
+refuses:
 
 ```console
-$ mstack gate
-...
-[fail]  items closed on a verdict from the pass that wrote the code: greet-flag (only implementer)
-        fix: a closing verdict has to come from somewhere other than the implementer; run the verification again from a pass that did not write it
-...
-FAILED - 1 failure, 1 warning
+$ mstack state set greet-flag --status done --closed-by "demo walkthrough"
+mstack: greet-flag cannot close: its only verdicts are from the pass that wrote the code (only implementer)
+        a closing verdict has to come from a pass that did not write the code; run the verification again from one and record the row under a name that is not the author's (your own name, or `ci`), or, if no check could be run, record `verifier-blocked` under such a name
 ```
 
-This is `require_verdict_to_close` doing its job. A reviewer that did not write the code runs
-the verification itself and records its own row:
+This is `require_verdict_to_close` doing its job, and `--force` does not get past it; the gate
+audits every closed item for the same thing. A reviewer that did not write the code runs the
+verification itself and records its own row, and the close goes through:
 
 ```console
 $ mstack ledger record greet-flag "$(git rev-parse HEAD)" test-verified \
     --evidence "reviewer re-ran python3 -m unittest test_greet: 2 tests, OK; diff read against both acceptance bullets" \
     --verifier reviewer
 recorded test-verified for greet-flag at 4b63888b
+
+$ mstack state set greet-flag --status done --closed-by "demo walkthrough"
+1 greet-flag (done)
+  status: "verifying" -> "done"
+  closed_by: (unset) -> "demo walkthrough"
 
 $ mstack gate
 ...
