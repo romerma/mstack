@@ -1312,3 +1312,24 @@ reply is not shown.
 program to close in one round.
 
 **Filed.** Item 88 `verify-claim-gate-followups`.
+
+## 2026-11-18 - item 62 review-findings-verified-first closed (2 rounds)
+
+**What shipped.** `agents/implementer.md` has a section "A later round": read the review, check
+each finding against the code at head before acting, fix what holds, and for one that does not
+hold change nothing and record a `mstack decide` row listed in the report under "Findings not
+applied"; a real defect whose proposed fix would break something is fixed another way. An unclear
+finding takes the reading the code supports. `agents/reviewer.md` reads those rows and judges
+each rebuttal on its evidence. Origin header to obra/superpowers `receiving-code-review` at a
+pinned sha; `agents/implementer.md` is in `ORIGIN_REQUIRED`. Nothing asks the user.
+
+**What the rounds taught.** The header said every ask in the source became a decide row; one of
+six did. A summary clause over a source ("every place it asks") is a claim per place, and only a
+per-place list survives a reviewer with the source open. The live run (n=1) did what the text
+says, but the coordinator had already ruled on both findings in the brief, so it does not show
+the implementer checking on its own.
+
+**Closing.** `gate --full` green on the first run (bun 631/0, node 631/0). Round 2's edits were
+made by the coordinator and read by a fresh reviewer.
+
+**Filed.** Item 89 `later-round-followups`.

@@ -870,9 +870,10 @@
         "the implementer's round 2+ instructions say to verify each finding against the code and to record a rebuttal with evidence instead of applying a wrong one",
         "no step in it asks the user; a disputed finding becomes a mstack decide row the next reviewer reads"
       ],
-      "status": "reviewing",
+      "status": "done",
       "description": "Adapted from obra/superpowers receiving-code-review: verify each finding, push back with reasons when it is wrong, and where the original says ASK, record a decision instead. Applies to implementer rounds 2 and later, where ten items spent three or four rounds.",
       "source": "reports/Mejoras mstack con skills Pocock.md, 2026-11-16",
+      "closed_by": "two rounds; review_review-findings-verified-first_r2.md APPROVED at fa4c0c2; gate --full green on the first run",
       "seams": [
         "CLI: mstack lint-plugin output and exit code on a plugin whose agents/implementer.md has no origin header",
         "agents/implementer.md as followed by a headless later-round run given a review with one finding that holds and one that does not, in a copy of sandbox/bench/template"
@@ -1297,6 +1298,22 @@
       "status": "pending",
       "description": "One live run with the new text (n=1, 12 turns, 0.34 USD, 77 s) showed all five moves and caught a claim wider than a green suite, and recorded verifier-failed. No run of the old text was compared, so whether the text changed anything is open: the design row says that if a live run shows no change, the text is ceremony.",
       "source": "item 61 review, .mstack/progress/review_verify-claim-gate.md, 2026-11-18"
+    },
+    {
+      "id": 89,
+      "slug": "later-round-followups",
+      "title": "Follow-ups from item 62: nothing makes a later round's brief name the review or stops the coordinator ruling on its findings, and open cases in the later-round text",
+      "acceptance": [
+        "the router and the orchestrator say that a later round's brief names the review report and passes its findings without ruling on them, and a live run with such a brief shows the implementer checking each finding itself",
+        "the later-round text says which reports to read in terms that match src/roles.ts:53 (review_<slug>.md or review_<slug>_*.md, highest round, every lens file of a panel round), not 'newest' and not a pattern that catches a longer slug",
+        "the text covers a finding that cannot be verified, two findings that conflict, and non-blocking findings; the real-defect-wrong-fix bullet says to list it under Findings not applied; an unclear finding's reading has a place that fits when the finding was applied",
+        "agents/reviewer.md says where the decision rows since the previous review are found and asks that every earlier finding be fixed or rebutted",
+        "the origin header names the source's remaining asks (Implementation Order line 104, Overview line 12, The Bottom Line line 211), and the pin note says upstream changed the file after 6b9f1b2",
+        "skills/implement/SKILL.md, the CHANGELOG entry and docs/wiki/The-Agents.md mention the later round's fallback and third case where they describe it; whether Claude Code strips HTML comments from an agent body is checked, since the header otherwise reaches the implementer's prompt"
+      ],
+      "status": "pending",
+      "description": "One live later-round run (n=1, 1.24 USD, 15 turns, 300 s): the true finding was fixed test-first, the false one got a decide row and a Findings not applied section, the next reviewer judged the rebuttal and approved, nothing asked the user. But the coordinating session had judged both findings itself and written the verdicts into the implementer's brief, so the run does not show an implementer checking findings on its own.",
+      "source": "item 62 reviews, .mstack/progress/review_review-findings-verified-first.md and _r2.md, 2026-11-18"
     }
   ]
 }
