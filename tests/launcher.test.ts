@@ -52,7 +52,11 @@ test("a reader that goes away mid-write does not take the process with it", asyn
   }
 });
 
-test("hostile stdin never produces a non-zero exit or a word on stderr", () => {
+// The time is eight starts of the real launcher, one per input, each a shell, a
+// runtime and the status line's git calls. Measured for item 67: 0.5 s on its own (about 60 ms a
+// start), 5.0 to 6.6 s inside a full bun suite beside five others, where bun's 5 s
+// default failed it on correct code.
+test("hostile stdin never produces a non-zero exit or a word on stderr", { timeout: 10_000 }, () => {
   const NUL = String.fromCharCode(0);
   const inputs = ["", "not json", "null", "[]", "3", `{"model":`, `${NUL}${NUL}binary`, "x".repeat(200_000)];
   for (const input of inputs) {
