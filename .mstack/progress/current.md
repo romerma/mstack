@@ -7,7 +7,7 @@
 > empty template below.
 
 - **Item:** 43 review-budget
-- **Status:** in_progress (round 1)
+- **Status:** reviewing (round 1)
 - **Branch:** feat/review-budget
 - **Base:** 362536f
 - **Worktree:** none
