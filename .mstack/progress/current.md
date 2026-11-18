@@ -7,7 +7,7 @@
 > empty template below.
 
 - **Item:** 67 load-sensitive-tests
-- **Status:** in_progress (round 2: bound the slowest CPU run, changelog wording, harness nits)
+- **Status:** reviewing (round 2)
 - **Branch:** fix/load-sensitive-tests
 - **Base:** 5c05f6c
 - **Worktree:** none
