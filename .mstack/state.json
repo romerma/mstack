@@ -610,9 +610,9 @@
       "slug": "mutation-check",
       "title": "mstack verify --mutation proves the tests fail without the change",
       "acceptance": [
-        "verify --mutation reverts the code part of base..HEAD in place (store, tests and docs excluded), confirms a green baseline first, runs the obligations and records mutation-killed, mutation-survived or mutation-blocked in verification.tsv keyed by code tree",
+        "verify --mutation reverts the code part of base..HEAD in place (store, tests and docs excluded), confirms a green baseline first, runs the obligations and records mutation-killed, mutation-survived or mutation-blocked in verification.tsv keyed by the code and test tree (design amendment of 2026-11-18: a test edit voids the receipt)",
         "A lock under the git dir holds the restore list; restore runs in finally and on SIGINT/SIGTERM, the tree is clean afterwards, verify --restore repairs a SIGKILLed run, PreToolUse denies git commit/add/stash while the lock exists, and the gate fails on a lock",
-        "From verifying, an item with base, size other than s and a code diff needs a killed receipt at the current code tree, enforced in the gate and at the done transition"
+        "From verifying, an item with base, size other than s and a code diff needs a killed receipt at the current code and test tree, enforced in the gate and at the done transition"
       ],
       "status": "specifying",
       "sdd": true,
