@@ -29,7 +29,7 @@ let psAtKill = "";
 const timer = setTimeout(() => {
   killed = true;
   psAtKill = spawnSync("ps", ["-Ao", "pid,ppid,etime,command"], { encoding: "utf8" }).stdout
-    .split("\n").filter((l) => /bun|node/.test(l)).join("\n");
+    .split("\n").filter((l) => /\b(bun|node)\b/.test(l)).join("\n");
   try { process.kill(-child.pid, "SIGKILL"); } catch { /* already gone */ }
 }, Number(watchdog) * 1000);
 // The suite is in a process group of its own, so a signal to this process does not reach it.

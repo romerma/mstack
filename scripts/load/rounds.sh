@@ -13,8 +13,8 @@ trap 'kill ${pids[@]+"${pids[@]}"} 2> /dev/null; exit 1' INT TERM
 for round in $(seq 1 "$1"); do
   echo "round $round start $(date -u +%T) $(uptime)" >> "$out/rounds.log"
   pids=()
-  for i in $(seq 1 "${BUN:-4}"); do node "$here/run.mjs" bun "$out" "${WATCHDOG:-820}" "$round" "b$i" > /dev/null & pids+=($!); done
-  for i in $(seq 1 "${NODE:-2}"); do node "$here/run.mjs" node "$out" "${WATCHDOG:-820}" "$round" "n$i" > /dev/null & pids+=($!); done
+  for ((i = 1; i <= ${BUN:-4}; i++)); do node "$here/run.mjs" bun "$out" "${WATCHDOG:-820}" "$round" "b$i" > /dev/null & pids+=($!); done
+  for ((i = 1; i <= ${NODE:-2}; i++)); do node "$here/run.mjs" node "$out" "${WATCHDOG:-820}" "$round" "n$i" > /dev/null & pids+=($!); done
   wait "${pids[@]}"
   echo "round $round end $(date -u +%T) $(uptime)" >> "$out/rounds.log"
 done
