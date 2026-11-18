@@ -20,9 +20,6 @@ export function isSize(value: unknown): value is Size {
   return typeof value === "string" && (SIZES as readonly string[]).includes(value);
 }
 
-/** The size an item without one is treated as. It is never written to the file. */
-export const DEFAULT_SIZE: Size = "m";
-
 /** More changed lines (insertions plus deletions) than this, in code files, is not small. */
 export const SMALL_MAX_LINES = 60;
 /** More changed code files than this is not small. */

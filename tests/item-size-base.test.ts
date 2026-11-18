@@ -146,6 +146,17 @@ onEach("an item written by an older mstack has no size, shows none, and no write
   });
 });
 
+onEach("a size in state.json outside s, m and l is a read error that names the field and the value", (cli) => {
+  withBox((box) => {
+    box.writeState(state([item({ size: "xl" })]));
+    for (const args of [["state", "list"], ["state", "show", "1"], ["gate"]]) {
+      const r = cli(box, ...args);
+      assert.notEqual(r.code, 0, args.join(" "));
+      assert.match(r.stdout + r.stderr, /\.items\[0\]\.size must be s, m or l, got "xl"/, args.join(" "));
+    }
+  });
+});
+
 // ---------------------------------------------------------------- base
 
 onEach("the first move to in_progress records the commit HEAD resolves to", (cli) => {
