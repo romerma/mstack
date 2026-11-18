@@ -24,6 +24,9 @@ import type { Item } from "./state.ts";
 /** The largest a report may be, in bytes: 24 KiB. The one place the number is written. */
 export const MAX_REPORT_BYTES = 24576;
 
+/** Where pasted output moves when a report is over the cap and its author is gone; not read as a report, not counted. */
+const ATTACHMENTS = ".mstack/progress/attachments";
+
 export interface BudgetProblem {
   /** Phrased to follow "and " in the gate and "cannot close: " in `state set`. */
   readonly message: string;
@@ -67,7 +70,7 @@ export function budgetProblems(store: Store, item: Item): BudgetProblem[] {
       if (size <= MAX_REPORT_BYTES) continue;
       problems.push({
         message: `its report ${shown(file)} is ${size} bytes, over the ${MAX_REPORT_BYTES} byte limit`,
-        hint: `cut ${basename(file)} to ${MAX_REPORT_BYTES} bytes or fewer: keep the findings and the lines that matter, and leave bulk output in a scratch file outside .mstack/progress that the report names`,
+        hint: `cut ${basename(file)} to ${MAX_REPORT_BYTES} bytes or fewer: keep the findings and the lines that matter, and name the file that holds the rest; when the pass that wrote it is gone, the coordinating session moves the pasted output, unchanged, to ${ATTACHMENTS}/${basename(file)} and leaves a pointer in the report, editing no finding and no verdict line (docs/wiki/Gates-and-Hooks.md, "A report over the cap")`,
       });
     }
   }
