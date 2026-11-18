@@ -67,13 +67,15 @@ speed bump with an audit trail, not a sandbox, and that is the honest strength o
 The other half is enforced by the gate. An item may only close on a ledger verdict from a
 pass that did not write the code. A verdict is one of five typed values, `test-verified`
 below among them; the enum lives on [The-CLI](The-CLI.md). Here is a scratch-repository run where the implementer
-records its own honest verdict, the close is forced anyway, and the close itself refuses
-(output trimmed to the lines that matter):
+records its own honest verdict, the close is forced anyway, and the close itself refuses. The
+item is at `verifying` and the implementer's report, `.mstack/progress/impl_greet-flag.md`, is
+on disk ([Getting-Started](Getting-Started.md#do-the-work-and-verify-it) shows it); output is
+trimmed to the lines that matter:
 
 ```console
 $ mstack ledger record greet-flag "$(git rev-parse HEAD)" test-verified \
     --evidence ".mstack/progress/impl_greet-flag.md" --verifier implementer
-recorded test-verified for greet-flag at 62849b5a
+recorded test-verified for greet-flag at e2defa4e
 
 $ mstack state set greet-flag --status done --force --closed-by "demo: skipping review on purpose"
 mstack: greet-flag cannot close: its only verdicts are from the pass that wrote the code (only implementer)
@@ -83,20 +85,34 @@ mstack: greet-flag cannot close: its only verdicts are from the pass that wrote 
 The implementer's row is not worthless; it is evidence the code works, recorded at the rung
 of [the evidence ladder](Skills-and-Playbooks.md#the-evidence-ladder) the implementer
 honestly reached. It is just not sufficient to close, and `--force` does not change that. A
-reviewer re-runs the verification and records its own row at the same SHA, and the close
-goes through (the item has moved through `reviewing` and `verifying` by now):
+reviewer re-runs the verification (`gate --full` executes it and keeps the receipt the close
+reads; it is red for the one reason a second row fixes) and records its own row at the same
+SHA, and the close goes through:
 
 ```console
+$ mstack gate --full
+...
+[fail]  1 greet-flag (verifying) is one step from done, and its only verdicts are from the pass that wrote the code (only implementer)
+        fix: a closing verdict has to come from a pass that did not write the code; run the verification again from one and record the row under a name that is not the author's (your own name, or `ci`), or, if no check could be run, record `verifier-blocked` under such a name
+...
+[ok]    python3 -m unittest test_greet -v
+
+FAILED - 1 failure, 1 warning
+
 $ mstack ledger record greet-flag "$(git rev-parse HEAD)" test-verified \
     --evidence ".mstack/progress/review_greet-flag.md" --verifier reviewer
-recorded test-verified for greet-flag at 62849b5a
+recorded test-verified for greet-flag at e2defa4e
 
 $ mstack state set greet-flag --status done
 1 greet-flag (done)
   status: "verifying" -> "done"
 
 $ mstack gate
+...
 [ok]    1 closed item(s) carry a ledger verdict
+...
+
+PASSED - 0 failures, 1 warning
 ```
 
 ## orchestrator
