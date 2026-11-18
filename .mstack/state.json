@@ -1240,7 +1240,7 @@
         "an item whose only verdict is the implementer's is refused at state set --status done with the reason the gate gives, instead of closing and turning the gate red afterwards",
         "GLOSSARY.md's Closing role entry and docs/wiki describe the rule as the code then implements it"
       ],
-      "status": "in_progress",
+      "status": "reviewing",
       "base": "7d71f2eab9e52371ec0004993cc1159c969485e2",
       "source": "item 58 review, .mstack/progress/review_glossary-and-adr.md blocking finding 2, 2026-11-17; next to item 71",
       "seams": [
@@ -1445,6 +1445,19 @@
       "status": "pending",
       "description": "Item 82 made state set --status done refuse an item whose only verdicts are the implementing pass's. A close with zero rows still exits 0 and the next gate prints 'items marked done with no ledger verdict at all'. Refusing it broke 50 existing tests (bun 825 pass, 50 fail): all of them close with require_verdict_to_close on, which tests/helpers.ts:179 defaults to true, and rely on the gap. May be a product fork: whether a store with the rule on may ever close an item nobody verified.",
       "source": "item 82 round 1 review, .mstack/progress/review_any-role-name-closes.md, 2026-11-18"
+    },
+    {
+      "id": 96,
+      "slug": "walkthroughs-after-closing-checks",
+      "title": "The Getting-Started walkthrough skips steps a close now needs: an implementation report with the requirement table, and a verification run",
+      "acceptance": [
+        "docs/wiki/Getting-Started.md, README.md and docs/wiki/The-Agents.md walkthroughs are followed literally in a fresh repository, command by command, and every step succeeds or shows the refusal the page says it shows",
+        "each page shows the report with its table and the verification run where a close needs them, from one real run",
+        "a test or a script in the repository reruns the Getting-Started sequence, so a new closing check that breaks it is seen before a reader does"
+      ],
+      "status": "pending",
+      "description": "state add records a base in a git repository (item 40), so the walkthrough's item is held to the requirement-to-test table (item 41), the budget (item 43) and the receipt. The page shows neither the implementation report nor gate --full, so someone following it literally is refused at done after recording the reviewer's row. Item 82's rerun of the page had both in place off the page.",
+      "source": "item 82 round 2 implementer report, .mstack/progress/impl_any-role-name-closes_r2.md, 2026-11-18"
     }
   ]
 }
