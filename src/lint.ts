@@ -426,6 +426,8 @@ const ORIGIN_REQUIRED = [
   "skills/router/playbooks/deepen.md",
   "skills/router/playbooks/bug-fix.md",
   "skills/reflect/references/domain-docs.md",
+  "skills/verify/SKILL.md",
+  "skills/router/references/evidence-ladder.md",
 ];
 
 /**

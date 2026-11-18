@@ -1,3 +1,5 @@
+<!-- Origin: the five steps between running a command and claiming a result (its Gate Function, lines 24-36) and the case that a run from before the change is not evidence (line 42), from obra/superpowers, skills/verification-before-completion/SKILL.md @ 3be5aad3dd2400ef23b15680969f4bcd3b6d7b8b (MIT, licenses/obra-superpowers-LICENSE.txt, identical at that commit). Adapted: the source's Iron Law, red flags, rationalization table, key patterns and when-to-apply list are not copied, its table of claims (lines 40-48) is reduced to one contrast, a passing run against the claim actually made (lines 45 and 48), and "at this head" is mstack's wording. -->
+
 # The evidence ladder
 
 For every fact the safety of a change depends on, get it as far down this list as is cheap,
@@ -50,10 +52,20 @@ Two rules travel with that command. CI green is an *input* to a verdict, never a
 own. And a new head SHA voids the row: a rebase rewrites every SHA above it and silently
 invalidates verdicts without touching a single check.
 
+## Between the run and the claim
+
+1. Name the command that proves the claim.
+2. Run all of it, now, at this head. A run from before the last edit is not evidence.
+3. Read the whole output: its exit code and its counts.
+4. Check that output against the claim as worded. A green suite proves "the suite is green",
+   not "the bug is fixed".
+5. Only then state the claim with the evidence, or state what the output actually shows.
+
 ## What does not count
 
 - "I added the handler, it should work." No executable evidence.
 - A test that only asserts nothing threw. It has to assert the concrete result, and it has to
   fail if the change is reverted.
 - Pasting a *summary* of the output instead of the output. The reviewer reads the real thing.
+- A run from before the last edit, cited for the code as it now stands.
 - Marking something done on a partial run, or on output nobody else saw.
