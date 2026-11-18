@@ -394,3 +394,52 @@ test("a skills entry namespaced to this plugin is resolved, so a misspelt one is
     c.dispose();
   }
 });
+
+function setAgentModel(root: string, line: string | null): void {
+  const file = join(root, "agents", "implementer.md");
+  const source = readFileSync(file, "utf8");
+  assert.ok(/^model: .*\n/m.test(source), "the fixture implementer still has a model line");
+  writeFileSync(file, source.replace(/^model: .*\n/m, line === null ? "" : `${line}\n`));
+}
+
+test("an agent model that is an alias or a claude-* id passes", () => {
+  for (const model of ["inherit", "sonnet", "opus", "haiku", "fable", "claude-opus-5-5", "claude-sonnet-5"]) {
+    const c = copy();
+    try {
+      setAgentModel(c.root, `model: ${model}`);
+      const report = lint(c.root);
+      assert.deepEqual(report.failures.filter((f) => /model/.test(f)), [], model);
+      assert.equal(report.failed, false, `${model}: ${JSON.stringify(report.failures)}`);
+    } finally {
+      c.dispose();
+    }
+  }
+});
+
+test("an agent model outside the allowed set is caught, naming the file and the value", () => {
+  const cases: Array<[string, RegExp]> = [
+    ["model: sonet", /implementer\.md.*'sonet'/],
+    ["model: gpt-4o", /implementer\.md.*'gpt-4o'/],
+    ["model:", /implementer\.md.*model.*''/],
+    ['model: ""', /implementer\.md.*model.*''/],
+  ];
+  for (const [line, matcher] of cases) {
+    const c = copy();
+    try {
+      setAgentModel(c.root, line);
+      expectFail(c.root, matcher, line);
+    } finally {
+      c.dispose();
+    }
+  }
+});
+
+test("an agent with no model field is not held to the model rule, because Claude Code then inherits", () => {
+  const c = copy();
+  try {
+    setAgentModel(c.root, null);
+    assert.equal(lint(c.root).failed, false, JSON.stringify(lint(c.root).failures));
+  } finally {
+    c.dispose();
+  }
+});
