@@ -597,8 +597,9 @@
         "For the active item with base, from reviewing and at the done transition, every acceptance index A<n> or spec R<n> has a row, and every Where cites existing test-classified files at in-range lines or says n/a: with a reason of at least 12 characters",
         "Closed items and items without base are never checked, and the implementer prose defines the one table header"
       ],
-      "status": "reviewing",
+      "status": "done",
       "base": "455f16605dfeb17b8499202a08d9c37389cdfd15",
+      "closed_by": "five rounds; review_r-to-test-check_r5.md APPROVED at 9d29223; gate --full green on the first run",
       "seams": [
         "CLI: mstack gate on a store whose active item is at reviewing or verifying with a base, over implementation reports whose requirement-to-test table is good, absent, missing a row, or cites a non-test file, a missing file, an out-of-range line or a short n/a reason",
         "CLI: mstack state set <ref> --status done on the same stores: refused or allowed, with the message"
@@ -1384,6 +1385,22 @@
       "status": "pending",
       "description": "The size-s check measures from the item's base or from where the branch left the default branch (local and origin together), under the store's root. It gives the item's own work in the one-item-per-branch flow the reviewer ran (rebase, merge, fetch then rebase onto origin/main, pull --rebase, a stacked branch, a detached HEAD, a linked worktree, a shallow clone). What is left is below.",
       "source": "item 40 reviews, .mstack/progress/review_item-fields-base-size.md and _r2.md, 2026-11-18"
+    },
+    {
+      "id": 93,
+      "slug": "r-table-check-followups",
+      "title": "Follow-ups from item 41: a store cannot name its own test layouts, a coordinating pass still stops on the table's red, and gaps in the check",
+      "acceptance": [
+        "a store can name its own test and doc patterns (the PatternOverrides the classifier already takes), so a layout the defaults miss does not leave n/a or a forced close, and one the defaults over-match (a class named GreetTest, a directory ABTests, a root spec/ of API schemas, .cy.mjs outside cypress/) can be corrected",
+        "the orchestrator and the router say what agents/reviewer.md now says: a gate red only on the item's own table does not stop a coordinating pass before the reviewer is launched; the wording matches the gate line at verifying as well as at reviewing; a live session shows a reviewer going on past that red",
+        "cancelled -> done --force runs the check or the reason it does not is recorded; the refusal hint for the both-overridden case does not say 'closing unverified'",
+        "a citation is tied to the test it names, not only to a line: for example the Test cell's name must appear on or near the cited line, so a shifted table goes red",
+        "tests exist for spec/** staying at the root and for the ENOTDIR message (both mutants survive); path:3:5-9 on an existing file does not say the file does not exist; the FIFO test does not pass silently where mkfifo is missing; the 'a done item' test at tests/r-table-check.test.ts:350 can fail",
+        "the wiki's forced-close block shows the move to verifying; the classifier's cost (20k paths: 67 ms to 150 ms) is measured where the size check uses it"
+      ],
+      "status": "pending",
+      "description": "The requirement-to-test check reads the newest implementation report's | R | Test | Where | table from reviewing and at done, for items with a base. It proves a cited line exists in a file the classifier calls a test, not that it is the right test: in round 3 of item 41 a test inserted mid-file moved fifteen citations to the wrong tests and the gate stayed green.",
+      "source": "item 41 reviews, .mstack/progress/review_r-to-test-check.md and _r2.md to _r5.md, 2026-11-18"
     }
   ]
 }

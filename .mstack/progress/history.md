@@ -1411,3 +1411,29 @@ commits remain in the reflog. Briefs now require probes in `bash` script files w
 **Closing.** `gate --full` green on the first run (bun 698/0, node 698/0).
 
 **Filed.** Item 92 `size-check-followups`.
+
+## 2026-11-18 - item 41 r-to-test-check closed (5 rounds)
+
+**What shipped.** `src/rtable.ts` parses the last `| R | Test | Where |` table of the newest
+implementation report; `src/rcheck.ts` is a closing check beside the two that existed: from
+`reviewing`, and at the `done` transition, every `A<n>` (or the spec's `R<n>`) needs a row, and
+every Where is `path:line` of a regular file the classifier calls a test, inside the store's
+root, at a line inside it, or `n/a:` with a reason of 12 characters. Items without a base are
+never checked. A forced close records which check it was forced past. The path classifier knows
+thirteen more test layouts (Maven, RSpec, Swift, .NET, Cypress, Playwright), which also changes
+what the size-s check counts. `agents/reviewer.md`: a gate red only on the item's own table is a
+finding, not a stop. 797 tests.
+
+**What the rounds taught.** Rounds 1 and 2 were the item: a forced close that said "unverified"
+for a bad table, real test layouts refused, a transcript stitched from two runs. Rounds 3 to 5
+were the coordinator's: after the approval it took four non-blocking findings itself, and a test
+inserted in the middle of a file moved fifteen citations of the table to the wrong tests while
+the gate stayed green; then a changelog sentence named two markers of three; then a citation to
+a comment line. A change made after a verdict reopens everything that cites lines, and the check
+this item built proves a line exists, not that it is the right one. Append tests at the end of a
+file that a table cites, and read every citation back before committing.
+
+**Closing.** `gate --full` green on the first run (bun 797/0, node 797/0). The item closed
+through its own check: `state set --status done` read the round 3 report's table.
+
+**Filed.** Item 93 `r-table-check-followups`.
