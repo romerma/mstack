@@ -200,8 +200,8 @@ mstack: in_progress -> done is not a legal transition
 ### Correcting a field after intake
 
 `state set` takes every field `state add` takes: `--title`, `--description`, `--source`,
-`--verification`, `--acceptance`, `--add-acceptance`, `--seam`, `--sdd`, `--decision-required`
-and `--closed-by`. A field the item does not carry yet is added rather than refused, and every
+`--verification`, `--acceptance`, `--add-acceptance`, `--seam`, `--sdd`, `--size`,
+`--decision-required` and `--closed-by`; `state set` also takes `--base`. A field the item does not carry yet is added rather than refused, and every
 edit prints what it replaced, because a write nobody sees is indistinguishable from a no-op.
 
 `--acceptance` **replaces** the whole list, names each criterion it dropped, and, when there
@@ -281,13 +281,46 @@ abbreviated form printed them identically on either side of an arrow while the s
 dropped the answer — the line that exists to make a write visible, showing no change, on the
 field where this command silently un-answers a fork.
 
-`--clear` takes `description`, `source`, `verification`, `decision-required`, `sdd`,
-`closed-by` and `seams`. `acceptance` is not among them (the gate fails an item with no criteria, so
+`--clear` takes `description`, `source`, `verification`, `decision-required`, `sdd`, `size`,
+`closed-by` and `seams`; `base` is refused, for the reason under "Size and base" below. `acceptance` is not among them (the gate fails an item with no criteria, so
 replace them instead), and `--slug` is refused outright, because it names the branch, the spec
 directory, the progress files and every ledger and decision row already written for the item,
 and none of those move with it. Two instructions for one field in one command (`--description
 X --clear description`) are refused rather than silently ordered, and a `state set` given
 nothing to set exits 2 instead of reporting success.
+
+### Size and base
+
+`--size s|m|l` says how big the work is. An item with no size reads as `m` wherever size is
+consulted, and nothing writes that `m` into `state.json`, so items written by an older mstack
+are read and rewritten unchanged. `--clear size` removes it. Anything else is refused with the
+value and the three allowed ones, and nothing is written. `state show` prints the size when the
+item has one. Only `s` is checked by anything today: the gate holds a size-`s` item to its diff
+(see "What `mstack gate` checks" in [Gates and hooks](Gates-and-Hooks.md)), and an `sdd` item cannot be
+`s`, because `s` is the small item on the direct path and `sdd` is the spec path. Both flag
+orders are refused at `state add` and at `state set`, naming both fields and writing nothing.
+
+`base` is the commit `HEAD` resolved to when the item first moved to `in_progress`; the move
+prints it with the other changes. A later return to `in_progress` after review keeps the one the
+item has. `state set <ref> --base <commit>` replaces it, and the value has to resolve to a commit
+in this repository or the command refuses, naming the value. `--clear base` is refused, because
+the gate measures a size-`s` item from it. Outside a git repository, or before the first commit,
+the move still succeeds and the change list says `base: not recorded`.
+
+```console
+$ mstack state add --slug greet-flag --title "greet --shout" --acceptance "shout uppercases" --size s
+added 1 greet-flag (pending)
+$ mstack state set greet-flag --status in_progress
+1 greet-flag (in_progress)
+  status: "pending" -> "in_progress"
+  base: (unset) -> "1dd52334ac0095c95d3a76d7b00dd8e746ff4ee0"
+$ mstack state set greet-flag --size xl
+mstack: 'xl' is not a size
+        the sizes are s, m or l; nothing was written
+$ mstack state set greet-flag --clear base
+mstack: base cannot be cleared
+        the gate measures a size s item's diff from it, so an item without one would escape the check; replace it with --base <commit> instead
+```
 
 ### Attaching a product fork after intake
 

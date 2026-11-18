@@ -188,6 +188,23 @@ Walking the lines that carry the weight:
 - **"one active item"** enforces the rule that makes worktrees meaningful. Two active items in
   one worktree is a failure that names both.
 
+- **"size s"** holds a small item to its diff. It runs only for the active item when that item
+  has a `base` and a `size` of `s`; an item with no base, or a size of `m`, `l` or none, is not
+  measured and the gate says nothing. It lists the paths that differ between `base` and the
+  working tree (committed, staged, unstaged, and untracked files git does not ignore), keeps the
+  ones the path classifier calls code, drops everything under `.mstack/`, and counts insertions plus
+  deletions (a binary file is a file and no lines; an untracked file's lines are insertions).
+  More than 60 lines or more than 3 files fails; exactly 60 and exactly 3 pass. Tests and docs do
+  not count, because a small fix with a thorough test is still small. The two limits are
+  `SMALL_MAX_LINES` and `SMALL_MAX_FILES` in `src/size.ts`. A base git cannot find fails too,
+  with a fix that names `--base`.
+
+  ```console
+  $ mstack gate
+  [fail]  1 greet-flag (in_progress) is size s but its code diff from 1dd52334 is 24 lines in 4 files, over the limits of 60 lines and 3 files
+          fix: it is not small: 'mstack state set greet-flag --size m' (or split the work)
+  ```
+
 - **"current.md tracks the active item"** checks that the live checkpoint says something, not
   merely that it exists. An active item with the template's `_none_` line still in place fails,
   because if the session dies now, nothing tells the next one where to start.

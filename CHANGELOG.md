@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+- **An item carries a size and the commit it started from, and the gate holds a small item to its
+  diff.** `state add --size s|m|l` and `state set <ref> --size s|m|l` set it, `--clear size`
+  removes it, an item with no size reads as `m` (nothing writes the `m`), and any other value is
+  refused with the value and the three allowed ones, writing nothing. The first move to
+  `in_progress` records `base`, the commit `HEAD` resolves to; a later return from `reviewing`
+  leaves it alone, `state set <ref> --base <commit>` replaces it with a commit that resolves, and
+  `--clear base` is refused because the gate measures from it. Outside a git repository, or with
+  no commit yet, the move succeeds and the change list says no base was recorded. `state show`
+  prints both. The gate now measures the active item when its size is `s` and it has a `base`: the
+  code files (by the path classifier; tests, docs and everything under `.mstack/` do not count)
+  that differ between `base` and the working tree, committed or not, untracked files included. More
+  than 60 changed lines (insertions plus deletions) or more than 3 files fails with one line
+  that gives both counts and both limits, and a fix naming `mstack state set <slug> --size m`; a
+  base git cannot find fails with a fix naming `--base`. An item with no size, size `m` or `l`, or
+  no base is not measured, so a store that does not use sizes sees nothing new. `sdd` and size `s`
+  together are refused at `state add` and at `state set`, in either order. Nothing in the intake
+  or the skills chooses a size yet.
+
 - **The implementer and spec-author run on Sonnet and the reviewer and spec-reviewer on Opus,
   whatever model your session runs on.** Before, all five agents were `model: inherit`, so a
   session on Opus ran everything on Opus and one on Sonnet reviewed its own kind of work on
