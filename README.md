@@ -169,9 +169,10 @@ a design pass is required and then supplies the escape hatch two lines later.
 mstack splits the two. Judgment lives in skills. Anything that must hold whether or not the
 model remembers it lives in a hook or in a gate that is code.
 
-## Your first item, in five commands
+## Your first item, end to end
 
-The output below is from a real run. Both refusals are the product behaving as designed.
+The output below is from a real run, in a repository where `/mstack:setup` has run and
+`greet.py` and its test exist. Both refusals are the product behaving as designed.
 (The rule for every transcript here and in the wiki: it is produced and re-run by the mstack
 repository's own `./bin/mstack` at the commit that edits it, and spelled `$ mstack` because
 for you, with the plugin installed, that is the right command — the distinction matters only
@@ -186,6 +187,7 @@ added 1 greet-flag (pending)
 $ mstack state set greet-flag --status in_progress
 1 greet-flag (in_progress)
   status: "pending" -> "in_progress"
+  base: (unset) -> "60351430197f1c93536051fbdbb8c77de0c585a8"
 ```
 
 Do the work, then try to close it directly:
@@ -196,21 +198,58 @@ mstack: in_progress -> done is not a legal transition
         pass --force if you mean to skip a phase, and say why in decisions.tsv
 ```
 
+The close reads the implementer's report, `.mstack/progress/impl_greet-flag.md`, and the
+`| R | Test | Where |` table in it, one row per acceptance bullet in order. Cut to that part
+([Getting-Started](docs/wiki/Getting-Started.md#do-the-work-and-verify-it) has the whole run):
+
+```markdown
+# greet-flag: implementation report
+
+## R to test
+
+| R | Test | Where |
+|---|---|---|
+| A1 | test_shout | test_greet.py:9 |
+| A2 | test_default, test_shout | test_greet.py:6, test_greet.py:9 |
+```
+
 The lifecycle goes through `reviewing` and `verifying`, and the close needs a ledger verdict.
 The implementer's own row is not enough:
 
 ```bash
 $ mstack ledger record greet-flag "$(git rev-parse HEAD)" test-verified \
-    --evidence "python3 -m unittest test_greet -v: 2 tests, OK" --verifier implementer
-recorded test-verified for greet-flag at 4b63888b
+    --evidence ".mstack/progress/impl_greet-flag.md: python3 -m unittest test_greet -v, 2 tests, OK" \
+    --verifier implementer
+recorded test-verified for greet-flag at 60351430
 
-$ mstack state set greet-flag --status done    # from verifying
+$ mstack state set greet-flag --status reviewing
+1 greet-flag (reviewing)
+  status: "in_progress" -> "reviewing"
+
+$ mstack state set greet-flag --status verifying
+1 greet-flag (verifying)
+  status: "reviewing" -> "verifying"
+
+$ mstack state set greet-flag --status done
 mstack: greet-flag cannot close: its only verdicts are from the pass that wrote the code (only implementer)
         a closing verdict has to come from a pass that did not write the code; run the verification again from one and record the row under a name that is not the author's (your own name, or `ci`), or, if no check could be run, record `verifier-blocked` under such a name
 ```
 
 A reviewer that did not write the code re-runs the verification, records its own row, and the
-close goes through. The whole walkthrough, including the product-fork refusal, is
+close goes through:
+
+```bash
+$ mstack ledger record greet-flag "$(git rev-parse HEAD)" test-verified \
+    --evidence "reviewer re-ran python3 -m unittest test_greet -v: 2 tests, OK; diff read against both acceptance bullets" \
+    --verifier reviewer
+recorded test-verified for greet-flag at 60351430
+
+$ mstack state set greet-flag --status done
+1 greet-flag (done)
+  status: "verifying" -> "done"
+```
+
+The whole walkthrough, including the product-fork refusal, is
 [docs/wiki/How-A-Work-Item-Flows.md](docs/wiki/How-A-Work-Item-Flows.md).
 
 ## What you get
