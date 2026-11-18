@@ -394,8 +394,8 @@ test("a change under src/test/ (Maven and Gradle) does not count as code", GATE,
   withBox((box) => {
     smallItem(box);
     for (const n of ["a", "b", "c"]) put(box, `src/${n}.ts`, lines(n, 20));
-    put(box, "src/test/java/com/x/GreetTest.java", lines("j", 500));
-    put(box, "svc/api/src/test/kotlin/GreetTest.kt", lines("k", 500));
+    put(box, "src/test/java/com/x/Fixtures.java", lines("j", 500));
+    put(box, "svc/api/src/test/resources/data.json", lines("k", 500));
     assert.deepEqual(gateFailures(box), []);
   });
 });

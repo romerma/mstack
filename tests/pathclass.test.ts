@@ -37,6 +37,8 @@ const table: [string, "test" | "doc" | "code"][] = [
   // Maven and Gradle: **/src/test/**, which also matches with zero directories before src
   ["src/test/java/com/x/GreetTest.java", "test"],
   ["svc/api/src/test/kotlin/GreetTest.kt", "test"],
+  ["src/test/resources/application.yml", "test"],
+  ["svc/api/src/test/java/com/x/Fixtures.java", "test"],
   ["src/testing-utils.ts", "code"],
   ["src/test.ts", "code"],
   ["src/main/java/com/x/Greet.java", "code"],
