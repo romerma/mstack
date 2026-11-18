@@ -735,11 +735,16 @@ test("hook paths stay within budget on a 50 MB transcript", () => {
     // - `stopCpu - bareCpu`: the whole hook, gate included, with the transcript
     //   against without one, in this process's CPU time. The gate spawns git, and
     //   outside load can add seconds to the wall time of any one run while this
-    //   process only waits; a read or a parse here is CPU time on every run, the
-    //   gate's branch included. Each side is the best of five runs, taken in turn,
-    //   so both see the same load and the same place after the 50 MB write. Time
-    //   spent waiting (a sleep, a child process) is not counted. Wall time is
-    //   printed for context.
+    //   process only waits; a read and a parse here is CPU time on every run it is
+    //   made in, the gate's branch included. Each side is its slowest of five runs,
+    //   taken in turn so both see the same load and the same place after the 50 MB
+    //   write; the slowest, not the best, so a read made on only some of the Stops
+    //   (the first one, say) is not dropped. The first run is timed too, on purpose.
+    //   Wall time is printed for context. Two limits, both measured for item 67:
+    //   a wait that uses no CPU on the gate's branch (a sleep, a child process) is
+    //   not counted; and a plain read of the file, with or without a split, costs
+    //   4 to 14 ms of CPU, under the 20 ms bounds, so what these bounds catch is a
+    //   read and a parse (26 ms and more), not a read alone.
     const onStopMs = Math.max(...[1, 2, 3].map(() => time(() => costs.onStop(box.store, input))));
     const stopPathMs = Math.max(...[1, 2, 3].map(() => time(() => stop({ ...input, stop_hook_active: true }))));
     const cpu = (fn: () => void): number => {
@@ -756,20 +761,20 @@ test("hook paths stay within budget on a 50 MB transcript", () => {
       cpuWith.push(cpu(() => wallWith.push(time(() => stop(input)))));
       cpuWithout.push(cpu(() => wallWithout.push(time(() => stop({ cwd: box.store.root })))));
     }
-    const stopCpu = Math.min(...cpuWith);
-    const bareCpu = Math.min(...cpuWithout);
+    const stopCpu = Math.max(...cpuWith);
+    const bareCpu = Math.max(...cpuWithout);
     const runs = (ms: number[]) => ms.map((m) => m.toFixed(1)).join(",");
     // SessionEnd: the one place the transcript is read, streamed from the mark.
     const endMs = time(() => sessionEnd(input));
     const again = time(() => sessionEnd(input));
 
     console.log(
-      `budget: transcript=${(statSync(f.transcript).size / 1048576).toFixed(1)}MB messages=${n} onStop=${onStopMs.toFixed(2)}ms stop(no gate)=${stopPathMs.toFixed(2)}ms stop(hook) cpu=${stopCpu.toFixed(1)}ms of [${runs(cpuWith)}] wall=[${runs(wallWith)}] stop(no transcript) cpu=${bareCpu.toFixed(1)}ms of [${runs(cpuWithout)}] wall=[${runs(wallWithout)}] session-end=${endMs.toFixed(0)}ms repeat=${again.toFixed(1)}ms`,
+      `budget: transcript=${(statSync(f.transcript).size / 1048576).toFixed(1)}MB messages=${n} onStop=${onStopMs.toFixed(2)}ms stop(no gate)=${stopPathMs.toFixed(2)}ms stop(hook) cpu max=${stopCpu.toFixed(1)}ms of [${runs(cpuWith)}] wall=[${runs(wallWith)}] stop(no transcript) cpu max=${bareCpu.toFixed(1)}ms of [${runs(cpuWithout)}] wall=[${runs(wallWithout)}] session-end=${endMs.toFixed(0)}ms repeat=${again.toFixed(1)}ms`,
     );
     assert.equal(rows(box).reduce((a, r) => a + Number(r["messages"]), 0), n, "every message counted once");
     assert.ok(onStopMs < 20, `the Stop mark check took ${onStopMs}ms`);
     assert.ok(stopPathMs < 20, `the Stop hook without its gate took ${stopPathMs}ms`);
-    assert.ok(stopCpu - bareCpu < 20, `Stop with a 50 MB transcript used ${stopCpu}ms of CPU against ${bareCpu}ms without one, the best of five runs each`);
+    assert.ok(stopCpu - bareCpu < 20, `Stop with a 50 MB transcript used ${stopCpu}ms of CPU against ${bareCpu}ms without one, the slowest of five runs each`);
     assert.ok(endMs < 2_500, `SessionEnd flush took ${endMs}ms against a 5 s hook timeout`);
     assert.ok(again < 100, `an unchanged re-flush took ${again}ms`);
   } finally {
