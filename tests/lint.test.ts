@@ -283,21 +283,22 @@ test("an origin header that names no licence file is caught", () => {
 });
 
 test("a file that must carry an origin header and does not is caught", () => {
-  for (const [dir, name] of [
-    ["router/references", "intake.md"],
-    ["test-first", "SKILL.md"],
-    ["design/references", "deep-modules.md"],
-    ["router/playbooks", "deepen.md"],
-    ["router/playbooks", "bug-fix.md"],
-    ["reflect/references", "domain-docs.md"],
-    ["verify", "SKILL.md"],
-    ["router/references", "evidence-ladder.md"],
-  ] as const) {
+  for (const rel of [
+    "skills/router/references/intake.md",
+    "skills/test-first/SKILL.md",
+    "skills/design/references/deep-modules.md",
+    "skills/router/playbooks/deepen.md",
+    "skills/router/playbooks/bug-fix.md",
+    "skills/reflect/references/domain-docs.md",
+    "skills/verify/SKILL.md",
+    "skills/router/references/evidence-ladder.md",
+    "agents/implementer.md",
+  ]) {
     const c = copy();
     try {
-      const file = join(c.root, "skills", dir, name);
+      const file = join(c.root, rel);
       writeFileSync(file, readFileSync(file, "utf8").replace(/^<!-- Origin:.*-->\n/m, ""));
-      expectFail(c.root, new RegExp(`${dir}/${name}.*no origin header`), `header removed from ${dir}/${name}`);
+      expectFail(c.root, new RegExp(`${rel}.*no origin header`), `header removed from ${rel}`);
     } finally {
       c.dispose();
     }
