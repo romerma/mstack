@@ -7,7 +7,7 @@
 > empty template below.
 
 - **Item:** 41 r-to-test-check
-- **Status:** reviewing (round 1)
+- **Status:** in_progress (round 2: name the overridden check, wider test patterns, real transcript, reviewer exception)
 - **Branch:** feat/r-to-test-check
 - **Base:** 455f166
 - **Worktree:** none
