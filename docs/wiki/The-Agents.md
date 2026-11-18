@@ -109,7 +109,7 @@ written weeks ago names code that has moved. Requirements get stable ids (`R1`, 
 and EARS statements (Easy Approach to Requirements Syntax, a small kit of fixed sentence
 forms; the kit is `skills/spec/references/ears.md`), every requirement gets a WHEN/THEN
 scenario, `design.md` records at
-least one rejected alternative, and every task names the R-ids it covers. It hands off with
+least one rejected alternative, and every task names the R-ids it covers. Each task is the smallest unit that carries its own test cycle and is worth a fresh reviewer's gate, and is written for an implementer who has only `tasks.md`: exact paths, the exact command that shows it done and what it prints, no placeholders. It hands off with
 `.mstack/progress/spec_<slug>.md` and does not review its own spec; a different pass will
 reject a spec whose author reviewed it.
 
@@ -119,7 +119,7 @@ Reviews one spec, adversarially, before any code is written. No `Write`, no `Edi
 must not be the pass that wrote the spec. It attacks first: hidden assumptions, whether the
 rejected alternatives are real, and the fail paths a happy-path spec leaves out. Then
 completeness: every acceptance bullet maps to a requirement, every requirement is testable
-and covered by a task, failure and security paths are explicit. Its verdict opens
+and covered by a task, every task is sized by that rule and could be executed from `tasks.md` alone (it names the oversized or undersized task and the placeholder or undefined name), failure and security paths are explicit. Its verdict opens
 `.mstack/progress/spec_review_<slug>.md` as `APPROVED` or `CHANGES_REQUESTED`, with findings
 cited to files and lines. Approval does not start implementation; the orchestrator does that,
 after the human gate if one applies.

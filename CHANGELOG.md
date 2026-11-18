@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+- **A task in `tasks.md`, and a unit in an orchestrate brief, have one size rule and one rule for
+  being written for an executor with no context.** A task is the smallest unit that carries its own
+  test cycle and is worth a fresh reviewer's gate; setup, configuration, scaffolding and docs fold
+  into the task whose deliverable needs them, and tasks are split only where a reviewer could reject
+  one and approve its neighbour. Each task gives the exact paths it touches and the exact command
+  that shows it done with what it prints, and never "TBD", "add error handling", "handle edge
+  cases", "as in task 3" or a name no task or existing file defines. The text is in
+  `skills/spec/SKILL.md` section 4, in short in `agents/spec-author.md` (which does not preload the
+  spec skill), in `skills/router/playbooks/orchestrate.md` steps 1, 2 and 5, and in the `tasks.md`
+  template's example task. `agents/spec-reviewer.md` checks both and names the task or the
+  placeholder. Adapted from obra/superpowers `writing-plans` (Task Right-Sizing, Overview, No
+  Placeholders, Remember), with origin headers; its complete-code steps, two-to-five-minute steps,
+  plan header, save path and execution hand-off are not copied. `lint-plugin` requires the headers
+  on the three files.
+
 - **The implementer checks each review finding against the code before applying it in a later
   round, and records a rebuttal when one does not hold.** `agents/implementer.md` has a section
   "A later round": read the review report the brief names, check each finding at head (run what it

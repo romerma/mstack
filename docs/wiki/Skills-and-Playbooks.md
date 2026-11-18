@@ -147,7 +147,7 @@ reason it exists:
 | `deepen` | Reviewing the architecture, or finding where the code should be deeper | Uses the deletion test and the other tests in `skills/design/references/deep-modules.md`; files at most five candidates as `pending` items and asks the user nothing; implements none |
 | `resume` | Picking up interrupted work | Read the recorded state, then reconcile against the repository; where they disagree, the repository wins |
 | `cleanup` | Dead branches and dead worktrees | `mstack worktree prune` lists candidates and removes nothing without `--yes`; branch deletion is `-d`, never `-D` |
-| `orchestrate` | A program of work: many changes, several tracks, more than one session | Pilot one unit end to end before fanning out; every worker gets a brief a stranger could execute |
+| `orchestrate` | A program of work: many changes, several tracks, more than one session | Pilot one unit end to end before fanning out; every worker gets a brief a stranger could execute, with no placeholders; a unit is the smallest piece that carries its own test cycle and deserves a fresh reviewer's gate |
 
 ## What each playbook leaves behind
 
