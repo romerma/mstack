@@ -56,6 +56,9 @@ const AGENT_KEYS = new Set([
   "color",
 ]);
 
+/** Model aliases Claude Code accepts in an agent's `model`; a `claude-*` full id is accepted too. */
+const AGENT_MODEL_ALIASES = new Set(["inherit", "sonnet", "opus", "haiku", "fable"]);
+
 /** Silently dropped from plugin agents, so carrying them is a lie about behaviour. */
 const AGENT_FORBIDDEN = new Set(["hooks", "mcpServers", "permissionMode"]);
 
@@ -235,6 +238,16 @@ function lintAgent(root: string, file: string, report: Report): void {
       );
     } else if (!AGENT_KEYS.has(key)) {
       report.fail(`${label}: unknown front-matter key '${key}'`);
+    }
+  }
+  // An absent `model` is allowed: Claude Code then runs the agent on the conversation's model.
+  if ("model" in data) {
+    const model = String(data["model"] ?? "");
+    if (!AGENT_MODEL_ALIASES.has(model) && !model.startsWith("claude-")) {
+      report.fail(
+        `${label}: model '${model}' is not inherit, sonnet, opus, haiku, fable or a claude-* id`,
+        "use one of the documented values; this check exists so a typo is not discovered by a bill",
+      );
     }
   }
   lintPreloadedSkills(root, label, data["skills"], report);
