@@ -17,7 +17,8 @@ export const TEST_PATTERNS: readonly string[] = [
   "spec/**", "**/*_spec.rb", // RSpec
   "**/*Tests/**", "**/*Tests.swift", "**/*Tests.cs", // Swift packages, .NET (`Tests/`, `Greet.Tests/`)
   "**/*Test.java", "**/*Test.kt",
-  "cypress/**", "**/*.cy.*", "**/*.e2e.*", "e2e/**", "playwright/**", // Cypress, Playwright
+  // Cypress, Playwright. `.cy.` is spelled out by extension: `devise.cy.yml` is a Welsh locale file.
+  "cypress/**", "**/*.cy.ts", "**/*.cy.tsx", "**/*.cy.js", "**/*.cy.jsx", "**/*.e2e.*", "e2e/**", "playwright/**",
 ];
 export const DOC_PATTERNS: readonly string[] = ["**/*.md", "docs/**", "LICENSE*", "CHANGELOG*"];
 

@@ -100,7 +100,10 @@ function citationProblem(store: Store, raw: string, counts: Map<string, number>)
   const file = join(store.root, rel);
   let size: number | undefined;
   try {
-    if (statSync(file).isDirectory()) return `${text} is a directory, not a test file`;
+    const stat = statSync(file);
+    if (stat.isDirectory()) return `${text} is a directory, not a test file`;
+    // A FIFO or a device would block the read below, and the Stop hook runs this check.
+    if (!stat.isFile()) return `${text} is not a regular file`;
     const inside = relative(realpathSync(store.root), realpathSync(file));
     if (inside.startsWith("..") || isAbsolute(inside)) return `${text} is outside the store's root`;
     size = counts.get(rel) ?? lineCount(file);

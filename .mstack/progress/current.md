@@ -7,7 +7,7 @@
 > empty template below.
 
 - **Item:** 41 r-to-test-check
-- **Status:** reviewing (round 2)
+- **Status:** reviewing (round 3: FIFO hang, Cypress pattern, changelog)
 - **Branch:** feat/r-to-test-check
 - **Base:** 455f166
 - **Worktree:** none

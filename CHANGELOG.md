@@ -13,7 +13,22 @@
   past it, an unreadable report is not overridable. Items without a `base` are not checked, so
   nothing in flight breaks, and closed and cancelled items never are. It proves the citation
   exists, not that the test covers the requirement. `agents/implementer.md` and
-  `skills/implement/SKILL.md` define the one header.
+  `skills/implement/SKILL.md` define the one header. A citation may carry a column
+  (`path:line:col`), which is ignored; a directory, a file that is not a regular file and one that
+  cannot be read each get their own message. A forced close says what it was forced past:
+  `closed_by` starts `closed without a good requirement-to-test table (forced): ` when the table
+  was the check overridden, and keeps `closed unverified (forced): ` when a verification did not
+  run. `agents/reviewer.md` says a gate that is red only on the item's own table does not stop the
+  review.
+- **The path classifier knows more test layouts, which changes what the size-s check counts.**
+  Besides `tests/`, `test/`, `__tests__/`, `*.test.*`, `*.spec.*` and the Python and Go names, a
+  path is now a test under `src/test/` (Maven, Gradle), under a root `spec/` or named `*_spec.rb`
+  (RSpec), in a directory whose name ends in `Tests` or named `*Tests.swift`, `*Tests.cs`,
+  `*Test.java` or `*Test.kt`, under a root `cypress/`, `e2e/` or `playwright/`, or named
+  `*.cy.ts|tsx|js|jsx` or `*.e2e.*`. Matching is case-sensitive. These can catch production code
+  with such a name (a class called `GreetTest`, a directory called `ABTests`, a root `spec/` of
+  API schemas): such a file then does not count toward a size-s item's diff and can be cited as a
+  test.
 
 - **An item carries a size and the commit it started from, and the gate holds a small item to its
   diff.** `state add --size s|m|l` and `state set <ref> --size s|m|l` set it, `--clear size`

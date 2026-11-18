@@ -72,6 +72,11 @@ const table: [string, "test" | "doc" | "code"][] = [
   ["cypress/support/commands.ts", "test"],
   ["cypress.config.ts", "code"],
   ["web/greet.cy.ts", "test"],
+  ["web/greet.cy.jsx", "test"],
+  // `.cy.` is also the Welsh locale in Rails, i18next and .NET resource names
+  ["config/locales/devise.cy.yml", "code"],
+  ["public/locales/common.cy.json", "code"],
+  ["Resources/Strings.cy.resx", "code"],
   ["src/policy.ts", "code"],
   ["web/greet.e2e.ts", "test"],
   ["src/e2e-utils.ts", "code"],
