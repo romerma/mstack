@@ -304,10 +304,18 @@
   again, and a test keeps Getting-Started running.** Since items 40 and 41 an item moved to
   `in_progress` in a git repository gets a `base`, so its close needs the implementer's report with
   its `| R | Test | Where |` table and a verification that has run at the tree being closed; the pages
-  showed neither, and a reader who followed them was refused at the close. Each page now shows the
-  report and, where the item has a verification, `mstack gate --full`; every console block was
-  replaced from one real run, including the older drift (`mstack setup` prints two more lines and
-  commits 8 files, and the move to `in_progress` prints a `base:` line).
+  showed neither, and a reader who followed them was refused at the close. Getting-Started and the
+  README now show the report; The-Agents links to it. Getting-Started and The-Agents show the
+  reviewer's `mstack gate --full` at `reviewing`, where it is green, before the reviewer's row
+  (`agents/reviewer.md` forbids approving on a red gate); the README's item has no verification
+  and shows none. Every console block was replaced from one real run per page, including the older
+  drift (`mstack setup` prints two more lines and commits 8 files, and the move to `in_progress`
+  prints a `base:` line). A second round fixed what the first run had skipped: the run edits the
+  two lines of `current.md` the page names instead of replacing the file, so the commit stat is
+  the one a reader gets; the README commits the work before the implementer's row; Getting-Started
+  starts from a shown repository (`git init -b main`, `greet.py`, `test_greet.py`) and shows both
+  files in full, so the table's `test_greet.py:6` and `:9` are lines of a file on the page; and
+  The-Agents says what its item already has.
   `tests/walkthrough.test.ts` runs the Getting-Started sequence through the CLI in a throwaway
   repository and needs `python3`. `examples/notes-cli/README.md` records its stale verdict with
   evidence the ledger accepts.
