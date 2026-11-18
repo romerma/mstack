@@ -52,7 +52,9 @@ $ mstack setup
 [ok]    progress/history.md written
 [ok]    ledger.tsv ready
 [ok]    decisions.tsv ready
-[ok]    .mstack/.gitignore ready (verification.tsv is machine-local)
+[ok]    costs.tsv ready
+[ok]    .mstack/.gitattributes ready (the append-only tables merge as a union)
+[ok]    .mstack/.gitignore ready (verification.tsv and hook-errors.log are machine-local)
 
 PASSED - 0 failures, 0 warnings
 ```
@@ -67,6 +69,7 @@ gate passes with two warnings:
 
 ```console
 $ mstack gate
+
 -- store
 [ok]    state.json exists
 [ok]    progress/current.md exists
@@ -97,9 +100,11 @@ Commit the store; it is durable state and belongs in version control:
 ```console
 $ git add -A
 $ git commit -m "chore: add the mstack store"
-[main 4ef311d] chore: add the mstack store
- 6 files changed, 56 insertions(+)
+[main 160a631] chore: add the mstack store
+ 8 files changed, 64 insertions(+)
+ create mode 100644 .mstack/.gitattributes
  create mode 100644 .mstack/.gitignore
+ create mode 100644 .mstack/costs.tsv
  create mode 100644 .mstack/decisions.tsv
  create mode 100644 .mstack/ledger.tsv
  create mode 100644 .mstack/progress/current.md
@@ -146,6 +151,7 @@ Switched to a new branch 'feat/greet-flag'
 $ mstack state set greet-flag --status in_progress
 1 greet-flag (in_progress)
   status: "pending" -> "in_progress"
+  base: (unset) -> "160a631e8e6efeff93aa064857b790005569f186"
 ```
 
 ### The gate holds you to the checkpoint discipline
@@ -159,6 +165,7 @@ $ mstack gate
 [fail]  1 greet-flag (in_progress) is active but progress/current.md is not: the Item line still says _none_; Next step is still the empty template
         fix: if this session dies now, nothing tells the next one where to start
 ...
+
 FAILED - 1 failure, 1 warning
 ```
 
@@ -175,7 +182,7 @@ $ python3 greet.py --shout world
 HELLO, WORLD
 
 $ python3 -m unittest test_greet -v
-test_greet (test_greet.TestGreet) ... ok
+test_default (test_greet.TestGreet) ... ok
 test_shout (test_greet.TestGreet) ... ok
 
 ----------------------------------------------------------------------
@@ -184,17 +191,38 @@ Ran 2 tests in 0.000s
 OK
 ```
 
-Commit the work, then record the verdict against the head SHA:
+Write the implementation report, `.mstack/progress/impl_greet-flag.md`. The close reads its
+`| R | Test | Where |` table, one row per acceptance bullet in order (`A1`, `A2`);
+`agents/implementer.md` defines it. Cut to the part the close reads:
+
+```markdown
+# greet-flag: implementation report
+
+## What changed
+
+`greet.py` takes `--shout`; `test_greet.py` covers the flag and the default.
+
+## R to test
+
+| R | Test | Where |
+|---|---|---|
+| A1 | test_shout | test_greet.py:9 |
+| A2 | test_default, test_shout | test_greet.py:6, test_greet.py:9 |
+```
+
+Commit the work and the report, then record the verdict against the head SHA:
 
 ```console
 $ git add -A
 $ git commit -m "feat: greet --shout uppercases the greeting"
-[feat/greet-flag 4b63888] feat: greet --shout uppercases the greeting
- 4 files changed, 34 insertions(+), 11 deletions(-)
+[feat/greet-flag a397721] feat: greet --shout uppercases the greeting
+ 5 files changed, 37 insertions(+), 32 deletions(-)
+ create mode 100644 .mstack/progress/impl_greet-flag.md
 
 $ mstack ledger record greet-flag "$(git rev-parse HEAD)" test-verified \
-    --evidence "python3 -m unittest test_greet -v: 2 tests, OK" --verifier implementer
-recorded test-verified for greet-flag at 4b63888b
+    --evidence ".mstack/progress/impl_greet-flag.md: python3 -m unittest test_greet -v, 2 tests, OK" \
+    --verifier implementer
+recorded test-verified for greet-flag at a397721c
 ```
 
 `test-verified` is rung 4 on the evidence ladder: a test that calls the real code and fails
@@ -215,6 +243,7 @@ The legal route is `in_progress -> reviewing -> verifying -> done`:
 $ mstack state set greet-flag --status reviewing
 1 greet-flag (reviewing)
   status: "in_progress" -> "reviewing"
+
 $ mstack state set greet-flag --status verifying
 1 greet-flag (verifying)
   status: "reviewing" -> "verifying"
@@ -237,13 +266,24 @@ mstack: greet-flag cannot close: its only verdicts are from the pass that wrote 
 
 This is `require_verdict_to_close` doing its job, and `--force` does not get past it; the gate
 audits every closed item for the same thing. A reviewer that did not write the code runs the
-verification itself and records its own row, and the close goes through:
+verification itself: `gate --full` executes it and keeps the receipt the close reads, and it is
+red for one reason, the missing second row. The reviewer records its own row and the close goes
+through:
 
 ```console
+$ mstack gate --full
+...
+[fail]  1 greet-flag (verifying) is one step from done, and its only verdicts are from the pass that wrote the code (only implementer)
+        fix: a closing verdict has to come from a pass that did not write the code; run the verification again from one and record the row under a name that is not the author's (your own name, or `ci`), or, if no check could be run, record `verifier-blocked` under such a name
+...
+[ok]    python3 -m unittest test_greet -v
+
+FAILED - 1 failure, 1 warning
+
 $ mstack ledger record greet-flag "$(git rev-parse HEAD)" test-verified \
-    --evidence "reviewer re-ran python3 -m unittest test_greet: 2 tests, OK; diff read against both acceptance bullets" \
+    --evidence "reviewer ran mstack gate --full: python3 -m unittest test_greet -v, 2 tests, OK; diff read against both acceptance bullets" \
     --verifier reviewer
-recorded test-verified for greet-flag at 4b63888b
+recorded test-verified for greet-flag at a397721c
 
 $ mstack state set greet-flag --status done --closed-by "demo walkthrough"
 1 greet-flag (done)
@@ -254,6 +294,7 @@ $ mstack gate
 ...
 [ok]    1 closed item(s) carry a ledger verdict
 ...
+
 PASSED - 0 failures, 1 warning
 ```
 
@@ -269,18 +310,18 @@ the ledger again:
 ```console
 $ git add -A
 $ git commit -m "chore: close greet-flag"
-[feat/greet-flag ccb9e2e] chore: close greet-flag
+[feat/greet-flag 5ebbdfb] chore: close greet-flag
  2 files changed, 5 insertions(+), 2 deletions(-)
 
 $ printf '# demo\n' > README.md
 $ git add -A
 $ git commit -m "docs: add a readme"
-[feat/greet-flag 542ac0c] docs: add a readme
+[feat/greet-flag c0d7f3f] docs: add a readme
  1 file changed, 1 insertion(+)
  create mode 100644 README.md
 
 $ mstack ledger check greet-flag
-FAIL no verdict at 542ac0cf; 2 row(s) exist at other SHAs and a new head SHA voids them
+FAIL no verdict at c0d7f3ff; 2 row(s) exist at other SHAs and a new head SHA voids them
 ```
 
 A verdict is keyed by `(target, sha)`. This staleness is the one signal the status line exists
