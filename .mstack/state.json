@@ -564,7 +564,8 @@
         "The router, review and design skills say what is now true about cross-model second opinions, and docs/wiki/The-Agents.md shows each agent's model",
         "A live subagent transcript shows message.model sonnet for the implementer and opus for the reviewer, pasted in the impl report"
       ],
-      "status": "reviewing",
+      "status": "done",
+      "closed_by": "two rounds; review_role-models_r2.md APPROVED at c4b53a2; gate --full green on the first run",
       "seams": [
         "CLI: mstack lint-plugin output and exit code on a plugin with an agent whose model field is outside the allowed set",
         "a headless /mstack run with the plugin loaded: message.model in the implementer's and the reviewer's subagent transcripts"
@@ -1339,6 +1340,21 @@
       "status": "pending",
       "description": "One live spec per side (n=1 each): with the rule, tasks.md had 3 implementation tasks in 193 lines with paths, commands and expected output (3.19 USD, 25 turns, 781 s); at the base sha, 14 tasks in 33 lines with no commands (2.02 USD, 17 turns, 552 s). The new run's coordinator brief already asked for exact paths and commands and the old one did not, so the difference is not isolated to the skill text. Nobody executed the live tasks.md.",
       "source": "item 64 reviews, .mstack/progress/review_plans-for-a-contextless-executor.md and _r2.md, 2026-11-18"
+    },
+    {
+      "id": 91,
+      "slug": "role-models-followups",
+      "title": "Follow-ups from item 39: the allowed model list is narrower than Claude Code's, no test runs lint-plugin as a command, and smaller points",
+      "acceptance": [
+        "the allowed list is reconciled with the sub-agents page, which also admits provider ids (Bedrock, ARNs, Foundry), sonnet[1m] and opusplan; 'claude-' alone and any claude-... string pass today; 'model: opus # comment' is refused though YAML reads it as opus",
+        "one test runs lint-plugin as a command and checks its exit code on a failure",
+        "what Claude Code does with a typo'd model value at runtime is observed once (the reviewer's probe was refused by a safety check and not retried), and the missing-line against inherit difference is observed with CLAUDE_CODE_SUBAGENT_MODEL set",
+        "the wiki and CHANGELOG name the other overrides the page lists (a mod's agent.spawn hook, availableModels, fallback chains, the same-family rule) or say the list is partial; the missing-line sentence covers a model passed at launch and a nested subagent",
+        "skills/review/SKILL.md:26 'differs from the code's author' is true only when the implementer wrote the code; docs/research/pstack-port.md:385 says model defaults to inherit"
+      ],
+      "status": "pending",
+      "description": "Two live runs (n=1 each): session on Opus, implementer on claude-sonnet-5-5 and reviewer on claude-opus-5-5 (0.96 USD, 19 turns, 257 s); session on Sonnet, both implementer passes on Sonnet and both reviewer passes on Opus (1.08 USD, 37 turns, 354 s). spec-author and spec-reviewer were checked by frontmatter only. No cost comparison against inherit was made; items 49 and 45 measure it.",
+      "source": "item 39 reviews, .mstack/progress/review_role-models.md and _r2.md, 2026-11-18"
     }
   ]
 }

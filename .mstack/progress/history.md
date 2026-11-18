@@ -1359,3 +1359,27 @@ made by the coordinator and read by a fresh reviewer. Phase 2 is done except ite
 on the user's yes to open a real PR.
 
 **Filed.** Item 90 `task-sizing-followups`.
+
+## 2026-11-18 - item 39 role-models closed (2 rounds)
+
+**What shipped.** `agents/implementer.md` and `agents/spec-author.md` declare `model: sonnet`;
+`agents/reviewer.md` and `agents/spec-reviewer.md` declare `model: opus`; the orchestrator stays
+`inherit`. `lint-plugin` refuses a model outside `inherit`, `sonnet`, `opus`, `haiku`, `fable` or
+a `claude-*` id and names the file and the value. The router, review and design skills say what
+the pin gives (the review is a different model from the implementation) and what it does not
+(two lenses of a panel are the same model). The wiki shows each agent's model.
+
+**Evidence.** Two live runs: with the session on Opus the implementer ran on Sonnet; with the
+session on Sonnet the reviewer ran on Opus. No Agent call passed a model. First phase 3 item.
+
+**What the rounds taught.** "A missing line means inherit" was written from a docs page read to
+100,000 of 116,000 characters and was false: the frontmatter value, inherit included, ranks above
+`CLAUDE_CODE_SUBAGENT_MODEL`, and a missing line ranks below it. A precedence claim is quoted
+from the page, not paraphrased.
+
+**Closing.** `gate --full` green on the first run (bun 634/0, node 634/0). Round 2's edits were
+made by the coordinator and read by a fresh reviewer. A stray `current.md` from the reviewer's
+live run is left under `/private/tmp/claude-501/` outside any project; its removal was denied to
+the reviewer and not retried.
+
+**Filed.** Item 91 `role-models-followups`.
