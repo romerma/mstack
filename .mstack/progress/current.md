@@ -6,10 +6,10 @@
 > On close: append the summary to `history.md` and reset this file to the
 > empty template below.
 
-- **Item:** none active (43 closed 2026-11-18; 42 parked on a fork for the user)
-- **Status:** -
-- **Branch:** main
-- **Base:** -
+- **Item:** 82 any-role-name-closes
+- **Status:** in_progress (round 1)
+- **Branch:** fix/closing-role-rule
+- **Base:** 7d71f2e
 - **Worktree:** none
 
 ## Plan
