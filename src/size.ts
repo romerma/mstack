@@ -1,5 +1,5 @@
 import { readFileSync, realpathSync } from "node:fs";
-import { isAbsolute, join, relative } from "node:path";
+import { join, relative } from "node:path";
 
 import { defaultBranch, git, headSha } from "./git.ts";
 import type { Store } from "./paths.ts";
@@ -104,25 +104,30 @@ function isAncestor(store: Store, commit: string, of: string): boolean {
 }
 
 /**
- * The code that changed between `base` and the working tree.
+ * The code that changed between `from` and the working tree, under the store's
+ * root directory.
  *
  * Committed, staged, unstaged and untracked-but-not-ignored changes all count,
  * because the question is how big the item's work is, not how much of it has
- * been committed. Only paths the classifier calls `code` count, and nothing
- * under the store directory: a small fix with a thorough test and a progress
- * report is still small. A binary file is a file and no lines; an untracked
- * file's lines are all insertions. Returns null when git cannot answer.
+ * been committed. Only what lies under the directory that holds `.mstack/`
+ * counts, and paths are classified relative to it, so a store in `pkg/app` of
+ * a monorepo measures `pkg/app` and its `tests/` holds tests. Only paths the
+ * classifier calls `code` count, and nothing under the store directory: a
+ * small fix with a thorough test and a progress report is still small. A
+ * binary file is a file and no lines; an untracked file's lines are all
+ * insertions. Returns null when git cannot answer.
  */
-export function measureDiff(store: Store, base: string): DiffSize | null {
-  const top = git(store, ["rev-parse", "--show-toplevel"]);
-  if (top === null) return null;
+export function measureDiff(store: Store, from: string): DiffSize | null {
+  // Both commands run in the store's root. `--relative` keeps only the changes
+  // under it and prints their paths relative to it; `ls-files` without
+  // `--full-name` does the same for untracked files.
   // `--numstat -z` with `--no-renames`: "<ins>\t<del>\t<path>\0" per file, nothing quoted.
-  const numstat = git(store, ["diff", "--numstat", "--no-renames", "-z", base, "--"], { raw: true });
-  const untracked = git(store, ["ls-files", "--others", "--exclude-standard", "--full-name", "-z"], { raw: true });
+  const numstat = git(store, ["diff", "--numstat", "--no-renames", "--relative", "-z", from, "--"], { raw: true });
+  const untracked = git(store, ["ls-files", "--others", "--exclude-standard", "-z"], { raw: true });
   if (numstat === null || untracked === null) return null;
 
-  // Both sides real: git reports the real top-level, and a store reached through
-  // a symlink (macOS /var, a linked checkout) would otherwise relate to it as "..".
+  // Both sides real, so a root reached through a symlink (macOS /var, a linked
+  // checkout) and a store directory resolved elsewhere cannot relate as "..".
   const real = (p: string): string => {
     try {
       return realpathSync(p);
@@ -130,7 +135,7 @@ export function measureDiff(store: Store, base: string): DiffSize | null {
       return p;
     }
   };
-  const storeDir = relative(real(top), real(store.dir)).split("\\").join("/");
+  const storeDir = relative(real(store.root), real(store.dir)).split("\\").join("/");
   const counted = (path: string): boolean => {
     if (storeDir !== "" && !storeDir.startsWith("..") && (path === storeDir || path.startsWith(`${storeDir}/`))) return false;
     return classifyPath(path) === "code";
@@ -150,7 +155,7 @@ export function measureDiff(store: Store, base: string): DiffSize | null {
   for (const path of untracked.split("\0")) {
     if (path === "" || !counted(path)) continue;
     files += 1;
-    lines += countLines(isAbsolute(path) ? path : join(top, path));
+    lines += countLines(join(store.root, path));
   }
   return { lines, files };
 }

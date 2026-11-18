@@ -7,7 +7,8 @@ import { fileURLToPath } from "node:url";
 
 import { runGate } from "../src/gate.ts";
 import { defaultBranch } from "../src/git.ts";
-import type { Store } from "../src/paths.ts";
+import { storeAt, type Store } from "../src/paths.ts";
+import { setup } from "../src/setup.ts";
 import { captured, item, sandbox, state, trackCurrent } from "./helpers.ts";
 
 /**
@@ -655,6 +656,50 @@ test("with no main, no master and no origin/HEAD the default branch reads as mai
     const failures = sizeFailures(box);
     assert.equal(failures.length, 1, JSON.stringify(failures));
     assert.ok(failures[0]!.includes(`code diff from ${short(base)} is 210 lines in 6 files`), failures[0]);
+  });
+});
+
+// ------------------------------------------------- a store in a sub-directory
+
+/**
+ * A store in `sub` of the sandbox's repository, the layout `mstack setup` run
+ * in `pkg/app` of a monorepo gives, with an active size-s item based at `base`.
+ */
+function subStore(box: Box, sub: string, base: string): Store {
+  const root = join(box.store.root, sub);
+  mkdirSync(root, { recursive: true });
+  captured(() => setup(root));
+  const store = storeAt(root);
+  writeFileSync(store.state, `${JSON.stringify(state([item({ status: "in_progress", size: "s", base })]), null, 2)}\n`);
+  writeFileSync(store.current, "# Current session\n\n- **Item:** the one under test\n\n## Next step\n\ncarry on\n");
+  return store;
+}
+
+test("a store in a sub-directory measures that directory only, tracked and untracked alike", GATE, () => {
+  withBox((box) => {
+    put(box, "pkg/app/src/a.ts", lines("a", 20));
+    put(box, "top.ts", lines("t", 20));
+    const base = commitAll(box, "one file inside the store's directory, one outside");
+    const store = subStore(box, "pkg/app", base);
+    put(box, "pkg/app/src/a.ts", lines("a", 30));
+    put(box, "pkg/app/src/u.ts", lines("u", 15));
+    put(box, "top.ts", lines("t", 300));
+    put(box, "other.ts", lines("o", 500));
+    const line = sizeLine(box, store);
+    assert.match(line, /25 lines in 2 files of code/);
+  });
+});
+
+test("in a sub-directory store, paths are classified from the store's root, so its tests/ holds tests", GATE, () => {
+  withBox((box) => {
+    put(box, "pkg/app/tests/y.ts", lines("y", 10));
+    const base = commitAll(box, "a test under the store's directory");
+    const store = subStore(box, "pkg/app", base);
+    put(box, "pkg/app/tests/y.ts", lines("y", 300));
+    put(box, "pkg/app/tests/x.ts", lines("x", 500));
+    put(box, "pkg/app/src/b.ts", lines("b", 10));
+    const line = sizeLine(box, store);
+    assert.match(line, /10 lines in 1 file of code/);
   });
 });
 
