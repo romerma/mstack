@@ -235,16 +235,6 @@ test("a citation may carry a column, which is ignored: the line is what is check
   });
 });
 
-test("a citation that names a FIFO is refused without being opened, so the gate cannot block on it", T, () => {
-  inWorld({ reports: { "impl_tbl.md": GOOD.replace("`tests/a.test.ts:3`", "tests/pipe.test.ts:3") } }, (box) => {
-    const made = spawnSync("mkfifo", [join(box.store.root, "tests/pipe.test.ts")]);
-    if (made.status !== 0) return; // no mkfifo on this platform
-    const r = spawnSync(EXE.exe, [...EXE.flags, CLI, "gate"], { cwd: box.store.root, encoding: "utf8", timeout: 10_000 });
-    assert.equal(r.status, 1, `the gate did not finish: signal ${r.signal}`);
-    assert.ok(r.stdout.includes(`${REPORT} line 6 (A1): tests/pipe.test.ts:3 is not a regular file`), r.stdout);
-  });
-});
-
 test("a citation that names a directory says so, and one that names a file it cannot read says that", T, () => {
   inWorld({ files: { "tests/fixtures/x.json": "{}\n" }, reports: { "impl_tbl.md": GOOD.replace("`tests/a.test.ts:3`", "tests/fixtures:3") } }, (box) => {
     const gate = cli(box, "gate");
@@ -485,5 +475,15 @@ test("a report file for a lens is not the implementation report", T, () => {
     const gate = cli(box, "gate");
     assert.equal(gate.code, 1);
     assert.ok(gate.stdout.includes("it has no implementation report to read"), gate.stdout);
+  });
+});
+
+test("a citation that names a FIFO is refused without being opened, so the gate cannot block on it", T, () => {
+  inWorld({ reports: { "impl_tbl.md": GOOD.replace("`tests/a.test.ts:3`", "tests/pipe.test.ts:3") } }, (box) => {
+    const made = spawnSync("mkfifo", [join(box.store.root, "tests/pipe.test.ts")]);
+    if (made.status !== 0) return; // no mkfifo on this platform
+    const r = spawnSync(EXE.exe, [...EXE.flags, CLI, "gate"], { cwd: box.store.root, encoding: "utf8", timeout: 10_000 });
+    assert.equal(r.status, 1, `the gate did not finish: signal ${r.signal}`);
+    assert.ok(r.stdout.includes(`${REPORT} line 6 (A1): tests/pipe.test.ts:3 is not a regular file`), r.stdout);
   });
 });

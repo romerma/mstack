@@ -1,6 +1,6 @@
 # Implementation - r-to-test-check (item 41, round 2)
 
-> Correction by the coordinator after the round 2 review (`review_r-to-test-check_r2.md`, finding 7): where this report says "+9 tests" the count is +6 (40 + 1 + 6 = 47, which matches 745 to 792), and where it says 25 mutants were killed on the first run its own `mut.out` shows 24. The totals are right.
+> Correction by the coordinator after the round 2 review (`review_r-to-test-check_r2.md`, non-blocking finding 8): where this report says "+9 tests" the count is +6 (40 + 1 + 6 = 47, which matches 745 to 792), and where it says "Final run: 25" killed its own `mut.out` shows 24 killed and 1 survived. The totals are right. The risk table below still lists `**/*.cy.*`; round 3 narrowed that pattern (see `impl_r-to-test-check_r3.md`).
 
 Answers `.mstack/progress/review_r-to-test-check.md` (round 1, CHANGES_REQUESTED). All three
 blocking findings held at head and are fixed; the non-blocking ones named in the brief are fixed;

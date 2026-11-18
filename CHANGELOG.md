@@ -17,8 +17,9 @@
   (`path:line:col`), which is ignored; a directory, a file that is not a regular file and one that
   cannot be read each get their own message. A forced close says what it was forced past:
   `closed_by` starts `closed without a good requirement-to-test table (forced): ` when the table
-  was the check overridden, and keeps `closed unverified (forced): ` when a verification did not
-  run. `agents/reviewer.md` says a gate that is red only on the item's own table does not stop the
+  was the only check overridden, `closed unverified and without a good requirement-to-test table
+  (forced): ` when a verification did not run either, and keeps `closed unverified (forced): `
+  when only a verification did not run. `agents/reviewer.md` says a gate that is red only on the item's own table does not stop the
   review.
 - **The path classifier knows more test layouts, which changes what the size-s check counts.**
   Besides `tests/`, `test/`, `__tests__/`, `*.test.*`, `*.spec.*` and the Python and Go names, a
