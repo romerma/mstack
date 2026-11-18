@@ -165,3 +165,4 @@ verify-claim-gate	99ca8cc65f5176c67f97a661d2ac3ca7dee12bcc	live-verified	.mstack
 review-findings-verified-first	55de2ed2024eede77bee635278556c570d732994	test-verified	.mstack/progress/impl_review-findings-verified-first.md	implementer	2026-11-18T06:55:57.510Z
 review-findings-verified-first	ef756fb9b9c9ca993476d4e38a2aa15e1fd8f32e	verifier-failed	.mstack/progress/review_review-findings-verified-first.md	reviewer	2026-11-18T07:09:48.289Z
 review-findings-verified-first	fa4c0c2eab97a3a89d4dc01285279c2f0ee0220e	test-verified	.mstack/progress/review_review-findings-verified-first_r2.md	reviewer	2026-11-18T07:15:32.836Z
+plans-for-a-contextless-executor	cfc95dd2ab16cf5e8fef1d864a11ea02afb863e0	test-verified	.mstack/progress/impl_plans-for-a-contextless-executor.md	implementer	2026-11-18T07:28:56.687Z
