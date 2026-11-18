@@ -47,6 +47,7 @@ interface World {
   reports?: Record<string, string>;
   spec?: string;
   files?: Record<string, string>;
+  verification?: string;
 }
 
 function world(w: World = {}): Box {
@@ -70,6 +71,7 @@ function world(w: World = {}): Box {
         acceptance: ["first criterion", "second criterion", "third criterion"],
         ...(w.base === false ? {} : { base: box.sha }),
         ...(w.sdd === true ? { sdd: true } : {}),
+        ...(w.verification === undefined ? {} : { verification: w.verification }),
       }),
     ]),
   );
@@ -286,22 +288,68 @@ test("an item still in progress is not reported by the gate", T, () => {
   });
 });
 
-test("a done item is not checked", T, () => {
-  inWorld({ status: "verifying", reports: { "impl_tbl.md": "no table\n" } }, (box) => {
-    const forced = cli(box, "state", "set", "tbl", "--status", "done", "--force", "--closed-by", "checked by hand");
-    assert.equal(forced.code, 0, forced.stderr);
+test("a done item with a report that has no table is left alone: its note can be edited, unmarked", T, () => {
+  // Pins what a person sees. The guard that makes closingProblems read nothing for a
+  // closed item is killed by the function-level test at the end of this file.
+  inWorld({ status: "done", reports: { "impl_tbl.md": "no table\n" } }, (box) => {
     const gate = cli(box, "gate");
     assert.ok(!gate.stdout.includes("R | Test | Where"), gate.stdout);
+    const note = cli(box, "state", "set", "tbl", "--closed-by", "merged in PR 7");
+    assert.equal(note.code, 0, note.stderr);
+    assert.ok(!note.stdout.includes("forced"), note.stdout);
+    assert.equal(parseState(box.store.state).items[0]?.closed_by, "merged in PR 7");
   });
 });
 
-test("--force with --closed-by closes past a table problem, and says it was forced", T, () => {
-  inWorld({ status: "verifying", reports: { "impl_tbl.md": HEAD + "| A1 | x | tests/a.test.ts:1 |\n" } }, (box) => {
+const TABLE_FORCED = "closed without a good requirement-to-test table (forced): ";
+const BOTH_FORCED = "closed unverified and without a good requirement-to-test table (forced): ";
+const BAD_TABLE = HEAD + "| A1 | x | tests/a.test.ts:1 |\n";
+const closedBy = (box: Box): string | undefined => parseState(box.store.state).items[0]?.closed_by;
+
+test("--force past the table only: the refusal, the printed line and closed_by name the table, not a verification", T, () => {
+  inWorld({ status: "verifying", reports: { "impl_tbl.md": BAD_TABLE } }, (box) => {
     const refused = cli(box, "state", "set", "tbl", "--status", "done", "--force");
     assert.equal(refused.code, 2);
-    assert.ok(refused.stderr.includes("--closed-by"), refused.stderr);
+    assert.ok(refused.stderr.includes("--force would close tbl past a failed closing check, and that has to be on the record"), refused.stderr);
+    assert.ok(refused.stderr.includes(`it is stored in state.json as "${TABLE_FORCED}..."`), refused.stderr);
+    assert.ok(!refused.stderr.includes("unverified"), refused.stderr);
     const forced = cli(box, "state", "set", "tbl", "--status", "done", "--force", "--closed-by", "A2 and A3 are proven elsewhere");
     assert.equal(forced.code, 0, forced.stderr);
+    assert.ok(forced.stdout.includes(`forced: closed without a good requirement-to-test table - ${REPORT} has no row for A2`), forced.stdout);
+    assert.ok(!forced.stdout.includes("did not run here"), forced.stdout);
+    assert.equal(closedBy(box), `${TABLE_FORCED}A2 and A3 are proven elsewhere`);
+    // a later note keeps the marker, and it is still the table's
+    assert.equal(cli(box, "state", "set", "tbl", "--closed-by", "PR 5 merged").code, 0);
+    assert.equal(closedBy(box), `${TABLE_FORCED}PR 5 merged`);
+  });
+});
+
+test("--force past a verification only keeps its existing words, with a good table", T, () => {
+  inWorld({ status: "verifying", verification: "pytest -q" }, (box) => {
+    const forced = cli(box, "state", "set", "tbl", "--status", "done", "--force", "--closed-by", "no python on this host");
+    assert.equal(forced.code, 0, forced.stderr);
+    assert.ok(forced.stdout.includes("forced: closed on a verification that did not run here - "), forced.stdout);
+    assert.ok(!forced.stdout.includes("requirement-to-test"), forced.stdout);
+    assert.equal(closedBy(box), "closed unverified (forced): no python on this host");
+  });
+});
+
+test("--force past both says both, verification first, and a later note keeps the marker", T, () => {
+  inWorld({ status: "verifying", verification: "pytest -q", reports: { "impl_tbl.md": BAD_TABLE } }, (box) => {
+    const refused = cli(box, "state", "set", "tbl", "--status", "done", "--force");
+    assert.equal(refused.code, 2);
+    assert.ok(refused.stderr.includes(`it is stored in state.json as "${BOTH_FORCED}..."`), refused.stderr);
+    const forced = cli(box, "state", "set", "tbl", "--status", "done", "--force", "--closed-by", "checked by hand");
+    assert.equal(forced.code, 0, forced.stderr);
+    const out = forced.stdout.split("\n");
+    const verif = out.findIndex((l) => l.startsWith("  forced: closed on a verification that did not run here - "));
+    const table = out.findIndex((l) => l.startsWith("  forced: closed without a good requirement-to-test table - "));
+    assert.ok(verif >= 0 && table > verif, forced.stdout);
+    assert.ok(!out[verif]!.includes("has no row for"), "the verification line carries only verification problems: " + out[verif]);
+    assert.ok(out[table]!.includes("has no row for A2"), out[table]);
+    assert.equal(closedBy(box), `${BOTH_FORCED}checked by hand`);
+    assert.equal(cli(box, "state", "set", "tbl", "--closed-by", "PR 5 merged").code, 0);
+    assert.equal(closedBy(box), `${BOTH_FORCED}PR 5 merged`);
   });
 });
 

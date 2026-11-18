@@ -6,7 +6,7 @@ import * as costs from "./costs.ts";
 import * as decisions from "./decisions.ts";
 import * as fanout from "./fanout.ts";
 import { EXIT, evaluate, fetchPr } from "./mergegate.ts";
-import { closingProblems, VERIFICATION_CHECK } from "./closing.ts";
+import { closingProblems, R_TO_TEST_CHECK, VERIFICATION_CHECK } from "./closing.ts";
 import { itemLabel, runGate } from "./gate.ts";
 import { defaultBranch, headSha } from "./git.ts";
 import * as hooklog from "./hooklog.ts";
@@ -224,6 +224,11 @@ const UNCLEARABLE: Readonly<Record<string, string>> = {
  * two spellings of it would silently stop the marker surviving a later note.
  */
 export const FORCED_UNVERIFIED = "closed unverified (forced): ";
+/** The same, when the only check overridden was the requirement-to-test table. */
+export const FORCED_TABLE = "closed without a good requirement-to-test table (forced): ";
+/** The same, when both were overridden. */
+export const FORCED_BOTH = "closed unverified and without a good requirement-to-test table (forced): ";
+const FORCED_MARKERS: readonly string[] = [FORCED_UNVERIFIED, FORCED_TABLE, FORCED_BOTH];
 
 /** How much of a long field to echo back when reporting what changed. */
 const PREVIEW = 48;
@@ -582,8 +587,8 @@ function cmdState(argv: readonly string[]): number {
       }
 
       const changes: string[] = [];
-      /** Set when `--force` carried a close past an unverified verification. */
-      let forcedUnverified: string | undefined;
+      /** Set when `--force` carried a close past a failed closing check: the marker for closed_by and the lines to print. */
+      let forcedClose: { marker: string; lines: string[] } | undefined;
       /** What the note said before this command touched anything. */
       const closedByBefore = item.closed_by;
 
@@ -635,6 +640,13 @@ function cmdState(argv: readonly string[]): number {
           // ones, which is what every message here said before there was a second check.
           const verificationOnly = problems.every((p) => p.check === VERIFICATION_CHECK);
           const summary = problems.map((p) => p.message).join("; ");
+          // Which checks a --force would override, named by their own words: the table
+          // is not a verification, and saying one did not run when only the table was
+          // wrong is a false record in the one place a later reader looks.
+          const tableProblems = problems.filter((p) => p.check === R_TO_TEST_CHECK);
+          const otherProblems = problems.filter((p) => p.check !== R_TO_TEST_CHECK);
+          const marker =
+            tableProblems.length > 0 && otherProblems.length > 0 ? FORCED_BOTH : tableProblems.length > 0 ? FORCED_TABLE : FORCED_UNVERIFIED;
           if (problems.length > 0) {
             if (values.force !== true) {
               throw new UserError(
@@ -663,10 +675,20 @@ function cmdState(argv: readonly string[]): number {
                 verificationOnly
                   ? `--force would close ${item.slug} on a verification that has not run, and that has to be on the record`
                   : `--force would close ${item.slug} past a failed closing check, and that has to be on the record`,
-                `add --closed-by "<why closing unverified is right here>"; it is stored in state.json as "${FORCED_UNVERIFIED}...", where the next reader will find it`,
+                `add --closed-by "<why ${marker === FORCED_TABLE ? "closing without the table" : "closing unverified"} is right here>"; it is stored in state.json as "${marker}...", where the next reader will find it`,
               );
             }
-            forcedUnverified = summary;
+            forcedClose = {
+              marker,
+              lines: [
+                ...(otherProblems.length > 0
+                  ? [`  forced: closed on a verification that did not run here - ${otherProblems.map((p) => p.message).join("; ")}`]
+                  : []),
+                ...(tableProblems.length > 0
+                  ? [`  forced: closed without a good requirement-to-test table - ${tableProblems.map((p) => p.message).join("; ")}`]
+                  : []),
+              ],
+            };
           }
         }
         if (item.status !== values.status) changes.push(...fieldChange("status", item.status, values.status));
@@ -708,13 +730,13 @@ function cmdState(argv: readonly string[]): number {
         // command after a merge, so it was not a contrived path. The marker is
         // carried across any rewrite of the note; the words after it are theirs.
         const marked =
-          key === "closed_by" && (item.closed_by ?? "").startsWith(FORCED_UNVERIFIED) ? `${FORCED_UNVERIFIED}${next}` : next;
+          key === "closed_by" ? `${FORCED_MARKERS.find((m) => (item.closed_by ?? "").startsWith(m)) ?? ""}${next}` : next;
         item[key] = marked;
         // A forced close reports its own `closed_by` line below, from the value
         // the item carried when the command started. Reporting it here as well
         // printed two consecutive `closed_by:` changes, which is honest and reads
         // like a bug.
-        if (before !== marked && !(key === "closed_by" && forcedUnverified !== undefined)) {
+        if (before !== marked && !(key === "closed_by" && forcedClose !== undefined)) {
           changes.push(...fieldChange(key, before, marked));
         }
       }
@@ -723,11 +745,11 @@ function cmdState(argv: readonly string[]): number {
       // being overwritten by it. A reader opening state.json has to be able to
       // tell a forced unverified close from an ordinary note, and the reason they
       // gave is kept verbatim after the marker.
-      if (forcedUnverified !== undefined) {
-        const note = `${FORCED_UNVERIFIED}${item.closed_by ?? ""}`;
+      if (forcedClose !== undefined) {
+        const note = `${forcedClose.marker}${item.closed_by ?? ""}`;
         changes.push(...fieldChange("closed_by", closedByBefore, note));
         item.closed_by = note;
-        changes.push(`  forced: closed on a verification that did not run here - ${forcedUnverified}`);
+        changes.push(...forcedClose.lines);
       }
 
       if (values.acceptance !== undefined) {
