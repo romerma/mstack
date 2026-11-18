@@ -5,6 +5,7 @@ import { join } from "node:path";
 
 import { add as addDecision } from "../src/decisions.ts";
 import { cli, inWorld, report, reportWithTable, SPAWNING, type Box } from "./budget-helpers.ts";
+import { recordClosingVerdict } from "./helpers.ts";
 
 /**
  * Item 43, seam 3: `mstack gate` on a store whose active item has a base, with a
@@ -116,6 +117,7 @@ test("another item's big report is not this item's", SPAWNING, () => {
 
 test("closing is refused over a big report, and --force does not vouch for it", SPAWNING, () => {
   inWorld({ status: "verifying", reports: { "impl_bud.md": reportWithTable(LIMIT + 1) } }, (box) => {
+    recordClosingVerdict(box, "bud");
     const done = cli(box, "state", "set", "bud", "--status", "done");
     assert.notEqual(done.code, 0);
     assert.match(done.stderr, /bud cannot close: its report \.mstack\/progress\/impl_bud\.md is 24577 bytes/);
@@ -127,6 +129,7 @@ test("closing is refused over a big report, and --force does not vouch for it", 
 
 test("closing is refused over a round 3 report with no row", SPAWNING, () => {
   inWorld({ status: "verifying", reports: { "review_bud_r3.md": BODY } }, (box) => {
+    recordClosingVerdict(box, "bud");
     const done = cli(box, "state", "set", "bud", "--status", "done");
     assert.notEqual(done.code, 0);
     assert.match(done.stderr, /review_bud_r3\.md is round 3 and has no decision row/);

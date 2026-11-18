@@ -12,7 +12,7 @@ import { Report } from "../src/report.ts";
 import { receipts, record as recordRaw } from "../src/verification.ts";
 import { add as addDecision } from "../src/decisions.ts";
 import { EMPTY_NEXT_STEP } from "../src/setup.ts";
-import { captured, expectFail, expectPass, item, quiesce, recordReceipt, sandbox, state, trackCurrent } from "./helpers.ts";
+import { captured, expectFail, expectPass, item, quiesce, recordClosingVerdict, recordReceipt, sandbox, state, trackCurrent } from "./helpers.ts";
 
 /**
  * The fast gate, quiet, with both streams captured.
@@ -934,6 +934,7 @@ test("a recorded passing run at this commit turns it green", () => {
   try {
     sb.writeState(state([item({ status: "verifying", verification: "pytest -q" })]));
     trackCurrent(sb);
+    recordClosingVerdict(sb);
     recordReceipt(sb, { target: "storage-layer", sha: sb.sha, command: "pytest -q", outcome: "passed" });
     expectPass(gate(sb), "recorded green run");
   } finally {
@@ -960,6 +961,7 @@ test("a run recorded at an older commit does not carry over", () => {
   try {
     sb.writeState(state([item({ status: "verifying", verification: "pytest -q" })]));
     trackCurrent(sb);
+    recordClosingVerdict(sb);
     recordReceipt(sb, { target: "storage-layer", sha: sb.sha, command: "pytest -q", outcome: "passed" });
     expectPass(gate(sb), "green at this commit");
 
@@ -1013,6 +1015,7 @@ test("an item at verifying with nothing configured warns rather than wedging", (
     // check could be run" is the verifier-blocked verdict.
     sb.writeState(state([item({ status: "verifying" })], { verify: "" }));
     trackCurrent(sb);
+    recordClosingVerdict(sb);
     const report = gate(sb);
     expectPass(report, "nothing configured");
     assert.ok(
@@ -1031,6 +1034,7 @@ test("both configured commands have to have run, not just one", () => {
       state([item({ status: "verifying", verification: "pytest -q" })], { verify: "make check" }),
     );
     trackCurrent(sb);
+    recordClosingVerdict(sb);
     recordReceipt(sb, { target: "(project)", sha: sb.sha, command: "make check", outcome: "passed" });
     expectFail(gate(sb), /`pytest -q` has never been executed/, "one green does not carry the other");
 
@@ -1063,6 +1067,7 @@ test("--full records what it ran, and the fast gate afterwards is green", () => 
   try {
     sb.writeState(state([item({ status: "verifying", verification: "true" })]));
     trackCurrent(sb);
+    recordClosingVerdict(sb);
     expectFail(gate(sb), /`true` has never been executed/, "before");
 
     expectPass(captured(() => runGate(sb.store, { full: true, quiet: true })).value, "--full itself");
@@ -1128,6 +1133,7 @@ test("--full does not ask for a receipt of the run it is about to perform", () =
     // that the same process disproves three lines later.
     sb.writeState(state([item({ status: "verifying", verification: "true" })]));
     trackCurrent(sb);
+    recordClosingVerdict(sb);
     const report = captured(() => runGate(sb.store, { full: true, quiet: true })).value;
     expectPass(report, "--full on a store with no prior run");
   } finally {
@@ -1151,6 +1157,7 @@ test("an unreadable receipt file is a failure, not a green gate", () => {
   try {
     sb.writeState(state([item({ status: "verifying", verification: "pytest -q" })]));
     trackCurrent(sb);
+    recordClosingVerdict(sb);
     recordReceipt(sb, { target: "storage-layer", sha: sb.sha, command: "pytest -q", outcome: "passed" });
     expectPass(gate(sb), "readable and green");
 
@@ -1207,6 +1214,7 @@ test("an uncommitted edit after the run voids the receipt", () => {
   try {
     sb.writeState(state([item({ status: "verifying", verification: "pytest -q" })]));
     trackCurrent(sb);
+    recordClosingVerdict(sb);
     const head = quiesce(sb);
     recordReceipt(sb, { target: "storage-layer", sha: head, command: "pytest -q", outcome: "passed" });
     expectPass(gate(sb), "green against the tree it ran on");
@@ -1244,6 +1252,7 @@ test("editing an already-dirty tracked file voids the receipt, though its status
     writeFileSync(join(sb.store.root, "check.sh"), "exit 0\n", "utf8");
     sb.writeState(state([item({ status: "verifying", verification: "sh check.sh" })]));
     trackCurrent(sb);
+    recordClosingVerdict(sb);
     const head = quiesce(sb);
 
     // The precondition that made this invisible: dirty *before* the run.
@@ -1267,6 +1276,7 @@ test("editing an already-dirty untracked file voids it too, which git diff alone
   try {
     sb.writeState(state([item({ status: "verifying", verification: "sh check.sh" })]));
     trackCurrent(sb);
+    recordClosingVerdict(sb);
     const head = quiesce(sb);
 
     // Untracked and staying untracked: `?? check.sh` before and after, and
@@ -1301,6 +1311,7 @@ test("a verification that writes into the repository does not void its own recei
       state([item({ status: "verifying", verification: "printf 'ran\\n' >> build.log" })]),
     );
     trackCurrent(sb);
+    recordClosingVerdict(sb);
     quiesce(sb);
 
     expectPass(captured(() => runGate(sb.store, { full: true, quiet: true })).value, "--full itself");
@@ -1329,6 +1340,7 @@ test("an untracked symlink does not switch the tree half off, so a red verificat
       writeFileSync(join(sb.store.root, "check.sh"), "exit 0\n", "utf8");
       sb.writeState(state([item({ status: "verifying", verification: "sh check.sh" })]));
       trackCurrent(sb);
+      recordClosingVerdict(sb);
       quiesce(sb);
       symlinkSync(shared, join(sb.store.root, "assets"));
 
@@ -1398,6 +1410,7 @@ test("a modified tracked file voids the receipt too, leading space and all", () 
     writeFileSync(join(sb.store.root, "app.js"), "module.exports = 1;\n", "utf8");
     sb.writeState(state([item({ status: "verifying", verification: "pytest -q" })]));
     trackCurrent(sb);
+    recordClosingVerdict(sb);
     const head = quiesce(sb);
     recordReceipt(sb, { target: "storage-layer", sha: head, command: "pytest -q", outcome: "passed" });
     expectPass(gate(sb), "committed and green");
@@ -1414,6 +1427,7 @@ test("edits inside .mstack/ do not void a run, or the gate would be red every tu
   try {
     sb.writeState(state([item({ status: "verifying", verification: "pytest -q" })]));
     trackCurrent(sb);
+    recordClosingVerdict(sb);
     const head = quiesce(sb);
     recordReceipt(sb, { target: "storage-layer", sha: head, command: "pytest -q", outcome: "passed" });
 

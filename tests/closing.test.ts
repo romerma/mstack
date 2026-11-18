@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 
 import { closingProblems } from "../src/closing.ts";
 import { parseState } from "../src/state.ts";
-import { item, quiesce, recordReceipt, sandbox, state, trackCurrent } from "./helpers.ts";
+import { item, quiesce, recordClosingVerdict, recordReceipt, sandbox, state, trackCurrent } from "./helpers.ts";
 
 const BIN = join(dirname(fileURLToPath(import.meta.url)), "..", "bin", "mstack");
 
@@ -22,6 +22,7 @@ test("closingProblems, the gate and state set agree that an unrun verification b
   try {
     sb.writeState(state([item({ status: "verifying", verification: "pytest -q" })]));
     trackCurrent(sb);
+    recordClosingVerdict(sb);
     const sha = quiesce(sb);
     const st = parseState(sb.store.state);
     const it = st.items[0]!;
@@ -52,6 +53,7 @@ test("an unreadable receipt file is a problem, not a throw, and is the one --for
   try {
     sb.writeState(state([item({ status: "verifying", verification: "pytest -q" })]));
     trackCurrent(sb);
+    recordClosingVerdict(sb);
     mkdirSync(sb.store.verification);
     const st = parseState(sb.store.state);
     const problems = closingProblems(sb.store, st, st.items[0]!);
@@ -109,6 +111,7 @@ test("a second closing check is seen by the gate and refused by state set, with 
   try {
     sb.writeState(state([item({ status: "verifying" })], { verify: "" }));
     trackCurrent(sb);
+    recordClosingVerdict(sb);
     quiesce(sb);
 
     // Control: with only the verification check, nothing blocks and the gate passes.
@@ -146,6 +149,7 @@ test("a check that is not overridable stays closed under --force", () => {
   try {
     sb.writeState(state([item({ status: "verifying" })], { verify: "" }));
     trackCurrent(sb);
+    recordClosingVerdict(sb);
     const forced = cliWithSecondCheck(
       sb.store.root, ["state", "set", "storage-layer", "--status", "done", "--force", "--closed-by", "because"], false,
     );
@@ -162,6 +166,7 @@ test("at verifying the gate reports every check, whatever its reportedAt says", 
   try {
     sb.writeState(state([item({ status: "verifying" })], { verify: "" }));
     trackCurrent(sb);
+    recordClosingVerdict(sb);
     quiesce(sb);
     const gate = cliWithSecondCheck(sb.store.root, ["gate"], true, ["reviewing"]);
     assert.equal(gate.code, 1, gate.stdout);

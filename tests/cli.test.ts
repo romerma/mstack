@@ -7,7 +7,7 @@ import { dirname, join } from "node:path";
 import { mkdirSync } from "node:fs";
 
 import { parseState } from "../src/state.ts";
-import { item, quiesce, sandbox, state, trackCurrent } from "./helpers.ts";
+import { item, quiesce, recordClosingVerdict, sandbox, state, trackCurrent } from "./helpers.ts";
 
 const BIN = join(dirname(fileURLToPath(import.meta.url)), "..", "bin", "mstack");
 
@@ -314,6 +314,7 @@ test("--status and --closed-by keep working exactly as before", () => {
     // transition and a plain note, so the item goes back to one with no base,
     // as every item from before that check is.
     sb.writeState(state([item({ status: "in_progress" })]));
+    recordClosingVerdict(sb);
     const forced = run(sb.store.root, ["state", "set", "1", "--status", "done", "--force"]);
     assert.equal(forced.code, 0, forced.stderr);
     assert.equal(only(sb).status, "done");
@@ -633,6 +634,7 @@ test("an item cannot be closed on a verification that never ran here", () => {
   try {
     sb.writeState(state([item({ status: "verifying", verification: "pytest -q" })]));
     trackCurrent(sb);
+    recordClosingVerdict(sb);
     const refused = run(sb.store.root, ["state", "set", "storage-layer", "--status", "done"]);
     assert.equal(refused.code, 2, refused.stdout);
     assert.match(refused.stderr, /cannot close on a verification that has not run/);
@@ -670,6 +672,7 @@ test("--force on an unverified close is refused without a reason on the record",
   try {
     sb.writeState(state([item({ status: "verifying", verification: "pytest -q" })]));
     trackCurrent(sb);
+    recordClosingVerdict(sb);
     const bare = run(sb.store.root, ["state", "set", "storage-layer", "--status", "done", "--force"]);
     assert.equal(bare.code, 2, `--force alone must not close it: ${bare.stdout}`);
     assert.match(bare.stderr, /has to be on the record/);
@@ -685,6 +688,7 @@ test("--force with a reason closes it, and the reason is durable and marked", ()
   try {
     sb.writeState(state([item({ status: "verifying", verification: "pytest -q" })]));
     trackCurrent(sb);
+    recordClosingVerdict(sb);
     const forced = run(sb.store.root, [
       "state", "set", "storage-layer", "--status", "done", "--force",
       "--closed-by", "the test host has no python; verified by hand against the staging box",
@@ -731,6 +735,7 @@ test("a later note cannot quietly erase the forced-close marker", () => {
   try {
     sb.writeState(state([item({ status: "verifying", verification: "pytest -q" })]));
     trackCurrent(sb);
+    recordClosingVerdict(sb);
     const forced = run(sb.store.root, [
       "state", "set", "storage-layer", "--status", "done", "--force",
       "--closed-by", "no python on this host; checked by hand",
@@ -761,6 +766,7 @@ test("an ordinary note is not marked, so the marker keeps meaning something", ()
   try {
     sb.writeState(state([item({ status: "verifying", verification: "true" })]));
     trackCurrent(sb);
+    recordClosingVerdict(sb);
     assert.equal(run(sb.store.root, ["gate", "--full"]).code, 0);
     const closed = run(sb.store.root, [
       "state", "set", "storage-layer", "--status", "done", "--closed-by", "verified and merged",
@@ -827,6 +833,7 @@ test("closing an item nothing verifies is not blocked by this guard", () => {
     // and never ran.
     sb.writeState(state([item({ status: "verifying" })], { verify: "" }));
     trackCurrent(sb);
+    recordClosingVerdict(sb);
     const closed = run(sb.store.root, ["state", "set", "storage-layer", "--status", "done"]);
     assert.equal(closed.code, 0, closed.stderr);
     assert.equal(parseState(sb.store.state).items[0]?.status, "done");

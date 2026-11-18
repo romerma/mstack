@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 
 import { closingProblems } from "../src/closing.ts";
 import { parseState } from "../src/state.ts";
-import { item, quiesce, sandbox, state, trackCurrent } from "./helpers.ts";
+import { item, quiesce, recordClosingVerdict, sandbox, state, trackCurrent } from "./helpers.ts";
 
 /**
  * Item 41: the gate and `state set --status done` read the requirement-to-test
@@ -77,6 +77,7 @@ function world(w: World = {}): Box {
     ]),
   );
   trackCurrent(box);
+  recordClosingVerdict(box, "tbl");
   quiesce(box);
   return box;
 }

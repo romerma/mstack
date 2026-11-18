@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { format } from "node:util";
 import assert from "node:assert/strict";
 
+import { record as recordRow } from "../src/ledger.ts";
 import { storeAt, type Store } from "../src/paths.ts";
 import { Report } from "../src/report.ts";
 import { setup } from "../src/setup.ts";
@@ -77,6 +78,20 @@ export function trackCurrent(box: Sandbox, note = "carry on"): void {
     `# Current session\n\n- **Item:** the one under test\n\n## Next step\n\n${note}\n`,
     "utf8",
   );
+}
+
+/**
+ * An independent closing verdict for an item, as a real ledger row.
+ *
+ * `state set --status done` and the gate at `verifying` refuse an item with no row
+ * while `require_verdict_to_close` is on, so a test whose subject is anything but
+ * closing without a verdict records one first. It goes through the real ledger
+ * writer, under a name that closes (`reviewer`, not the author's) and with evidence
+ * that does not cite the implementer's report, so the row is read the way a reviewer's
+ * is. A test about the verdicts themselves records its own rows instead.
+ */
+export function recordClosingVerdict(box: Sandbox, slug = "storage-layer", sha = box.sha): void {
+  recordRow(box.store, { target: slug, sha, verdict: "test-verified", evidence: "node --test tests", verifier: "reviewer" });
 }
 
 /**
