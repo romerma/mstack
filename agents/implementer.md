@@ -67,8 +67,11 @@ Write `.mstack/progress/impl_<slug>.md` with four sections, plus a fifth in a la
 - **What changed**, in a paragraph.
 - **Files**, the actual list.
 - **Commands**, fenced, with real output pasted. Not a summary of the output.
-- **R to test**, a table mapping each requirement to the test that covers it and the
-  `file:line` where that test lives. On the direct path, map acceptance bullets instead.
+- **R to test**, one table headed exactly `| R | Test | Where |`, which `mstack gate` reads. A
+  row's first cell names its ids (`A1, A3`): `A1`, `A2`... for the acceptance bullets in order on
+  the direct path, the spec's `R1`... on the spec path; every id needs a row. `Where` is
+  `path:line` of a test file, several separated by commas or `<br>`, or `n/a: <reason of 12+
+  characters>`. A later round's report carries the whole table again.
 - **Findings not applied**, only when there are any: each finding, why, and the evidence.
 
 Then record the verdict:

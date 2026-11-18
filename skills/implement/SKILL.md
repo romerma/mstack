@@ -51,8 +51,11 @@ moment it had proved its point.
 - **What changed**, in a paragraph.
 - **Files**, the real list.
 - **Commands**, fenced, with the **actual output pasted**. Not a summary of it.
-- **R to test**: each requirement, the test that covers it, and the `file:line` where that test
-  lives. On the direct path, map acceptance bullets instead.
+- **R to test**: one table headed exactly `| R | Test | Where |`, which `mstack gate` reads. The
+  first cell names the ids (`A1, A3`): `A1`, `A2`... for the acceptance bullets in order on the
+  direct path, the spec's `R1`... on the spec path; every id needs a row. `Where` is `path:line`
+  of a test file, several separated by commas or `<br>`, or `n/a: <reason of 12+ characters>`. A
+  later round's report carries the whole table again.
 
 Then `/mstack:verify` and record the verdict.
 
