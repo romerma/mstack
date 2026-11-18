@@ -176,11 +176,15 @@ export function canCloseAnItem(verifier: string): boolean {
  * back with it, so it is dropped: `-self-` is stored as `'-self-`, and is `self`.
  */
 export function normalisedRole(name: string): string {
-  return name
-    .replace(/^'(?=[-=+@])/, "")
+  return typedName(name)
     .toLowerCase()
     .replace(/[\s_-]+/g, " ")
     .trim();
+}
+
+/** A verifier as it was typed: without the one apostrophe the ledger writer puts before a cell starting with `-`, `=`, `+` or `@`. */
+export function typedName(verifier: string): string {
+  return verifier.replace(/^'(?=[-=+@])/, "");
 }
 
 /**

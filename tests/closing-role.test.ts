@@ -74,7 +74,7 @@ test("a verdict recorded under a name for the pass that wrote the work is refuse
     const { close, status: after } = closeAs(name);
     assert.equal(close.code, 2, `${JSON.stringify(name)} must not close: ${close.stdout}`);
     assert.match(close.stderr, /demo cannot close: .*the pass that wrote the code/s, name);
-    assert.match(close.stderr, /a closing verdict has to come from somewhere other than the implementer/, name);
+    assert.match(close.stderr, /a closing verdict has to come from a pass that did not write the code/, name);
     assert.equal(after, "verifying", `${JSON.stringify(name)}: the item stays where it was`);
   }
 });
@@ -179,4 +179,58 @@ test("with require_verdict_to_close off, the close does not ask for a verdict", 
   } finally {
     sb.dispose();
   }
+});
+
+/**
+ * Item 82, round 2: the words of the refusal, and the colon rule.
+ */
+test("the refusal names the way out for someone working alone, in the words the gate uses at verifying", { timeout: 60_000 }, () => {
+  const sb = verifying();
+  try {
+    recordRow(sb, "implementer");
+    const gate = cli(sb.store.root, "gate");
+    const close = cli(sb.store.root, "state", "set", SLUG, "--status", "done");
+    assert.equal(close.code, 2);
+    const fix = close.stderr.split("\n")[1]!.trim();
+    assert.match(fix, /a name that is not the author's/);
+    assert.match(fix, /your own name/);
+    assert.match(fix, /`ci`/);
+    assert.match(fix, /verifier-blocked/);
+    assert.ok(gate.stdout.includes(`fix: ${fix}`), `the gate's line is the same:\n${gate.stdout}`);
+  } finally {
+    sb.dispose();
+  }
+});
+
+test("an item whose only rows are a spec-author's is not told to ask for the implementer", { timeout: 60_000 }, () => {
+  const sb = verifying();
+  try {
+    recordRow(sb, "spec-author");
+    const close = cli(sb.store.root, "state", "set", SLUG, "--status", "done");
+    assert.equal(close.code, 2);
+    assert.match(close.stderr, /only spec-author/);
+    assert.doesNotMatch(close.stderr, /implementer/);
+  } finally {
+    sb.dispose();
+  }
+});
+
+test("the refusal prints the name as typed, without the apostrophe the ledger writer added", { timeout: 60_000 }, () => {
+  const sb = verifying();
+  try {
+    recordRow(sb, "-implementer");
+    const close = cli(sb.store.root, "state", "set", SLUG, "--status", "done");
+    assert.equal(close.code, 2);
+    assert.match(close.stderr, /\(only -implementer\)/);
+    assert.doesNotMatch(close.stderr, /'-implementer/);
+  } finally {
+    sb.dispose();
+  }
+});
+
+test("what follows the last colon is the name: ci:dev is the author's, dev:ci closes", { timeout: 60_000 }, () => {
+  assert.equal(closeAs("ci:dev").close.code, 2);
+  const closes = closeAs("dev:ci");
+  assert.equal(closes.close.code, 0, closes.close.stderr);
+  assert.equal(closes.gate.code, 0, closes.gate.stdout);
 });

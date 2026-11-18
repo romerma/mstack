@@ -32,7 +32,7 @@ const SUBSTANTIAL = /[a-z0-9]/i;
 import { errorsSince } from "./hooklog.ts";
 import { cliProvenance, describeSrcComparison, HOOK_LOG, runningCliRoot, UserError, type Store } from "./paths.ts";
 import { Report } from "./report.ts";
-import { MIN_REPORT_BYTES } from "./roles.ts";
+import { MIN_REPORT_BYTES, typedName } from "./roles.ts";
 import { EMPTY_ITEM_LINE, EMPTY_NEXT_STEP } from "./setup.ts";
 import { parseState, type Item, type State } from "./state.ts";
 
@@ -504,7 +504,7 @@ function checkClosedItems(store: Store, state: State, report: Report): void {
     //    documented escape hatch for an item nothing can verify, so it closes.
     const reading = readVerdict(rows, item.slug)!;
     if (reading.kind === "author-only") {
-      selfClosed.push(`${item.slug} (only ${[...new Set(rows.map((r) => r.verifier || "unnamed"))].join(", ")})`);
+      selfClosed.push(`${item.slug} (only ${[...new Set(rows.map((r) => typedName(r.verifier) || "unnamed"))].join(", ")})`);
     } else if (reading.kind === "discounted") {
       // The item is reported under the kind actually cited, so the message states
       // the fact; an item whose rows cite both kinds lands on the implementer

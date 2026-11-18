@@ -4,6 +4,7 @@ import { describeRow, entries as ledgerEntries, readVerdict, sameCommit } from "
 import { requiresVerification, VERIFICATION_REQUIRED_FROM, type Status } from "./lifecycle.ts";
 import type { Store } from "./paths.ts";
 import { R_HINT, rTableProblems } from "./rcheck.ts";
+import { typedName } from "./roles.ts";
 import type { Item, State } from "./state.ts";
 import * as verification from "./verification.ts";
 
@@ -145,7 +146,7 @@ export const INDEPENDENT_VERDICT_CHECK = "independent-verdict";
 
 /** What the gate says about an item closed on the author's own verdicts, and what `state set` says at the door. Shared so the two cannot drift. */
 export const SELF_CLOSED_FIX =
-  "a closing verdict has to come from somewhere other than the implementer; run the verification again from a pass that did not write it";
+  "a closing verdict has to come from a pass that did not write the code; run the verification again from one and record the row under a name that is not the author's (your own name, or `ci`), or, if no check could be run, record `verifier-blocked` under such a name";
 export const FORGED_IMPL_FIX =
   "a closing verdict needs evidence from the closing pass's own work, not a pointer to the implementer's report; re-run the check and record what actually happened";
 export const FORGED_SPEC_FIX =
@@ -192,7 +193,7 @@ const independentVerdict: ClosingCheck = {
     // what many callers do before a verdict exists, and this check is about whose verdict stands.
     if (reading === undefined) return [];
     if (reading.kind === "author-only") {
-      const names = [...new Set(rows.map((r) => r.verifier || "unnamed"))].join(", ");
+      const names = [...new Set(rows.map((r) => typedName(r.verifier) || "unnamed"))].join(", ");
       return refuse(`its only verdicts are from the pass that wrote the code (only ${names})`, SELF_CLOSED_FIX);
     }
     if (reading.kind === "discounted") {
