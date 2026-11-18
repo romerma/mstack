@@ -75,10 +75,13 @@ export function runGate(store: Store, options: GateOptions = {}): Report {
   if (state !== null) {
     report.section("state");
     checkInvariants(store, state, report);
-    // Skipped under `--full`, which is about to run the thing for real. Asking
-    // for a receipt of a past run and then producing a fresh one in the same
-    // process would report a failure the same run disproves three lines later.
-    if (options.full !== true) checkVerificationRuns(store, state, report);
+    // Under `--full` only the verification receipts are skipped: `--full` is about
+    // to run the thing for real, and asking for a receipt of a past run and then
+    // producing a fresh one in the same process would report a failure the same
+    // run disproves three lines later. Every other closing check (the requirement
+    // table, the review budget) is the plain gate's answer, so a full green cannot
+    // sit over a red the plain gate reports.
+    checkVerificationRuns(store, state, report, options.full === true);
   }
 
   checkGlossary(store, report);
@@ -676,7 +679,7 @@ function checkWorkspace(store: Store, report: Report): void {
  * happened. See `VERIFICATION_REQUIRED_FROM` for why the line falls at
  * `verifying` and not earlier — that choice is the whole cost of the mechanism.
  */
-function checkVerificationRuns(store: Store, state: State, report: Report): void {
+function checkVerificationRuns(store: Store, state: State, report: Report, full: boolean): void {
   // Said out loud even when nothing is due, for the same reason the decision
   // check says so: silence reads as "this ran and found nothing" when it may
   // equally mean the check never ran.
@@ -689,15 +692,17 @@ function checkVerificationRuns(store: Store, state: State, report: Report): void
   const sha = headSha(store);
   // The tree is the costly part, so it is only computed when something will be
   // compared against it, and then once: it feeds both the check and the warning.
-  const tree = requiresVerification(active.status) && required.length > 0 && sha !== null ? treeId(store) : undefined;
+  const tree = !full && requiresVerification(active.status) && required.length > 0 && sha !== null ? treeId(store) : undefined;
   // Asked before the verification-specific early outs below, and of the same
   // function `state set --status done` asks, so a second closing check cannot be
   // invisible here while it refuses there. An unreadable receipt file is a
   // problem it reports, not a throw: `cmdHook` catches every throw and returns 0
   // by design, which made an unreadable file byte-identical to a green gate.
-  const problems = gateProblems(store, state, active, tree);
+  const problems = gateProblems(store, state, active, tree, full ? [VERIFICATION_CHECK] : []);
 
-  if (!requiresVerification(active.status)) {
+  if (full) {
+    // The verification section below says what ran; nothing to say about receipts here.
+  } else if (!requiresVerification(active.status)) {
     report.ok(
       `${active.slug} is ${active.status}; a verification run is due at ${VERIFICATION_REQUIRED_FROM.join(", ")}`,
     );

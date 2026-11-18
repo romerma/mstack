@@ -201,10 +201,10 @@ export function closingProblems(store: Store, state: State, item: Item, tree?: s
   return CLOSING_CHECKS.flatMap((check) => check.run(store, state, item, tree));
 }
 
-/** The subset the gate reports for an item at its current status. */
-export function gateProblems(store: Store, state: State, item: Item, tree?: string): ClosingProblem[] {
+/** The subset the gate reports for an item at its current status, less the checks named in `except` (`--full` leaves out the receipts it is about to write). */
+export function gateProblems(store: Store, state: State, item: Item, tree?: string, except: readonly string[] = []): ClosingProblem[] {
   const atTheDoor = requiresVerification(item.status);
-  return CLOSING_CHECKS.filter((check) => atTheDoor || check.reportedAt.includes(item.status)).flatMap((check) =>
+  return CLOSING_CHECKS.filter((check) => !except.includes(check.name) && (atTheDoor || check.reportedAt.includes(item.status))).flatMap((check) =>
     check.run(store, state, item, tree),
   );
 }

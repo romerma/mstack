@@ -53,6 +53,8 @@ export interface World {
   base?: boolean;
   size?: string;
   sdd?: boolean;
+  /** The item's own verification command, which `gate --full` runs. */
+  verification?: string;
   /** Files under .mstack/progress/, by name. */
   reports?: Record<string, string>;
   spec?: string;
@@ -79,6 +81,7 @@ export function world(w: World = {}): Box {
         ...(w.base === false ? {} : { base: box.sha }),
         ...(w.size === undefined ? {} : { size: w.size }),
         ...(w.sdd === true ? { sdd: true } : {}),
+        ...(w.verification === undefined ? {} : { verification: w.verification }),
       }),
     ]),
   );
