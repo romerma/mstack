@@ -7,7 +7,7 @@
 > empty template below.
 
 - **Item:** 67 load-sensitive-tests
-- **Status:** in_progress (round 1, implementer done; review next)
+- **Status:** reviewing (round 1)
 - **Branch:** fix/load-sensitive-tests
 - **Base:** 5c05f6c
 - **Worktree:** none
