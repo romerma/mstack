@@ -6,10 +6,10 @@
 > On close: append the summary to `history.md` and reset this file to the
 > empty template below.
 
-- **Item:** none active (95 closed 2026-11-18; 42 parked on a fork for the user)
-- **Status:** -
-- **Branch:** main
-- **Base:** -
+- **Item:** 49 bench-hygiene-followups
+- **Status:** in_progress (round 1)
+- **Branch:** chore/bench-hygiene
+- **Base:** 5ab0d1b
 - **Worktree:** none
 
 ## Plan
