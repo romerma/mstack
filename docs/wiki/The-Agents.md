@@ -15,13 +15,22 @@ and are spelled `$ mstack` per the convention in [The-CLI](The-CLI.md).
 
 ## The cast
 
-| Agent | One job | Writes | Must never |
-|---|---|---|---|
-| `orchestrator` | Owns one item from intake to close and picks who runs next | State moves, [decision rows](State-Files.md) | Write application code, or approve its own work |
-| `spec-author` | Writes the spec for one item on the spec path | `.mstack/specs/<slug>/`, `spec_<slug>.md` | Review its own spec |
-| `spec-reviewer` | Grills a spec before any code exists | `spec_review_<slug>.md` | Edit the spec, or review a spec it wrote |
-| `implementer` | Implements one item with the tests that prove it | The code, `impl_<slug>.md`, its own [ledger](State-Files.md) row | Mark its own work approved or done |
-| `reviewer` | Judges an implementation it did not write | `review_<slug>.md`, its own ledger row when reviewing alone | Edit the code, or approve on a red gate |
+| Agent | Model | One job | Writes | Must never |
+|---|---|---|---|---|
+| `orchestrator` | session's (`inherit`) | Owns one item from intake to close and picks who runs next | State moves, [decision rows](State-Files.md) | Write application code, or approve its own work |
+| `spec-author` | `sonnet` | Writes the spec for one item on the spec path | `.mstack/specs/<slug>/`, `spec_<slug>.md` | Review its own spec |
+| `spec-reviewer` | `opus` | Grills a spec before any code exists | `spec_review_<slug>.md` | Edit the spec, or review a spec it wrote |
+| `implementer` | `sonnet` | Implements one item with the tests that prove it | The code, `impl_<slug>.md`, its own [ledger](State-Files.md) row | Mark its own work approved or done |
+| `reviewer` | `opus` | Judges an implementation it did not write | `review_<slug>.md`, its own ledger row when reviewing alone | Edit the code, or approve on a red gate |
+
+The Model column is the `model:` line in each agent's frontmatter. The two passes that write
+run on Sonnet and the two that judge run on Opus, so a review is a different model from the
+work it judges whatever model the session itself runs on. Claude Code gives a model passed
+when an agent is launched precedence over the frontmatter, and `CLAUDE_CODE_SUBAGENT_MODEL`
+gives way to it; `CLAUDE_CODE_SUBAGENT_MODEL_FORCE=1` overrides the frontmatter for every agent
+([sub-agents docs](https://code.claude.com/docs/en/sub-agents#precedence)).
+`mstack lint-plugin` refuses a value outside `inherit`, `sonnet`, `opus`, `haiku`, `fable` or a
+`claude-*` id; a missing line is allowed and means `inherit`.
 
 Report files live under `.mstack/progress/`. Every agent writes its result to disk and
 returns one line naming the path, because a subagent's working context vanishes when it

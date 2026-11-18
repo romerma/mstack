@@ -30,7 +30,8 @@ divergence.
 ## 4. Judge, then graft
 
 One judge, on a **different model** from the generators, scoring against the criteria from step
-2. Pick a base, graft what is better from the others, and say what you rejected and why.
+2. No agent here pins a model for either role, so that holds only if you launch the judge on
+another one. Pick a base, graft what is better from the others, and say what you rejected and why.
 
 ## 5. Write it down
 

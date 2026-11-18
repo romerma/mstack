@@ -86,7 +86,9 @@ is not a cost worth optimising away.
 - **Check for the file.** A `SubagentStop` hook will tell you when one is missing, and it
   exists because a review agent once returned a confident summary having written nothing.
 - A second opinion means the same prompt against a *different model*. Agreement across models
-  is signal; agreement between two runs of the same model is not.
+  is signal; agreement between two runs of the same model is not. By default the implementer
+  runs on Sonnet and the reviewer on Opus, so a review is already a different model from the
+  work; two reviewers are the same model unless one is launched on another.
 - Parallel subagents cap out at twenty per session. Fan out to what the work needs, not to
   what the limit allows.
 

@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+- **The implementer and spec-author run on Sonnet and the reviewer and spec-reviewer on Opus,
+  whatever model your session runs on.** Before, all five agents were `model: inherit`, so a
+  session on Opus ran everything on Opus and one on Sonnet reviewed its own kind of work on
+  Sonnet. Now `agents/implementer.md` and `agents/spec-author.md` declare `model: sonnet`,
+  `agents/reviewer.md` and `agents/spec-reviewer.md` declare `model: opus`, and
+  `agents/orchestrator.md` stays `inherit`. What you will notice: an Opus session spends less on
+  implementation, a Sonnet or Haiku session spends more on review, and a review is a different
+  model from the code it judges. A model named when an agent is launched, or
+  `CLAUDE_CODE_SUBAGENT_MODEL_FORCE=1`, still overrides the frontmatter. `lint-plugin` fails an
+  agent whose `model` is outside `inherit`, `sonnet`, `opus`, `haiku`, `fable` or a `claude-*`
+  id, and names the file and the value; an agent with no `model` line passes. The router, review
+  and design skills now say what that gives (the review is a different model from the
+  implementation) and what it does not (two reviewers are one model; the design judge differs
+  from the generators only if you launch it on another), and `docs/wiki/The-Agents.md` has a
+  Model column.
+
 - **A task in `tasks.md`, and a unit in an orchestrate brief, have one size rule and one rule for
   being written for an executor with no context.** A task is the smallest unit that carries its own
   test cycle and is worth a fresh reviewer's gate; setup, configuration, scaffolding and docs fold

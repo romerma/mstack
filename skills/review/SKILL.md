@@ -22,7 +22,9 @@ The reviewer did not write the code. If that is not true, stop: fetch someone wh
    `facts`, sharing a path with `plan --round 2 --worker facts`.
 3. Launch them in parallel, each with the full diff and a distinct lens. Give different lenses to
    different **models** where you can: models differ in blind spots, and agreement across models
-   is signal in a way agreement across two runs of one model is not.
+   is signal in a way agreement across two runs of one model is not. `reviewer` runs on Opus
+   and `implementer` on Sonnet, so the panel differs from the code's author by default, but
+   two `reviewer` passes are one model: launch one of them on another to get a second.
    - correctness and requirement coverage
    - security and failure paths
    - the tests themselves: would any of them fail if the change were reverted?
