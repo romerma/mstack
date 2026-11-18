@@ -823,9 +823,10 @@
         "bug-fix.md steps 1 and 2 carry the loop-first procedure, with an origin header on the derived text",
         "the procedure is run on item 21 (unidentified-flaky-test) and either identifies the test or records the hypotheses ruled out"
       ],
-      "status": "reviewing",
+      "status": "done",
       "description": "Adapted from mattpocock/skills diagnosing-bugs, which already has an unattended path ('proceed with your ranking if the user is AFK'): build the loop first, three to five falsifiable hypotheses ranked, instrument, fix, clean up. The router's three-attempt stop already exists and stays.",
       "source": "reports/Mejoras mstack con skills Pocock.md, 2026-11-16",
+      "closed_by": "three rounds; review_diagnosis-loop-in-bug-fix_r3.md APPROVED at a378b65; gate --full green on the fourth run (three red on tests/costs.test.ts:698 in node at load 19 to 23)",
       "seams": [
         "CLI: mstack lint-plugin output and exit code on a plugin whose bug-fix.md has no origin header",
         "skills/router/playbooks/bug-fix.md as followed by a headless /mstack run on a bug-shaped request in a copy of sandbox/bench/template"
@@ -930,7 +931,10 @@
         "each test passes 0 failures in at least 20 suites per runtime under the same load, with the load harness named in the report",
         "the report says whether either one is item 21's unidentified failure, and item 21 is closed or updated accordingly",
         "the stop-minus-bare assertion at tests/costs.test.ts:743 (each side the max of three runs, difference under 50 ms) no longer fails on outside load: the closing gate of item 58 was red on it three runs of four on 2026-11-18 at load average 19 to 24",
-        "tests/verdict-reader.test.ts 'agree on every sequence' was given a 60 s timeout while closing item 58 (about 6 s under that load against bun's 5 s default); the report says whether the time is the test's or the code's"
+        "tests/verdict-reader.test.ts 'agree on every sequence' was given a 60 s timeout while closing item 58 (about 6 s under that load against bun's 5 s default); the report says whether the time is the test's or the code's",
+        "the closing gate of item 59 was red on tests/costs.test.ts:698 in node three runs of four on 2026-11-18 at load average 19 to 23; the max of three at tests/costs.test.ts:732-733 keeps the slowest run on each side, so a min or a median is the first remedy to try",
+        "tests/gate.test.ts:681 and tests/launcher.test.ts:55 exceed bun's 5 s default beside other suites (40 of 40 and 29 of 40 bun runs in rounds of four bun and two node suites, .mstack/progress/diagnosis_unidentified-flaky-test.md); each gets a cause and either an explicit timeout or a faster test",
+        "tests/run.test.ts:54 compares two listings of mstack-run-* in the shared temp directory, so another suite's directory fails it (read from the code and one log, not tested by removing the sharing); tests/run.test.ts:154 failed once on node beside the shrink loops"
       ],
       "status": "pending",
       "description": "Measured during the item 52, 53 and 54 reviews with four bun and two node suites running together. tests/run.test.ts:54 ('a temp directory was left behind') failed 7 of 20 bun and 2 of 10 node suites in one round and 3 of 8 bun suites in another; tests/costs.test.ts:698 failed 9 of 12, 2 of 10 and 4 of 4 node suites; tests/run.test.ts:239 (the SIGINT survivor) failed 2 of 4 node suites. None was touched by those items. Item 21 is a suite run that failed once and was never identified; this may be the same failure.",
@@ -1209,6 +1213,32 @@
       "seams": [
         "CLI: mstack gate output and exit code on the cases named in the criteria"
       ]
+    },
+    {
+      "id": 84,
+      "slug": "redact-secrets-in-pasted-evidence",
+      "title": "No skill says to redact secrets from output pasted into reports, and reports in .mstack/progress/ are committed",
+      "acceptance": [
+        "one rule, in the place every reporting role reads, says what to redact from pasted output (tokens, keys, credentials, personal data) and how to mark the redaction",
+        "the rule carries an origin header if its text derives from the upstream Redact section"
+      ],
+      "status": "pending",
+      "description": "The upstream diagnosing-bugs skill has a Redact section; item 59 did not copy it because the rule is wider than the bug-fix playbook: implementer, reviewer and verifier reports all paste real command output and are committed.",
+      "source": "item 59 round 1 review, .mstack/progress/review_diagnosis-loop-in-bug-fix.md, 2026-11-18"
+    },
+    {
+      "id": 85,
+      "slug": "bug-fix-loop-followups",
+      "title": "Follow-ups from item 59: a headless bug-fix run reads code before it runs the loop, and wording left in the item 21 diagnosis",
+      "acceptance": [
+        "the router makes a bug-shaped run execute the loop before any code search, shown by a live headless run whose stream has the symptom command before the first search of the code",
+        "no live session has been seen reading the <file>:<line> placeholder in bug-fix.md step 2; a live run shows the skip line with a real location",
+        "diagnosis_unidentified-flaky-test.md: the shrink-row paragraph lists every failure in those rows (launcher:55 in 5 of 6 bun suites, run:54 in 2 of 4 node suites, costs:698 in 1 of 4), the candidate list includes run:154, and the max-of-three sentence says only a slow stopMs run can fail the test",
+        "the origin header of bug-fix.md says the source's ask at line 55 also covers permission for temporary production instrumentation, and that the source allows a justified skip in general"
+      ],
+      "status": "pending",
+      "description": "Two live headless runs (n=2, one per review round) ran a code search in the same tool call that read bug-fix.md, before the symptom command; the playbook text cannot shape a call issued together with its own read, so the fix belongs to the router. Round 1's run did not copy the playbook into the todo list; round 2's did.",
+      "source": "item 59 reviews, .mstack/progress/review_diagnosis-loop-in-bug-fix_r2.md and _r3.md, 2026-11-18"
     }
   ]
 }

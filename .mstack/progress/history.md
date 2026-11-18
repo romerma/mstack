@@ -1233,3 +1233,30 @@ passed on the next run with nothing changed. Both are now in item 67.
 
 **Filed.** Item 82 `any-role-name-closes`; item 83 `glossary-check-followups` (the non-blocking
 findings of rounds 2 to 4); two criteria added to item 67.
+
+## 2026-11-18 - item 59 diagnosis-loop-in-bug-fix closed (3 rounds)
+
+**What shipped.** `skills/router/playbooks/bug-fix.md` steps 1 and 2 carry the loop-first
+procedure from mattpocock/skills `diagnosing-bugs` (origin header, pinned sha): build one command
+that goes red on the symptom before reading code for a theory, then three to five ranked
+hypotheses with predictions, or `skip: cause shown by the loop, <file>:<line>` when the loop
+already shows the cause at one line. `lint-plugin` requires the header on that file. The procedure
+was run on item 21: 19 serial and 60 parallel full-suite runs. Nothing is identified for the
+August failure and neither hang reproduced; three of five hypotheses were refuted against
+predictions written before the runs, and two tests not on item 67's list were seen timing out at
+bun's 5 s default beside other suites (`tests/gate.test.ts:681`, `tests/launcher.test.ts:55`).
+
+**What the rounds taught.** Round 1's diagnosis ran the suite serially while the step it was
+following says to raise the rate; a procedure run on a real item is the check that its own text is
+followed. Twice a sentence about `tests/costs.test.ts:732-733` was false (measured once; the max
+smooths): a mechanism sentence needs the lines read, not recalled. The live headless run (n=1 per
+round) wrote the skip line with the right location in round 2 and committed the red test before
+the fix in both rounds; in both it searched the code in the same call that read the playbook.
+
+**Closing.** `gate --full` was red three times on `tests/costs.test.ts:698` in node at load
+average 19 to 23 from processes outside this work, and green on the fourth run with nothing
+changed (bun 631/0, node 631/0). Round 3's edits were made by the coordinator and read by a fresh
+reviewer.
+
+**Filed.** Item 84 `redact-secrets-in-pasted-evidence`; item 85 `bug-fix-loop-followups`; three
+criteria added to item 67, which goes next because this is the second closing it has held up.
