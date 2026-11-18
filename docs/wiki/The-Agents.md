@@ -28,9 +28,11 @@ run on Sonnet and the two that judge run on Opus, so a review is a different mod
 work it judges whatever model the session itself runs on. Claude Code gives a model passed
 when an agent is launched precedence over the frontmatter, and `CLAUDE_CODE_SUBAGENT_MODEL`
 gives way to it; `CLAUDE_CODE_SUBAGENT_MODEL_FORCE=1` overrides the frontmatter for every agent
-([sub-agents docs](https://code.claude.com/docs/en/sub-agents#precedence)).
+([sub-agents docs](https://code.claude.com/docs/en/sub-agents#choose-a-model)).
 `mstack lint-plugin` refuses a value outside `inherit`, `sonnet`, `opus`, `haiku`, `fable` or a
-`claude-*` id; a missing line is allowed and means `inherit`.
+`claude-*` id. A missing line is allowed: the agent then runs on `CLAUDE_CODE_SUBAGENT_MODEL`
+when that is set and on the session's model otherwise, where `model: inherit` takes the
+session's model ahead of that variable.
 
 Report files live under `.mstack/progress/`. Every agent writes its result to disk and
 returns one line naming the path, because a subagent's working context vanishes when it

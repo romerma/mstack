@@ -7,7 +7,7 @@
 > empty template below.
 
 - **Item:** 39 role-models
-- **Status:** reviewing (round 1)
+- **Status:** reviewing (round 2: what a missing model line means)
 - **Branch:** feat/role-models
 - **Base:** d3ae7d9
 - **Worktree:** none

@@ -434,7 +434,7 @@ test("an agent model outside the allowed set is caught, naming the file and the 
   }
 });
 
-test("an agent with no model field is not held to the model rule, because Claude Code then inherits", () => {
+test("an agent with no model field is not held to the model rule: Claude Code takes its model from the environment or the conversation", () => {
   const c = copy();
   try {
     setAgentModel(c.root, null);

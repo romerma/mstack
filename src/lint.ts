@@ -240,13 +240,14 @@ function lintAgent(root: string, file: string, report: Report): void {
       report.fail(`${label}: unknown front-matter key '${key}'`);
     }
   }
-  // An absent `model` is allowed: Claude Code then runs the agent on the conversation's model.
+  // An absent `model` is allowed: Claude Code then runs the agent on CLAUDE_CODE_SUBAGENT_MODEL
+  // when that is set, and on the conversation's model otherwise.
   if ("model" in data) {
     const model = String(data["model"] ?? "");
     if (!AGENT_MODEL_ALIASES.has(model) && !model.startsWith("claude-")) {
       report.fail(
         `${label}: model '${model}' is not inherit, sonnet, opus, haiku, fable or a claude-* id`,
-        "use one of the documented values; this check exists so a typo is not discovered by a bill",
+        "use one of these values; the check catches a typo before a session runs",
       );
     }
   }
