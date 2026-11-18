@@ -3,6 +3,7 @@ import { dirname, basename, join } from "node:path";
 
 import { isActive, isStatus, type Status } from "./lifecycle.ts";
 import { UserError, type Store } from "./paths.ts";
+import { isSize, type Size } from "./size.ts";
 import { withLock } from "./tsv.ts";
 
 export interface Item {
@@ -16,6 +17,14 @@ export interface Item {
   status: Status;
   /** Opt in to the spec path. Absent means the direct path. */
   sdd?: boolean;
+  /** s, m or l. Absent reads as m and is never written as m. Only s is measured by the gate. */
+  size?: Size;
+  /**
+   * The commit HEAD resolved to when the item first moved to `in_progress`.
+   * Written once; `state set --base` replaces it and nothing clears it, because
+   * the gate measures a size-s item's diff from it.
+   */
+  base?: string;
   /** Prose naming an unresolved product fork. Its presence triggers the human gate. */
   decision_required?: string;
   /**
@@ -204,6 +213,13 @@ function parseItem(value: unknown, index: number, file: string): Item {
     throw new UserError(`${at}.seams must not hold a blank string`, "name the surface, or delete the entry; an empty list is fine");
   }
 
+  if (value["size"] !== undefined && !isSize(value["size"])) {
+    throw new UserError(`${at}.size must be s, m or l, got ${describe(value["size"])}`, "or delete the key; an item with no size reads as m");
+  }
+  if (value["base"] !== undefined && typeof value["base"] !== "string") {
+    throw new UserError(`${at}.base must be a commit id string, got ${describe(value["base"])}`);
+  }
+
   const item: Item = {
     id: value["id"],
     slug: value["slug"],
@@ -213,6 +229,8 @@ function parseItem(value: unknown, index: number, file: string): Item {
   };
   if (typeof value["description"] === "string") item.description = value["description"];
   if (value["sdd"] === true) item.sdd = true;
+  if (isSize(value["size"])) item.size = value["size"];
+  if (typeof value["base"] === "string") item.base = value["base"];
   if (typeof value["decision_required"] === "string") item.decision_required = value["decision_required"];
   if (typeof value["decision_resolved"] === "string") item.decision_resolved = value["decision_resolved"];
   if (typeof value["source"] === "string") item.source = value["source"];
@@ -233,7 +251,7 @@ function describe(value: unknown): string {
 const KNOWN_STATE_KEYS = new Set(["version", "project", "description", "verify", "rules", "items"]);
 const KNOWN_RULE_KEYS = new Set(["one_active_item", "require_verdict_to_close", "require_spec_for_sdd_items", "record_costs"]);
 const KNOWN_ITEM_KEYS = new Set([
-  "id", "slug", "title", "description", "acceptance", "status", "sdd",
+  "id", "slug", "title", "description", "acceptance", "status", "sdd", "size", "base",
   "decision_required", "decision_resolved", "source", "verification", "closed_by", "seams",
 ]);
 

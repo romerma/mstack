@@ -23,6 +23,7 @@ import {
 import { lintPlugin } from "./lint.ts";
 import { cliProvenance, describeSrcComparison, findStore, requireStore, runningCliRoot, UserError } from "./paths.ts";
 import { DECIDE, helpText, parseFlags, STATE_ADD, STATE_SET, STATE_SHOW, wantsHelp } from "./cliopts.ts";
+import { isSize, resolveCommit, type Size } from "./size.ts";
 import { assertUniqueId, assertWritable, findItem, parseState, rawItem, unknownItemFields, updateState, type Item } from "./state.ts";
 import { MIN_REPORT_BYTES } from "./roles.ts";
 import * as verification from "./verification.ts";
@@ -202,6 +203,7 @@ const CLEARABLE = {
   verification: "verification",
   "decision-required": "decision_required",
   sdd: "sdd",
+  size: "size",
   "closed-by": "closed_by",
   seams: "seams",
 } as const satisfies Readonly<Record<string, keyof Item>>;
@@ -212,6 +214,7 @@ const UNCLEARABLE: Readonly<Record<string, string>> = {
   title: "an item needs a title; replace it with --title instead",
   status: "an item is always in some status; move it with --status instead",
   slug: "the slug names the branch, the spec directory and the progress files",
+  base: "the gate measures a size s item's diff from it, so an item without one would escape the check; replace it with --base <commit> instead",
 };
 
 /**
@@ -312,6 +315,30 @@ function seamList(values: readonly string[]): string[] {
   );
 }
 
+/** One of s, m or l, or a refusal that names what was given and what is allowed. */
+function parseSize(value: string): Size {
+  const trimmed = value.trim();
+  if (!isSize(trimmed)) {
+    throw new UserError(`'${value}' is not a size`, `the sizes are s, m or l; nothing was written`);
+  }
+  return trimmed;
+}
+
+/**
+ * sdd and size s contradict each other: s is the size that buys less ceremony
+ * and the spec path is the most ceremony there is. Both writers and both flags
+ * ask this, after the command's changes are applied, so a command that drops
+ * one of the pair and sets the other is fine.
+ */
+function assertNotSddSmall(item: Item): void {
+  if (item.sdd === true && item.size === "s") {
+    throw new UserError(
+      "sdd and size s cannot go together: size s is the small item with the direct path, sdd is the spec path",
+      "give the item --size m or l, or take it off the spec path (--clear sdd); nothing was written",
+    );
+  }
+}
+
 function clearField(item: Item, name: string): string[] {
   const blocked = UNCLEARABLE[name];
   if (blocked !== undefined) throw new UserError(`${name} cannot be cleared`, blocked);
@@ -356,7 +383,7 @@ function showLines(item: Item, raw: Record<string, unknown>): string[] {
   scalar("slug", item.slug);
   scalar("title", item.title);
   scalar("status", item.status);
-  for (const key of ["source", "description", "sdd", "decision_required", "decision_resolved", "verification", "closed_by"] as const) {
+  for (const key of ["source", "description", "sdd", "size", "base", "decision_required", "decision_resolved", "verification", "closed_by"] as const) {
     if (item[key] !== undefined) scalar(key, item[key]);
   }
   list("acceptance", item.acceptance);
@@ -462,6 +489,8 @@ function cmdState(argv: readonly string[]): number {
         item.description = required("--description", values.description, "leave the flag off instead");
       }
       if (values.sdd === true) item.sdd = true;
+      if (values.size !== undefined) item.size = parseSize(values.size);
+      assertNotSddSmall(item);
       if (values.source !== undefined) item.source = required("--source", values.source, "leave the flag off instead");
       if (values.verification !== undefined) {
         item.verification = required("--verification", values.verification, "leave the flag off instead");
@@ -512,6 +541,8 @@ function cmdState(argv: readonly string[]): number {
           values.acceptance,
           values["add-acceptance"],
           values.sdd,
+          values.size,
+          values.base,
           values.source,
           values.verification,
           values["decision-required"],
@@ -523,7 +554,7 @@ function cmdState(argv: readonly string[]): number {
       if (instructions === 0) {
         throw new UserError(
           `state set ${ref} was given nothing to set`,
-          `pass --status, --clear <field>, or a value flag: ${Object.keys(CLEARABLE).join(", ")}, title, acceptance, add-acceptance, seam`,
+          `pass --status, --clear <field>, or a value flag: ${Object.keys(CLEARABLE).join(", ")}, title, acceptance, add-acceptance, seam, base`,
         );
       }
       for (const [flag, clearName, given] of [
@@ -533,6 +564,7 @@ function cmdState(argv: readonly string[]): number {
         ["decision-required", "decision-required", values["decision-required"] !== undefined],
         ["closed-by", "closed-by", values["closed-by"] !== undefined],
         ["sdd", "sdd", values.sdd === true],
+        ["size", "size", values.size !== undefined],
         ["seam", "seams", values.seam !== undefined],
       ] as const) {
         if (given && clears.includes(clearName)) {
@@ -638,7 +670,20 @@ function cmdState(argv: readonly string[]): number {
           }
         }
         if (item.status !== values.status) changes.push(...fieldChange("status", item.status, values.status));
+        const moved = item.status !== values.status;
         item.status = values.status;
+        // The commit the work started from, written when it starts and not again:
+        // an item that returns to in_progress after review keeps the base it has.
+        // An explicit --base in the same command wins.
+        if (moved && values.status === "in_progress" && item.base === undefined && values.base === undefined) {
+          const head = headSha(store);
+          if (head === null) {
+            changes.push("  base: not recorded (not a git repository, or no commit yet); 'state set --base <commit>' sets one");
+          } else {
+            changes.push(...fieldChange("base", undefined, head));
+            item.base = head;
+          }
+        }
       }
 
       for (const [flag, key, given] of [
@@ -714,6 +759,20 @@ function cmdState(argv: readonly string[]): number {
         for (const added of next) changes.push(`    + added ${preview(added)}`);
         item.seams = next;
       }
+      if (values.size !== undefined) {
+        const next = parseSize(values.size);
+        if (next !== item.size) changes.push(...fieldChange("size", item.size, next));
+        item.size = next;
+      }
+      if (values.base !== undefined) {
+        const wanted = required("--base", values.base, "a commit id or a ref that resolves to one");
+        const full = resolveCommit(store, wanted);
+        if (full === null) {
+          throw new UserError(`'${wanted}' is not a commit in this repository`, "pass a commit id, or a branch or tag that names one; nothing was written");
+        }
+        if (full !== item.base) changes.push(...fieldChange("base", item.base, full));
+        item.base = full;
+      }
       if (values.sdd === true && item.sdd !== true) {
         changes.push(...fieldChange("sdd", item.sdd, true));
         item.sdd = true;
@@ -775,6 +834,8 @@ function cmdState(argv: readonly string[]): number {
           }
         }
       }
+
+      assertNotSddSmall(item);
 
       // A belt, and deliberately not load-bearing today: with `--slug` refused
       // and `--title ""` caught by `required`, nothing this branch can write

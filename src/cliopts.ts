@@ -1,6 +1,7 @@
 import { parseArgs } from "node:util";
 
 import { UserError } from "./paths.ts";
+import { SMALL_MAX_FILES, SMALL_MAX_LINES } from "./size.ts";
 
 /**
  * One flag of one command: what the parser accepts and what `--help` says.
@@ -33,6 +34,7 @@ export const STATE_ADD = {
     description: { type: "string", arg: "<text>", help: "longer prose about the item" },
     acceptance: { type: "string", multiple: true, arg: "<criterion>", help: "one acceptance criterion, quoted from the source; repeat for each" },
     sdd: { type: "boolean", help: "take the spec path (spec.md, design.md, tasks.md) instead of the direct one" },
+    size: { type: "string", arg: "<s|m|l>", help: `how big the work is; absent reads as m; s is held by the gate to ${SMALL_MAX_LINES} changed code lines in ${SMALL_MAX_FILES} files and cannot be sdd` },
     source: { type: "string", arg: "<ref>", help: "where the work came from: an issue reference or 'direct request'" },
     verification: { type: "string", arg: "<command>", help: "the exact command that proves the item works" },
     "decision-required": { type: "string", arg: "<fork>", help: "prose naming a product fork that a person has to answer first" },
@@ -51,11 +53,13 @@ export const STATE_SET = {
     acceptance: { type: "string", multiple: true, arg: "<criterion>", help: "REPLACE the whole acceptance list with these criteria; to append use --add-acceptance" },
     "add-acceptance": { type: "string", multiple: true, arg: "<criterion>", help: "append a criterion to the existing list; repeat for each" },
     sdd: { type: "boolean", help: "take the spec path" },
+    size: { type: "string", arg: "<s|m|l>", help: "set the size; --clear size removes it (absent reads as m); s cannot be sdd" },
+    base: { type: "string", arg: "<commit>", help: "replace the commit the item started from; it is recorded on the first move to in_progress and --clear base is refused" },
     source: { type: "string", arg: "<ref>", help: "replace the source" },
     verification: { type: "string", arg: "<command>", help: "replace the verification command" },
     "decision-required": { type: "string", arg: "<fork>", help: "attach a product fork, or replace the one the item carries" },
     seam: { type: "string", multiple: true, arg: "<surface>", help: "REPLACE the seams with these; repeat for each" },
-    clear: { type: "string", multiple: true, arg: "<field>", help: "remove a field the item carries; repeat for each" },
+    clear: { type: "string", multiple: true, arg: "<field>", help: "remove a field the item carries (description, source, verification, decision-required, sdd, size, closed-by, seams; base is refused); repeat for each" },
     slug: { type: "string", arg: "<slug>", help: "refused: a slug cannot be renamed" },
     force: { type: "boolean", help: "skip a phase, or close past a failed check; --closed-by must say why" },
   },
