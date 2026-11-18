@@ -14,8 +14,8 @@
   review report of round 3 or later (lone or lensed) has no `review-r<N>` row filed under its
   slug, and when any report of the item (`spec_`, `spec_review_`, `impl_`, `review_`) is over
   24576 bytes; both name the file, neither is overridable by `--force`, and **only items with a
-  `base` are checked**, so nothing in flight breaks. moving an item to `spec_ready` out of
-  the spec-writing status is refused when `spec.md` declares more requirements than the size allows (12 for
+  `base` are checked**, so nothing in flight breaks. moving an item from writing its spec to having it ready
+  is refused when `spec.md` declares more requirements than the size allows (12 for
   `m` or no size, 30 for `l`), unless `--force` carries a `--closed-by` reason, which is recorded
   as a `spec-size` row. A report name's remainder has one rule in code, prose and tests: a
   leading `r<digits>` is a round marker only when nothing or a dash follows, so `_r2x` is a lens
