@@ -900,9 +900,13 @@
         "the spec skill and the orchestrate playbook carry the task-sizing rule with an origin header",
         "one spec written with it has tasks a stranger could execute, judged by the spec-reviewer"
       ],
-      "status": "pending",
+      "status": "in_progress",
       "description": "Adapted from obra/superpowers writing-plans: a task is the unit that deserves a fresh reviewer's gate, written for an executor with no context. Applies to the spec path's tasks.md and to orchestrate briefs; the save path becomes .mstack/specs/.",
-      "source": "reports/Mejoras mstack con skills Pocock.md, 2026-11-16"
+      "source": "reports/Mejoras mstack con skills Pocock.md, 2026-11-16",
+      "seams": [
+        "CLI: mstack lint-plugin output and exit code on a plugin whose skills/spec/SKILL.md or skills/router/playbooks/orchestrate.md has no origin header",
+        "the spec path as followed by a headless /mstack run on an sdd item in a copy of sandbox/bench/template: the tasks.md the spec-author writes and what the spec-reviewer says of it"
+      ]
     },
     {
       "id": 65,

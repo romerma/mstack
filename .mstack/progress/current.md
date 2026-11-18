@@ -6,10 +6,10 @@
 > On close: append the summary to `history.md` and reset this file to the
 > empty template below.
 
-- **Item:** none active (62 closed 2026-11-18)
-- **Status:** -
-- **Branch:** main
-- **Base:** -
+- **Item:** 64 plans-for-a-contextless-executor
+- **Status:** in_progress (round 1)
+- **Branch:** feat/task-sizing-rule
+- **Base:** 7f77190
 - **Worktree:** none
 
 ## Plan
