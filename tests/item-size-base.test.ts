@@ -390,6 +390,16 @@ test("test files, doc files and everything under .mstack/ do not count", GATE, (
   });
 });
 
+test("a change under src/test/ (Maven and Gradle) does not count as code", GATE, () => {
+  withBox((box) => {
+    smallItem(box);
+    for (const n of ["a", "b", "c"]) put(box, `src/${n}.ts`, lines(n, 20));
+    put(box, "src/test/java/com/x/GreetTest.java", lines("j", 500));
+    put(box, "svc/api/src/test/kotlin/GreetTest.kt", lines("k", 500));
+    assert.deepEqual(gateFailures(box), []);
+  });
+});
+
 test("a code file under .mstack/ is dropped by the store exclusion and not by the classifier", GATE, () => {
   withBox((box) => {
     smallItem(box);

@@ -11,6 +11,13 @@ export type PathClass = "test" | "doc" | "code";
 export const TEST_PATTERNS: readonly string[] = [
   "tests/**", "test/**", "**/__tests__/**", "**/*.test.*", "**/*.spec.*",
   "**/test_*.py", "**/*_test.py", "**/*_test.go",
+  // Layouts of other ecosystems. Matching is case-sensitive, which is what keeps
+  // `Protests/` and `contest/` code while `Tests/` and `GreetTests/` are tests.
+  "**/src/test/**", // Maven, Gradle: at the root and under a module directory
+  "spec/**", "**/*_spec.rb", // RSpec
+  "**/*Tests/**", "**/*Tests.swift", "**/*Tests.cs", // Swift packages, .NET (`Tests/`, `Greet.Tests/`)
+  "**/*Test.java", "**/*Test.kt",
+  "cypress/**", "**/*.cy.*", "**/*.e2e.*", "e2e/**", "playwright/**", // Cypress, Playwright
 ];
 export const DOC_PATTERNS: readonly string[] = ["**/*.md", "docs/**", "LICENSE*", "CHANGELOG*"];
 
