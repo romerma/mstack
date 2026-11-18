@@ -6,10 +6,10 @@
 > On close: append the summary to `history.md` and reset this file to the
 > empty template below.
 
-- **Item:** none active (40 closed 2026-11-18)
-- **Status:** -
-- **Branch:** main
-- **Base:** -
+- **Item:** 41 r-to-test-check
+- **Status:** in_progress (round 1)
+- **Branch:** feat/r-to-test-check
+- **Base:** 455f166
 - **Worktree:** none
 
 ## Plan

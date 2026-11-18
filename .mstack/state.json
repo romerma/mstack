@@ -597,7 +597,12 @@
         "For the active item with base, from reviewing and at the done transition, every acceptance index A<n> or spec R<n> has a row, and every Where cites existing test-classified files at in-range lines or says n/a: with a reason of at least 12 characters",
         "Closed items and items without base are never checked, and the implementer prose defines the one table header"
       ],
-      "status": "pending"
+      "status": "in_progress",
+      "base": "455f16605dfeb17b8499202a08d9c37389cdfd15",
+      "seams": [
+        "CLI: mstack gate on a store whose active item is at reviewing or verifying with a base, over implementation reports whose requirement-to-test table is good, absent, missing a row, or cites a non-test file, a missing file, an out-of-range line or a short n/a reason",
+        "CLI: mstack state set <ref> --status done on the same stores: refused or allowed, with the message"
+      ]
     },
     {
       "id": 42,
