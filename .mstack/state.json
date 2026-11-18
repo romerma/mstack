@@ -1271,7 +1271,7 @@
         "impl_load-sensitive-tests_r2.md gives 1.6 and 2.8 ms for the loaded check from a parser that shadowed sort's variables; the raw output gives 1.1 and 2.5 ms, and its load lost the two node suites after 53 s"
       ],
       "status": "pending",
-      "description": "At 5c05f6c the old wall-time test failed twice in CI's oldest-node job with a steady gap (94.5 against 37.0 ms, 91.4 against 37.5 ms) that no local run on node 22.6 reproduced. The new test prints every run in its budget line.",
+      "description": "At 5c05f6c the old wall-time test failed twice in CI's oldest-node job with a steady gap (94.5 against 37.0 ms, 91.4 against 37.5 ms) that no local run on node 22.6 reproduced. The new test prints every run in its budget line. CI run 44250772559 at 1e48798 passed both jobs; its budget lines: oldest-node cpu max 9.1 against 8.5 ms, wall with [17.6,36.3,59.5,24.7,20.6] against without [24.4,53.4,44.9,28.9,20.5]; test job on node cpu max 17.6 against 19.5 ms with single runs from 11.0 to 19.5 ms; on bun 4.4 against 3.3 ms. No steady with-transcript gap shows in that one run, and single CPU runs on the node runner vary by about 8 ms against the 20 ms bound.",
       "source": "item 67 reviews, .mstack/progress/review_load-sensitive-tests.md, _r2.md and _r3.md, 2026-11-18"
     }
   ]
