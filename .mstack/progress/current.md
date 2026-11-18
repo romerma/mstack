@@ -7,7 +7,7 @@
 > empty template below.
 
 - **Item:** 59 diagnosis-loop-in-bug-fix
-- **Status:** in_progress (round 2: wider skip, header, diagnosis at a higher rate)
+- **Status:** reviewing (round 2)
 - **Branch:** feat/diagnosis-loop
 - **Base:** c791f39
 - **Worktree:** none
