@@ -900,7 +900,7 @@
         "the spec skill and the orchestrate playbook carry the task-sizing rule with an origin header",
         "one spec written with it has tasks a stranger could execute, judged by the spec-reviewer"
       ],
-      "status": "in_progress",
+      "status": "reviewing",
       "description": "Adapted from obra/superpowers writing-plans: a task is the unit that deserves a fresh reviewer's gate, written for an executor with no context. Applies to the spec path's tasks.md and to orchestrate briefs; the save path becomes .mstack/specs/.",
       "source": "reports/Mejoras mstack con skills Pocock.md, 2026-11-16",
       "seams": [

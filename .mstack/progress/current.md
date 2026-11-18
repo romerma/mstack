@@ -7,7 +7,7 @@
 > empty template below.
 
 - **Item:** 64 plans-for-a-contextless-executor
-- **Status:** in_progress (round 1)
+- **Status:** reviewing (round 1)
 - **Branch:** feat/task-sizing-rule
 - **Base:** 7f77190
 - **Worktree:** none
