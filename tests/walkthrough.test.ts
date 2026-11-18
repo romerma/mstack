@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -9,10 +9,12 @@ import { fileURLToPath } from "node:url";
 /**
  * Item 96: the docs/wiki/Getting-Started.md walkthrough, command by command, through the real CLI.
  *
- * Every step is one command of the page, in the page's order, in a throwaway git repository. A
- * closing check added later that the page's sequence does not satisfy fails here before a reader
- * meets it. The page's verification command is `python3 -m unittest test_greet -v`, so the test
- * needs python3 and says so when it is missing.
+ * Every step is one instruction of the page, in the page's order, in a throwaway git repository:
+ * the files the page shows are written with exactly the shown content, and the edit the page
+ * describes (two lines of `.mstack/progress/current.md`) is made in place. A closing check added
+ * later that the page's sequence does not satisfy fails here before a reader meets it. The page's
+ * verification command is `python3 -m unittest test_greet -v`, so the test needs python3 and says
+ * so when it is missing.
  */
 
 const CLI = join(dirname(fileURLToPath(import.meta.url)), "..", "src", "cli.ts");
@@ -64,6 +66,8 @@ const TEST_PY = `${TEST_PY_0}
     def test_shout(self):
         self.assertEqual(greet("world", shout=True), "HELLO, WORLD")
 `;
+const ITEM_LINE = "- **Item:** _none_";
+const NEXT_STEP_LINE = "_If this session dies right now, the first thing the next one should do._";
 const REPORT = `# greet-flag: implementation report
 
 ## What changed
@@ -78,8 +82,8 @@ const REPORT = `# greet-flag: implementation report
 | A2 | test_default, test_shout | test_greet.py:6, test_greet.py:9 |
 `;
 
-/** The page's sequence. A mutant leaves out the report or the verification run to see the close refuse. */
-function walkthrough(root: string, leaveOut: { report?: boolean; gateFull?: boolean } = {}): { closeOut: string; closeCode: number } {
+/** The page's sequence. A mutant leaves out the report, the verification run or the reviewer's row to see the close refuse. */
+function walkthrough(root: string, leaveOut: { report?: boolean; gateFull?: boolean; reviewerRow?: boolean } = {}): { closeOut: string; closeCode: number } {
   const mstack = (...args: string[]): Result => run(root, process.execPath, [...FLAGS, CLI, ...args]);
   const git = (...args: string[]): Result => run(root, "git", args);
   const step = (what: string, r: Result, code: number): Result => {
@@ -87,9 +91,8 @@ function walkthrough(root: string, leaveOut: { report?: boolean; gateFull?: bool
     return r;
   };
 
-  // the scratch repository the page starts from: greet.py and test_greet.py, one commit
-  step("git init", git("init", "-q"), 0);
-  step("git head", git("symbolic-ref", "HEAD", "refs/heads/main"), 0);
+  // "The repository this page starts from": `git init -b main`, the two files as shown, one commit
+  step("git init", git("init", "-q", "-b", "main"), 0);
   step("git user.name", git("config", "user.name", "demo"), 0);
   step("git user.email", git("config", "user.email", "demo@example.com"), 0);
   writeFileSync(join(root, "greet.py"), GREET_PY_0);
@@ -122,10 +125,11 @@ function walkthrough(root: string, leaveOut: { report?: boolean; gateFull?: bool
   // "The gate holds you to the checkpoint discipline"
   const red = step("gate with current.md untouched", mstack("gate"), 1);
   assert.match(red.out, /\[fail\] {2}1 greet-flag \(in_progress\) is active but progress\/current\.md is not/);
-  writeFileSync(
-    join(root, ".mstack", "progress", "current.md"),
-    "# Current session\n\n- **Item:** greet-flag, the --shout flag\n\n## Next step\n\nadd the flag and its test, then verify\n",
-  );
+  // the page: change `- **Item:** _none_` and replace the italic line under `## Next step`, the rest of the template stays
+  const currentPath = join(root, ".mstack", "progress", "current.md");
+  const template = readFileSync(currentPath, "utf8");
+  assert.ok(template.includes(ITEM_LINE) && template.includes(NEXT_STEP_LINE), "the template no longer has the two lines the page names");
+  writeFileSync(currentPath, template.replace(ITEM_LINE, "- **Item:** greet-flag, the --shout flag").replace(NEXT_STEP_LINE, "add the flag and its test, then verify"));
 
   // "Do the work and verify it"
   writeFileSync(join(root, "greet.py"), GREET_PY);
@@ -134,7 +138,8 @@ function walkthrough(root: string, leaveOut: { report?: boolean; gateFull?: bool
   assert.match(step("unittest", run(root, "python3", ["-m", "unittest", "test_greet", "-v"]), 0).out, /Ran 2 tests/);
   if (leaveOut.report !== true) writeFileSync(join(root, ".mstack", "progress", "impl_greet-flag.md"), REPORT);
   step("git add the work", git("add", "-A"), 0);
-  step("git commit the work", git("commit", "-q", "-m", "feat: greet --shout uppercases the greeting"), 0);
+  const work = step("git commit the work", git("commit", "-m", "feat: greet --shout uppercases the greeting"), 0);
+  if (leaveOut.report !== true) assert.match(work.out, / 5 files changed, 37 insertions\(\+\), 6 deletions\(-\)/);
   const head = git("rev-parse", "HEAD").out.trim();
   step(
     "ledger record implementer",
@@ -146,24 +151,25 @@ function walkthrough(root: string, leaveOut: { report?: boolean; gateFull?: bool
   const shortcut = step("state set done from in_progress", mstack("state", "set", "greet-flag", "--status", "done"), 2);
   assert.match(shortcut.out, /mstack: in_progress -> done is not a legal transition/);
   step("state set reviewing", mstack("state", "set", "greet-flag", "--status", "reviewing"), 0);
-  step("state set verifying", mstack("state", "set", "greet-flag", "--status", "verifying"), 0);
 
-  // "The close is audited, and the author's word is not enough": the refusal on the implementer's row alone
-  const authorOnly = step("close on the implementer's row", mstack("state", "set", "greet-flag", "--status", "done", "--closed-by", "demo walkthrough"), 2);
-  assert.match(authorOnly.out, /mstack: greet-flag cannot close: its only verdicts are from the pass that wrote the code \(only implementer\)/);
-
-  // the reviewer: gate --full runs the verification (red for the missing second row only), then its own row
+  // "The close is audited": the reviewer runs gate --full at reviewing, where it is green, then records its row
   if (leaveOut.gateFull !== true) {
-    const full = step("gate --full", mstack("gate", "--full"), 1);
-    assert.match(full.out, /\[fail\] {2}1 greet-flag \(verifying\) is one step from done, and its only verdicts are from the pass that wrote the code/);
-    assert.match(full.out, /\[ok\] {4}python3 -m unittest test_greet -v/);
-    if (leaveOut.report !== true) assert.match(full.out, /FAILED - 1 failure, 1 warning/);
+    // without the report the gate has a second failure to show; the close below is what the mutant checks
+    const full = mstack("gate", "--full");
+    if (leaveOut.report !== true) {
+      assert.equal(full.code, 0, `gate --full at reviewing: exit ${full.code}\n${full.out}`);
+      assert.match(full.out, /\[ok\] {4}python3 -m unittest test_greet -v/);
+      assert.match(full.out, /PASSED - 0 failures, 1 warning/);
+    }
   }
-  step(
-    "ledger record reviewer",
-    mstack("ledger", "record", "greet-flag", head, "test-verified", "--evidence", "reviewer ran mstack gate --full: python3 -m unittest test_greet -v, 2 tests, OK; diff read against both acceptance bullets", "--verifier", "reviewer"),
-    0,
-  );
+  if (leaveOut.reviewerRow !== true) {
+    step(
+      "ledger record reviewer",
+      mstack("ledger", "record", "greet-flag", head, "test-verified", "--evidence", "reviewer ran mstack gate --full: python3 -m unittest test_greet -v, 2 tests, OK; diff read against both acceptance bullets", "--verifier", "reviewer"),
+      0,
+    );
+  }
+  step("state set verifying", mstack("state", "set", "greet-flag", "--status", "verifying"), 0);
   const close = mstack("state", "set", "greet-flag", "--status", "done", "--closed-by", "demo walkthrough");
   if (close.code !== 0) return { closeOut: close.out, closeCode: close.code };
   assert.match(close.out, /1 greet-flag \(done\)/);
@@ -214,4 +220,10 @@ walk(`Getting-Started without gate --full is refused at the close${SKIPPED}`, { 
   const r = inThrowawayRepo((root) => walkthrough(root, { gateFull: true }));
   assert.equal(r.closeCode, 2);
   assert.match(r.closeOut, /`python3 -m unittest test_greet -v` has never been executed/);
+});
+
+walk(`Getting-Started without the reviewer's row is refused at the close${SKIPPED}`, { timeout: 180_000 }, () => {
+  const r = inThrowawayRepo((root) => walkthrough(root, { reviewerRow: true }));
+  assert.equal(r.closeCode, 2);
+  assert.match(r.closeOut, /its only verdicts are from the pass that wrote the code \(only implementer\)/);
 });
