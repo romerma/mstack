@@ -1534,3 +1534,24 @@ The test now fails first.
 **Closing.** `gate --full` green on the first run (bun 883/0, node 883/0).
 
 **Filed.** Item 97 `walkthrough-pages-checked-in-repo`.
+
+## 2026-11-18 - item 95 close-with-no-verdict closed (1 round)
+
+**What shipped.** With `require_verdict_to_close` on, `state set --status done` refuses an item
+that has no ledger row, in the gate's words and with its fix line; `--force` does not get past it;
+the gate at `verifying` reports it. It is a branch of item 82's `independent-verdict` check. Fifty
+tests that closed with no row now record a real verdict through one helper; none changed an
+assertion and the helper's default is untouched. Verifier names are compared without Unicode
+format characters (one function shared with the evidence check); look-alike letters are not
+folded, and the docs say so. A lone `verifier-failed` row has one reason at the door and in the
+audit; no message prints the ledger writer's apostrophe. 891 tests.
+
+**Evidence.** The reviewer ran the base tests against head's source (exactly the 50 named tests
+fail), reverted only the refusal (the two tests that pin it fail), and took the helper out of five
+changed tests (each fails on the new refusal). Every closed item of this repository still reads
+as closed.
+
+**Closing.** `gate --full` green on the first run (bun 891/0, node 891/0). Second item of the
+program to close in one round. Nothing was taken after the verdict.
+
+**Filed.** Item 98 `closing-rule-wording-followups`.

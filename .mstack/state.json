@@ -1445,10 +1445,11 @@
         "the gate's side of the two message fixes has a test (dropping the apostrophe fix at src/gate.ts:507 and changing the fix line at :541 both survive); the list printed for an approval that cites the implementer's report drops the stored apostrophe too (src/closing.ts:200, src/gate.ts:513)",
         "docs/wiki/The-CLI.md:474-475 says what follows the last colon is compared, not 'a whole name'; docs/wiki/Gates-and-Hooks.md:283-284 names the empty name, and the long lines there and at tests/verdict-reader.test.ts:118 are wrapped"
       ],
-      "status": "reviewing",
+      "status": "done",
       "description": "Item 82 made state set --status done refuse an item whose only verdicts are the implementing pass's. A close with zero rows still exits 0 and the next gate prints 'items marked done with no ledger verdict at all'. Refusing it broke 50 existing tests (bun 825 pass, 50 fail): all of them close with require_verdict_to_close on, which tests/helpers.ts:179 defaults to true, and rely on the gap. May be a product fork: whether a store with the rule on may ever close an item nobody verified.",
       "base": "23abeaf5e7e02c50119502488ef52ee5d4626b75",
       "source": "item 82 round 1 review, .mstack/progress/review_any-role-name-closes.md, 2026-11-18",
+      "closed_by": "one round; review_close-with-no-verdict.md APPROVED (live-verified) at 5ca8888; gate --full green on the first run",
       "seams": [
         "CLI: mstack state set --status done and mstack gate on an item with no ledger row, with require_verdict_to_close on and off: exit codes and stdout",
         "CLI: mstack ledger record --verifier with zero-width and look-alike characters, then the close and the gate"
@@ -1487,6 +1488,20 @@
       "status": "pending",
       "description": "tests/walkthrough.test.ts reruns the Getting-Started sequence by hand and checks exit codes and the lines that carry the page's point. The page-versus-run diff for all three pages (every console block against a fresh run) exists only in the session scratchpad (impl96/diffpages.sh), and it copied the run's own deviation from the page once: it executed a script, not the page.",
       "source": "item 96 round 1 review, .mstack/progress/review_walkthroughs-after-closing-checks.md, 2026-11-18"
+    },
+    {
+      "id": 98,
+      "slug": "closing-rule-wording-followups",
+      "title": "Follow-ups from item 95: a changelog sentence the next bullet contradicts, and docs that promise more of the name rule than the code does",
+      "acceptance": [
+        "CHANGELOG.md's item 82 bullet (near line 23) no longer says an item with no verdict at all still closes; the upgrade note says an item already at verifying with no row turns the gate red after upgrading",
+        "the docs say what the name rule does (case folded; spaces, hyphens and underscores treated as one separator), not 'ignoring' them: 'se lf', 's-elf' and 'specauthor' close today (The-CLI.md:478-479, Gates-and-Hooks.md:287, GLOSSARY.md:37)",
+        "the no-row fix line says the verifier-blocked row must be under a name other than the author's; for a lone verifier-failed row the door names the row or its evidence as it did; a verifier made only of format characters prints as unnamed",
+        "tests pin the whole of the gate's self-closed fix line, more than four format characters, and ledger check dropping the stored apostrophe (three mutants survive); invisible characters outside Unicode Cf (U+FE0F, U+034F, U+180B) are decided"
+      ],
+      "status": "pending",
+      "description": "With require_verdict_to_close on, an item with no ledger row is now refused at done, and the gate at verifying reports it. The review approved in one round and left wording.",
+      "source": "item 95 review, .mstack/progress/review_close-with-no-verdict.md, 2026-11-18"
     }
   ]
 }
