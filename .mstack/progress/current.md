@@ -6,10 +6,10 @@
 > On close: append the summary to `history.md` and reset this file to the
 > empty template below.
 
-- **Item:** none active (39 closed 2026-11-18)
-- **Status:** -
-- **Branch:** main
-- **Base:** -
+- **Item:** 40 item-fields-base-size
+- **Status:** in_progress (round 1)
+- **Branch:** feat/item-size-and-base
+- **Base:** a74361d
 - **Worktree:** none
 
 ## Plan
