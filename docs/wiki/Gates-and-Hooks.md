@@ -280,8 +280,8 @@ Walking the lines that carry the weight:
   or the spec-author's own report, in the audit's words and with its fix line,
   instead of closing and turning the gate red after. Which names are the author's is
   `canCloseAnItem` in `src/roles.ts`: `implementer`, `spec-author`, `impl`, `implementor`,
-  `spec author`, `author`, `developer`, `dev`, `coder`, `self` and `me`, as a whole name, ignoring
-  case, spaces, hyphens and underscores; every other name, `session`, `orchestrator`, a person
+  `spec author`, `author`, `developer`, `dev`, `coder`, `self` and `me`, as the whole name after its last `:` (so `mstack:implementer` and `ci:dev`
+  are refused and `dev:ci` closes), ignoring case, spaces, hyphens and underscores; every other name, `session`, `orchestrator`, a person
   or a CI job, closes. Only while `require_verdict_to_close` is on, and `--force` does not
   override it, for the reason a standing rejection is not overridable: the gate would hold the
   same finding against the closed item for as long as the ledger carries it.
@@ -293,7 +293,7 @@ Walking the lines that carry the weight:
   recorded test-verified for demo at fc90d6f2
   $ mstack state set demo --status done
   mstack: demo cannot close: its only verdicts are from the pass that wrote the code (only implementer, self)
-          a closing verdict has to come from somewhere other than the implementer; run the verification again from a pass that did not write it
+          a closing verdict has to come from a pass that did not write the code; run the verification again from one and record the row under a name that is not the author's (your own name, or `ci`), or, if no check could be run, record `verifier-blocked` under such a name
   ```
 
   The escape hatch for "no check could be run" is not a prose note but a typed verdict:
