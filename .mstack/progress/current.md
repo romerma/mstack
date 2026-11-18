@@ -6,10 +6,10 @@
 > On close: append the summary to `history.md` and reset this file to the
 > empty template below.
 
-- **Item:** none active (67 closed 2026-11-18)
-- **Status:** -
-- **Branch:** main
-- **Base:** -
+- **Item:** 61 verify-claim-gate
+- **Status:** in_progress (round 1)
+- **Branch:** feat/verify-claim-gate
+- **Base:** 2264027
 - **Worktree:** none
 
 ## Plan

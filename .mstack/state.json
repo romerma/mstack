@@ -853,9 +853,13 @@
         "the verify skill and the evidence ladder carry the five-step procedure with an origin header",
         "the text adds no new stop and no question to the user"
       ],
-      "status": "pending",
+      "status": "in_progress",
       "description": "Adapted from obra/superpowers verification-before-completion (MIT, about 580 words, asks nothing): identify the command that proves the claim, run it, read the whole output, check it against the claim, and only then state it. It sharpens the evidence ladder rather than adding a gate.",
-      "source": "reports/Mejoras mstack con skills Pocock.md, 2026-11-16"
+      "source": "reports/Mejoras mstack con skills Pocock.md, 2026-11-16",
+      "seams": [
+        "CLI: mstack lint-plugin output and exit code on a plugin whose skills/verify/SKILL.md or skills/router/references/evidence-ladder.md has no origin header",
+        "skills/verify/SKILL.md as followed by a headless /mstack:verify run on a claim in a copy of sandbox/bench/template"
+      ]
     },
     {
       "id": 62,
