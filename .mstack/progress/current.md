@@ -7,7 +7,7 @@
 > empty template below.
 
 - **Item:** 39 role-models
-- **Status:** in_progress (round 1)
+- **Status:** reviewing (round 1)
 - **Branch:** feat/role-models
 - **Base:** d3ae7d9
 - **Worktree:** none
