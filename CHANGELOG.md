@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- **The verify skill and the evidence ladder spell out the five steps between a run and a
+  claim.** `skills/verify/SKILL.md` steps 3 and 4 now say to name the command that proves the
+  claim, run all of it at the current head (a run from before the last edit is not evidence),
+  read the whole output with its exit code and counts, check it against the claim as worded, and
+  only then state the claim with the evidence or state what the output shows.
+  `skills/router/references/evidence-ladder.md` has the same five steps in a short section and
+  one more line under "What does not count". The text is adapted from obra/superpowers
+  `verification-before-completion`, with origin headers; it adds no stop and asks nothing.
+  `lint-plugin` requires both headers.
+
 - **A load harness, and four tests that failed on correct code when the machine was busy.**
   `scripts/load/rounds.sh <rounds> <out-dir>` runs rounds of four bun and two node suites at
   once, each under a SIGKILL watchdog, and `scripts/load/table.mjs` counts the runs each test
