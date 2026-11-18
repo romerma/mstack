@@ -1,8 +1,11 @@
 import { statSync } from "node:fs";
-import { basename, join } from "node:path";
+import { basename, join, relative, sep } from "node:path";
 
+import * as decisions from "./decisions.ts";
+import { git } from "./git.ts";
+import { entries as ledgerEntries } from "./ledger.ts";
 import { activeItem } from "./state.ts";
-import { FANOUT_KINDS, MIN_REPORT_BYTES, reportFiles } from "./roles.ts";
+import { canCloseAnItem, FANOUT_KINDS, MIN_REPORT_BYTES, reportFiles, roundOf } from "./roles.ts";
 import { Report } from "./report.ts";
 import { UserError, type Store } from "./paths.ts";
 
@@ -46,8 +49,20 @@ export const CONCURRENCY_CAP = 20;
 /** A worker name has to survive being part of a filename, and stay readable. */
 const WORKER = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
-/** What the reviewer prose reserves: a leading `r<digit>` is never a lens. */
+/**
+ * What a worker name may not look like: a leading `r<digit>`.
+ *
+ * Wider than what `roundOf` reads as a round marker, on purpose. `roundOf` takes
+ * `r<digits>` as a round only when nothing or a dash follows, so a file named
+ * `_r2x` is a lens called `r2x` in round 1 there. A new worker is refused for
+ * every `r<digit>` start anyway, so no name can sit on that line: the rule for
+ * reading a file that is already on disk is narrower than the rule for naming
+ * a new one, and agents/reviewer.md says both.
+ */
 const ROUND_LIKE = /^r\d/;
+
+/** The first round that needs a written reason. */
+export const JUSTIFY_FROM_ROUND = 3;
 
 export interface FanoutPlan {
   kind: string;
@@ -146,4 +161,82 @@ export function check(store: Store, plan: FanoutPlan): Report {
   for (const file of strays) report.warn(`${basename(file)} was not in the plan; nothing will read it`);
 
   return report;
+}
+
+/**
+ * A lone review report for the active item: the next round, and what to tell the reviewer.
+ *
+ * The round is one more than the highest lone round on disk (`review_<slug>.md`
+ * is round 1, `review_<slug>_r<N>.md` is round N; a lensed report belongs to a
+ * panel and does not count). From `JUSTIFY_FROM_ROUND` on, a reason is required
+ * and is written as the item's `review-r<N>` decision row here, so the row the
+ * gate asks for exists because the round was allocated, not because someone
+ * remembered. Asking again for a round that already has its row writes none.
+ */
+export interface SoloPlan {
+  slug: string;
+  round: number;
+  report: string;
+  /** The last sha a reviewer recorded for the item that is still an ancestor of HEAD, if any. */
+  lastReviewed: string | undefined;
+  /** Whether this call wrote the decision row. */
+  wroteRow: boolean;
+}
+
+export function planSolo(store: Store, options: { kind: string; justify?: string }): SoloPlan {
+  if (options.kind !== "review") throw new UserError("--solo is for --kind review", "a lone report with rounds is what a review has; other kinds take --worker");
+  const item = activeItem(store);
+  if (item === undefined) throw new UserError("no active item to fan out on");
+
+  let highest = 0;
+  for (const file of reportFiles(store.progress, "review", item.slug)) {
+    const { round, lens } = roundOf(file, "review", item.slug);
+    if (lens === undefined && round > highest) highest = round;
+  }
+  const round = highest + 1;
+  const name = round === 1 ? `review_${item.slug}.md` : `review_${item.slug}_r${round}.md`;
+  const report = join(store.progress, name);
+
+  let wroteRow = false;
+  const reason = (options.justify ?? "").trim();
+  if (round >= JUSTIFY_FROM_ROUND) {
+    if (reason === "") {
+      throw new UserError(
+        `round ${round} of a lone review of ${item.slug} needs a reason`,
+        `rounds from ${JUSTIFY_FROM_ROUND} on are written down; pass --justify "<why another round is worth it>" and the decision row (phase review-r${round}) is written for you`,
+      );
+    }
+    const phase = `review-r${round}`;
+    const have = decisions.all(store).some((d) => d.phase === phase && d.item === item.slug);
+    if (!have) {
+      decisions.add(store, {
+        phase,
+        decision: reason,
+        why: `round ${round} of a lone review of ${item.slug}, allocated by 'mstack fanout plan --kind review --solo'`,
+        evidence: relative(store.root, report).split(sep).join("/"),
+        result: `round ${round} allowed`,
+        item: item.slug,
+      });
+      wroteRow = true;
+    }
+  }
+  return { slug: item.slug, round, report, lastReviewed: lastReviewedAncestor(store, item.slug), wroteRow };
+}
+
+/**
+ * The newest ledger row, in file order, of a pass that is not the implementer
+ * (the role `canCloseAnItem` accepts) for this item whose sha is still in HEAD's
+ * history. A rebase or an abandoned branch leaves rows whose commit is not an
+ * ancestor, and a diff against one of those would be a diff against nothing.
+ * `git merge-base --is-ancestor` prints nothing and exits 0 for an ancestor; the
+ * shared `git` helper turns every failure, including "no", into null.
+ */
+export function lastReviewedAncestor(store: Store, slug: string): string | undefined {
+  const rows = ledgerEntries(store).filter((e) => e.target === slug && canCloseAnItem(e.verifier));
+  for (let i = rows.length - 1; i >= 0; i -= 1) {
+    const sha = rows[i]?.sha ?? "";
+    if (sha === "" || sha.startsWith("-")) continue;
+    if (git(store, ["merge-base", "--is-ancestor", sha, "HEAD"]) !== null) return sha;
+  }
+  return undefined;
 }

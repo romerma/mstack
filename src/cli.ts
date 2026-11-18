@@ -57,6 +57,7 @@ const USAGE = `mstack - durable state and gates for the mstack Claude Code plugi
                                       tokens, review rounds and failed verdicts, from .mstack/costs.tsv
   hook <session-start|post-edit|subagent-stop|stop|pre-tool-use|session-end>
   fanout plan --kind K --worker W...  allocate one report path per parallel worker
+  fanout plan --kind review --solo [--justify T]  the next lone review report; round 3+ needs --justify
   fanout check --kind K --worker W... name the workers that did not report back
   statusline [--subagent]             render status rows from the JSON on stdin
   version                             which copy is running: manifest version and resolved root
@@ -118,10 +119,31 @@ function cmdFanout(argv: readonly string[]): number {
       kind: { type: "string" },
       worker: { type: "string", multiple: true },
       round: { type: "string" },
+      solo: { type: "boolean" },
+      justify: { type: "string" },
     },
     strict: true,
   });
   if (values.kind === undefined) throw new UserError("fanout needs --kind");
+  if (values.justify !== undefined && values.solo !== true) {
+    throw new UserError("--justify belongs to --solo", "it is the reason a lone review round 3 or later is allowed");
+  }
+  if (values.solo === true) {
+    if (sub !== "plan") throw new UserError("--solo is for 'fanout plan'", "a lone report is not checked by name; read the file");
+    if ((values.worker ?? []).length > 0) {
+      throw new UserError("--solo allocates one lone report, so it takes no --worker", "for a panel, give --worker once per lens and leave --solo out");
+    }
+    if (values.round !== undefined) {
+      throw new UserError("--solo works out the round itself, so it takes no --round", "the round is one more than the highest lone round on disk");
+    }
+    const solo = fanout.planSolo(requireStore(), { kind: values.kind, justify: values.justify });
+    console.log(`review round ${solo.round} of ${solo.slug}, one lone reviewer; the report goes to:`);
+    console.log(solo.report);
+    console.log("last reviewed commit, still an ancestor of HEAD:");
+    console.log(solo.lastReviewed ?? `none: no reviewer row for ${solo.slug} in the ledger is an ancestor of HEAD`);
+    if (solo.wroteRow) console.log(`recorded the review-r${solo.round} decision row for ${solo.slug}`);
+    return 0;
+  }
 
   const store = requireStore();
   const plan = fanout.plan(store, {
