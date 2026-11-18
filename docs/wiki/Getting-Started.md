@@ -6,13 +6,13 @@ work item has gone from filed to closed. If you would rather meet the moving par
 [The-Agents](The-Agents.md) and [Skills-and-Playbooks](Skills-and-Playbooks.md) first and
 come back.
 
-This page takes a clean repository from nothing to a first closed work item. Every command
-block below is followed by the output it actually produced; the run was done in a scratch
-repository containing one Python file and one test. Where a command is refused, the refusal is
-the product working, and it is shown rather than edited out. The binary that produces and
-re-runs these transcripts is the mstack repository's own `./bin/mstack` at the commit that
-last edited this page; for you, with the plugin installed, `mstack` on `PATH` is the right
-spelling, which is why the blocks are written that way.
+This page takes a git repository with one commit, on a branch named `main`, to a first closed
+work item; the scratch repository it starts from is shown below. Every command block is
+followed by the output it actually produced, in that repository. Where a command is refused,
+the refusal is the product working, and it is shown rather than edited out. The binary that
+produces and re-runs these transcripts is the mstack repository's own `./bin/mstack` at the
+commit that last edited this page; for you, with the plugin installed, `mstack` on `PATH` is
+the right spelling, which is why the blocks are written that way.
 
 ## Prerequisites
 
@@ -39,6 +39,47 @@ The marketplace route works too:
 
 Either way, `mstack` is now on `PATH` for every Bash call Claude Code makes, and the six hooks
 in `hooks/hooks.json` are active.
+
+## The repository this page starts from
+
+A git repository with at least one commit, on a branch named `main` (on `master` the gate's
+workspace line below reads `on master`). The scratch one used here has `greet.py` and
+`test_greet.py`:
+
+```bash
+git init -b main
+```
+
+`greet.py`:
+
+```python
+import sys
+
+
+def greet(name):
+    return f"Hello, {name}"
+
+
+if __name__ == "__main__":
+    print(greet(sys.argv[1]))
+```
+
+`test_greet.py`:
+
+```python
+import unittest
+from greet import greet
+
+
+class TestGreet(unittest.TestCase):
+    def test_default(self):
+        self.assertEqual(greet("world"), "Hello, world")
+```
+
+```bash
+git add -A
+git commit -m "init"
+```
 
 ## Create the store
 
@@ -133,7 +174,7 @@ Claude Code Bash call. The full wiring, including the subagent rows, is in
 
 ## A first item, end to end
 
-The scratch repository has `greet.py` and `test_greet.py`. The item: a `--shout` flag.
+The item: a `--shout` flag for `greet.py`.
 
 ### Add it and open it
 
@@ -169,13 +210,46 @@ $ mstack gate
 FAILED - 1 failure, 1 warning
 ```
 
-Fill in the Item line and the Next step in `.mstack/progress/current.md` and the gate goes
+Edit two lines of `.mstack/progress/current.md` in place and leave the rest of the template as
+it is: change `- **Item:** _none_` to `- **Item:** greet-flag, the --shout flag`, and replace the
+italic line under `## Next step` with `add the flag and its test, then verify`. The gate goes
 green. This is the file that survives a crashed context window, and the gate checks that it
 says something, not merely that it exists.
 
 ### Do the work and verify it
 
-Add the flag and its test, then run the verification the item names:
+Replace `greet.py` with:
+
+```python
+import sys
+
+
+def greet(name, shout=False):
+    text = f"Hello, {name}"
+    return text.upper() if shout else text
+
+
+if __name__ == "__main__":
+    args = sys.argv[1:]
+    print(greet([a for a in args if a != "--shout"][0], "--shout" in args))
+```
+
+and add `test_shout` to `test_greet.py`, which is now:
+
+```python
+import unittest
+from greet import greet
+
+
+class TestGreet(unittest.TestCase):
+    def test_default(self):
+        self.assertEqual(greet("world"), "Hello, world")
+
+    def test_shout(self):
+        self.assertEqual(greet("world", shout=True), "HELLO, WORLD")
+```
+
+Then run the flag and the verification the item names:
 
 ```console
 $ python3 greet.py --shout world
@@ -193,7 +267,9 @@ OK
 
 Write the implementation report, `.mstack/progress/impl_greet-flag.md`. The close reads its
 `| R | Test | Where |` table, one row per acceptance bullet in order (`A1`, `A2`);
-`agents/implementer.md` defines it. Cut to the part the close reads:
+`agents/implementer.md` defines it. `Where` is a line of your own test file: `test_greet.py:6`
+is `def test_default` and `:9` is `def test_shout` in the file above, and a line past the end
+of your file is refused at the close. Cut to the part the close reads:
 
 ```markdown
 # greet-flag: implementation report
@@ -215,14 +291,14 @@ Commit the work and the report, then record the verdict against the head SHA:
 ```console
 $ git add -A
 $ git commit -m "feat: greet --shout uppercases the greeting"
-[feat/greet-flag a397721] feat: greet --shout uppercases the greeting
- 5 files changed, 37 insertions(+), 32 deletions(-)
+[feat/greet-flag 2c3d65c] feat: greet --shout uppercases the greeting
+ 5 files changed, 37 insertions(+), 6 deletions(-)
  create mode 100644 .mstack/progress/impl_greet-flag.md
 
 $ mstack ledger record greet-flag "$(git rev-parse HEAD)" test-verified \
     --evidence ".mstack/progress/impl_greet-flag.md: python3 -m unittest test_greet -v, 2 tests, OK" \
     --verifier implementer
-recorded test-verified for greet-flag at a397721c
+recorded test-verified for greet-flag at 2c3d65c0
 ```
 
 `test-verified` is rung 4 on the evidence ladder: a test that calls the real code and fails
@@ -237,16 +313,13 @@ mstack: in_progress -> done is not a legal transition
         pass --force if you mean to skip a phase, and say why in decisions.tsv
 ```
 
-The legal route is `in_progress -> reviewing -> verifying -> done`:
+The legal route is `in_progress -> reviewing -> verifying -> done`. The implementer is finished,
+so the item moves to review:
 
 ```console
 $ mstack state set greet-flag --status reviewing
 1 greet-flag (reviewing)
   status: "in_progress" -> "reviewing"
-
-$ mstack state set greet-flag --status verifying
-1 greet-flag (verifying)
-  status: "reviewing" -> "verifying"
 ```
 
 Every `state set` prints one line per field it touched. It is the same mechanism that names each
@@ -255,35 +328,30 @@ is indistinguishable from a no-op.
 
 ### The close is audited, and the author's word is not enough
 
-The item is at `verifying` and the only verdict on it is the author's, so the close itself
-refuses:
+The close needs a verdict from a pass that did not write the code. With only the implementer's
+row, `state set --status done` refuses with `its only verdicts are from the pass that wrote the
+code (only implementer)`; this is `require_verdict_to_close` doing its job, `--force` does not
+get past it, and the gate audits every closed item for the same thing.
 
-```console
-$ mstack state set greet-flag --status done --closed-by "demo walkthrough"
-mstack: greet-flag cannot close: its only verdicts are from the pass that wrote the code (only implementer)
-        a closing verdict has to come from a pass that did not write the code; run the verification again from one and record the row under a name that is not the author's (your own name, or `ci`), or, if no check could be run, record `verifier-blocked` under such a name
-```
-
-This is `require_verdict_to_close` doing its job, and `--force` does not get past it; the gate
-audits every closed item for the same thing. A reviewer that did not write the code runs the
-verification itself: `gate --full` executes it and keeps the receipt the close reads, and it is
-red for one reason, the missing second row. The reviewer records its own row and the close goes
-through:
+The item is at `reviewing`, which is where the reviewer runs. It runs the verification itself:
+`gate --full` executes it and keeps the receipt the close reads. The gate is green here. Then
+the reviewer records its own row at the same SHA, and the item moves to `verifying` and closes:
 
 ```console
 $ mstack gate --full
 ...
-[fail]  1 greet-flag (verifying) is one step from done, and its only verdicts are from the pass that wrote the code (only implementer)
-        fix: a closing verdict has to come from a pass that did not write the code; run the verification again from one and record the row under a name that is not the author's (your own name, or `ci`), or, if no check could be run, record `verifier-blocked` under such a name
-...
 [ok]    python3 -m unittest test_greet -v
 
-FAILED - 1 failure, 1 warning
+PASSED - 0 failures, 1 warning
 
 $ mstack ledger record greet-flag "$(git rev-parse HEAD)" test-verified \
     --evidence "reviewer ran mstack gate --full: python3 -m unittest test_greet -v, 2 tests, OK; diff read against both acceptance bullets" \
     --verifier reviewer
-recorded test-verified for greet-flag at a397721c
+recorded test-verified for greet-flag at 2c3d65c0
+
+$ mstack state set greet-flag --status verifying
+1 greet-flag (verifying)
+  status: "reviewing" -> "verifying"
 
 $ mstack state set greet-flag --status done --closed-by "demo walkthrough"
 1 greet-flag (done)
@@ -310,18 +378,18 @@ the ledger again:
 ```console
 $ git add -A
 $ git commit -m "chore: close greet-flag"
-[feat/greet-flag 5ebbdfb] chore: close greet-flag
+[feat/greet-flag 41c8555] chore: close greet-flag
  2 files changed, 5 insertions(+), 2 deletions(-)
 
 $ printf '# demo\n' > README.md
 $ git add -A
 $ git commit -m "docs: add a readme"
-[feat/greet-flag c0d7f3f] docs: add a readme
+[feat/greet-flag 1bd370d] docs: add a readme
  1 file changed, 1 insertion(+)
  create mode 100644 README.md
 
 $ mstack ledger check greet-flag
-FAIL no verdict at c0d7f3ff; 2 row(s) exist at other SHAs and a new head SHA voids them
+FAIL no verdict at 1bd370dc; 2 row(s) exist at other SHAs and a new head SHA voids them
 ```
 
 A verdict is keyed by `(target, sha)`. This staleness is the one signal the status line exists
