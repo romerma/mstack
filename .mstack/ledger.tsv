@@ -197,3 +197,4 @@ any-role-name-closes	c240297edfeb68c1ffb5777573d6d7dea4dd9d18	test-verified	.mst
 any-role-name-closes	aa09c28713f1ab3ad2898fbb44497178a2638947	live-verified	.mstack/progress/review_any-role-name-closes_r2.md	reviewer	2026-11-18T17:23:48.729Z
 walkthroughs-after-closing-checks	1fb70c70a471f53eefd1710ade4a42f2658f9fb7	test-verified	.mstack/progress/impl_walkthroughs-after-closing-checks.md: bun and node 882 pass, diffpages.sh 0 differing	implementer	2026-11-18T17:46:05.562Z
 walkthroughs-after-closing-checks	55401b1f60a9aba25d370cc0d039735bb87a9414	verifier-failed	.mstack/progress/review_walkthroughs-after-closing-checks.md	reviewer	2026-11-18T18:04:58.952Z
+walkthroughs-after-closing-checks	45a3a1d612bb4d5c3183b48f64cbb6b729f8ef0a	test-verified	.mstack/progress/impl_walkthroughs-after-closing-checks_r2.md: npm run test:bun and test:node, 883 pass 0 fail; page-versus-run diffs 0 differing	implementer	2026-11-18T18:16:05.806Z
