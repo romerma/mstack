@@ -7,7 +7,7 @@
 > empty template below.
 
 - **Item:** 40 item-fields-base-size
-- **Status:** in_progress (round 1)
+- **Status:** reviewing (round 1)
 - **Branch:** feat/item-size-and-base
 - **Base:** a74361d
 - **Worktree:** none
