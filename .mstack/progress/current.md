@@ -7,7 +7,7 @@
 > empty template below.
 
 - **Item:** 40 item-fields-base-size
-- **Status:** in_progress (round 2: measure from the fork point after a rebase or merge; scope to the store root)
+- **Status:** reviewing (round 2)
 - **Branch:** feat/item-size-and-base
 - **Base:** a74361d
 - **Worktree:** none

@@ -580,12 +580,12 @@
         "base is recorded automatically on the first move to in_progress only, editable with --base, and refused by --clear",
         "The gate fails an item with base and size s whose code diff from base exceeds 60 lines or 3 files, and sdd with size s is refused"
       ],
-      "status": "in_progress",
+      "status": "reviewing",
+      "base": "d8b20c14ba679897b85255c21bc1d79843b1000e",
       "seams": [
         "CLI: mstack state add, state set and state show with --size, --base and --clear: output and exit code",
         "CLI: mstack gate on a store whose active item has a base and size s, in a git repository whose code diff from that base is under and over each limit"
-      ],
-      "base": "d8b20c14ba679897b85255c21bc1d79843b1000e"
+      ]
     },
     {
       "id": 41,
