@@ -567,8 +567,8 @@ function cmdState(argv: readonly string[]): number {
     const [ref, ...flags] = rest;
     if (ref === undefined) throw new UserError("state set needs an item id or slug");
     const { values } = parseFlags(STATE_SET, flags);
-    /** Set when `--force` moved an item to spec_ready past the requirement limit: what the decision row says. */
-    let forcedSpecSize: { count: number; limit: number; size: string } | undefined;
+    /** Set when `--force` moved an item to or past spec_ready over the requirement limit: what the decision row says. */
+    let forcedSpecSize: { count: number; limit: number; size: string; to: string } | undefined;
     const { item, changes } = updateState(store.state, (state) => {
       const item = findItem(state, ref);
       if (item === undefined) throw new UserError(`no item matches '${ref}'`);
@@ -671,12 +671,19 @@ function cmdState(argv: readonly string[]): number {
             "pass --force if you mean to skip a phase, and say why in decisions.tsv",
           );
         }
-        // A spec the size does not allow is refused at the door out of specifying,
-        // before anything is built on it: item 42's spec reached 43 requirements
-        // before a reviewer said to cut it. `--force` with `--closed-by` moves it
+        // A spec the size does not allow is refused at every move that lands an sdd
+        // item at or past spec_ready from before it, not only the one out of
+        // specifying: item 42's spec reached 43 requirements before a reviewer said
+        // to cut it, and `--force` from specifying to in_progress or from pending to
+        // spec_ready walked round the door. `--force` with `--closed-by` moves it
         // anyway, and the reason is written down as a `spec-size` decision row
-        // after the state is saved.
-        if (item.status === "specifying" && values.status === "spec_ready" && (item.sdd === true || values.sdd === true)) {
+        // after the state is saved, and nowhere else: the item is still open, so
+        // `closed_by` stays empty.
+        if (
+          requiresSpecArtifacts(values.status) &&
+          !requiresSpecArtifacts(item.status) &&
+          (item.sdd === true || values.sdd === true)
+        ) {
           const size = values.size !== undefined ? parseSize(values.size) : clears.includes("size") ? undefined : item.size;
           const found = specOverLimit(store, item.slug, size);
           if (found !== undefined) {
@@ -688,11 +695,11 @@ function cmdState(argv: readonly string[]): number {
             }
             if (values["closed-by"] === undefined) {
               throw new UserError(
-                `--force would move ${item.slug} to spec_ready past the ${found.limit} requirement limit, and that has to be on the record`,
+                `--force would move ${item.slug} to ${values.status} past the ${found.limit} requirement limit, and that has to be on the record`,
                 `add --closed-by "<why this many is right>"; it is written to decisions.tsv as a spec-size row`,
               );
             }
-            forcedSpecSize = found;
+            forcedSpecSize = { ...found, to: values.status };
             changes.push(`  forced: ${item.slug} has ${found.count} requirements, over the ${found.limit} a size ${found.size} item may have; the reason is recorded as a spec-size decision row`);
           }
         }
@@ -790,6 +797,8 @@ function cmdState(argv: readonly string[]): number {
         ["--closed-by", "closed_by", values["closed-by"]],
       ] as const) {
         if (given === undefined) continue;
+        // A forced spec move's reason is the `spec-size` row's, not a close note.
+        if (key === "closed_by" && forcedSpecSize !== undefined) continue;
         const before = item[key];
         const next = required(
           flag,
@@ -945,7 +954,7 @@ function cmdState(argv: readonly string[]): number {
       decisions.add(store, {
         phase: "spec-size",
         decision: values["closed-by"] ?? "",
-        why: `${item.slug} declares ${forcedSpecSize.count} requirements, over the ${forcedSpecSize.limit} a size ${forcedSpecSize.size} item may have; moved to spec_ready with --force`,
+        why: `${item.slug} declares ${forcedSpecSize.count} requirements, over the ${forcedSpecSize.limit} a size ${forcedSpecSize.size} item may have; moved to ${forcedSpecSize.to} with --force`,
         evidence: `.mstack/specs/${item.slug}/spec.md`,
         result: "forced past the limit",
         item: item.slug,
