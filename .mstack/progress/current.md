@@ -7,7 +7,7 @@
 > empty template below.
 
 - **Item:** 59 diagnosis-loop-in-bug-fix
-- **Status:** in_progress (round 3: one false sentence in the diagnosis, wording)
+- **Status:** reviewing (round 3)
 - **Branch:** feat/diagnosis-loop
 - **Base:** c791f39
 - **Worktree:** none
