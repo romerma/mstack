@@ -2,6 +2,7 @@ import { headSha } from "./git.ts";
 import { describeRow, entries as ledgerEntries, readVerdict, sameCommit } from "./ledger.ts";
 import { requiresVerification, VERIFICATION_REQUIRED_FROM, type Status } from "./lifecycle.ts";
 import type { Store } from "./paths.ts";
+import { R_HINT, rTableProblems } from "./rcheck.ts";
 import type { Item, State } from "./state.ts";
 import * as verification from "./verification.ts";
 
@@ -139,8 +140,35 @@ const standingRejection: ClosingCheck = {
   },
 };
 
+export const R_TO_TEST_CHECK = "r-to-test";
+
+/**
+ * The requirement-to-test table of the newest implementation report, read.
+ *
+ * Reported by the gate from `reviewing` (and so at `verifying`) and run at the
+ * `done` transition, for an item with a `base` only: items from before this
+ * check have none and are never held to it, and closed and cancelled items are
+ * never read. See `src/rcheck.ts` for what is read and what is proved.
+ *
+ * Overridable, like the verification receipts: a table problem is a finding about
+ * the report that `--force` with a recorded `--closed-by` may vouch for (the
+ * requirement is covered by something the table cannot cite). A report that
+ * exists and cannot be read is a failure to look, and is not.
+ */
+const requirementTable: ClosingCheck = {
+  name: R_TO_TEST_CHECK,
+  reportedAt: ["reviewing"],
+  run: (store, _state, item) =>
+    rTableProblems(store, item).map((p) => ({
+      check: R_TO_TEST_CHECK,
+      message: p.message,
+      hint: R_HINT,
+      overridable: p.overridable,
+    })),
+};
+
 /** Exported mutable so a test can register a second check; production code never does. */
-export const CLOSING_CHECKS: ClosingCheck[] = [verificationReceipts, standingRejection];
+export const CLOSING_CHECKS: ClosingCheck[] = [verificationReceipts, standingRejection, requirementTable];
 
 /**
  * Every problem that stops this item closing.
