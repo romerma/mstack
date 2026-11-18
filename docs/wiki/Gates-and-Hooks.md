@@ -190,19 +190,42 @@ Walking the lines that carry the weight:
 
 - **"size s"** holds a small item to its diff. It runs only for the active item when that item
   has a `base` and a `size` of `s`; an item with no base, or a size of `m`, `l` or none, is not
-  measured and the gate says nothing. It lists the paths that differ between `base` and the
-  working tree (committed, staged, unstaged, and untracked files git does not ignore), keeps the
-  ones the path classifier calls code, drops everything under `.mstack/`, and counts insertions plus
-  deletions (a binary file is a file and no lines; an untracked file's lines are insertions).
-  More than 60 lines or more than 3 files fails; exactly 60 and exactly 3 pass. Tests and docs do
-  not count, because a small fix with a thorough test is still small. The two limits are
-  `SMALL_MAX_LINES` and `SMALL_MAX_FILES` in `src/size.ts`. A base git cannot find fails too,
-  with a fix that names `--base`.
+  measured and the gate says nothing. It lists the paths under the store's root (the directory
+  that holds `.mstack/`) that differ between the commit it measures from and the working tree
+  (committed, staged, unstaged, and untracked files under that directory that git does not
+  ignore). Paths are classified relative to that directory, so a store in `pkg/app` of a monorepo
+  measures `pkg/app` alone and `pkg/app/tests/` holds tests. It keeps the ones the path classifier
+  calls code, drops everything under `.mstack/`, and counts insertions plus deletions (a binary
+  file is a file and no lines; an untracked file's lines are insertions; a renamed file is one
+  file deleted and one added). More than 60 lines or more than 3 files fails; exactly 60 and
+  exactly 3 pass. Tests and docs do not count, because a small fix with a thorough test is still
+  small. The two limits are `SMALL_MAX_LINES` and `SMALL_MAX_FILES` in `src/size.ts`. A base git
+  cannot find fails too, with a fix that names `--base`. A diff record the check cannot read
+  fails the check rather than counting as nothing.
 
   ```console
   $ mstack gate
   [fail]  1 greet-flag (in_progress) is size s but its code diff from 1dd52334 is 24 lines in 4 files, over the limits of 60 lines and 3 files
           fix: it is not small: 'mstack state set greet-flag --size m' (or split the work)
+  ```
+
+  The commit it measures from is the item's `base`, with one exception: work the branch took in
+  from the default branch is not the item's. When `HEAD` has commits of its own past the default
+  branch, and `base` is no later than the point where the branch left it, the check measures from
+  that point instead, so a `git rebase main` onto a `main` that moved, or a merge of `main` into
+  the branch, adds nothing. The default branch is the one `origin/HEAD` names, else `main`, else
+  `master`; its local branch and its `origin/` copy both count, so a local `main` left behind by
+  `git fetch && git rebase origin/main` does not hold the point back. A `base` a rebase rewrote,
+  which is no longer in `HEAD`'s history, is replaced by that point too; with no such point to
+  use, the check fails with a fix that names `--base`. Everywhere else it measures from `base`:
+  on the default branch itself, on a branch stacked on another (whose base is later than that
+  point, so the parent branch's work does not count), and where no default branch exists. The
+  line names the commit it measured from and says when that is not the base:
+
+  ```console
+  $ git rebase -q main
+  $ mstack gate
+  [ok]    one is size s: 10 lines in 1 file of code since c4557de9 (where this branch left main; base b27f89b7 is older), within 60 lines and 3 files
   ```
 
 - **"current.md tracks the active item"** checks that the live checkpoint says something, not

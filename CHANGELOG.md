@@ -12,13 +12,19 @@
   no commit yet, the move succeeds and the change list says no base was recorded. `state show`
   prints both. The gate now measures the active item when its size is `s` and it has a `base`: the
   code files (by the path classifier; tests, docs and everything under `.mstack/` do not count)
-  that differ between `base` and the working tree, committed or not, untracked files included. More
+  under the store's root directory, classified relative to it, that differ between the starting
+  commit and the working tree, committed or not, untracked files included. The starting commit is
+  `base`, except when the branch has commits of its own past the default branch and `base` is no
+  later than where it left that branch: then it is that point, so a rebase onto a `main` that
+  moved, or a merge of `main` in, adds nothing; a `base` a rebase rewrote is replaced by that point
+  too. The line names the commit measured from and says when it is not the base. More
   than 60 changed lines (insertions plus deletions) or more than 3 files fails with one line
   that gives both counts and both limits, and a fix naming `mstack state set <slug> --size m`; a
-  base git cannot find fails with a fix naming `--base`. An item with no size, size `m` or `l`, or
-  no base is not measured, so a store that does not use sizes sees nothing new. `sdd` and size `s`
-  together are refused at `state add` and at `state set`, in either order. Nothing in the intake
-  or the skills chooses a size yet.
+  base git cannot find, or a rewritten base with no point to replace it, fails with a fix naming
+  `--base`, and a diff record the check cannot read fails rather than counting as nothing. An
+  item with no size, size `m` or `l`, or no base is not measured, so a store that does not use
+  sizes sees nothing new. `sdd` and size `s` together are refused at `state add` and at `state
+  set`, in either order. Nothing in the intake or the skills chooses a size yet.
 
 - **The implementer and spec-author run on Sonnet and the reviewer and spec-reviewer on Opus,
   whatever model your session runs on.** Before, all five agents were `model: inherit`, so a

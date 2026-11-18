@@ -307,6 +307,15 @@ in this repository or the command refuses, naming the value. `--clear base` is r
 the gate measures a size-`s` item from it. Outside a git repository, or before the first commit,
 the move still succeeds and the change list says `base: not recorded`.
 
+The gate does not always measure from `base`. When the branch has commits of its own past the
+default branch and `base` is no later than the point where it left that branch, the gate measures
+from that point, so rebasing onto a `main` that moved, or merging `main` in, does not count other
+people's commits as the item's. A `base` a rebase rewrote is replaced by that point, or, with no
+such point, the gate fails and names `--base`. It measures only what lies under the directory
+that holds `.mstack/`, with paths read relative to it, so a store in `pkg/app` of a monorepo
+measures `pkg/app`. The gate's line names the commit it measured from and says when that is not
+the base; the full rule and a real line are under "size s" in [Gates and hooks](Gates-and-Hooks.md).
+
 ```console
 $ mstack state add --slug greet-flag --title "greet --shout" --acceptance "shout uppercases" --size s
 added 1 greet-flag (pending)
