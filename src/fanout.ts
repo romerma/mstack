@@ -101,8 +101,8 @@ export function plan(
     }
     // `r2` becomes `..._r2.md`, which reads as round 2 of a lone reviewer, and
     // `r2-x` becomes `..._r2-x.md`, round 2 with lens `x`, the very path that
-    // `--round 2 --worker x` allocates. Any `r<digit>` start is refused, which
-    // is the literal rule in agents/reviewer.md, so `r2x` goes with them.
+    // `--round 2 --worker x` allocates. Any `r<digit>` start is refused, `r2x`
+    // included although `roundOf` would read it as a lens (see ROUND_LIKE).
     if (ROUND_LIKE.test(name)) {
       throw new UserError(
         `'${name}' is not a usable worker name: it would be read as a round marker`,

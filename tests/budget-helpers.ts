@@ -39,6 +39,14 @@ export function report(bytes: number): string {
   return head + "x".repeat(bytes - head.length - 1) + "\n";
 }
 
+/** The table the r-to-test check reads, for the one criterion `world` gives its item. */
+export const TABLE = "| R | Test | Where |\n|---|---|---|\n| A1 | covers it | tests/a.test.ts:1 |\n";
+
+/** A report of exactly `bytes` bytes that also carries a good table. */
+export function reportWithTable(bytes: number): string {
+  return `${TABLE}\n${report(bytes - TABLE.length - 1)}`;
+}
+
 export interface World {
   slug?: string;
   status?: string;
@@ -54,6 +62,9 @@ export interface World {
 export function world(w: World = {}): Box {
   const box = sandbox();
   const slug = w.slug ?? "bud";
+  // From `reviewing` the gate reads the requirement table, so the default store has a good one.
+  put(box, "tests/a.test.ts", "test one\n");
+  if (["reviewing", "verifying"].includes(w.status ?? "")) put(box, `.mstack/progress/impl_${slug}.md`, `# Report\n\n${TABLE}`);
   for (const [name, text] of Object.entries(w.reports ?? {})) put(box, `.mstack/progress/${name}`, text);
   if (w.sdd === true) {
     for (const f of ["proposal.md", "design.md", "tasks.md"]) put(box, `.mstack/specs/${slug}/${f}`, `# ${f} of the item under test, long enough to count\n`);

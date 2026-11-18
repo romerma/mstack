@@ -1,3 +1,4 @@
+import { budgetProblems } from "./budget.ts";
 import { headSha } from "./git.ts";
 import { describeRow, entries as ledgerEntries, readVerdict, sameCommit } from "./ledger.ts";
 import { requiresVerification, VERIFICATION_REQUIRED_FROM, type Status } from "./lifecycle.ts";
@@ -167,8 +168,29 @@ const requirementTable: ClosingCheck = {
     })),
 };
 
+export const REVIEW_BUDGET_CHECK = "review-budget";
+
+/**
+ * The budget of an item's reports: a round 3 or later review report has its
+ * decision row, and no report is over 24 KB (`src/budget.ts`).
+ *
+ * Reported at every active status, because a report grows long before review,
+ * and run at the `done` transition, because an item that is no longer active
+ * is no longer looked at by the gate. For an item with a `base` only.
+ *
+ * Not overridable. `--force` vouches for a finding about what the work proved;
+ * these are about a file, and the fix (a row, a shorter report) is cheaper than
+ * the reason a forced close would have to give.
+ */
+const reviewBudget: ClosingCheck = {
+  name: REVIEW_BUDGET_CHECK,
+  reportedAt: ["specifying", "spec_ready", "in_progress", "reviewing"],
+  run: (store, _state, item) =>
+    budgetProblems(store, item).map((p) => ({ check: REVIEW_BUDGET_CHECK, message: p.message, hint: p.hint, overridable: false })),
+};
+
 /** Exported mutable so a test can register a second check; production code never does. */
-export const CLOSING_CHECKS: ClosingCheck[] = [verificationReceipts, standingRejection, requirementTable];
+export const CLOSING_CHECKS: ClosingCheck[] = [verificationReceipts, standingRejection, requirementTable, reviewBudget];
 
 /**
  * Every problem that stops this item closing.

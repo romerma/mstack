@@ -21,7 +21,7 @@ import {
   STATUSES,
 } from "./lifecycle.ts";
 import { lintPlugin } from "./lint.ts";
-import { cliProvenance, describeSrcComparison, findStore, requireStore, runningCliRoot, UserError } from "./paths.ts";
+import { cliProvenance, describeSrcComparison, findStore, requireStore, runningCliRoot, UserError, type Store } from "./paths.ts";
 import { DECIDE, helpText, parseFlags, STATE_ADD, STATE_SET, STATE_SHOW, wantsHelp } from "./cliopts.ts";
 import { isSize, resolveCommit, type Size } from "./size.ts";
 import { activeItem, assertUniqueId, assertWritable, findItem, parseState, rawItem, unknownItemFields, updateState, type Item } from "./state.ts";
