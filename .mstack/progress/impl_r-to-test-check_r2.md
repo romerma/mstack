@@ -143,7 +143,29 @@ reworked as a characterization.
 
 ## Verify
 
-VERIFY_PLACEHOLDER
+```
+$ npm run typecheck   (tsc --noEmit, exit 0, no output)
+$ ./bin/mstack lint-plugin .
+PASSED - 0 failures, 0 warnings
+$ ./bin/mstack gate
+[ok]    GLOSSARY.md: 14 entries, each a term with a one or two sentence definition
+
+-- workspace
+[ok]    store root is an mstack checkout, and this report came from its own ./bin/mstack
+[ok]    on branch feat/r-to-test-check
+[ok]    working tree is clean
+
+PASSED - 0 failures, 0 warnings
+$ node scripts/check-doc-links.mjs README.md docs/wiki/*.md
+100 relative links checked, 0 broken
+$ npm run test:bun   (HOME empty, GIT_CONFIG_GLOBAL=/dev/null)
+792 pass, 0 fail, Ran 792 tests across 31 files. [153.63s]
+$ npm run test:node
+tests 792 / pass 792 / fail 0   (745 before; +47)
+$ bun self.ts  # rTableProblems for item 41, this report in place
+item 41 r-to-test-check base=455f1660 status=in_progress
+problems: []
+```
 
 ## What is not shown
 
