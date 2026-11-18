@@ -7,7 +7,7 @@
 > empty template below.
 
 - **Item:** 62 review-findings-verified-first
-- **Status:** in_progress (round 1)
+- **Status:** reviewing (round 1)
 - **Branch:** feat/review-findings-verified-first
 - **Base:** 45a6f1c
 - **Worktree:** none
