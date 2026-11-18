@@ -1240,7 +1240,7 @@
         "an item whose only verdict is the implementer's is refused at state set --status done with the reason the gate gives, instead of closing and turning the gate red afterwards",
         "GLOSSARY.md's Closing role entry and docs/wiki describe the rule as the code then implements it"
       ],
-      "status": "reviewing",
+      "status": "in_progress",
       "base": "7d71f2eab9e52371ec0004993cc1159c969485e2",
       "source": "item 58 review, .mstack/progress/review_glossary-and-adr.md blocking finding 2, 2026-11-17; next to item 71",
       "seams": [
@@ -1432,6 +1432,19 @@
       "status": "pending",
       "description": "The budget counts review rounds over lone and lensed reports, asks a reason from round 3 through fanout plan --kind review --solo, caps every report of an item with a base at 24576 bytes, and limits a spec to 12 requirements (m) or 30 (l). gate --full now reports the closing checks the plain gate reports.",
       "source": "item 43 reviews, .mstack/progress/review_review-budget.md and _r2.md to _r4.md, 2026-11-18"
+    },
+    {
+      "id": 95,
+      "slug": "close-with-no-verdict",
+      "title": "An item with no ledger row at all can still be closed, and the gate goes red afterwards",
+      "acceptance": [
+        "state set --status done refuses an item with no ledger row while require_verdict_to_close is on, with the gate's words, or the reason it stays allowed is recorded",
+        "the 50 tests that close with no row are changed to record a verdict or to turn the rule off, each deliberately; the comment at tests/verdict-reader.test.ts:113-118 is true",
+        "verifier names are compared after stripping zero-width and look-alike characters, as the evidence check already does; the reason at the door matches the audit's for a lone verifier-failed row; the refusal prints the name without the stored apostrophe"
+      ],
+      "status": "pending",
+      "description": "Item 82 made state set --status done refuse an item whose only verdicts are the implementing pass's. A close with zero rows still exits 0 and the next gate prints 'items marked done with no ledger verdict at all'. Refusing it broke 50 existing tests (bun 825 pass, 50 fail): all of them close with require_verdict_to_close on, which tests/helpers.ts:179 defaults to true, and rely on the gap. May be a product fork: whether a store with the rule on may ever close an item nobody verified.",
+      "source": "item 82 round 1 review, .mstack/progress/review_any-role-name-closes.md, 2026-11-18"
     }
   ]
 }
