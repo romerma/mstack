@@ -7,7 +7,7 @@
 > empty template below.
 
 - **Item:** 49 bench-hygiene-followups
-- **Status:** in_progress (round 1)
+- **Status:** reviewing (round 1)
 - **Branch:** chore/bench-hygiene
 - **Base:** 5ab0d1b
 - **Worktree:** none
