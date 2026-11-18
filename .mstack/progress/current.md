@@ -6,10 +6,10 @@
 > On close: append the summary to `history.md` and reset this file to the
 > empty template below.
 
-- **Item:** none active (96 closed 2026-11-18; 42 parked on a fork for the user)
-- **Status:** -
-- **Branch:** main
-- **Base:** -
+- **Item:** 95 close-with-no-verdict
+- **Status:** in_progress (round 1)
+- **Branch:** fix/close-needs-a-verdict
+- **Base:** 23abeaf
 - **Worktree:** none
 
 ## Plan

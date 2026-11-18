@@ -1445,9 +1445,14 @@
         "the gate's side of the two message fixes has a test (dropping the apostrophe fix at src/gate.ts:507 and changing the fix line at :541 both survive); the list printed for an approval that cites the implementer's report drops the stored apostrophe too (src/closing.ts:200, src/gate.ts:513)",
         "docs/wiki/The-CLI.md:474-475 says what follows the last colon is compared, not 'a whole name'; docs/wiki/Gates-and-Hooks.md:283-284 names the empty name, and the long lines there and at tests/verdict-reader.test.ts:118 are wrapped"
       ],
-      "status": "pending",
+      "status": "in_progress",
       "description": "Item 82 made state set --status done refuse an item whose only verdicts are the implementing pass's. A close with zero rows still exits 0 and the next gate prints 'items marked done with no ledger verdict at all'. Refusing it broke 50 existing tests (bun 825 pass, 50 fail): all of them close with require_verdict_to_close on, which tests/helpers.ts:179 defaults to true, and rely on the gap. May be a product fork: whether a store with the rule on may ever close an item nobody verified.",
-      "source": "item 82 round 1 review, .mstack/progress/review_any-role-name-closes.md, 2026-11-18"
+      "source": "item 82 round 1 review, .mstack/progress/review_any-role-name-closes.md, 2026-11-18",
+      "base": "23abeaf5e7e02c50119502488ef52ee5d4626b75",
+      "seams": [
+        "CLI: mstack state set --status done and mstack gate on an item with no ledger row, with require_verdict_to_close on and off: exit codes and stdout",
+        "CLI: mstack ledger record --verifier with zero-width and look-alike characters, then the close and the gate"
+      ]
     },
     {
       "id": 96,
