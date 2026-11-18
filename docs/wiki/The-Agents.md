@@ -67,8 +67,8 @@ speed bump with an audit trail, not a sandbox, and that is the honest strength o
 The other half is enforced by the gate. An item may only close on a ledger verdict from a
 pass that did not write the code. A verdict is one of five typed values, `test-verified`
 below among them; the enum lives on [The-CLI](The-CLI.md). Here is a scratch-repository run where the implementer
-records its own honest verdict, the close is forced past review anyway, and the gate catches
-it (output trimmed to the lines that matter):
+records its own honest verdict, the close is forced anyway, and the close itself refuses
+(output trimmed to the lines that matter):
 
 ```console
 $ mstack ledger record greet-flag "$(git rev-parse HEAD)" test-verified \
@@ -76,24 +76,24 @@ $ mstack ledger record greet-flag "$(git rev-parse HEAD)" test-verified \
 recorded test-verified for greet-flag at 62849b5a
 
 $ mstack state set greet-flag --status done --force --closed-by "demo: skipping review on purpose"
-1 greet-flag (done)
-  status: "in_progress" -> "done"
-  closed_by: (unset) -> "demo: skipping review on purpose"
-
-$ mstack gate
-[fail]  items closed on a verdict from the pass that wrote the code: greet-flag (only implementer)
-        fix: a closing verdict has to come from somewhere other than the implementer; run the verification again from a pass that did not write it
+mstack: greet-flag cannot close: its only verdicts are from the pass that wrote the code (only implementer)
+        a closing verdict has to come from a pass that did not write the code; run the verification again from one and record the row under a name that is not the author's (your own name, or `ci`), or, if no check could be run, record `verifier-blocked` under such a name
 ```
 
 The implementer's row is not worthless; it is evidence the code works, recorded at the rung
 of [the evidence ladder](Skills-and-Playbooks.md#the-evidence-ladder) the implementer
-honestly reached. It is just not sufficient to close. A reviewer re-runs the
-verification and records its own row at the same SHA, and the same gate goes green:
+honestly reached. It is just not sufficient to close, and `--force` does not change that. A
+reviewer re-runs the verification and records its own row at the same SHA, and the close
+goes through (the item has moved through `reviewing` and `verifying` by now):
 
 ```console
 $ mstack ledger record greet-flag "$(git rev-parse HEAD)" test-verified \
     --evidence ".mstack/progress/review_greet-flag.md" --verifier reviewer
 recorded test-verified for greet-flag at 62849b5a
+
+$ mstack state set greet-flag --status done
+1 greet-flag (done)
+  status: "verifying" -> "done"
 
 $ mstack gate
 [ok]    1 closed item(s) carry a ledger verdict
@@ -220,7 +220,9 @@ The `--verifier` name is free text, and the rule for it is open on purpose: any 
 item except the names for the pass that wrote the work (`implementer`, `spec-author`, their
 common spellings, `self`, `me`, or nothing at all), so a panel's synthesising session, an
 orchestrator, a person or a CI job each close under their own name. `state set --status done`
-refuses an item without such a verdict, as the gate does.
+refuses an item whose only verdicts are from the pass that wrote the work, or whose closing verdict
+cites that pass's own report, as the gate does; an item with no row at all still closes, and the next
+gate fails it.
 
 Nobody types a row on another pass's behalf. A row ghost-written by the coordinating pass is
 prose separation with no typed artifact behind it, which is the exact failure the verifier
