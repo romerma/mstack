@@ -6,10 +6,10 @@
 > On close: append the summary to `history.md` and reset this file to the
 > empty template below.
 
-- **Item:** none active (42 parked at pending on a fork for the user, 2026-11-18)
-- **Status:** -
-- **Branch:** main
-- **Base:** -
+- **Item:** 43 review-budget
+- **Status:** in_progress (round 1)
+- **Branch:** feat/review-budget
+- **Base:** 362536f
 - **Worktree:** none
 
 ## Plan
