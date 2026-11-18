@@ -7,7 +7,7 @@
 > empty template below.
 
 - **Item:** 49 bench-hygiene-followups
-- **Status:** in_progress (round 2: three tests still reach past their mapped sentences)
+- **Status:** reviewing (round 2)
 - **Branch:** chore/bench-hygiene
 - **Base:** 5ab0d1b
 - **Worktree:** none

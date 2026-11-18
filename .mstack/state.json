@@ -711,7 +711,7 @@
         "the five hidden tests that check more than their mapped sentence get the extra README sentences in meta.json (review_benchmark-hard-tier.md finding 1), verify.mjs still green",
         "README v1 discount wording vs the v1 fixture (finding 2) and the cosmetic items (finding 3) are fixed only if the hard tier is re-baselined; otherwise a decision row records leaving them"
       ],
-      "status": "in_progress",
+      "status": "reviewing",
       "base": "5ab0d1b71718695ce5633d2c86c55eecf1734056",
       "seams": [
         "node sandbox/bench/check.mjs and node sandbox/bench/verify.mjs: exit code and output"
@@ -1518,8 +1518,8 @@
       ],
       "status": "pending",
       "description": "sandbox/ is gitignored in this repository and bench/ is untracked in the nested sandbox repository: the harness, the tasks, the recorded baseline results, streams and evidence exist only on disk. Item 49 matched five hidden tests of H3 and H4 to README sentences assertion by assertion; the other 39 were not checked.",
-      "source": "item 49 round 1 review, .mstack/progress/review_bench-hygiene-followups.md, 2026-11-18",
-      "decision_required": "Where the benchmark harness and its recorded baseline live: committed to the nested sandbox repository, moved into this repository, or kept unversioned with a backup. It holds hidden tests and reference patches that must not reach a public repository."
+      "decision_required": "Where the benchmark harness and its recorded baseline live: committed to the nested sandbox repository, moved into this repository, or kept unversioned with a backup. It holds hidden tests and reference patches that must not reach a public repository.",
+      "source": "item 49 round 1 review, .mstack/progress/review_bench-hygiene-followups.md, 2026-11-18"
     }
   ]
 }
