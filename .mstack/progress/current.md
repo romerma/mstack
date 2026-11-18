@@ -7,7 +7,7 @@
 > empty template below.
 
 - **Item:** 96 walkthroughs-after-closing-checks
-- **Status:** in_progress (round 1)
+- **Status:** reviewing (round 1)
 - **Branch:** docs/walkthroughs-run-as-written
 - **Base:** c6e35e9
 - **Worktree:** none
