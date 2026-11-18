@@ -678,7 +678,11 @@ test("a later pass from a different closing role supersedes a failure", () => {
   }
 });
 
-test("a citation is the exact report filename as a whole token, however punctuated", () => {
+// The time is the fixture's and the gate's child processes: ten sandboxes (a git
+// repository each, five git calls to make) and ten gate runs. Measured for item 67:
+// 1.6 s on its own, 5.0 to 20.9 s beside five other suites, where bun's 5 s
+// default failed it on correct code.
+test("a citation is the exact report filename as a whole token, however punctuated", { timeout: 35_000 }, () => {
   // A closing-role row whose evidence cites the implementer's report is refused
   // whatever punctuation surrounds the filename; a string that merely resembles
   // the filename — glued prefix, different extension, different slug — is not a
