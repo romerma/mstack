@@ -172,7 +172,9 @@ model remembers it lives in a hook or in a gate that is code.
 ## Your first item, end to end
 
 The output below is from a real run, in a repository where `/mstack:setup` has run and
-`greet.py` and its test exist. Both refusals are the product behaving as designed.
+`greet.py` and its test exist (the two files
+[Getting-Started](docs/wiki/Getting-Started.md#the-repository-this-page-starts-from) shows,
+committed). Both refusals are the product behaving as designed.
 (The rule for every transcript here and in the wiki: it is produced and re-run by the mstack
 repository's own `./bin/mstack` at the commit that edits it, and spelled `$ mstack` because
 for you, with the plugin installed, that is the right command — the distinction matters only
@@ -213,14 +215,20 @@ The close reads the implementer's report, `.mstack/progress/impl_greet-flag.md`,
 | A2 | test_default, test_shout | test_greet.py:6, test_greet.py:9 |
 ```
 
-The lifecycle goes through `reviewing` and `verifying`, and the close needs a ledger verdict.
-The implementer's own row is not enough:
+Commit the work and the report, so the verdict names a commit that has them. The lifecycle goes
+through `reviewing` and `verifying`, and the close needs a ledger verdict. The implementer's own
+row is not enough:
 
 ```bash
+$ git add -A
+$ git commit -m "feat: greet --shout uppercases the greeting"
+[main 5ff174a] feat: greet --shout uppercases the greeting
+...
+
 $ mstack ledger record greet-flag "$(git rev-parse HEAD)" test-verified \
     --evidence ".mstack/progress/impl_greet-flag.md: python3 -m unittest test_greet -v, 2 tests, OK" \
     --verifier implementer
-recorded test-verified for greet-flag at 60351430
+recorded test-verified for greet-flag at 5ff174a7
 
 $ mstack state set greet-flag --status reviewing
 1 greet-flag (reviewing)
@@ -242,7 +250,7 @@ close goes through:
 $ mstack ledger record greet-flag "$(git rev-parse HEAD)" test-verified \
     --evidence "reviewer re-ran python3 -m unittest test_greet -v: 2 tests, OK; diff read against both acceptance bullets" \
     --verifier reviewer
-recorded test-verified for greet-flag at 60351430
+recorded test-verified for greet-flag at 5ff174a7
 
 $ mstack state set greet-flag --status done
 1 greet-flag (done)
