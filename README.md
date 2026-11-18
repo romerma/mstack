@@ -204,14 +204,13 @@ $ mstack ledger record greet-flag "$(git rev-parse HEAD)" test-verified \
     --evidence "python3 -m unittest test_greet -v: 2 tests, OK" --verifier implementer
 recorded test-verified for greet-flag at 4b63888b
 
-$ mstack gate    # after moving the item to done
-[fail]  items closed on a verdict from the pass that wrote the code: greet-flag (only implementer)
-        fix: a closing verdict has to come from somewhere other than the implementer; run the
-        verification again from a pass that did not write it
+$ mstack state set greet-flag --status done    # from verifying
+mstack: greet-flag cannot close: its only verdicts are from the pass that wrote the code (only implementer)
+        a closing verdict has to come from a pass that did not write the code; run the verification again from one and record the row under a name that is not the author's (your own name, or `ci`), or, if no check could be run, record `verifier-blocked` under such a name
 ```
 
 A reviewer that did not write the code re-runs the verification, records its own row, and the
-gate goes green. The whole walkthrough, including the product-fork refusal, is
+close goes through. The whole walkthrough, including the product-fork refusal, is
 [docs/wiki/How-A-Work-Item-Flows.md](docs/wiki/How-A-Work-Item-Flows.md).
 
 ## What you get
