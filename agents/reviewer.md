@@ -55,11 +55,15 @@ Judge what the diff changes and nothing around it. Without the lens, do not read
 
 ## Your verdict
 
-Write your report to `.mstack/progress/review_<slug>_<lens>.md` when you were given a lens, and
-`.mstack/progress/review_<slug>.md` when you are reviewing alone. Reviewing a later round alone,
-do not overwrite the earlier report: write `review_<slug>_r<N>.md`, taking the first `N` from 2
-upward whose file does not exist. A lensed later round composes the two as
-`review_<slug>_r<N>-<lens>.md`. The suffix is not decoration: a review panel runs in parallel,
+Write your report to the path your brief names. When it names none and you were given a lens, write
+`.mstack/progress/review_<slug>_<lens>.md`; a lensed later round is `review_<slug>_r<N>-<lens>.md`.
+When it names none and you are reviewing alone, do not compute a name: take the path
+`mstack fanout plan --kind review --solo` prints. It counts every review report of the item, lone or
+lensed, so a lone review after a round-1 panel is `review_<slug>_r2.md` and never overwrites an
+earlier round. From round 3 it refuses without a reason; if it does, the round was not justified:
+say so in your reply and write nothing under a name you picked yourself.
+
+The lens suffix is not decoration: a review panel runs in parallel,
 and one shared filename means every reviewer but the last overwrites the others, and a later
 round writing the first round's filename loses that round the same way. Losing a review
 silently is the failure this report exists to prevent.

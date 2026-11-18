@@ -20,6 +20,11 @@ The reviewer did not write the code. If that is not true, stop: fetch someone wh
    Worker names starting `r<digit>` (`r2`, `r2-facts`, `r2x`) are reserved, and `plan` refuses
    them: `r2` would be read as round 2 of a lone reviewer, and `r2-facts` as round 2 with lens
    `facts`, sharing a path with `plan --round 2 --worker facts`.
+   A lone reviewer's path comes from the tool as well: `mstack fanout plan --kind review --solo`
+   gives one more than the highest round of any review report of the item, a panel's included,
+   so the review after a round-1 panel is round 2. From round 3 it needs `--justify "<why>"`,
+   which also writes the `review-r<N>` decision row the gate asks for. Pass the path it prints
+   to the lone reviewer in the brief.
 3. Launch them in parallel, each with the full diff and a distinct lens. Give different lenses to
    different **models** where you can: models differ in blind spots, and agreement across models
    is signal in a way agreement across two runs of one model is not. `reviewer` runs on Opus

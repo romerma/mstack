@@ -178,9 +178,11 @@ others, and losing a review silently is the failure the report exists to prevent
 In what follows `review_<slug>`, a leading `r<digits>` is a round marker only when nothing
 follows it or a dash does: `_r2` and `_r2-facts` are round 2, `_r2x` is a lens named `r2x` in
 round 1. `mstack fanout plan` refuses any worker name starting `r<digit>` anyway, so the
-planner never produces the second reading. A lone reviewer asks the tool for its path:
-`mstack fanout plan --kind review --solo` allocates the next round and, from round 3 on, wants
-a reason (`--justify`), which it records as the item's `review-r<N>` decision row. See
+planner never produces the second reading. A lone reviewer takes its path from the tool, never from
+its own arithmetic: `mstack fanout plan --kind review --solo` allocates one more than the highest
+round of any review report of the item, lone or lensed (a round-1 panel makes the next lone
+review round 2), and from round 3 on wants a reason (`--justify`), which it records as the
+item's `review-r<N>` decision row. See
 [The CLI](The-CLI.md#fanout-plan--check).
 
 One lens reads a file: `design`, which the coordinator gives when the diff adds or changes a
