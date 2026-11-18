@@ -6,10 +6,10 @@
 > On close: append the summary to `history.md` and reset this file to the
 > empty template below.
 
-- **Item:** 42 mutation-check (spec path)
-- **Status:** specifying
-- **Branch:** feat/mutation-check
-- **Base:** d21339b
+- **Item:** none active (42 parked at pending on a fork for the user, 2026-11-18)
+- **Status:** -
+- **Branch:** main
+- **Base:** -
 - **Worktree:** none
 
 ## Plan
@@ -73,6 +73,10 @@ Waiting on the user, each asked on 2026-11-17 with a recommendation of yes:
 - Item 75 `spec-path-for-answered-forks`: does an item whose forks are all answered take the
   direct path, unless it is sdd, crosses several subsystems, or the user steps away?
 - Item 50 (`plugin validate --strict`): the icon is the user's call per its own acceptance.
+- Item 42 `mutation-check`: how the check touches the user's tree (in place and split in two, a copy of
+  the tree, or not at all); its spec and two spec reviews are in `.mstack/specs/mutation-check/` and
+  `.mstack/progress/spec_review_mutation-check*.md`. Recommended: the copy of the tree.
+- Item 60 `ship-pr-body`: may a real PR be opened on GitHub for its third criterion?
 Record each answer with `mstack decide --resolves <slug>`.
 
 Standing: push `main` after closing work and check CI (user, 2026-11-17).

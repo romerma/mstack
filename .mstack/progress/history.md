@@ -1437,3 +1437,22 @@ file that a table cites, and read every citation back before committing.
 through its own check: `state set --status done` read the round 3 report's table.
 
 **Filed.** Item 93 `r-table-check-followups`.
+
+## 2026-11-18 - item 42 mutation-check parked on a fork after two spec reviews
+
+**What happened.** The item went down the spec path. The decided design reverted the item's code
+in the user's working tree behind a lock and a restore, because a copy of the tree lacks what the
+obligations use. Round 1 of the spec (27 requirements) was broken by its review: untracked files
+removed on restore, a lock that a commit from another terminal kept for good, `git restore`
+deleting a directory with an untracked file in it. Round 2 (43 requirements, filesystem writes
+from staged byte copies, a lock that is a shell script) was broken again: the git-only recovery
+deleted work and exited 0, a case-only rename kept the lock for good on a case-insensitive
+filesystem, and no receipt survived the ship skill's merge-then-close order. The reviewer
+recommended cutting the item in two, which changes its acceptance.
+
+**Why it stopped.** The design row for round 2 said that if the in-place design could not be made
+safe on paper the item would go to the user. Two adversarial reads each found work lost; each fix
+added machinery. No code was written. The spec and both reviews stay in the repository.
+
+**The fork** is on the item (`decision_required`): in place and split in two; a copy of the tree;
+or no mutation check. Items 44 (its matrix says size m adds mutation) and 65 wait on the answer.
