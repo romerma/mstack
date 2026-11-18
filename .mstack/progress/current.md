@@ -7,7 +7,7 @@
 > empty template below.
 
 - **Item:** 96 walkthroughs-after-closing-checks
-- **Status:** in_progress (round 2: the run does what the page says; the reviewer approves on a green gate)
+- **Status:** reviewing (round 2)
 - **Branch:** docs/walkthroughs-run-as-written
 - **Base:** c6e35e9
 - **Worktree:** none
