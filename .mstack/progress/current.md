@@ -7,7 +7,7 @@
 > empty template below.
 
 - **Item:** 43 review-budget
-- **Status:** in_progress (round 2: rounds counted over panels, the cap told to every role, gate --full runs the closing checks)
+- **Status:** reviewing (round 2)
 - **Branch:** feat/review-budget
 - **Base:** 362536f
 - **Worktree:** none
