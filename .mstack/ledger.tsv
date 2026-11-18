@@ -195,3 +195,4 @@ any-role-name-closes	9104c2f3e523f2bca8ccad375a30dd9d2ff1c107	test-verified	.mst
 any-role-name-closes	eb1180493bced4bd56c1889952ff6980b41271f8	verifier-failed	.mstack/progress/review_any-role-name-closes.md	reviewer	2026-11-18T16:44:54.647Z
 any-role-name-closes	c240297edfeb68c1ffb5777573d6d7dea4dd9d18	test-verified	.mstack/progress/impl_any-role-name-closes_r2.md	implementer	2026-11-18T16:57:14.737Z
 any-role-name-closes	aa09c28713f1ab3ad2898fbb44497178a2638947	live-verified	.mstack/progress/review_any-role-name-closes_r2.md	reviewer	2026-11-18T17:23:48.729Z
+walkthroughs-after-closing-checks	1fb70c70a471f53eefd1710ade4a42f2658f9fb7	test-verified	.mstack/progress/impl_walkthroughs-after-closing-checks.md: bun and node 882 pass, diffpages.sh 0 differing	implementer	2026-11-18T17:46:05.562Z
