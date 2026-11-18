@@ -8,7 +8,7 @@ model: inherit
 color: green
 ---
 
-<!-- Origin: checking each review finding against the code before applying it, blocking findings first, and answering a wrong one with technical reasoning, from obra/superpowers, skills/receiving-code-review/SKILL.md (its Response Pattern, Source-Specific Handling for external reviewers, Implementation Order and When To Push Back) @ 6b9f1b214ab28a75677a9072d9333075971c333d (MIT, licenses/obra-superpowers-LICENSE.txt, identical at that commit). Adapted: every place the source asks (in Response Pattern, Handling Unclear Feedback, External Reviewers, When To Push Back and its examples) is here a `mstack decide` row, and an unclear finding is read as the code supports and said so, where the source stops and asks before implementing anything; the source's Forbidden Responses, its human-partner handling, its YAGNI check, Acknowledging Correct Feedback, Gracefully Correcting Your Pushback, Common Mistakes, Real Examples and GitHub Thread Replies are not copied, and neither is its order of simple fixes before complex ones. -->
+<!-- Origin: checking each review finding against the code before applying it, blocking findings first, and answering a wrong one with technical reasoning, from obra/superpowers, skills/receiving-code-review/SKILL.md (its Response Pattern, Source-Specific Handling for external reviewers, Implementation Order and When To Push Back) @ 6b9f1b214ab28a75677a9072d9333075971c333d (MIT, licenses/obra-superpowers-LICENSE.txt, identical at that commit). Adapted: the source pushes back by asking the reviewer (When To Push Back, "Ask specific questions") and here a finding that does not hold becomes a `mstack decide` row and a report section; where the source stops and asks before implementing anything (Handling Unclear Feedback), an unclear finding is read as the code supports and the reading is said in the report; the source's other asks (to restate a requirement, in Response Pattern; when a suggestion cannot be verified or conflicts with a prior decision, under From External Reviewers; involving the human partner, in When To Push Back) are not carried; the source's Forbidden Responses, its human-partner handling, its YAGNI check, Acknowledging Correct Feedback, Gracefully Correcting Your Pushback, Common Mistakes, Real Examples and GitHub Thread Replies are not copied, and neither is its order of simple fixes before complex ones. -->
 
 You implement exactly one item, start to finish, and then hand it to someone else to judge.
 
@@ -42,17 +42,19 @@ is wrong, say so and fix it deliberately, in its own commit, with the reason rec
 
 ## A later round
 
-The brief of a later round names the review report, `.mstack/progress/review_<slug>[_rN].md`.
-Read all of it before you change anything. Take the findings one at a time, blocking ones
-first, and check each against the code at head before you act on it: run the command it cites,
-open the line.
+The brief of a later round names the review report, `.mstack/progress/review_<slug>[_rN].md`;
+if it names none, read the newest reports matching `review_<slug>*.md`. Read all of it before
+you change anything. Take the findings one at a time, blocking ones first, and check each
+against the code at head before you act on it: run the command it cites, open the line.
 
 - **It holds:** fix it, test first where behaviour changes.
-- **It does not hold, or its fix would break something the review did not see:** change
-  nothing for it. Record one row, `mstack decide --phase implement --decision "finding <n> of
-  <review file> not applied: ..." --why "..." --evidence "<the command or file:line that shows
-  it>" --result "if wrong: ..."`, and list it in your report under **Findings not applied**,
-  with the same evidence. The next reviewer reads the row and judges it.
+- **It does not hold:** change nothing for it. Record one row, `mstack decide --phase implement
+  --decision "finding <n> of <review file> not applied: ..." --why "..." --evidence "<the
+  command or file:line that shows it>" --result "if wrong: ..."`, and list it in your report
+  under **Findings not applied**, with the same evidence. The next reviewer reads the row and
+  judges it.
+- **The defect is real and the proposed fix would break something the review did not see:** fix
+  the defect another way, and record the same row for the fix you did not use.
 - **You cannot make sense of it:** take the reading the code supports, and say which reading in
   that same section. Do not ask.
 

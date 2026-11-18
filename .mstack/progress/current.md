@@ -7,7 +7,7 @@
 > empty template below.
 
 - **Item:** 62 review-findings-verified-first
-- **Status:** reviewing (round 1)
+- **Status:** reviewing (round 2: header clause, two sentences)
 - **Branch:** feat/review-findings-verified-first
 - **Base:** 45a6f1c
 - **Worktree:** none

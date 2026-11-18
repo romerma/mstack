@@ -5,9 +5,10 @@
 - **The implementer checks each review finding against the code before applying it in a later
   round, and records a rebuttal when one does not hold.** `agents/implementer.md` has a section
   "A later round": read the review report the brief names, check each finding at head (run what it
-  cites, open the line), fix what holds, and for a finding that does not hold or whose fix would
-  break something, change nothing and record a `mstack decide` row with the evidence, also listed
-  in the report under "Findings not applied". Nothing asks the user. `agents/reviewer.md` reads
+  cites, open the line), fix what holds, and for a finding that does not hold, change nothing and
+  record a `mstack decide` row with the evidence, also listed in the report under "Findings not
+  applied"; a real defect whose proposed fix would break something is fixed another way, with the
+  same row. Nothing asks the user. `agents/reviewer.md` reads
   those rows and judges each rebuttal on its evidence. The text is adapted from obra/superpowers
   `receiving-code-review`, with an origin header; `lint-plugin` requires it on
   `agents/implementer.md`.
