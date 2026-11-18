@@ -10,7 +10,7 @@
   that shows it done with what it prints, and never "TBD", "add error handling", "handle edge
   cases", "as in task 3" or a name no task or existing file defines. The text is in
   `skills/spec/SKILL.md` section 4, in short in `agents/spec-author.md` (which does not preload the
-  spec skill), in `skills/router/playbooks/orchestrate.md` steps 1, 2 and 5, and in the `tasks.md`
+  spec skill), in `skills/router/playbooks/orchestrate.md` steps 1 and 5, and in the `tasks.md`
   template's example task. `agents/spec-reviewer.md` checks both and names the task or the
   placeholder. Adapted from obra/superpowers `writing-plans` (Task Right-Sizing, Overview, No
   Placeholders, Remember), with origin headers; its complete-code steps, two-to-five-minute steps,
