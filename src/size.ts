@@ -25,6 +25,17 @@ export const SMALL_MAX_LINES = 60;
 /** More changed code files than this is not small. */
 export const SMALL_MAX_FILES = 3;
 
+/**
+ * How many requirements a spec may declare before it moves from `specifying` to
+ * `spec_ready`: 12 for `m` and for no size (absent reads as `m`), 30 for `l`.
+ * `s` cannot be sdd, so it has no limit of its own and reads as `m`.
+ */
+export const SPEC_MAX_REQUIREMENTS: Readonly<Record<Size, number>> = { s: 12, m: 12, l: 30 };
+
+export function specLimit(size: Size | undefined): number {
+  return SPEC_MAX_REQUIREMENTS[size ?? "m"];
+}
+
 export interface DiffSize {
   readonly lines: number;
   readonly files: number;

@@ -43,6 +43,19 @@ function newestReport(store: Store, slug: string): string | undefined {
   return best?.file;
 }
 
+/**
+ * The requirement ids a spec declares, each once, in order.
+ *
+ * The one reader of `### Requirement: R<n>` headings: the table check reads its
+ * ids through it, and so does the limit on a spec's size (`src/size.ts`), so the
+ * two cannot disagree about how many requirements a spec has.
+ */
+export function specRequirementIds(text: string): string[] {
+  const ids = new Set<string>();
+  for (const m of text.matchAll(/^###[ \t]+Requirement:[ \t]+(R\d+)\b/gm)) ids.add(m[1] as string);
+  return [...ids];
+}
+
 /** The ids the table has to cover, with a label to quote for each, or a problem. */
 function requirementIds(store: Store, item: Item): { ids: Map<string, string> } | { problem: RProblem } {
   const ids = new Map<string, string>();
@@ -68,7 +81,7 @@ function requirementIds(store: Store, item: Item): { ids: Map<string, string> } 
       },
     };
   }
-  for (const m of text.matchAll(/^###[ \t]+Requirement:[ \t]+(R\d+)\b/gm)) ids.set(m[1] as string, "");
+  for (const id of specRequirementIds(text)) ids.set(id, "");
   if (ids.size === 0) {
     return { problem: { message: `${shown} has no requirement ids to map (### Requirement: R<n> <name>)`, overridable: true } };
   }

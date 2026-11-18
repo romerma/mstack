@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, relative, sep } from "node:path";
 import { parseArgs } from "node:util";
 
 import * as costs from "./costs.ts";
@@ -23,7 +23,8 @@ import {
 import { lintPlugin } from "./lint.ts";
 import { cliProvenance, describeSrcComparison, findStore, requireStore, runningCliRoot, UserError, type Store } from "./paths.ts";
 import { DECIDE, helpText, parseFlags, STATE_ADD, STATE_SET, STATE_SHOW, wantsHelp } from "./cliopts.ts";
-import { isSize, resolveCommit, type Size } from "./size.ts";
+import { specRequirementIds } from "./rcheck.ts";
+import { isSize, resolveCommit, specLimit, type Size } from "./size.ts";
 import { activeItem, assertUniqueId, assertWritable, findItem, parseState, rawItem, unknownItemFields, updateState, type Item } from "./state.ts";
 import { MIN_REPORT_BYTES } from "./roles.ts";
 import * as verification from "./verification.ts";
@@ -343,6 +344,30 @@ function seamList(values: readonly string[]): string[] {
 }
 
 /** One of s, m or l, or a refusal that names what was given and what is allowed. */
+/**
+ * How many requirements `spec.md` declares against what the size allows, when it
+ * declares more. Counted by `specRequirementIds`, the reader the table check
+ * uses. A spec that is missing or cannot be read has nothing to count here: the
+ * gate's own spec check says what is missing.
+ */
+function specOverLimit(
+  store: Store,
+  slug: string,
+  size: Size | undefined,
+): { count: number; limit: number; size: string; shown: string } | undefined {
+  const file = join(store.specs, slug, "spec.md");
+  let text: string;
+  try {
+    text = readFileSync(file, "utf8");
+  } catch {
+    return undefined;
+  }
+  const count = specRequirementIds(text).length;
+  const limit = specLimit(size);
+  if (count <= limit) return undefined;
+  return { count, limit, size: size ?? "m", shown: relative(store.root, file).split(sep).join("/") };
+}
+
 function parseSize(value: string): Size {
   const trimmed = value.trim();
   if (!isSize(trimmed)) {
@@ -542,6 +567,8 @@ function cmdState(argv: readonly string[]): number {
     const [ref, ...flags] = rest;
     if (ref === undefined) throw new UserError("state set needs an item id or slug");
     const { values } = parseFlags(STATE_SET, flags);
+    /** Set when `--force` moved an item to spec_ready past the requirement limit: what the decision row says. */
+    let forcedSpecSize: { count: number; limit: number; size: string } | undefined;
     const { item, changes } = updateState(store.state, (state) => {
       const item = findItem(state, ref);
       if (item === undefined) throw new UserError(`no item matches '${ref}'`);
@@ -643,6 +670,31 @@ function cmdState(argv: readonly string[]): number {
             `${item.status} -> ${values.status} is not a legal transition`,
             "pass --force if you mean to skip a phase, and say why in decisions.tsv",
           );
+        }
+        // A spec the size does not allow is refused at the door out of specifying,
+        // before anything is built on it: item 42's spec reached 43 requirements
+        // before a reviewer said to cut it. `--force` with `--closed-by` moves it
+        // anyway, and the reason is written down as a `spec-size` decision row
+        // after the state is saved.
+        if (item.status === "specifying" && values.status === "spec_ready" && (item.sdd === true || values.sdd === true)) {
+          const size = values.size !== undefined ? parseSize(values.size) : clears.includes("size") ? undefined : item.size;
+          const found = specOverLimit(store, item.slug, size);
+          if (found !== undefined) {
+            if (values.force !== true) {
+              throw new UserError(
+                `${found.shown} declares ${found.count} requirements, and a size ${found.size} item may have ${found.limit}`,
+                `cut the spec to ${found.limit} or fewer, or pass --force with --closed-by "<why this many is right>"`,
+              );
+            }
+            if (values["closed-by"] === undefined) {
+              throw new UserError(
+                `--force would move ${item.slug} to spec_ready past the ${found.limit} requirement limit, and that has to be on the record`,
+                `add --closed-by "<why this many is right>"; it is written to decisions.tsv as a spec-size row`,
+              );
+            }
+            forcedSpecSize = found;
+            changes.push(`  forced: ${item.slug} has ${found.count} requirements, over the ${found.limit} a size ${found.size} item may have; the reason is recorded as a spec-size decision row`);
+          }
         }
         // Closing is the other half of the gate's verification check, and without
         // it that check has a one-command way around it. The gate holds an item at
@@ -888,6 +940,17 @@ function cmdState(argv: readonly string[]): number {
       assertWritable(item, state);
       return { item, changes };
     });
+    if (forcedSpecSize !== undefined) {
+      // After the state is saved, so a refused write leaves no row for a move that did not happen.
+      decisions.add(store, {
+        phase: "spec-size",
+        decision: values["closed-by"] ?? "",
+        why: `${item.slug} declares ${forcedSpecSize.count} requirements, over the ${forcedSpecSize.limit} a size ${forcedSpecSize.size} item may have; moved to spec_ready with --force`,
+        evidence: `.mstack/specs/${item.slug}/spec.md`,
+        result: "forced past the limit",
+        item: item.slug,
+      });
+    }
     console.log(itemLabel(item));
     for (const line of changes) console.log(line);
     return 0;
