@@ -294,12 +294,41 @@ Walking the lines that carry the weight:
   a report that exists and cannot be read is not. It proves the citation exists, not that the
   test covers the requirement: that is still the reviewer's reading.
 
+  The default test patterns cover the common layouts (`tests/`, `*.test.*`, `*_test.go`,
+  Maven and Gradle `src/test/`, RSpec, Swift and .NET `*Tests`, Cypress and Playwright; the
+  list is `TEST_PATTERNS` in `src/pathclass.ts`). A test that lives in a file the patterns
+  call code, such as a Rust unit test inside `src/*.rs`, cannot be cited by path: that row
+  takes `n/a:` and a reason.
+
+  Two runs of `$ mstack gate`, with the report edited between them: first the table has no
+  row for `A2`, then it has a row whose `n/a:` reason is short. The `[fail]` line and its
+  `fix:` line, exactly as printed:
+
   ```console
-  $ mstack gate
   [fail]  1 greet (reviewing) cannot close as it stands, and .mstack/progress/impl_greet.md has no row for A2 ("prints bye")
           fix: the table is headed | R | Test | Where | with one row per requirement id (A<n> in acceptance order, or R<n> of the spec on the spec path); Where is path:line of test files, or n/a: and a reason of 12+ characters; agents/implementer.md defines it
-  [fail]  1 greet (reviewing) cannot close as it stands, and .mstack/progress/impl_greet.md line 8 (A2): the n/a: reason "manual" has 6 characters, and needs at least 12
   ```
+
+  ```console
+  [fail]  1 greet (reviewing) cannot close as it stands, and .mstack/progress/impl_greet.md line 6 (A2): the n/a: reason "manual" has 6 characters, and needs at least 12
+          fix: the table is headed | R | Test | Where | with one row per requirement id (A<n> in acceptance order, or R<n> of the spec on the spec path); Where is path:line of test files, or n/a: and a reason of 12+ characters; agents/implementer.md defines it
+  ```
+
+  Forcing the close past that table needs a reason, and the record says which check was
+  overridden (the table here, not a verification):
+
+  ```console
+  $ mstack state set greet --status done --force --closed-by "bye is checked by hand in the demo"
+  1 greet (done)
+    status: "verifying" -> "done"
+    closed_by: (unset) -> "closed without a good requirement-to-test tab..."
+    forced: closed without a good requirement-to-test table - .mstack/progress/impl_greet.md line 6 (A2): the n/a: reason "manual" has 6 characters, and needs at least 12
+  ```
+
+  `state.json` stores `closed without a good requirement-to-test table (forced): bye is checked
+  by hand in the demo`. A verification that did not run keeps its own words,
+  `closed unverified (forced):`, and a close past both says `closed unverified and without a
+  good requirement-to-test table (forced):`.
 
 - **"store root is an mstack checkout"** does not appear in the transcript above, and in your
   repository it never will: it speaks only where the store's root is a checkout of this
@@ -498,7 +527,7 @@ the whole design. The eleven rules that make it hold:
 | The fingerprint is computed once per gate, not twice | It was computed once for the `unknown` warning and again inside the check, doubling the content hashing on the path that runs at the end of every turn. It is also why the `/dev/zero` link cost ten seconds rather than five: two timeouts, not one |
 | The **last** run at a commit wins, not the best | A suite that passed and was then re-run red is red. "Best" is how a stale pass survives a broken build |
 | It is demanded from `verifying`, and nowhere earlier | This rides the `Stop` hook, which fires at the end of every turn. Held from `in_progress` it would go red after every commit for the whole phase where most commits happen, and a gate that is red for a normal mid-session state is a gate someone switches off. `verifying -> done` is the only legal transition into `done`, so `verifying` is the earliest status that is also sufficient (`src/lifecycle.ts`) |
-| `state set --status done` re-checks at the transition | Without it the requirement has a one-command way around it: `done` is not an active status, so relabelling the item makes the gate stop looking and a store that was red a second ago goes green. `--force` still closes it — and now only with `--closed-by`, whose reason is stored in `state.json` prefixed `closed unverified (forced):`, because an override that leaves nothing behind is the `closed_by` shape this plugin already had to fix once |
+| `state set --status done` re-checks at the transition | Without it the requirement has a one-command way around it: `done` is not an active status, so relabelling the item makes the gate stop looking and a store that was red a second ago goes green. `--force` still closes it — and now only with `--closed-by`, whose reason is stored in `state.json` prefixed `closed unverified (forced):` (or `closed without a good requirement-to-test table (forced):` when the table was the check overridden), because an override that leaves nothing behind is the `closed_by` shape this plugin already had to fix once |
 | An unreadable receipt file is a failure, never a pass | `receipts` reads a file, a read throws, and the hook wrapper catches every throw and exits 0 by design — so an unreadable `verification.tsv` produced zero bytes and exit 0 from `mstack hook stop`, byte-identical to a green gate, and threw `mstack gate` out mid-run so the workspace section and the summary never happened. The trigger is not exotic: this is the one store file a clone never recreates and whose ownership is purely local |
 
 Seven of those eleven came from review, over three rounds. The first version shipped its own
