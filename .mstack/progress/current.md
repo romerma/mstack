@@ -52,6 +52,17 @@ passes bypassPermissions. Do not run `check.mjs` or `verify.mjs` while a batch i
 - Scratch evidence: `/private/tmp/claude-501/-Users-romerma-Code-mstack/4aadee9d-d352-4d5b-825b-4d11a47e2193/scratchpad/impl67/`.
 - Item 21 is not changed; the report has a recommendation for it.
 
+## Item 40 round 2 in flight (implementer, 2026-11-18)
+
+- Brief: four changes (measure from the fork point; scope to the store root; a numstat line that does
+  not parse fails; small things). Review: `.mstack/progress/review_item-fields-base-size.md`.
+- Scratch: `/private/tmp/claude-501/-Users-romerma-Code-mstack/4aadee9d-d352-4d5b-825b-4d11a47e2193/scratchpad/impl40r2/`
+  (`repro.sh <name>` is the review's rebase repro; `repro-before.txt` is its red at `61e6b7a`).
+- Implemented and reported: `.mstack/progress/impl_item-fields-base-size_r2.md` (code at `9853fd9`).
+  Next is the round 2 review by someone who did not write it. Read decision 4 there first (a base
+  inside the branch, then main merged in, still counts main's commits) and decision 1 (the local
+  default branch and `origin/` together, against the brief's "prefer the local branch").
+
 ## Next step
 
 Phases 0 and 1 are closed, except item 50 (waits for the user). Phase 2 has 57 and 58 closed.
