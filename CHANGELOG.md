@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+- **The gate reads the requirement-to-test table instead of trusting it.** From `reviewing` on,
+  and when `state set --status done` closes the item, the newest implementation report
+  (`impl_<slug>.md`, or the highest `impl_<slug>_r<N>.md`) must carry a table headed exactly
+  `| R | Test | Where |`: a row for every acceptance bullet (`A1`, `A2`... in order) or, on the spec
+  path, every `R<n>` of `spec.md`; each `Where` a `path:line` (or `path:line-line`) of an existing
+  test file, by the path classifier, at a line inside it, or `n/a:` and a reason of at least 12
+  characters. It refuses a missing report, a missing table, an id with no row, an id the item does
+  not have, and each bad citation, naming the report file and line; `--force --closed-by` closes
+  past it, an unreadable report is not overridable. Items without a `base` are not checked, so
+  nothing in flight breaks, and closed and cancelled items never are. It proves the citation
+  exists, not that the test covers the requirement. `agents/implementer.md` and
+  `skills/implement/SKILL.md` define the one header.
+
 - **An item carries a size and the commit it started from, and the gate holds a small item to its
   diff.** `state add --size s|m|l` and `state set <ref> --size s|m|l` set it, `--clear size`
   removes it, an item with no size reads as `m` (nothing writes the `m`), and any other value is

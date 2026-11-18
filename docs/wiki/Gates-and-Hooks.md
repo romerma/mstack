@@ -281,6 +281,26 @@ Walking the lines that carry the weight:
   It runs nothing; it reads a record of what `--full` ran, and from `verifying` on it refuses
   to call an item green on a verification that never executed here.
 
+- **The requirement-to-test table** is a closing check (`r-to-test` in `src/closing.ts`). From
+  `reviewing` on, and again at `state set --status done`, the gate reads the last table headed
+  exactly `| R | Test | Where |` in the item's newest implementation report (`impl_<slug>.md`,
+  or the highest `impl_<slug>_r<N>.md`; a later round carries the whole table again). Every id
+  needs a row: `A1`, `A2`... for the acceptance bullets in order, or the `R<n>` of `spec.md`
+  on the spec path. Every `Where` is one or more `path:line` citations (a `path:line-line` range
+  too) of a file the path classifier calls a test, present under the store's root, with the line
+  inside it, or `n/a:` and a reason of at least 12 characters. It applies only to an item with a
+  `base`, so an item from before the check is never read, and never to a closed or cancelled
+  item. A problem is overridable with `--force --closed-by`, like a missing verification run;
+  a report that exists and cannot be read is not. It proves the citation exists, not that the
+  test covers the requirement: that is still the reviewer's reading.
+
+  ```console
+  $ mstack gate
+  [fail]  1 greet (reviewing) cannot close as it stands, and .mstack/progress/impl_greet.md has no row for A2 ("prints bye")
+          fix: the table is headed | R | Test | Where | with one row per requirement id (A<n> in acceptance order, or R<n> of the spec on the spec path); Where is path:line of test files, or n/a: and a reason of 12+ characters; agents/implementer.md defines it
+  [fail]  1 greet (reviewing) cannot close as it stands, and .mstack/progress/impl_greet.md line 8 (A2): the n/a: reason "manual" has 6 characters, and needs at least 12
+  ```
+
 - **"store root is an mstack checkout"** does not appear in the transcript above, and in your
   repository it never will: it speaks only where the store's root is a checkout of this
   plugin itself, identified by `.claude-plugin/plugin.json` naming `mstack` (plus

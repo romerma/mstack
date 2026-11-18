@@ -145,7 +145,7 @@ green. Its frontmatter carries `skills: [test-first]`, so the internal test-firs
 in its context from the first turn: one test per behaviour, watched red for the expected
 reason, then the least code, then a mutant check before it reports. The seams in its brief
 are pre-agreed, and it asks no one to confirm them. It keeps `progress/current.md` updated while it works, writes its report to
-`.mstack/progress/impl_<slug>.md` with a requirement-to-test map, and records its own ledger
+`.mstack/progress/impl_<slug>.md` with a requirement-to-test table (the one header `| R | Test | Where |` that the gate reads, see [Gates and hooks](Gates-and-Hooks.md)), and records its own ledger
 row with `--verifier implementer` at the rung it honestly reached; `type-check-only` is the
 right answer when that is all it ran. It does not mark the item done. A reviewer that did not
 write the code decides that. In a later round its brief names the review report, and it checks

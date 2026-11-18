@@ -189,7 +189,9 @@ printed. `state show <ref> --json` prints the item's raw object from `state.json
 missing or unmatched `<ref>` exits 2. `state active` prints the slug alone to stdout so
 `SLUG=$(mstack state active)` works, and exits 1 with a stderr note when nothing is active.
 `state set` accepts an id or a slug, refuses illegal transitions and unanswered forks (exit 2),
-and takes `--force` for the deliberate exception, which the gate will still audit.
+and takes `--force` for the deliberate exception, which the gate will still audit. Moving an
+item that has a `base` to `done` also reads the requirement-to-test table of its implementation
+report and refuses on a missing or bad one; see [Gates and hooks](Gates-and-Hooks.md).
 
 ```console
 $ mstack state set greet-flag --status done
