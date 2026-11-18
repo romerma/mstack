@@ -141,11 +141,18 @@ export function measureDiff(store: Store, from: string): DiffSize | null {
     return classifyPath(path) === "code";
   };
 
+  // A count is a non-negative integer, or "-" for a binary file. Anything else
+  // is a record this parser does not understand (a rename record, if
+  // `--no-renames` were ever lost, reads as "0\t0\t" then two bare paths), and
+  // `Number()` of it is NaN, which every limit comparison calls small.
+  const isCount = (s: string | undefined): s is string => s !== undefined && (s === "-" || /^[0-9]+$/.test(s));
+
   let lines = 0;
   let files = 0;
   for (const entry of numstat.split("\0")) {
     if (entry === "") continue;
     const [ins, del, ...rest] = entry.split("\t");
+    if (!isCount(ins) || !isCount(del)) return null;
     const path = rest.join("\t");
     if (!counted(path)) continue;
     files += 1;

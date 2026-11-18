@@ -1,14 +1,16 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
-import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { appendFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { delimiter, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { runGate } from "../src/gate.ts";
 import { defaultBranch } from "../src/git.ts";
 import { storeAt, type Store } from "../src/paths.ts";
 import { setup } from "../src/setup.ts";
+import { measureDiff } from "../src/size.ts";
 import { captured, item, sandbox, state, trackCurrent } from "./helpers.ts";
 
 /**
@@ -700,6 +702,62 @@ test("in a sub-directory store, paths are classified from the store's root, so i
     put(box, "pkg/app/src/b.ts", lines("b", 10));
     const line = sizeLine(box, store);
     assert.match(line, /10 lines in 1 file of code/);
+  });
+});
+
+// ------------------------------------------------- what git's numstat says
+
+test("a pure git mv of a code file counts as every line deleted plus every line added, in two files", GATE, () => {
+  withBox((box) => {
+    put(box, "src/old.ts", lines("o", 31));
+    const base = commitAll(box, "add old");
+    smallItem(box, {}, base);
+    git(box, "mv", "src/old.ts", "src/new.ts");
+    const failures = sizeFailures(box);
+    assert.equal(failures.length, 1, JSON.stringify(failures));
+    assert.match(failures[0]!, /62 lines in 2 files/);
+  });
+});
+
+/**
+ * Run `body` with a `git` first on PATH that forwards every call to the real
+ * one, except `diff --numstat`, for which it prints `record`.
+ *
+ * git is the one thing here the project does not own, and no flag this code
+ * passes makes the real one print a malformed record, so the stand-in is the
+ * honest way to reach the parser through `measureDiff` itself.
+ */
+function withNumstat(record: string, body: () => void): void {
+  const real = execFileSync("sh", ["-c", "command -v git"], { encoding: "utf8" }).trim();
+  const bin = mkdtempSync(join(tmpdir(), "mstack-fake-git-"));
+  writeFileSync(
+    join(bin, "git"),
+    `#!/bin/sh\nfor arg in "$@"; do\n  if [ "$arg" = "--numstat" ]; then printf '${record}'; exit 0; fi\ndone\nexec '${real}' "$@"\n`,
+    { mode: 0o755 },
+  );
+  const saved = process.env["PATH"];
+  process.env["PATH"] = `${bin}${delimiter}${saved ?? ""}`;
+  try {
+    body();
+  } finally {
+    if (saved === undefined) delete process.env["PATH"];
+    else process.env["PATH"] = saved;
+    rmSync(bin, { recursive: true, force: true });
+  }
+}
+
+test("a numstat record whose counts do not parse makes the diff unmeasurable, and the gate fails", GATE, () => {
+  withBox((box) => {
+    smallItem(box);
+    put(box, "src/a.ts", lines("a", 5));
+    // The record `git diff --numstat -z -M` prints for a rename.
+    withNumstat("0\\t0\\t\\000src/old.ts\\000src/new.ts\\000", () => {
+      assert.equal(measureDiff(box.store, box.sha), null);
+      const failures = sizeFailures(box);
+      assert.equal(failures.length, 1, JSON.stringify(failures));
+      assert.match(failures[0]!, /git could not measure its diff/);
+    });
+    assert.deepEqual(measureDiff(box.store, box.sha), { lines: 5, files: 1 }, "the real git, for contrast");
   });
 });
 
