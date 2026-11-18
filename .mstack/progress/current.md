@@ -7,7 +7,7 @@
 > empty template below.
 
 - **Item:** 41 r-to-test-check
-- **Status:** in_progress (round 1)
+- **Status:** reviewing (round 1)
 - **Branch:** feat/r-to-test-check
 - **Base:** 455f166
 - **Worktree:** none
