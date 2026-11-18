@@ -7,7 +7,7 @@
 > empty template below.
 
 - **Item:** 61 verify-claim-gate
-- **Status:** in_progress (round 1)
+- **Status:** reviewing (round 1)
 - **Branch:** feat/verify-claim-gate
 - **Base:** 2264027
 - **Worktree:** none
