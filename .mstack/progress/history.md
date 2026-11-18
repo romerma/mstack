@@ -1456,3 +1456,30 @@ added machinery. No code was written. The spec and both reviews stay in the repo
 
 **The fork** is on the item (`decision_required`): in place and split in two; a copy of the tree;
 or no mutation check. Items 44 (its matrix says size m adds mutation) and 65 wait on the answer.
+
+## 2026-11-18 - item 43 review-budget closed (4 rounds)
+
+**What shipped.** `decisions.tsv` has a trailing item column. `fanout plan --kind review --solo`
+allocates the next review report, counting rounds over lone and lensed reports, refuses round 3
+or later without `--justify` and writes the `review-r<N>` row itself. A closing check
+(`src/budget.ts`) fails an item with a base when a round-3 report has no row or any of its
+reports is over 24576 bytes; every agent that writes a report is told the cap, a red that is only
+the item's own budget does not stop the next role, and the way out when the author is gone is to
+move pasted output, unchanged, to `.mstack/progress/attachments/`. A spec is limited to 12
+requirements (m) or 30 (l) on every route to `spec_ready`; a forced move needs a reason and
+writes a `spec-size` row. `gate --full` reports the closing checks the plain gate reports: before,
+it printed PASSED over a missing table and an over-cap report. 865 tests.
+
+**What the rounds taught.** Round 1 found the two ways the rules failed in the workflow's own
+use: a panel in round 1 hid the third review from the count, and a cap nobody had been told about
+stopped the next role (41 of 184 reports here are over it). Rounds 2 to 4 were one wiki page: a
+transcript in an order no run produces, then a sentence left pointing at a block that a round 1
+insertion had put in between. A block inserted into a narrative has to be read with the sentences
+around it, not only reproduced.
+
+**The item ran on itself.** Rounds 3 and 4 were refused by `--solo` until `--justify` was given,
+and the reviewers' reports were held to the cap (9.6 KB and 7.8 KB against 20 KB and more before).
+
+**Closing.** `gate --full` green on the first run (bun 865/0, node 865/0).
+
+**Filed.** Item 94 `review-budget-followups`.

@@ -634,8 +634,9 @@
         "specifying to spec_ready is refused when spec.md declares more requirements than its size allows (m 12, l 30) unless forced with a decision row",
         "before anything uses roundOf to decide solo versus panel, one rule covers a remainder like _r2x: roundOf reads it as round 1 with lens r2x (item 20's A3), while agents/reviewer.md:77 and the src/fanout.ts:49 comment treat any leading r<digit> as reserved; pick one and make code, prose and tests agree (item 20 round-2 review note)"
       ],
-      "status": "reviewing",
+      "status": "done",
       "base": "362536fb51a404e2e12145c01745efff4b166e71",
+      "closed_by": "four rounds; review_review-budget_r4.md APPROVED at 8967dc8; gate --full green on the first run",
       "seams": [
         "CLI: mstack decide and the decisions.tsv it writes, with and without an active item; old files without the item column",
         "CLI: mstack fanout plan --kind review --solo: the path it allocates, the --justify rule from round 3, the decision row it writes and the sha it prints",
@@ -1414,6 +1415,22 @@
       "status": "pending",
       "description": "The requirement-to-test check reads the newest implementation report's | R | Test | Where | table from reviewing and at done, for items with a base. It proves a cited line exists in a file the classifier calls a test, not that it is the right test: in round 3 of item 41 a test inserted mid-file moved fifteen citations to the wrong tests and the gate stayed green.",
       "source": "item 41 reviews, .mstack/progress/review_r-to-test-check.md and _r2.md to _r5.md, 2026-11-18"
+    },
+    {
+      "id": 94,
+      "slug": "review-budget-followups",
+      "title": "Follow-ups from item 43: a panel's third round asks for no reason, the cap's way out covers only pasted output, and smaller gaps",
+      "acceptance": [
+        "a panel's third round cannot slip past the reason and the gate: fanout plan --round and the review skill's own panel command ask for --justify from round 3 as --solo does (repros in the round 2 review's b1_rounds.out and b2_skillpanel.out)",
+        "an item can close when a report is over the cap after every pasted block is moved out and its author is gone (26 of this repository's 41 over-cap reports would still be over): a documented way, or an override that is recorded",
+        "the exceptions hold when the table and the budget are red at once, and for the round-1 implementer on the spec path, whose gate is the first to count the spec reviewer's report; the orchestrator, which has no Write or Edit, is not the one told to move attachments",
+        "six concurrent fanout plan --solo --justify runs write one review-r3 row, not six; the spec-size row is written with the state change, not after it",
+        "an unblock does not ask the spec limit again for an item already forced past it; the moves blocked -> reviewing and blocked -> verifying and the row's 'moved to' text have tests; gate --full reporting a standing rejection at verifying is documented and tested",
+        "the prose says where 'the file that holds the rest' goes (a sibling bulk file counts against the cap); agents/reviewer.md lets the brief's path win only when that file does not exist; docs/wiki/The-CLI.md's opening says not every block comes from the one run"
+      ],
+      "status": "pending",
+      "description": "The budget counts review rounds over lone and lensed reports, asks a reason from round 3 through fanout plan --kind review --solo, caps every report of an item with a base at 24576 bytes, and limits a spec to 12 requirements (m) or 30 (l). gate --full now reports the closing checks the plain gate reports.",
+      "source": "item 43 reviews, .mstack/progress/review_review-budget.md and _r2.md to _r4.md, 2026-11-18"
     }
   ]
 }
