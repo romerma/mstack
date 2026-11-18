@@ -46,7 +46,9 @@ moment it had proved its point.
 
 ## The report
 
-`.mstack/progress/impl_<slug>.md`:
+`.mstack/progress/impl_<slug>.md`; a later round (after a review that asked for changes) writes
+`.mstack/progress/impl_<slug>_r<N>.md` instead of rewriting the first file, and says what changed
+since the last round:
 
 - **What changed**, in a paragraph.
 - **Files**, the real list.
@@ -55,7 +57,7 @@ moment it had proved its point.
   first cell names the ids (`A1, A3`): `A1`, `A2`... for the acceptance bullets in order on the
   direct path, the spec's `R1`... on the spec path; every id needs a row. `Where` is `path:line`
   of a test file, several separated by commas or `<br>`, or `n/a: <reason of 12+ characters>`. A
-  later round's report carries the whole table again.
+  later round's file carries the whole table again, every id; the gate reads the newest one alone.
 
 Then `/mstack:verify` and record the verdict.
 

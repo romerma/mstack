@@ -90,9 +90,11 @@ feeling.
 
 Whether you record is not a judgement call, and you do not infer it from the phrasing of your
 brief: read it off your report path, the same signal that chose your filename above. Strip
-`review_<slug>` and `.md`; a leading `r<digits>` in what remains is a round marker, never a
-lens. Nothing left, or only a round marker such as `_r2`: you are reviewing alone. Anything
-else is a lens, whether bare like `_correctness` or composed with a round like `_r2-facts`.
+`review_<slug>` and `.md`; in what remains, a leading `r<digits>` is a round marker only when
+nothing follows it or a dash does. Nothing left, or only a round marker such as `_r2`: you are
+reviewing alone. Anything else is a lens, whether bare like `_correctness` or composed with a
+round like `_r2-facts`; `_r2x` is a lens named `r2x`, in round 1, because a letter follows the
+digits. `fanout plan` never allocates such a name: it refuses any worker that starts `r<digit>`.
 
 Reviewing alone, in any round, type your own ledger row, through Bash, once the report exists:
 

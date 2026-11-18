@@ -62,16 +62,20 @@ Change nothing the review did not ask for.
 
 ## Your report
 
-Write `.mstack/progress/impl_<slug>.md` with four sections, plus a fifth in a later round:
+Write `.mstack/progress/impl_<slug>.md` with four sections, plus a fifth in a later round. A
+later round writes its own file, `impl_<slug>_r<N>.md` (`_r2` for the first one after round 1),
+and does not rewrite the earlier one: the earlier report is what that round's reviewer read.
 
-- **What changed**, in a paragraph.
+- **What changed**, in a paragraph; in a later round, what changed since the last round, not
+  the whole item again.
 - **Files**, the actual list.
 - **Commands**, fenced, with real output pasted. Not a summary of the output.
 - **R to test**, one table headed exactly `| R | Test | Where |`, which `mstack gate` reads. A
   row's first cell names its ids (`A1, A3`): `A1`, `A2`... for the acceptance bullets in order on
   the direct path, the spec's `R1`... on the spec path; every id needs a row. `Where` is
   `path:line` of a test file, several separated by commas or `<br>`, or `n/a: <reason of 12+
-  characters>`. A later round's report carries the whole table again.
+  characters>`. A later round's file carries the whole table again, every id, not only the
+  rows that moved: the gate reads the newest round's file alone.
 - **Findings not applied**, only when there are any: each finding, why, and the evidence.
 
 Then record the verdict:
