@@ -1459,7 +1459,7 @@
         "a test or a script in the repository reruns the Getting-Started sequence, so a new closing check that breaks it is seen before a reader does",
         "the older drift a literal run shows is corrected: mstack setup prints two more lines (costs.tsv, .gitattributes) and commits 8 files and 64 insertions where the page shows 6 and 56, and the move to in_progress prints a base line; at 7d71f2e the page's own close was already refused for a missing receipt and report"
       ],
-      "status": "reviewing",
+      "status": "in_progress",
       "description": "state add records a base in a git repository (item 40), so the walkthrough's item is held to the requirement-to-test table (item 41), the budget (item 43) and the receipt. The page shows neither the implementation report nor gate --full, so someone following it literally is refused at done after recording the reviewer's row. Item 82's rerun of the page had both in place off the page.",
       "base": "c6e35e938b9e2c638c0d6fc71e2219ee906794c0",
       "source": "item 82 round 2 implementer report, .mstack/progress/impl_any-role-name-closes_r2.md, 2026-11-18",
@@ -1467,6 +1467,18 @@
         "the commands of docs/wiki/Getting-Started.md, README.md and docs/wiki/The-Agents.md run in order in a fresh git repository: each exit code and the lines each page shows",
         "a test in the suite that runs the Getting-Started sequence through the real CLI"
       ]
+    },
+    {
+      "id": 97,
+      "slug": "walkthrough-pages-checked-in-repo",
+      "title": "Only a scratchpad script checks the walkthrough pages' text against a real run",
+      "acceptance": [
+        "a script in the repository runs each walkthrough page's own commands, taken from the page, in a throwaway repository and compares every shown line with the output; CI runs it",
+        "what it normalises (shas, timings) and what a '...' line on a page skips are stated in the script, and a deliberate drift in one block fails it"
+      ],
+      "status": "pending",
+      "description": "tests/walkthrough.test.ts reruns the Getting-Started sequence by hand and checks exit codes and the lines that carry the page's point. The page-versus-run diff for all three pages (every console block against a fresh run) exists only in the session scratchpad (impl96/diffpages.sh), and it copied the run's own deviation from the page once: it executed a script, not the page.",
+      "source": "item 96 round 1 review, .mstack/progress/review_walkthroughs-after-closing-checks.md, 2026-11-18"
     }
   ]
 }
