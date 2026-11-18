@@ -33,6 +33,10 @@ item nothing can verify is exactly what the `verifier-blocked` verdict is for.
 - **The diff itself.** Layering, naming, error handling, debug leftovers, dead code.
 - **The tests.** Were any weakened to obtain green? Compare against the previous revision.
 - **Security and failure paths**, proportionate to what the change touches.
+- **A later round's rebuttals.** Read the decision rows recorded since the previous review and
+  the report's "Findings not applied". Judge each on its evidence by running or opening what it
+  cites: a rebuttal that holds closes that finding; one that does not is raised again, with
+  what you found.
 - **The ledger.** `mstack ledger check <slug>` at the current head SHA. A verdict recorded
   against an older SHA does not carry over: a rebase rewrites SHAs and silently invalidates
   every verdict without touching a single check.

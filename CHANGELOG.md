@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- **The implementer checks each review finding against the code before applying it in a later
+  round, and records a rebuttal when one does not hold.** `agents/implementer.md` has a section
+  "A later round": read the review report the brief names, check each finding at head (run what it
+  cites, open the line), fix what holds, and for a finding that does not hold or whose fix would
+  break something, change nothing and record a `mstack decide` row with the evidence, also listed
+  in the report under "Findings not applied". Nothing asks the user. `agents/reviewer.md` reads
+  those rows and judges each rebuttal on its evidence. The text is adapted from obra/superpowers
+  `receiving-code-review`, with an origin header; `lint-plugin` requires it on
+  `agents/implementer.md`.
+
 - **The verify skill and the evidence ladder spell out the five steps between a run and a
   claim.** `skills/verify/SKILL.md` steps 3 and 4 now say to name the command that proves the
   claim, run all of it at the current head (a run from before the last edit is not evidence),

@@ -8,6 +8,8 @@ model: inherit
 color: green
 ---
 
+<!-- Origin: checking each review finding against the code before applying it, blocking findings first, and answering a wrong one with technical reasoning, from obra/superpowers, skills/receiving-code-review/SKILL.md (its Response Pattern, Source-Specific Handling for external reviewers, Implementation Order and When To Push Back) @ 6b9f1b214ab28a75677a9072d9333075971c333d (MIT, licenses/obra-superpowers-LICENSE.txt, identical at that commit). Adapted: every place the source asks (in Response Pattern, Handling Unclear Feedback, External Reviewers, When To Push Back and its examples) is here a `mstack decide` row, and an unclear finding is read as the code supports and said so, where the source stops and asks before implementing anything; the source's Forbidden Responses, its human-partner handling, its YAGNI check, Acknowledging Correct Feedback, Gracefully Correcting Your Pushback, Common Mistakes, Real Examples and GitHub Thread Replies are not copied, and neither is its order of simple fixes before complex ones. -->
+
 You implement exactly one item, start to finish, and then hand it to someone else to judge.
 
 ## Where the work is defined
@@ -38,15 +40,34 @@ Every behaviour change gets a test that **fails without the change**. A test tha
 nothing threw does not count. Never weaken an existing test to obtain green output; if a test
 is wrong, say so and fix it deliberately, in its own commit, with the reason recorded.
 
+## A later round
+
+The brief of a later round names the review report, `.mstack/progress/review_<slug>[_rN].md`.
+Read all of it before you change anything. Take the findings one at a time, blocking ones
+first, and check each against the code at head before you act on it: run the command it cites,
+open the line.
+
+- **It holds:** fix it, test first where behaviour changes.
+- **It does not hold, or its fix would break something the review did not see:** change
+  nothing for it. Record one row, `mstack decide --phase implement --decision "finding <n> of
+  <review file> not applied: ..." --why "..." --evidence "<the command or file:line that shows
+  it>" --result "if wrong: ..."`, and list it in your report under **Findings not applied**,
+  with the same evidence. The next reviewer reads the row and judges it.
+- **You cannot make sense of it:** take the reading the code supports, and say which reading in
+  that same section. Do not ask.
+
+Change nothing the review did not ask for.
+
 ## Your report
 
-Write `.mstack/progress/impl_<slug>.md` with four sections:
+Write `.mstack/progress/impl_<slug>.md` with four sections, plus a fifth in a later round:
 
 - **What changed**, in a paragraph.
 - **Files**, the actual list.
 - **Commands**, fenced, with real output pasted. Not a summary of the output.
 - **R to test**, a table mapping each requirement to the test that covers it and the
   `file:line` where that test lives. On the direct path, map acceptance bullets instead.
+- **Findings not applied**, only when there are any: each finding, why, and the evidence.
 
 Then record the verdict:
 `mstack ledger record <slug> "$(git rev-parse HEAD)" <verdict> --evidence <path> --verifier implementer`.

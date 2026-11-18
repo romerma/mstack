@@ -415,7 +415,7 @@ function nameOf(file: string): string | null {
 }
 
 /**
- * Files under `skills/` whose text is derived from another repository, so each
+ * Files under `skills/` and `agents/` whose text is derived from another repository, so each
  * must carry an `<!-- Origin: ... -->` header. This is the one place the list is
  * declared; a new derived file is added here and the rule covers it.
  */
@@ -428,6 +428,7 @@ const ORIGIN_REQUIRED = [
   "skills/reflect/references/domain-docs.md",
   "skills/verify/SKILL.md",
   "skills/router/references/evidence-ladder.md",
+  "agents/implementer.md",
 ];
 
 /**

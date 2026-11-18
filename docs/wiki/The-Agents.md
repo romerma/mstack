@@ -137,7 +137,11 @@ are pre-agreed, and it asks no one to confirm them. It keeps `progress/current.m
 `.mstack/progress/impl_<slug>.md` with a requirement-to-test map, and records its own ledger
 row with `--verifier implementer` at the rung it honestly reached; `type-check-only` is the
 right answer when that is all it ran. It does not mark the item done. A reviewer that did not
-write the code decides that.
+write the code decides that. In a later round its brief names the review report, and it checks
+each finding against the code before applying it: a finding that does not hold is not applied
+but recorded as a `mstack decide` row with its evidence and listed in the report under
+"Findings not applied", and it asks no one. The wording derives from obra/superpowers
+`receiving-code-review`, with an origin header.
 
 ## reviewer
 
@@ -146,7 +150,9 @@ implementer's pasted output would carry the first pass's assumptions. It checks 
 (would each test fail if the change were reverted), answers every acceptance bullet
 individually with evidence, reads the diff, compares the tests against the previous revision
 for weakening, and runs `mstack ledger check <slug>` at the current head SHA, because a
-rebase silently invalidates every verdict without touching a single check.
+rebase silently invalidates every verdict without touching a single check. In a later round it
+also reads the implementer's "Findings not applied" and the decision rows since the previous
+review, and judges each rebuttal on the evidence it cites.
 
 Its report name carries a small grammar, and the grammar is load-bearing. A panel is several
 reviewers run in parallel over the same diff, each with a lens, one assigned focus such as
