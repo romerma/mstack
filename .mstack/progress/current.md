@@ -6,10 +6,10 @@
 > On close: append the summary to `history.md` and reset this file to the
 > empty template below.
 
-- **Item:** none active (64 closed 2026-11-18)
-- **Status:** -
-- **Branch:** main
-- **Base:** -
+- **Item:** 39 role-models
+- **Status:** in_progress (round 1)
+- **Branch:** feat/role-models
+- **Base:** d3ae7d9
 - **Worktree:** none
 
 ## Plan

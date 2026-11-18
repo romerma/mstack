@@ -564,7 +564,11 @@
         "The router, review and design skills say what is now true about cross-model second opinions, and docs/wiki/The-Agents.md shows each agent's model",
         "A live subagent transcript shows message.model sonnet for the implementer and opus for the reviewer, pasted in the impl report"
       ],
-      "status": "pending"
+      "status": "in_progress",
+      "seams": [
+        "CLI: mstack lint-plugin output and exit code on a plugin with an agent whose model field is outside the allowed set",
+        "a headless /mstack run with the plugin loaded: message.model in the implementer's and the reviewer's subagent transcripts"
+      ]
     },
     {
       "id": 40,
