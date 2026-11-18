@@ -104,8 +104,8 @@ lines moved by one); `tests/budget-helpers.ts` (a `verification` field). Store: 
 
 Red first (`bun test <file>` before each code commit): round count 2 fail of 4 (`_r2` where the third
 review needed a reason; `_r3` with `_r2` missing was already `_r4`); pinned solo test 1 fail (`_r2`,
-expected `_r6`); gate `--full` 3 fail of 4; spec routes 6 fail of 9 (`PASSED`-style exit 0 on
-`--force` with no reason; `closed_by` set); attachments 1 fail of 3 (the fix line named no way out).
+expected `_r6`); gate `--full` 3 fail of 4; spec routes 6 fail of 9 (`state set` exited 0 on
+the new routes with `--force` and no reason; `closed_by` set); attachments 1 fail of 3 (the fix line named no way out).
 The other new tests pass at once by design: they are guards for surviving mutants and are shown
 killed below.
 
