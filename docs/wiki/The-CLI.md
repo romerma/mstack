@@ -356,6 +356,31 @@ mstack: export-json has an unanswered decision: "Is this a stable public contrac
         answer it with 'mstack decide --resolves export-json ...' first
 ```
 
+A spec has a size too. `state set <ref> --status spec_ready` from `specifying` is refused when
+`.mstack/specs/<slug>/spec.md` declares more requirements than the item's size allows: 12 for
+`m` or no size, 30 for `l` (`s` cannot be sdd). The count is the number of distinct
+`### Requirement: R<n>` ids, the same ones the requirement-to-test table is checked against.
+The refusal names the count and the limit and the two ways out. `--force` alone is refused
+too, because the move has to be on the record: it needs `--closed-by "<why>"`, and with both the
+item moves and the reason is written as a `spec-size` decision row (item column set; the text is
+also kept in the item's `closed_by`, as any `--closed-by` is):
+
+```console
+$ mstack state set greet --status spec_ready
+mstack: .mstack/specs/greet/spec.md declares 13 requirements, and a size m item may have 12
+        cut the spec to 12 or fewer, or pass --force with --closed-by "<why this many is right>"
+
+$ mstack state set greet --status spec_ready --force
+mstack: --force would move greet to spec_ready past the 12 requirement limit, and that has to be on the record
+        add --closed-by "<why this many is right>"; it is written to decisions.tsv as a spec-size row
+
+$ mstack state set greet --status spec_ready --force --closed-by "the 13 parts ship as one release and cannot be split"
+1 greet (spec_ready)
+  forced: greet has 13 requirements, over the 12 a size m item may have; the reason is recorded as a spec-size decision row
+  status: "specifying" -> "spec_ready"
+  closed_by: (unset) -> "the 13 parts ship as one release and cannot b..."
+```
+
 The question in that block is the one `examples/notes-cli` ships, character for character, which
 is what the promise at the top of this page is worth: same item, same id, same fork.
 
@@ -505,7 +530,21 @@ recorded
 One row per decision, append-only, TSV so GitHub renders it as a table. With `--resolves
 <ref>`, the same command answers an item's `decision_required` fork: it writes the row with a
 `resolves` column naming the item and stamps the item with the row's timestamp, atomically.
-A decision that says nothing is refused:
+Every row also carries the item it was written for, in a trailing `item` column: the active
+item's slug, or empty when none is active. `--item <slug>` files it under another item, and a
+slug that is not an item is refused with nothing written:
+
+```console
+$ mstack decide --phase implement --decision d --item nope
+mstack: no item matches 'nope'
+        --item takes the slug (or id) of an item in state.json
+```
+
+`item` is not `resolves`: `resolves` names the item whose fork the row answers and is usually
+empty; `item` says whose work the row belongs to, which is what the gate matches a review round
+to. A `decisions.tsv` written before the column has a seven-column header; the first `decide`
+rewrites that header line in place, and every old row, which has no eighth cell, reads with an
+empty item and is not touched. A decision that says nothing is refused:
 
 ```console
 $ mstack decide --phase spec --decision "x" --why "y" --evidence "z" --result done --resolves export-json
@@ -584,12 +623,42 @@ $ mstack fanout check --kind review --worker correctness --worker security --wor
 ```
 
 Worker names are lowercase words joined by hyphens, and a name starting `r<digit>` (`r2`, `r2-facts`, `r2x`)
-is refused because it would be read as a review round marker:
+is refused, so no planned path can be misread as a round marker (a file already on disk is read by the narrower rule in [The agents](The-Agents.md#reviewer): `_r2x` is a lens named `r2x`):
 
 ```console
 $ mstack fanout plan --kind review --worker r2
 mstack: 'r2' is not a usable worker name: it would be read as a round marker
         names starting r<digit> are reserved for review rounds; pick a lens name like 'reader' or 'security'
+```
+
+A lone reviewer asks for its path with `--solo`, and the tool counts the rounds. The path is
+`review_<slug>.md` for round 1 and `review_<slug>_r<N>.md` after, where N is one more than the
+highest lone round on disk (a lensed report belongs to a panel and does not count). Round 3 or
+later is refused without `--justify "<why>"`, and with it the command writes the item's
+`review-r<N>` decision row itself, which `mstack gate` asks for ([Gates and
+hooks](Gates-and-Hooks.md)); asking again for a round that has its row writes no second one.
+It prints the path and, on its own line, the last commit a reviewer recorded in the ledger for
+the item that is still an ancestor of `HEAD` (a ledger row of any verifier other than the
+implementer or the spec author; a row whose commit a rebase dropped is skipped), or says there
+is none. `--solo` takes no `--worker` and no `--round`, only `--kind review`, and only `plan`:
+
+```console
+$ mstack fanout plan --kind review --solo
+review round 2 of greet, one lone reviewer; the report goes to:
+/tmp/demo/solo/.mstack/progress/review_greet_r2.md
+last reviewed commit, still an ancestor of HEAD:
+beb01d1a139af19dc4918630327944f80ce25e56
+
+$ mstack fanout plan --kind review --solo
+mstack: round 3 of a lone review of greet needs a reason
+        rounds from 3 on are written down; pass --justify "<why another round is worth it>" and the decision row (phase review-r3) is written for you
+
+$ mstack fanout plan --kind review --solo --justify "round 2 left the empty-flag case open; one more pass on that only"
+review round 3 of greet, one lone reviewer; the report goes to:
+/tmp/demo/solo/.mstack/progress/review_greet_r3.md
+last reviewed commit, still an ancestor of HEAD:
+beb01d1a139af19dc4918630327944f80ce25e56
+recorded the review-r3 decision row for greet
 ```
 
 `plan` allocates one report path per parallel worker **before** launch and refuses a fan-out

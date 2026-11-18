@@ -151,7 +151,9 @@ right answer when that is all it ran. It does not mark the item done. A reviewer
 write the code decides that. In a later round its brief names the review report, and it checks
 each finding against the code before applying it: a finding that does not hold is not applied
 but recorded as a `mstack decide` row with its evidence and listed in the report under
-"Findings not applied", and it asks no one. The wording derives from obra/superpowers
+"Findings not applied", and it asks no one. A later round writes its own file,
+`impl_<slug>_r<N>.md`, and does not rewrite the earlier one: what changed since the last round,
+then the whole `| R | Test | Where |` table again (the gate reads the newest round's file alone). The wording derives from obra/superpowers
 `receiving-code-review`, with an origin header.
 
 ## reviewer
@@ -172,6 +174,14 @@ of a panel, `review_<slug>_<lens>.md`; a later round
 alone, `review_<slug>_r<N>.md`; a lensed later round, `review_<slug>_r<N>-<lens>.md`. Panels
 run in parallel, so one shared filename would mean every reviewer but the last overwrites the
 others, and losing a review silently is the failure the report exists to prevent.
+
+In what follows `review_<slug>`, a leading `r<digits>` is a round marker only when nothing
+follows it or a dash does: `_r2` and `_r2-facts` are round 2, `_r2x` is a lens named `r2x` in
+round 1. `mstack fanout plan` refuses any worker name starting `r<digit>` anyway, so the
+planner never produces the second reading. A lone reviewer asks the tool for its path:
+`mstack fanout plan --kind review --solo` allocates the next round and, from round 3 on, wants
+a reason (`--justify`), which it records as the item's `review-r<N>` decision row. See
+[The CLI](The-CLI.md#fanout-plan--check).
 
 One lens reads a file: `design`, which the coordinator gives when the diff adds or changes a
 module's interface or moves a seam. That reviewer reads

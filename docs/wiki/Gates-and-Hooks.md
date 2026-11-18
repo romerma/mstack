@@ -330,6 +330,36 @@ Walking the lines that carry the weight:
   `closed unverified (forced):`, and a close past both says `closed unverified and without a
   good requirement-to-test table (forced):`.
 
+- **The review budget** is a closing check too (`review-budget`, `src/budget.ts`), held at every
+  active status and again at `state set --status done`, for an item with a `base` only (an item
+  from before the check is never read, and a closed or cancelled one is not either). It is not
+  overridable: `--force` vouches for what the work proved, and these two are about files whose
+  fix costs less than the reason would. It has two parts.
+
+  A review report of round 3 or later, lone (`review_<slug>_r3.md`) or lensed
+  (`review_<slug>_r3-facts.md`), needs a decision row whose phase is `review-r<N>` and whose
+  `item` column is the slug. `mstack fanout plan --kind review --solo --justify "<why>"` writes
+  that row when it allocates the round; a row for the wrong round, or filed under another item
+  or none, does not count. The failure names the report and the fix:
+
+  ```console
+  [fail]  1 greet (reviewing) cannot close as it stands, and its review report .mstack/progress/review_greet_r3.md is round 3 and has no decision row (phase review-r3, item greet)
+          fix: a round from 3 on is written down: 'mstack fanout plan --kind review --solo --justify "<why this round is worth it>"' allocates the next round and writes its row; for this report, 'mstack decide --phase review-r3 --item greet --decision "<why>" ...' writes the row
+  ```
+
+  And no report of the item may be over 24576 bytes (`MAX_REPORT_BYTES`, one constant):
+  `spec_<slug>`, `spec_review_<slug>`, `impl_<slug>` and `review_<slug>` files, lensed or of a
+  later round. The check is on the file's size, so pasted evidence that does not fit goes in a
+  scratch file the report names. From a separate run:
+
+  ```console
+  [fail]  1 greet (in_progress) cannot close as it stands, and its report .mstack/progress/impl_greet.md is 25009 bytes, over the 24576 byte limit
+          fix: cut impl_greet.md to 24576 bytes or fewer: keep the findings and the lines that matter, and leave bulk output in a scratch file outside .mstack/progress that the report names
+  ```
+
+  Like the table check it is reported by `mstack gate` and not by `mstack gate --full`, which
+  does not read the closing checks while it runs the verification for real.
+
 - **"store root is an mstack checkout"** does not appear in the transcript above, and in your
   repository it never will: it speaks only where the store's root is a checkout of this
   plugin itself, identified by `.claude-plugin/plugin.json` naming `mstack` (plus

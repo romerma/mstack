@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+- **Review rounds, report sizes and spec sizes have a budget.** `decisions.tsv` gains a trailing
+  `item` column: `mstack decide` fills it with the active item's slug (`--item <slug>` overrides it
+  and a slug that is not an item is refused; empty with no item active). A file from before the
+  column keeps reading, its rows with an empty item, and the first write widens the header line in
+  place. `mstack fanout plan --kind review --solo` allocates the next lone report,
+  `review_<slug>.md` and then `review_<slug>_r<N>.md` (N one more than the highest lone round on
+  disk), refuses round 3 or later without `--justify "<why>"`, writes the `review-r<N>` decision
+  row itself, and prints the last commit a reviewer recorded for the item that is still an
+  ancestor of `HEAD`. The gate, and `state set --status done`, now fail the active item when a
+  review report of round 3 or later (lone or lensed) has no `review-r<N>` row filed under its
+  slug, and when any report of the item (`spec_`, `spec_review_`, `impl_`, `review_`) is over
+  24576 bytes; both name the file, neither is overridable by `--force`, and **only items with a
+  `base` are checked**, so nothing in flight breaks. moving an item to `spec_ready` out of
+  the spec-writing status is refused when `spec.md` declares more requirements than the size allows (12 for
+  `m` or no size, 30 for `l`), unless `--force` carries a `--closed-by` reason, which is recorded
+  as a `spec-size` row. A report name's remainder has one rule in code, prose and tests: a
+  leading `r<digits>` is a round marker only when nothing or a dash follows, so `_r2x` is a lens
+  named `r2x` in round 1; `fanout plan` still refuses every `r<digit>` worker name. A later
+  implementer round writes `impl_<slug>_r<N>.md` with what changed and the whole table.
+
 - **The gate reads the requirement-to-test table instead of trusting it.** From `reviewing` on,
   and when `state set --status done` closes the item, the newest implementation report
   (`impl_<slug>.md`, or the highest `impl_<slug>_r<N>.md`) must carry a table headed exactly
