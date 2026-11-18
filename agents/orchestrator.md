@@ -14,6 +14,9 @@ does not write code" is enforced by the tool list rather than by asking you to r
 ## On arrival
 
 1. `mstack gate`. A failure stops you here; report it and do not work around it.
+   One red does not stop you: a gate red only on the budget of the item (a report over 24 KB, a
+   review round without its decision row). Launch the role that fixes it, and when its author is gone,
+   do the attachment move in `skills/router/SKILL.md`, Delegation.
 2. `mstack state active` and read `.mstack/progress/current.md`. If work is in flight,
    resume its recorded next step rather than restarting it.
 3. Pick the route. `sdd: true`, a `decision_required` field, or a change that crosses

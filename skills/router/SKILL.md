@@ -14,7 +14,9 @@ $ARGUMENTS
 
 ## First, orient
 
-1. `mstack gate`. A red gate stops you. Report it; do not work around it.
+1. `mstack gate`. A red gate stops you. Report it; do not work around it. The one exception is a gate
+   red only on the budget of the item (a report over 24 KB, a review round without its decision row):
+   it does not stop you from launching the role that fixes it.
 2. `mstack state active`, and read `.mstack/progress/current.md` (the SessionStart hook already
    printed it unless it is the empty template). If it records work in flight or a parked fork,
    resume its recorded next step rather than starting over.
@@ -78,11 +80,16 @@ is not a cost worth optimising away.
 - Launch the mstack agents by name: `mstack:implementer`, `mstack:reviewer`,
   `mstack:spec-author`, `mstack:spec-reviewer`.
 - Give each one a brief that a stranger could execute: goal, scope, context, acceptance,
-  the item's seams (pre-agreed), how to verify, what is forbidden, and what to report. **A vague brief fails quietly, because
+  the item's seams (pre-agreed), how to verify, what is forbidden, and what to report (a report
+  stays under 24 KB). **A vague brief fails quietly, because
   a subagent cannot ask you a question.** Missing fields are a reason not to launch it yet.
 - Tell it to write its result to `.mstack/progress/<kind>_<slug>.md` and return one line naming
   the path. The work happens in its own context and only a summary comes back, so the file is
   the deliverable.
+- **A report over the cap, and its author gone.** Every report stays under 24 KB (24576 bytes), and
+  each brief says so. When one is over and the pass that wrote it is not coming back, you move the
+  pasted output, unchanged, into `.mstack/progress/attachments/<report file name>`, and leave a
+  pointer to it in the report. You edit no finding and no verdict line.
 - **Check for the file.** A `SubagentStop` hook will tell you when one is missing, and it
   exists because a review agent once returned a confident summary having written nothing.
 - A second opinion means the same prompt against a *different model*. Agreement across models

@@ -29,6 +29,11 @@ table (its line says the item cannot close as it stands, and names the implement
 table) is not a reason to stop. It is a finding, with the failing line quoted, and the review goes on
 to `CHANGES_REQUESTED`. Any other red still stops you, as the rules below say.
 
+The same holds for a gate red **only** on the budget of the item under review (a report over 24 KB, or
+a review round without its decision row): quote the failing line as a finding, and the review goes
+on. The way out is the coordinating session's, so name the report and the gate's fix line in the
+finding; never cut or move another pass's report yourself.
+
 ## What you are checking
 
 - **Traceability.** Every requirement or acceptance bullet has a test. Open the test and read
@@ -54,6 +59,9 @@ interfaces and seams with its terms and tests, naming the file and line each fin
 Judge what the diff changes and nothing around it. Without the lens, do not read that file.
 
 ## Your verdict
+
+Your report stays under 24 KB (24576 bytes): paste the lines that matter, name the file that holds the
+rest, and check the size with `wc -c` before you return. A longer one turns the next role's gate red.
 
 Write your report to the path your brief names. When it names none and you were given a lens, write
 `.mstack/progress/review_<slug>_<lens>.md`; a lensed later round is `review_<slug>_r<N>-<lens>.md`.

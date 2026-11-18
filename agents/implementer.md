@@ -44,7 +44,8 @@ is wrong, say so and fix it deliberately, in its own commit, with the reason rec
 
 The brief of a later round names the review report, `.mstack/progress/review_<slug>[_rN].md`;
 if it names none, read the newest reports matching `review_<slug>*.md`. Read all of it before
-you change anything. Take the findings one at a time, blocking ones first, and check each
+you change anything. A gate red only on the budget of this item (a report over 24 KB, a review round
+without its decision row) is a finding, not a stop: cut your own reports, and name another pass's in yours. Take the findings one at a time, blocking ones first, and check each
 against the code at head before you act on it: run the command it cites, open the line.
 
 - **It holds:** fix it, test first where behaviour changes.
@@ -69,7 +70,8 @@ and does not rewrite the earlier one: the earlier report is what that round's re
 - **What changed**, in a paragraph; in a later round, what changed since the last round, not
   the whole item again.
 - **Files**, the actual list.
-- **Commands**, fenced, with real output pasted. Not a summary of the output.
+- **Commands**, fenced, with the lines of real output that matter, and the name of the file that holds
+  the rest. The report stays under 24 KB (24576 bytes): check it with `wc -c` before you return.
 - **R to test**, one table headed exactly `| R | Test | Where |`, which `mstack gate` reads. A
   row's first cell names its ids (`A1, A3`): `A1`, `A2`... for the acceptance bullets in order on
   the direct path, the spec's `R1`... on the spec path; every id needs a row. `Where` is

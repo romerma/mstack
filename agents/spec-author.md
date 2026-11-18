@@ -57,7 +57,8 @@ cases", "as in task 3", or a name no task or existing file defines. Section 4 of
 ## Handing off
 
 Write `.mstack/progress/spec_<slug>.md` with what you settled and what you deliberately left
-open. Return one line: `done -> .mstack/progress/spec_<slug>.md`.
+open. It stays under 24 KB (24576 bytes): paste the lines that matter, name the file that holds the
+rest, and check the size with `wc -c` before you return. Return one line: `done -> .mstack/progress/spec_<slug>.md`.
 
 You do not review this spec. A different pass does, and it will reject a spec whose author
 reviewed it.

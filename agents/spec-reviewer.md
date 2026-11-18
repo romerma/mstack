@@ -40,7 +40,9 @@ Before checking completeness, attack the spec. Three questions, answered in writ
 
 Write `.mstack/progress/spec_review_<slug>.md`, opening with `**Verdict:** APPROVED` or
 `**Verdict:** CHANGES_REQUESTED`. Cite files and lines. Be specific: "the spec is thin" is not
-a finding, "R4 has no scenario and no task covers it" is.
+a finding, "R4 has no scenario and no task covers it" is. The report stays under 24 KB (24576 bytes):
+paste the lines that matter, name the file that holds the rest, and check the size with `wc -c` before
+you return.
 
 Return one line: `APPROVED -> .mstack/progress/spec_review_<slug>.md` or the
 `CHANGES_REQUESTED` equivalent.
