@@ -5,7 +5,7 @@ Run with steps 1 and 2 of `skills/router/playbooks/bug-fix.md` as they read afte
 ## Finding
 
 - Candidate, for the August 273/1 run: nothing is identified. The August failure's name was never captured, so no test can be called its identification. Five tests were seen failing across both passes (table under "Failures seen"), each a candidate only.
-- Reproduced with a mechanism shown by runtime output, in 10 parallel rounds of 4 bun and 2 node suites (60 runs): `tests/gate.test.ts:681` failed in 40 of 40 bun runs and `tests/launcher.test.ts:55` in 29 of 40, each with bun's own line `this test timed out after 5000ms`. Neither was on item 67's list. `gate:681` passes alone and times out again beside five other suites (shrink, below).
+- Reproduced with a failure mode shown by runtime output, in 10 parallel rounds of 4 bun and 2 node suites (60 runs): `tests/gate.test.ts:681` failed in 40 of 40 bun runs and `tests/launcher.test.ts:55` in 29 of 40, each with bun's own line `this test timed out after 5000ms`. Neither was on item 67's list. `gate:681` passes alone and times out again beside five other suites (shrink, below).
 - Not reproduced: either hang. 0 of 79 full-suite runs (19 serial, 60 parallel) reached its watchdog; the longest run was 428 s.
 
 ## Serial runs: the loop
@@ -45,8 +45,6 @@ It is red-capable (it went red on its first run), unattended, and 87 to 217 s pe
 | 19 | 00:13:27 | bun | 27.3 | 11.1 | 213s | 631/0 | - |
 
 Load is the 1-minute load average from `os.loadavg()`. A node run itself raises the load average (from about 11 to about 24 within its 90 s), so "load at end" for node runs is mostly the suite's own concurrency, on top of outside load from other processes (Docker, VS Code).
-
-Load is the 1-minute load average from `os.loadavg()`.
 
 These runs were not enough: step 1 says a bug that is not constant needs a higher rate ("loop the trigger, run it in parallel, add load, pin the rate"), and both hangs in item 21 were seen while several suites ran at once. One suite at a time could not test either hang.
 
@@ -155,13 +153,15 @@ Every bun run in the parallel rounds had at least one failure (40 of 40); 15 of 
 
 ## Parallel rounds: what each hypothesis showed
 
-1. H1, the rate of the known failure rises under parallel suites. Predicted at least 6 of 24 runs; the first 24 runs (rounds 1 to 4) had 6, all node. Held on that count, but weakly: over all 60 runs `costs:698` failed 15 times (25%), against 4 of 19 (21%) serial. The rise is on node (14 of 20 against 3 of 9); on bun it is 1 of 40 against 1 of 10.
+1. H1, the rate of the known failure rises under parallel suites. Predicted at least 6 of 24 runs; the first 24 runs (rounds 1 to 4) had 6, all node. The threshold was met, but no rise is shown: over all 60 runs `costs:698` failed 15 times (25%), against 4 of 19 (21%) serial, and the two passes mix the runtimes differently (20 of 60 node runs against 9 of 19). On node it is 14 of 20 against 3 of 9, which is suggestive only; on bun it is 1 of 40 against 1 of 10.
 2. H2, slowness explains a long stall. Predicted a run over 434 s that finishes by itself. Refuted: the slowest of 60 runs took 428 s.
 3. H3, a test outside item 67's list fails under parallel suites. Held: `gate:681` (40 runs) and `launcher:55` (29 runs). Both fail with `this test timed out after 5000ms` (69 such lines in the 40 bun logs, 40 + 29), the test taking 5.0 to 6.9 s. `launcher:55` runs a loop of eight child spawns (`tests/launcher.test.ts:55-64`). Shrunk below: `gate:681` reproduces beside five other suites; `launcher:55` does not reproduce outside the full run.
 4. H4, the `tests/gate.test.ts:1618` hang is brought on by several bun suites at once. Refuted: 0 of 40 bun runs killed (0 of 46 with the shrink loops' bun runs).
 5. H5, the `tests/launcher.test.ts` stall is a `statusline` child that does not exit beside bun suites. Refuted: 0 of 20 node runs killed (0 of 24 with the shrink loops). No `ps` capture was taken, because the watchdog never fired.
 
 Refuted means refuted for these rounds (load 8.8 to 29.1); it does not rule out a hang that needs another condition.
+
+The 10 full suites that ran beside the shrink loops (6 bun, 4 node; the `shrink` and `shrink2` rows of `results.tsv`) are counted above for kills only. Their failures are not in the "Failures seen" table: `gate:681` failed in 3 of the 6 bun suites, and a sixth test failed once on node, `tests/run.test.ts:154` ("a timeout kills children that are being forked at that moment").
 
 ### Shrinking the two new failures
 
@@ -181,7 +181,7 @@ The test lists the `mstack-run-*` directories in the system temp directory befor
 
 ## Mechanism for `costs:698`
 
-The assertion at `tests/costs.test.ts:743` is `stopMs - bare < 50`. `stopMs` is the Stop hook with a 50 MB transcript and `bare` is the Stop hook without one, each the max of three runs (`tests/costs.test.ts:732-733`). Serial failure messages: `took 1008.9ms against 933.7ms` (75 ms), `1524.4ms against 1077.6ms` (447 ms), `829.2ms against 645.9ms` (183 ms). In the parallel logs the messages read, for example, `took 3351.1ms against 2102.3ms` and `3507.0ms against 3270.2ms`: both timings are in the seconds with six suites running. The same test alone at load 11.2: `stop(hook)=132.3ms stop(no transcript)=123.3ms`, `1 pass 0 fail` (`logs/costs_alone.log`). Taking the max of three smooths one outlier, but the two timings still differ by hundreds of ms or more between runs, against a 50 ms margin.
+The assertion at `tests/costs.test.ts:743` is `stopMs - bare < 50`. `stopMs` is the Stop hook with a 50 MB transcript and `bare` is the Stop hook without one, each the max of three runs (`tests/costs.test.ts:732-733`). Serial failure messages: `took 1008.9ms against 933.7ms` (75 ms), `1524.4ms against 1077.6ms` (447 ms), `829.2ms against 645.9ms` (183 ms). In the parallel logs the messages read, for example, `took 3351.1ms against 2102.3ms` and `3507.0ms against 3270.2ms`: both timings are in the seconds with six suites running. The same test alone at load 11.2: `stop(hook)=132.3ms stop(no transcript)=123.3ms`, `1 pass 0 fail` (`logs/costs_alone.log`). The max of three keeps the slowest run on each side, so one slow run on either side goes whole into `stopMs - bare`, against a 50 ms margin.
 
 ## What stays unknown
 

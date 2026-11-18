@@ -10,8 +10,8 @@ revert what it motivated.
    on it, already run, with its output. It asserts the reported symptom (not
    "did not crash"), gives the same verdict every run, takes seconds, runs unattended. A
    bug that is not constant needs a higher rate, not a clean repro: loop the trigger, run it
-   in parallel, add load, pin the rate. Do not read code for a theory before it exists. Do not
-   hand the repro back to the user. No loop, no fix: say what was tried and stop.
+   in parallel, add load, pin the rate. Do not read code for a theory before that command
+   exists. Do not hand the repro back to the user. No loop, no fix: say what was tried and stop.
 2. **Find the cause.** Shrink the repro to what is load-bearing. Write three to five ranked
    hypotheses, each with its prediction ("if X is the cause, changing Y makes it go away"),
    before testing any; take them in rank order without asking. One probe per prediction, one
@@ -20,7 +20,7 @@ revert what it motivated.
    search with `/mstack:understand` when the subsystem is unfamiliar. Confirm the *mechanism*
    with runtime evidence before designing anything. If the loop already shows the cause
    at one line, by a stack trace or a wrong literal or boundary on the only path the command
-   takes: ``skip: cause shown by the loop, `pricing.py:12` ``.
+   takes: ``skip: cause shown by the loop, `<file>:<line>` ``.
 3. Write the failing test first. It must fail without the fix. If it passes on unmodified code,
    you have not found the bug.
 4. `/mstack:design` only if the fix crosses a function boundary. A one-line fix inside one

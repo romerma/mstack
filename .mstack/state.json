@@ -823,7 +823,7 @@
         "bug-fix.md steps 1 and 2 carry the loop-first procedure, with an origin header on the derived text",
         "the procedure is run on item 21 (unidentified-flaky-test) and either identifies the test or records the hypotheses ruled out"
       ],
-      "status": "reviewing",
+      "status": "in_progress",
       "description": "Adapted from mattpocock/skills diagnosing-bugs, which already has an unattended path ('proceed with your ranking if the user is AFK'): build the loop first, three to five falsifiable hypotheses ranked, instrument, fix, clean up. The router's three-attempt stop already exists and stays.",
       "source": "reports/Mejoras mstack con skills Pocock.md, 2026-11-16",
       "seams": [
