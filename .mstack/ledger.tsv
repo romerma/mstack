@@ -173,3 +173,4 @@ role-models	33b6d2cbf7b244ba2efe973ebb86d446eddfe14b	test-verified	.mstack/progr
 role-models	c2f057f0c6cec3bfddb87e0705066eea685e9509	verifier-failed	.mstack/progress/review_role-models.md	reviewer	2026-11-18T08:18:32.986Z
 role-models	c4b53a2c18bd7d5edae7c5275cb36af04ecbfa65	test-verified	.mstack/progress/review_role-models_r2.md	reviewer	2026-11-18T08:22:02.783Z
 item-fields-base-size	b5ae6612b82bdbe0ce6b4920ab4a6bb00a3a16db	test-verified	.mstack/progress/impl_item-fields-base-size.md	implementer	2026-11-18T08:40:37.332Z
+item-fields-base-size	d0a97b6f7d669665c6dccbdd149e35a73a3cebab	verifier-failed	.mstack/progress/review_item-fields-base-size.md	reviewer	2026-11-18T09:08:29.920Z
