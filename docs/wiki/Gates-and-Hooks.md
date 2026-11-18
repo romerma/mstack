@@ -275,16 +275,20 @@ Walking the lines that carry the weight:
   three lines naming one slug is a state no single run can print.
 
   The same audit now runs at the door. `state set --status done` reads the item's rows through
-  `readVerdict` and refuses (check `independent-verdict` in `src/closing.ts`) an item with only
-  verdicts from the pass that wrote the code, or whose closing verdict cites the implementer's
-  or the spec-author's own report, in the audit's words and with its fix line,
-  instead of closing and turning the gate red after. Which names are the author's is
-  `canCloseAnItem` in `src/roles.ts`: `implementer`, `spec-author`, `impl`, `implementor`,
-  `spec author`, `author`, `developer`, `dev`, `coder`, `self` and `me`, as the whole name after its last `:` (so `mstack:implementer` and `ci:dev`
-  are refused and `dev:ci` closes), ignoring case, spaces, hyphens and underscores; every other name, `session`, `orchestrator`, a person
-  or a CI job, closes. Only while `require_verdict_to_close` is on, and `--force` does not
-  override it, for the reason a standing rejection is not overridable: the gate would hold the
-  same finding against the closed item for as long as the ledger carries it.
+  `readVerdict` and refuses (check `independent-verdict` in `src/closing.ts`) an item with no
+  row at all, an item with only verdicts from the pass that wrote the code, and an item whose
+  closing verdict cites the implementer's or the spec-author's own report, in the audit's
+  words and with its fix line, instead of closing and turning the gate red after. Which names
+  are the author's is `canCloseAnItem` in `src/roles.ts`: `implementer`, `spec-author`, `impl`,
+  `implementor`, `spec author`, `author`, `developer`, `dev`, `coder`, `self`, `me`, and the
+  empty name, which names nobody and closes nothing. What follows the last `:` is the name
+  (so `mstack:implementer` and `ci:dev` are refused and `dev:ci` closes), compared as a whole,
+  after zero-width and other format characters are removed (as the evidence check removes
+  them) and ignoring case, spaces, hyphens and underscores. Look-alike letters are not folded:
+  a Cyrillic `е` in `self` is another name. Every other name, `session`, `orchestrator`, a
+  person or a CI job, closes. Only while `require_verdict_to_close` is on, and `--force` does
+  not override it, for the reason a standing rejection is not overridable: the gate would hold
+  the same finding against the closed item for as long as the ledger carries it.
 
   ```console
   $ mstack ledger record demo "$(git rev-parse HEAD)" test-verified --evidence "node --test tests" --verifier implementer
@@ -296,8 +300,24 @@ Walking the lines that carry the weight:
           a closing verdict has to come from a pass that did not write the code; run the verification again from one and record the row under a name that is not the author's (your own name, or `ci`), or, if no check could be run, record `verifier-blocked` under such a name
   ```
 
+  An item with no row at all is refused the same way, and the gate at `verifying` says it
+  before the close is tried:
+
+  ```console
+  $ mstack state set demo --status done
+  mstack: demo cannot close: it has no ledger verdict at all
+          record it with 'mstack ledger record'; if no check could be run, that verdict is 'verifier-blocked'
+  $ mstack gate
+  ...
+  [fail]  1 demo (verifying) is one step from done, and it has no ledger verdict at all
+          fix: record it with 'mstack ledger record'; if no check could be run, that verdict is 'verifier-blocked'
+  ```
+
   The escape hatch for "no check could be run" is not a prose note but a typed verdict:
-  `verifier-blocked`, keyed to a SHA, carrying its reason.
+  `verifier-blocked`, keyed to a SHA, carrying its reason. Under a name that is not the
+  author's (`reviewer`, `ci`) it lets the item close and the gate passes it, though `mstack
+  ledger check` still fails it; under the author's name it is refused like any other row of the
+  author's.
 
 - **"a verification run is due at verifying"** is the check described [below](#verification-that-actually-ran).
   It runs nothing; it reads a record of what `--full` ran, and from `verifying` on it refuses

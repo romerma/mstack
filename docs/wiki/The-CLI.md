@@ -468,11 +468,17 @@ way, so it does not count as that escape hatch.
 row, with the same function. It reads the rows at the commit being closed and, too, every row
 of the item, so a rejection recorded later against another commit also refuses the close
 where `check` at the current head passes. It also refuses, with the gate's own words and fix
-line, an item whose rows are all the author's: only rows
+line, an item with no ledger row at all, and an item whose rows are all the author's: only rows
 under a name for the pass that wrote the work (`implementer`, `spec-author`, their spellings,
 `self`, `me`, or an empty `--verifier`), or an approval citing that pass's report; `--force`
-does not override it. Any other `--verifier` name closes: the set is open on purpose, and a
-whole name is compared, ignoring case, spaces, hyphens and underscores (`dev-ci` is not `dev`).
+does not override it, and with `rules.require_verdict_to_close` off none of these is asked.
+Any other `--verifier` name closes: the set is open on purpose. What follows the last colon is
+what is compared (`mstack:implementer` and `ci:dev` are the author's, `dev:ci` closes), as a
+whole name, after zero-width and other format characters (Unicode category Cf) are removed, as
+the evidence check removes them from a filename, and ignoring case, spaces, hyphens and
+underscores (`dev-ci` is not `dev`; `self` with a zero-width space inside is still `self`).
+Look-alike letters are not folded, here or in the evidence check: a Cyrillic `е` in `self` is
+another name, and closes.
 The row is keyed by `(target, sha)`, so a new commit voids it:
 
 ```console

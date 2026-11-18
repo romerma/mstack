@@ -79,8 +79,9 @@ mstack: in_progress -> done is not a legal transition
 ```
 
 `--force` exists because a state machine you cannot override is a state machine someone edits
-by hand. The gate still audits the result, so a forced close with no verdict is caught on the
-next run (see [Gates-and-Hooks](Gates-and-Hooks.md)).
+by hand. The gate still audits the result, and with `require_verdict_to_close` on a forced
+close still needs a ledger row from a pass that did not write the code: `state set` refuses an
+item with none, and `--force` does not get past that (see [Gates-and-Hooks](Gates-and-Hooks.md)).
 
 Five statuses count as **active**: `specifying`, `spec_ready`, `in_progress`, `reviewing`,
 `verifying` (`src/lifecycle.ts:25-31`). One active item per worktree is a gate rule, and it is

@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+- **`state set --status done` refuses an item with no ledger row, and the closing-role rule
+  reads names the way the evidence check reads filenames.** Before, an item with no row at all
+  closed and the gate went red afterwards (`items marked done with no ledger verdict at all`).
+  Now, while `rules.require_verdict_to_close` is on, the same `independent-verdict` closing
+  check refuses it at the door in the gate's words and with its fix line, and the gate at
+  `verifying` reports it too; `--force` does not override it. Verifier names are compared after
+  zero-width and other format characters (Unicode category Cf) are removed, so `se` + a
+  zero-width space + `lf` is `self` and is refused; look-alike letters are not folded (a Cyrillic
+  `е` in `self` is another name), as in the evidence check. The door and the audit give one
+  reason for an item whose only row is a `verifier-failed`, and no list prints the apostrophe
+  the ledger writer stores before a name starting with `-`, `=`, `+` or `@`.
+  **Upgrading:** with the rule on, an item can no longer be closed with no ledger row. Record
+  one first (`mstack ledger record <slug> <sha> <verdict> --evidence <e> --verifier <name>`);
+  `verifier-blocked` under a name that is not the author's is the row for "no check could be
+  run". A store whose tests or scripts close items with no row needs that call, or the rule off.
+
 - **Closing an item needs a verdict from a role that did not write the work, and `state set
   --status done` refuses an item whose only verdicts are the author's.** Before, such an item
   closed (an item with no verdict at all still does, and the gate still flags it), and the gate

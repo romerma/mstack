@@ -242,8 +242,9 @@ item except the names for the pass that wrote the work (`implementer`, `spec-aut
 common spellings, `self`, `me`, or nothing at all), so a panel's synthesising session, an
 orchestrator, a person or a CI job each close under their own name. `state set --status done`
 refuses an item whose only verdicts are from the pass that wrote the work, or whose closing verdict
-cites that pass's own report, as the gate does; an item with no row at all still closes, and the next
-gate fails it.
+cites that pass's own report, as the gate does. An item with no row at all is refused too while
+`rules.require_verdict_to_close` is on; `verifier-blocked`, under a name that is not the author's,
+is the row for "no check could be run".
 
 Nobody types a row on another pass's behalf. A row ghost-written by the coordinating pass is
 prose separation with no typed artifact behind it, which is the exact failure the verifier
