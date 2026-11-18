@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- **A load harness, and four tests that failed on correct code when the machine was busy.**
+  `scripts/load/rounds.sh <rounds> <out-dir>` runs rounds of four bun and two node suites at
+  once, each under a SIGKILL watchdog, and `scripts/load/table.mjs` counts the runs each test
+  failed in, per runtime. The budget test for the Stop hook on a 50 MB transcript now compares
+  the best of five alternating runs per side instead of the worst of three, and adds an
+  in-process bound on the whole Stop path without its gate, which catches a read of the
+  transcript outside the mark check that the old test missed. The temp-directory test of
+  `runCommand` gives the command a temp directory of its own instead of listing the shared one.
+  Two tests that start many child processes have explicit timeouts sized from runs under load.
+
 - **The bug-fix playbook builds a loop before it theorises.** Steps 1 and 2 of
   `skills/router/playbooks/bug-fix.md` now say to build one command that goes red on the
   reported symptom (and, for a bug that is not constant, to raise its rate and pin it) before any
