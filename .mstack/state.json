@@ -634,7 +634,7 @@
         "specifying to spec_ready is refused when spec.md declares more requirements than its size allows (m 12, l 30) unless forced with a decision row",
         "before anything uses roundOf to decide solo versus panel, one rule covers a remainder like _r2x: roundOf reads it as round 1 with lens r2x (item 20's A3), while agents/reviewer.md:77 and the src/fanout.ts:49 comment treat any leading r<digit> as reserved; pick one and make code, prose and tests agree (item 20 round-2 review note)"
       ],
-      "status": "reviewing",
+      "status": "in_progress",
       "base": "362536fb51a404e2e12145c01745efff4b166e71",
       "seams": [
         "CLI: mstack decide and the decisions.tsv it writes, with and without an active item; old files without the item column",
