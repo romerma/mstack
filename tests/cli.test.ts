@@ -308,6 +308,12 @@ test("--status and --closed-by keep working exactly as before", () => {
     assert.match(illegal.stderr, /in_progress -> done is not a legal transition/);
     assert.equal(only(sb).status, "in_progress");
 
+    // The move above recorded a base, and an item with a base is held to the
+    // requirement-to-test table when it closes, even forced (a reason on the
+    // record, and a prefix on closed_by). This test is about the plain forced
+    // transition and a plain note, so the item goes back to one with no base,
+    // as every item from before that check is.
+    sb.writeState(state([item({ status: "in_progress" })]));
     const forced = run(sb.store.root, ["state", "set", "1", "--status", "done", "--force"]);
     assert.equal(forced.code, 0, forced.stderr);
     assert.equal(only(sb).status, "done");
