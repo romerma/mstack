@@ -6,6 +6,7 @@ import { gateProblems, VERIFICATION_CHECK } from "./closing.ts";
 import { defaultBranch, git, headSha } from "./git.ts";
 import { readGlossary } from "./glossary.ts";
 import { runCommand } from "./run.ts";
+import { measureDiff, resolveCommit, SMALL_MAX_FILES, SMALL_MAX_LINES } from "./size.ts";
 import { describeRow, entries as ledgerEntries, readVerdict } from "./ledger.ts";
 import {
   isActive,
@@ -270,6 +271,7 @@ function checkInvariants(store: Store, state: State, report: Report): void {
   } else if (active.length === 1) {
     report.ok(`one active item: ${active[0]?.slug} (${active[0]?.status})`);
     checkCurrent(store, active[0]!, report);
+    checkSmallDiff(store, active[0]!, report);
   } else {
     report.ok("no active item");
   }
@@ -277,6 +279,38 @@ function checkInvariants(store: Store, state: State, report: Report): void {
   checkOpenDecisions(store, state, report);
   if (state.rules.require_spec_for_sdd_items) checkSpecArtifacts(store, state, report);
   if (state.rules.require_verdict_to_close) checkClosedItems(store, state, report);
+}
+
+/**
+ * A size-s item is held to its diff: the code that changed since it started,
+ * committed or not, may not pass `SMALL_MAX_LINES` lines or `SMALL_MAX_FILES`
+ * files. Only the active item with a `base` is measured, and only at size s;
+ * everything else says nothing, so a store that does not use sizes is unchanged.
+ */
+function checkSmallDiff(store: Store, item: Item, report: Report): void {
+  if (item.size !== "s" || item.base === undefined) return;
+  const base = item.base;
+  const short = base.slice(0, 8);
+  const fixBase = `'mstack state set ${item.slug} --base <commit>' points it at a commit that exists`;
+  if (resolveCommit(store, base) === null) {
+    report.fail(`${itemLabel(item)} is size s but its base ${base} is not a commit git can find, so its diff cannot be measured`, fixBase);
+    return;
+  }
+  const size = measureDiff(store, base);
+  if (size === null) {
+    report.fail(`${itemLabel(item)} is size s but git could not measure its diff from ${short}`, fixBase);
+    return;
+  }
+  const plural = (n: number, word: string): string => `${n} ${word}${n === 1 ? "" : "s"}`;
+  const found = `${plural(size.lines, "line")} in ${plural(size.files, "file")}`;
+  if (size.lines > SMALL_MAX_LINES || size.files > SMALL_MAX_FILES) {
+    report.fail(
+      `${itemLabel(item)} is size s but its code diff from ${short} is ${found}, over the limits of ${SMALL_MAX_LINES} lines and ${SMALL_MAX_FILES} files`,
+      `it is not small: 'mstack state set ${item.slug} --size m' (or split the work)`,
+    );
+  } else {
+    report.ok(`${item.slug} is size s: ${found} of code since ${short}, within ${SMALL_MAX_LINES} lines and ${SMALL_MAX_FILES} files`);
+  }
 }
 
 function reportDuplicates(values: readonly (string | number)[], label: string, report: Report): void {
