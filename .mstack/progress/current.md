@@ -6,10 +6,10 @@
 > On close: append the summary to `history.md` and reset this file to the
 > empty template below.
 
-- **Item:** none active (59 closed 2026-11-18)
-- **Status:** -
-- **Branch:** main
-- **Base:** -
+- **Item:** 67 load-sensitive-tests
+- **Status:** in_progress (round 1)
+- **Branch:** fix/load-sensitive-tests
+- **Base:** 5c05f6c
 - **Worktree:** none
 
 ## Plan

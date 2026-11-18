@@ -936,9 +936,13 @@
         "tests/gate.test.ts:681 and tests/launcher.test.ts:55 exceed bun's 5 s default beside other suites (40 of 40 and 29 of 40 bun runs in rounds of four bun and two node suites, .mstack/progress/diagnosis_unidentified-flaky-test.md); each gets a cause and either an explicit timeout or a faster test",
         "tests/run.test.ts:54 compares two listings of mstack-run-* in the shared temp directory, so another suite's directory fails it (read from the code and one log, not tested by removing the sharing); tests/run.test.ts:154 failed once on node beside the shrink loops"
       ],
-      "status": "pending",
+      "status": "in_progress",
       "description": "Measured during the item 52, 53 and 54 reviews with four bun and two node suites running together. tests/run.test.ts:54 ('a temp directory was left behind') failed 7 of 20 bun and 2 of 10 node suites in one round and 3 of 8 bun suites in another; tests/costs.test.ts:698 failed 9 of 12, 2 of 10 and 4 of 4 node suites; tests/run.test.ts:239 (the SIGINT survivor) failed 2 of 4 node suites. None was touched by those items. Item 21 is a suite run that failed once and was never identified; this may be the same failure.",
-      "source": "item 52 round-3 review, .mstack/progress/review_withlock-enters-without-the-lock_r3.md, 2026-11-16"
+      "source": "item 52 round-3 review, .mstack/progress/review_withlock-enters-without-the-lock_r3.md, 2026-11-16",
+      "seams": [
+        "npm test under a load harness of four bun and two node suites at once: failures per test name over at least 20 suites per runtime",
+        "each changed test against a mutant of the defect it guards: it still goes red"
+      ]
     },
     {
       "id": 68,
