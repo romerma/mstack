@@ -6,10 +6,10 @@
 > On close: append the summary to `history.md` and reset this file to the
 > empty template below.
 
-- **Item:** none active (41 closed 2026-11-18)
-- **Status:** -
-- **Branch:** main
-- **Base:** -
+- **Item:** 42 mutation-check (spec path)
+- **Status:** specifying
+- **Branch:** feat/mutation-check
+- **Base:** d21339b
 - **Worktree:** none
 
 ## Plan
