@@ -900,9 +900,10 @@
         "the spec skill and the orchestrate playbook carry the task-sizing rule with an origin header",
         "one spec written with it has tasks a stranger could execute, judged by the spec-reviewer"
       ],
-      "status": "reviewing",
+      "status": "done",
       "description": "Adapted from obra/superpowers writing-plans: a task is the unit that deserves a fresh reviewer's gate, written for an executor with no context. Applies to the spec path's tasks.md and to orchestrate briefs; the save path becomes .mstack/specs/.",
       "source": "reports/Mejoras mstack con skills Pocock.md, 2026-11-16",
+      "closed_by": "two rounds; review_plans-for-a-contextless-executor_r2.md APPROVED at 32a7b24; gate --full green on the first run",
       "seams": [
         "CLI: mstack lint-plugin output and exit code on a plugin whose skills/spec/SKILL.md or skills/router/playbooks/orchestrate.md has no origin header",
         "the spec path as followed by a headless /mstack run on an sdd item in a copy of sandbox/bench/template: the tasks.md the spec-author writes and what the spec-reviewer says of it"
@@ -1318,6 +1319,22 @@
       "status": "pending",
       "description": "One live later-round run (n=1, 1.24 USD, 15 turns, 300 s): the true finding was fixed test-first, the false one got a decide row and a Findings not applied section, the next reviewer judged the rebuttal and approved, nothing asked the user. But the coordinating session had judged both findings itself and written the verdicts into the implementer's brief, so the run does not show an implementer checking findings on its own.",
       "source": "item 62 reviews, .mstack/progress/review_review-findings-verified-first.md and _r2.md, 2026-11-18"
+    },
+    {
+      "id": 90,
+      "slug": "task-sizing-followups",
+      "title": "Follow-ups from item 64: the task rules do not fit the close tasks, the spec-reviewer missed a wrong expected output, and wording left in the headers",
+      "acceptance": [
+        "the rule says which tasks it applies to: the template's close tasks (review; PR, merge gate, close) cannot give paths and a command, and the live spec-reviewer exempted them on its own judgement",
+        "the spec-reviewer checks each task's stated expected output against what the command really prints: the live tasks.md expected 'status: closed' where mstack prints 'status: done', and had two '...' stand-ins, and the spec-reviewer passed it",
+        "one tasks.md written with the rule is executed by an implementer that has only the file, and the report says where it had to guess",
+        "the old-against-new comparison is rerun with the coordinator's brief held fixed, or the claim stays at one run per side",
+        "'worth a fresh reviewer's gate' is reconciled with the spec path, which runs one review per item, not per task",
+        "wording: orchestrate's header gives a reason for leaving out 'scaffolding' and the testable-deliverable sentence, or the playbook carries them; the CHANGELOG's 'one size rule' matches what orchestrate carries; 'what that command prints' says expected; the spec-author's short form carries the sentence it omits; agents/spec-reviewer.md gets an origin header if its wording derives from the source"
+      ],
+      "status": "pending",
+      "description": "One live spec per side (n=1 each): with the rule, tasks.md had 3 implementation tasks in 193 lines with paths, commands and expected output (3.19 USD, 25 turns, 781 s); at the base sha, 14 tasks in 33 lines with no commands (2.02 USD, 17 turns, 552 s). The new run's coordinator brief already asked for exact paths and commands and the old one did not, so the difference is not isolated to the skill text. Nobody executed the live tasks.md.",
+      "source": "item 64 reviews, .mstack/progress/review_plans-for-a-contextless-executor.md and _r2.md, 2026-11-18"
     }
   ]
 }

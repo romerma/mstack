@@ -1333,3 +1333,29 @@ the implementer checking on its own.
 made by the coordinator and read by a fresh reviewer.
 
 **Filed.** Item 89 `later-round-followups`.
+
+## 2026-11-18 - item 64 plans-for-a-contextless-executor closed (2 rounds)
+
+**What shipped.** Section 4 of the spec skill has two rules for `tasks.md`: size (the smallest
+unit with its own test cycle that is worth a fresh reviewer's gate; setup and docs fold into the
+task that needs them; split only where a reviewer could reject one and approve its neighbour) and
+no context (exact paths, the exact command and what it prints, no placeholder, no undefined
+name). `agents/spec-author.md` carries both in short because it does not preload the skill;
+`agents/spec-reviewer.md` checks both; the orchestrate playbook defines a unit by the size rule
+in step 1 and bans placeholders in step 5. Origin headers to obra/superpowers `writing-plans` at
+a pinned sha on three files, all in `ORIGIN_REQUIRED`.
+
+**Evidence.** One live spec per side. With the rule: 3 implementation tasks, each with paths,
+command and expected output; the spec-reviewer rejected round 1 over an undefined name and
+approved the revision. At the base sha: 14 tasks, tests split from code, no commands. The new
+run's coordinator brief already asked for paths and commands, so the difference is not isolated.
+The reviewer found an expected output the spec-reviewer missed (`status: closed` for `done`).
+
+**What the rounds taught.** The header and the changelog named a step the diff never touched.
+A location claim ("in steps 1 and 2") is checked against the diff, not against the plan.
+
+**Closing.** `gate --full` green on the first run (bun 631/0, node 631/0). Round 2's edits were
+made by the coordinator and read by a fresh reviewer. Phase 2 is done except item 60, which waits
+on the user's yes to open a real PR.
+
+**Filed.** Item 90 `task-sizing-followups`.
