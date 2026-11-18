@@ -1260,3 +1260,34 @@ reviewer.
 
 **Filed.** Item 84 `redact-secrets-in-pasted-evidence`; item 85 `bug-fix-loop-followups`; three
 criteria added to item 67, which goes next because this is the second closing it has held up.
+
+## 2026-11-18 - item 67 load-sensitive-tests closed (3 rounds)
+
+**Why now.** `tests/costs.test.ts:698` held up the closing gates of items 58 and 59 (three red
+runs of four each) and failed CI on `main` at `5c05f6c` in `oldest-node`, twice with the same
+figures (94.5 against 37.0 ms; 91.4 against 37.5 ms).
+
+**What shipped.** The Stop budget test compares the test process's CPU time, the slowest of five
+alternating runs per side, under 20 ms, with a new in-process bound on the Stop path without its
+gate; wall time is printed, not asserted. `tests/run.test.ts:54` gives its command a temp
+directory of its own. The citation gate test and the hostile-stdin launcher test have timeouts
+sized from runs under load (35 s, 10 s). `scripts/load/` holds the harness: rounds of four bun and
+two node suites under a watchdog, and a table of failures per test. `tests/run.test.ts:239` and
+`:154` moved to item 86: their red is a pid alive after the signal, which may be the code's.
+
+**What the rounds taught.** The remedy decided up front (best of five in wall time) still failed
+under load; the gate's git children swing a single run by hundreds of ms, and only CPU time of
+the process is free of that. Best-of-N then hid a read made on some Stops (two mutants green 18
+of 18): the mutant table has to include the defect the new statistic is blind to, and the slowest
+run is the bound. A figure measured on two runtimes was written as a fact and was false on the
+two CI runs; the comment now names runtimes.
+
+**Not shown.** Why CI's `oldest-node` had a steady gap: no local run on node 22.6 reproduced it.
+The rounds ran on a machine less loaded than during the item 21 diagnosis (bun suites 150 s
+against 405 to 428 s), so they do not exercise the old 5 s timeouts.
+
+**Closing.** `gate --full` green on the first run (bun 631/0, node 631/0). Round 3's edits were
+made by the coordinator and read by a fresh reviewer. Item 21's description carries the result; it
+stays open on the two hangs.
+
+**Filed.** Item 86 `run-survivor-checks-under-load`; item 87 `stop-budget-test-followups`.

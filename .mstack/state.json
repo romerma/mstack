@@ -330,7 +330,7 @@
         "the hang has a second observed site: during item 36 round 3 a full npm test stalled over 5 min in the node phase inside tests/launcher.test.ts on a 'bun src/cli.ts statusline' child; a rerun was green (2026-11-08)"
       ],
       "status": "pending",
-      "description": "During the item 17 round-3 review a single 'npm test' run reported 273 pass, 1 fail. Nineteen subsequent runs were clean: 12 plain, 3 npm test, 6 under saturating load. The failing test name was not captured, which the reviewer recorded as its own error rather than dropping. The obvious suspect was ruled out: the fifo manifest test's 10s guard has 26x headroom at a 0.38s mean. Rung 5 that it happened, rung 1 for the cause. Filed so that a one-in-twenty red suite is a tracked fact rather than a sentence in one report. A diagnosis on 2026-11-18 (.mstack/progress/diagnosis_unidentified-flaky-test.md) ran 19 serial and 60 parallel full-suite runs (10 rounds of 4 bun and 2 node suites together): no test is identified for the August run, whose name was never captured, and neither hang reproduced in 79 runs; five tests were seen failing, tests/gate.test.ts:681 and tests/launcher.test.ts:55 with a 5000 ms timeout under parallel load. Item 67 (2026-11-18) fixed the load-sensitive tests that diagnosis saw (tests/costs.test.ts:698, tests/run.test.ts:54, and the timeouts of tests/gate.test.ts:681 and tests/launcher.test.ts:55); of them only the launcher test existed on 2026-08-21 and nothing ties it to the August failure. With those fixes, 94 full suites run in parallel rounds had 0 failures. The two hangs did not reproduce there either and stay open here; tests/run.test.ts:239 and :154 are item 86.",
+      "description": "During the item 17 round-3 review a single 'npm test' run reported 273 pass, 1 fail. Nineteen subsequent runs were clean: 12 plain, 3 npm test, 6 under saturating load. The failing test name was not captured, which the reviewer recorded as its own error rather than dropping. The obvious suspect was ruled out: the fifo manifest test's 10s guard has 26x headroom at a 0.38s mean. Rung 5 that it happened, rung 1 for the cause. Filed so that a one-in-twenty red suite is a tracked fact rather than a sentence in one report. A diagnosis on 2026-11-18 (.mstack/progress/diagnosis_unidentified-flaky-test.md) ran 19 serial and 60 parallel full-suite runs (10 rounds of 4 bun and 2 node suites together): no test is identified for the August run, whose name was never captured, and neither hang reproduced in 79 runs; five tests were seen failing, tests/gate.test.ts:681 and tests/launcher.test.ts:55 with a 5000 ms timeout under parallel load. Item 67 (2026-11-18) fixed the load-sensitive tests that diagnosis saw (tests/costs.test.ts:698, tests/run.test.ts:54, and the timeouts of tests/gate.test.ts:681 and tests/launcher.test.ts:55); of them only the launcher test existed on 2026-08-21 and nothing ties it to the August failure. With those fixes, 94 full suites run in parallel rounds (64 bun, 30 node, on a machine less loaded than during the diagnosis) had 0 failures. The two hangs did not reproduce there either and stay open here; tests/run.test.ts:239 and :154 are item 86.",
       "source": "item 17 round-3 review, non-blocking, 2026-08-21",
       "verification": "npm test && npm run typecheck && ./bin/mstack lint-plugin ."
     },
@@ -936,9 +936,10 @@
         "tests/gate.test.ts:681 and tests/launcher.test.ts:55 exceed bun's 5 s default beside other suites (40 of 40 and 29 of 40 bun runs in rounds of four bun and two node suites, .mstack/progress/diagnosis_unidentified-flaky-test.md); each gets a cause and either an explicit timeout or a faster test",
         "tests/run.test.ts:54 compares two listings of mstack-run-* in the shared temp directory, so another suite's directory fails it (read from the code and one log, not tested by removing the sharing)"
       ],
-      "status": "reviewing",
+      "status": "done",
       "description": "Measured during the item 52, 53 and 54 reviews with four bun and two node suites running together. tests/run.test.ts:54 ('a temp directory was left behind') failed 7 of 20 bun and 2 of 10 node suites in one round and 3 of 8 bun suites in another; tests/costs.test.ts:698 failed 9 of 12, 2 of 10 and 4 of 4 node suites; tests/run.test.ts:239 (the SIGINT survivor) failed 2 of 4 node suites. None was touched by those items. Item 21 is a suite run that failed once and was never identified; this may be the same failure.",
       "source": "item 52 round-3 review, .mstack/progress/review_withlock-enters-without-the-lock_r3.md, 2026-11-16",
+      "closed_by": "three rounds; review_load-sensitive-tests_r3.md APPROVED at b6fea65; gate --full green on the first run",
       "seams": [
         "npm test under a load harness of four bun and two node suites at once: failures per test name over at least 20 suites per runtime",
         "each changed test against a mutant of the defect it guards: it still goes red"
@@ -1256,6 +1257,22 @@
       "status": "pending",
       "description": "Moved out of item 67 on 2026-11-18. tests/run.test.ts:239 ('a SIGINT while the command is forking leaves no survivor') failed 2 of 4 node suites in the item 52 to 54 reviews and 2 of 60 suites in the item 21 diagnosis; one log reads 'run 1: children survived the Ctrl-C' with one pid in the actual list. tests/run.test.ts:154 ('a timeout kills children that are being forked at that moment') failed once on node beside the shrink loops. Both showed 0 failures in item 67's rounds (40 bun and 20 node suites, and two rounds of 10 bun and 4 node), which ran on a lighter machine. A pid alive after the signal may be a real survivor, so 'fails on correct code' is not shown.",
       "source": "item 67 round 1 review, .mstack/progress/review_load-sensitive-tests.md, 2026-11-18"
+    },
+    {
+      "id": 87,
+      "slug": "stop-budget-test-followups",
+      "title": "Follow-ups from item 67: the cause of the CI oldest-node gap, thin margins in the Stop budget test, and smaller points",
+      "acceptance": [
+        "the budget line of a CI oldest-node log is read and the report says whether a with-transcript gap exists there in wall or CPU time, and why",
+        "one untimed stop({ cwd }) before the timed loop removes the first-gate-run cost (up to 4.2 ms on the with side in 58 of 60 runs) without hiding a read on the first Stop, shown by mutant M4 staying red",
+        "a read in newMark passes both the old and the new budget test; a test catches it or the limit is stated",
+        "margins are stated or widened: bun's read-and-parse mutants are 26 to 30 ms against 20, and a decoded read on node 22.6 exceeds only stopPathMs, by about 1.2 ms; node 24 is measured for a decoded read without a split",
+        "tests/verdict-reader.test.ts 'agree on every sequence' took 54 to 55 s inside node suites at 10 bun and 4 node against its 60 s timeout; the report says whether bun would cut it there",
+        "impl_load-sensitive-tests_r2.md gives 1.6 and 2.8 ms for the loaded check from a parser that shadowed sort's variables; the raw output gives 1.1 and 2.5 ms, and its load lost the two node suites after 53 s"
+      ],
+      "status": "pending",
+      "description": "At 5c05f6c the old wall-time test failed twice in CI's oldest-node job with a steady gap (94.5 against 37.0 ms, 91.4 against 37.5 ms) that no local run on node 22.6 reproduced. The new test prints every run in its budget line.",
+      "source": "item 67 reviews, .mstack/progress/review_load-sensitive-tests.md, _r2.md and _r3.md, 2026-11-18"
     }
   ]
 }
