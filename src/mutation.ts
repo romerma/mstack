@@ -53,6 +53,15 @@ interface RawRecord {
 
 const UTF8 = new TextDecoder("utf-8", { fatal: true });
 
+/** A path as git wrote its bytes; when they are not UTF-8, `path` holds U+FFFD for them and `utf8` is false. */
+function decoded(bytes: Buffer): { path: string; utf8: boolean } {
+  try {
+    return { path: UTF8.decode(bytes), utf8: true };
+  } catch {
+    return { path: bytes.toString("utf8"), utf8: false };
+  }
+}
+
 /**
  * `git diff --raw -z --no-renames --no-abbrev --relative <revs> --` in the
  * store's root: `:<src mode> <dst mode> <src sha> <dst sha> <status>` NUL
@@ -76,15 +85,7 @@ function rawDiff(store: Store, revs: readonly string[]): RawRecord[] | null {
   for (let i = 0; i < fields.length; i += 2) {
     const m = /^:([0-7]{6}) ([0-7]{6}) ([0-9a-f]{40}|[0-9a-f]{64}) ([0-9a-f]{40}|[0-9a-f]{64}) [A-Z][0-9]*$/.exec((fields[i] as Buffer).toString("latin1"));
     if (m === null) return null;
-    const bytes = fields[i + 1] as Buffer;
-    let path: string;
-    let utf8 = true;
-    try {
-      path = UTF8.decode(bytes);
-    } catch {
-      path = bytes.toString("utf8");
-      utf8 = false;
-    }
+    const { path, utf8 } = decoded(fields[i + 1] as Buffer);
     records.push({ srcMode: m[1] as string, dstMode: m[2] as string, srcSha: m[3] as string, dstSha: m[4] as string, path, utf8 });
   }
   return records;
@@ -115,20 +116,30 @@ export function revertSet(store: Store, start: string): RevertSet | null {
  */
 export function mutationKey(store: Store, start: string): MutationKey {
   const tracked = rawDiff(store, [start]);
-  const others = git(store, ["ls-files", "--others", "--exclude-standard", "-z"], { raw: true });
+  const others = gitBytes(store, ["ls-files", "--others", "--exclude-standard", "-z"]);
   if (tracked === null || others === null) return { key: null, reason: "git could not list the code and test files that changed" };
   const scope = scopeClass(store);
   const kept = (path: string): boolean => {
     const c = scope(path);
     return c === "code" || c === "test";
   };
-  const paths: { path: string; tracked: boolean; start: string }[] = [
-    ...tracked.filter((r) => kept(r.path)).map((r) => ({ path: r.path, tracked: true, start: `${r.srcMode}:${r.srcSha}` })),
-    ...others.split("\0").filter((p) => p !== "" && kept(p)).map((p) => ({ path: p, tracked: false, start: "-" })),
+  const untracked: { path: string; utf8: boolean }[] = [];
+  for (let at = 0; at < others.length; ) {
+    const end = others.indexOf(0, at);
+    const stop = end === -1 ? others.length : end;
+    if (stop > at) untracked.push(decoded(others.subarray(at, stop)));
+    at = stop + 1;
+  }
+  const paths: { path: string; tracked: boolean; start: string; utf8: boolean }[] = [
+    ...tracked.filter((r) => kept(r.path)).map((r) => ({ path: r.path, tracked: true, start: `${r.srcMode}:${r.srcSha}`, utf8: r.utf8 })),
+    ...untracked.filter((u) => kept(u.path)).map((u) => ({ path: u.path, tracked: false, start: "-", utf8: u.utf8 })),
   ];
   // `hash-object --stdin-paths` reads one path per line and has no -z form.
   const newline = paths.find((p) => p.path.includes("\n"));
   if (newline !== undefined) return { key: null, reason: `${JSON.stringify(newline.path)} holds a newline` };
+  // Such a name, decoded, is not the one on disk: its content would never reach the key.
+  const notUtf8 = paths.find((p) => !p.utf8);
+  if (notUtf8 !== undefined) return { key: null, reason: `${JSON.stringify(notUtf8.path)} has a name that is not UTF-8` };
 
   const now = new Map<string, string>();
   const files: { path: string; mode: string }[] = [];

@@ -332,3 +332,21 @@ test("R21 the key is null, with its reason, when git cannot list the changed or 
     }
   });
 });
+
+test("R21 a key path whose name is not UTF-8 makes the key null, with its reason", () => {
+  withBox((box) => {
+    const root = box.store.root;
+    put(root, "src/a.ts", "a\n");
+    commitAll(root, "a");
+    // A name this volume may refuse to hold, so it is built in the index alone: tracked at the start, absent from the tree.
+    const sha = execFileSync("git", ["hash-object", "-w", "--stdin"], { cwd: root, input: "x\n", encoding: "utf8" }).trim();
+    const name = Buffer.concat([Buffer.from("src/caf"), Buffer.from([0xff]), Buffer.from(".ts")]);
+    execFileSync("git", ["-c", "core.precomposeunicode=false", "update-index", "--index-info"], { cwd: root, input: Buffer.concat([Buffer.from(`100644 ${sha}\t`), name, Buffer.from("\n")]) });
+    git(root, "commit", "-q", "-m", "a name that is not UTF-8");
+    const start = git(root, "rev-parse", "HEAD");
+    assert.match(execFileSync("git", ["diff", "--name-only", "-z", start, "--"], { cwd: root, encoding: "latin1" }), /src\/caf\xff\.ts/, "the path is not in the key set, so this test proves nothing");
+    const k = mutationKey(box.store, start);
+    assert.equal(k.key, null, JSON.stringify(k));
+    assert.match("reason" in k ? k.reason : "", /src\/caf.*not UTF-8/);
+  });
+});

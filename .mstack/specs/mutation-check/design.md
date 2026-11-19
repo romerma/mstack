@@ -75,7 +75,9 @@ A sketch of the contract, not output from a run; task 3.4 pastes real output int
   `treeId`'s `classify` does, `src/verification.ts:286-306`), `<mode>:<blob>` with the blob from
   `git hash-object --stdin-paths` fed absolute paths (relative ones resolve from the repository
   root: `spec42r2/hash-exp`), or `other`. The key is `sha256(lines)` to 16 hex digits; `null` when
-  git fails or a path holds a newline.
+  git fails, a path holds a newline, or a path's name is not UTF-8 (both parts are read as bytes;
+  decoded with replacement, such a name is not the one on disk, and its content would never reach
+  the key: round 1 review, NB5).
 
 ### Refusals (`src/mutation.ts`)
 

@@ -606,7 +606,7 @@ tracked, its start mode and blob (or absent), and its identity in the working tr
 file as the blob id git would store for it); a change to any of those MUST change the key, and a
 change to a doc, a store file, the sha or the commit graph that leaves them unchanged MUST NOT;
 and the key MUST be null, with no row written and the reason printed, when git cannot answer or a
-path of the key set holds a newline.
+path of the key set holds a newline or has a name that is not UTF-8.
 
 #### Scenario: What changes it
 - **WHEN** `src/a.ts` or `tests/a.test.ts` is edited (committed or not), a code or test file is

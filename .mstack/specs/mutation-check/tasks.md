@@ -24,8 +24,9 @@ requirements it covers (`agents/implementer.md`, "Your report").
   change the key`, `R21 a rebase that changes no code or test path keeps the key`, `R21 a store in
   a subdirectory has a key that a test edit changes`, `R21 a key path that holds a newline makes the
   key null, with its reason` and `R21 the key is null, with its reason, when git cannot list the
-  changed or the untracked files` (both added in round 1, for mutants no named test killed). Done
-  when `bun test tests/mutation-set.test.ts` ends ` 13 pass` and ` 0 fail`, `bun test tests/item-size-base.test.ts
+  changed or the untracked files` (both added in round 1, for mutants no named test killed), `R21 a
+  key path whose name is not UTF-8 makes the key null, with its reason` (added in round 1, for
+  NB5). Done when `bun test tests/mutation-set.test.ts` ends ` 14 pass` and ` 0 fail`, `bun test tests/item-size-base.test.ts
   tests/gate.test.ts` ends ` 0 fail` (the size check is unchanged), and the node command for
   `tests/mutation-set.test.ts` prints `# fail 0`. (covers R9, R10, R21)
 
