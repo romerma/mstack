@@ -112,6 +112,15 @@ passes bypassPermissions. Do not run `check.mjs` or `verify.mjs` while a batch i
 - Next: stage 4 (group 3, the run and the `verify` command), then task 5.x and review round 2.
   Read the report's last section first: `restoreCommand` is the one function for R25's messages.
 
+## Item 42 stage 4 in flight (implementer, 2026-11-19)
+
+- Brief: task group 3 (3.1 to 3.4: receipt rows, `src/mutation-run.ts`, `verify` in the CLI, wiki,
+  CHANGELOG), plus review points 13 (wiki sentence) and 14 (`lock.head` against the sampled HEAD),
+  `discard` after a refused `acquireLock`, R25 through `restoreCommand`. One commit per task, then
+  `chore: report item 42 stage 4` with `.mstack/progress/impl_mutation-check_r5.md`. No task group 5.
+- Scratch: `/private/tmp/claude-501/-Users-romerma-Code-mstack/4aadee9d-d352-4d5b-825b-4d11a47e2193/scratchpad/impl42s4/`.
+- Never run `verify --mutation` or `verify --restore` with this checkout as the store.
+
 ## Next step
 
 Phases 0 and 1 are closed, except item 50 (waits for the user). Phase 2 has 57 and 58 closed.

@@ -204,3 +204,53 @@ export function hold(root: string, phase: string, blockAt: string, options: { re
     },
   };
 }
+
+/**
+ * Item 42, group 3: a repository whose project verification is the shell
+ * script `tests/check.sh` (a test path, so never reverted), given a log file
+ * outside the repository as its argument, so that what it writes never enters
+ * the key. `atStart` and `change` write the code; the script is committed at
+ * the start.
+ */
+export interface RunRepo extends Repo {
+  /** One line per run of the script, appended by the script itself when it starts with `echo run >> "$1"`. */
+  readonly log: string;
+  /** A directory outside the repository for the test's own files. */
+  readonly scratch: string;
+  readonly command: string;
+}
+
+export function makeRunRepo(script: string, atStart: (root: string) => void, change: (root: string) => void): RunRepo {
+  const scratch = mkdtempSync(join(tmpdir(), "mstack-run-scratch-"));
+  const log = join(scratch, "log");
+  const command = `sh tests/check.sh '${log}'`;
+  try {
+    const r = makeRepo((root) => {
+      atStart(root);
+      put(root, "tests/check.sh", script);
+    }, change);
+    r.box.writeState(state([item({ status: "in_progress", base: r.start })], { verify: command }));
+    return { ...r, log, scratch, command };
+  } catch (error) {
+    rmSync(scratch, { recursive: true, force: true });
+    throw error;
+  }
+}
+
+export async function withRunRepo(
+  script: string,
+  atStart: (root: string) => void,
+  change: (root: string) => void,
+  body: (r: RunRepo) => Promise<void>,
+): Promise<void> {
+  const r = makeRunRepo(script, atStart, change);
+  try {
+    await body(r);
+  } finally {
+    r.box.dispose();
+    rmSync(r.scratch, { recursive: true, force: true });
+  }
+}
+
+/** How many times the check script ran. */
+export const runs = (r: RunRepo): number => (existsSync(r.log) ? readFileSync(r.log, "utf8").split("\n").filter((l) => l !== "").length : 0);

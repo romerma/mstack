@@ -284,16 +284,21 @@ the entry at p by exact name:
 
 1. Install SIGINT/SIGTERM/SIGHUP handlers that record the first signal and call `stop()` on a
    running obligation; they never exit the process. Removed in `finally`.
-2. `refusals`; sample HEAD and the key K0 (`mutationKey`).
+2. `refusals`; sample HEAD and the key K0 (`mutationKey`, which also returns its line per path,
+   so that a change can be named by path). A null K0 is refused here, before the baseline: no row
+   could be written, so nothing is reverted for it (R21).
 3. Baseline (R6, R7) through `runCommandAsync`. A signal: exit 128+n, no receipt for it.
-4. R2 again, plus HEAD against the sample and the key against K0 (an untracked test edited while
-   the baseline ran is seen only here, the review's N14); refused: nothing recorded. Else the
-   receipts, at one `treeId` taken after the last (as `src/gate.ts:794`).
+4. When the baseline ran: HEAD against the sample, R2 again (`refusals`), and the key against K0
+   (an untracked test edited while the baseline ran is seen only here, the review's N14); refused:
+   nothing recorded. Else the receipts, at one `treeId` taken after the last (as
+   `src/gate.ts:794`). A recorded green ran nothing, so it has nothing to check here.
 5. The list of untracked entries.
 6. `prepareRun` (git children). Then `await` one `setImmediate` and check the signal: a Ctrl-C that
    killed a `cat-file` child is seen here, so it exits 128+n rather than reporting an unreadable
    blob (`spec42r3/yield-exp` prepare: on both runtimes the flag is null right after the
-   synchronous section and set after one yield).
+   synchronous section and set after one yield). `prepareRun` reads HEAD itself, after the set was
+   computed: a `lock.head` other than the sample is refused, and `discard` removes the staging
+   (round 1 review, NB14).
 7. `acquireLock`; print the lock line and R25's command; `sweepStale`.
 8. One yield, then the signal check: if set, restore (nothing to do), exit 128+n with nothing
    written and nothing spawned (`yield-exp` revert).

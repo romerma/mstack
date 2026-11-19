@@ -38,8 +38,12 @@ export interface RevertSet {
   readonly notUtf8: readonly string[];
 }
 
-/** The key, or null with the reason, which the run prints instead of writing a row. */
-export type MutationKey = { readonly key: string } | { readonly key: null; readonly reason: string };
+/**
+ * The key, with its line per path (what the run compares to name the paths
+ * that changed), or null with the reason, which the run prints instead of
+ * writing a row.
+ */
+export type MutationKey = { readonly key: string; readonly lines: ReadonlyMap<string, string> } | { readonly key: null; readonly reason: string };
 
 interface RawRecord {
   readonly srcMode: string;
@@ -157,8 +161,9 @@ export function mutationKey(store: Store, start: string): MutationKey {
     files.forEach((f, i) => now.set(f.path, `${f.mode}:${blobs[i]}`));
   }
 
-  const lines = paths.map((p) => [p.path, p.tracked ? "tracked" : "untracked", p.start, now.get(p.path)].join("\0")).sort();
-  return { key: createHash("sha256").update(lines.join("\n")).digest("hex").slice(0, 16) };
+  const byPath = new Map(paths.map((p) => [p.path, [p.path, p.tracked ? "tracked" : "untracked", p.start, now.get(p.path)].join("\0")]));
+  const lines = [...byPath.values()].sort();
+  return { key: createHash("sha256").update(lines.join("\n")).digest("hex").slice(0, 16), lines: byPath };
 }
 
 /** What is at `absolute` now, or the mode of the regular file whose blob is to be hashed. */

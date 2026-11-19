@@ -182,7 +182,7 @@ requirements it covers (`agents/implementer.md`, "Your report").
 
 ## 3. The run and the command
 
-- [ ] 3.1 In `src/verification.ts`, add `MUTATION_OUTCOMES` and `recordMutation` (design.md "The
+- [x] 3.1 In `src/verification.ts`, add `MUTATION_OUTCOMES` and `recordMutation` (design.md "The
   receipt"); `receipts()` and `status()` do not change. Create `src/mutation-run.ts` with
   `runMutation(store, { timeoutMs, running?, step?, out })` and `classify(result)` (design.md "The
   run" steps 1 to 13, without the signal paths and without R18's checks, and "The async runner").
@@ -199,8 +199,13 @@ requirements it covers (`agents/implementer.md`, "Your report").
   revert leaves the change that stopped it in place` (the edit is made from `step` at `reverted:0`;
   no `rescue/` exists afterwards), `R20 a mutation row has six cells and a
   mutation: tree`, `R20 receipts() and status() ignore mutation rows`, `R20 no row after a failed
-  restore`, `R21 the run does not move its own key`. Done when `bun test tests/mutation-run.test.ts`
-  ends ` 18 pass` and ` 0 fail`, `bun test tests/verification.test.ts tests/gate.test.ts` ends
+  restore`, `R21 the run does not move its own key`, `R2 HEAD that moves before the staging reads it
+  is refused, and nothing is written` (added by stage 4, for review round 1 non-blocking 14), `R1 a
+  lock taken by another run after the staging is refused naming its pid, and the staging is
+  removed` (added by stage 4, for review round 1 non-blocking 12) and `R12 classify: 0 passes; 126,
+  127, a timeout, an error and a signal are blocked; any other code is a kill` (added by stage 4: no
+  named test has an exit 126). Done when `bun test tests/mutation-run.test.ts`
+  ends ` 21 pass` and ` 0 fail`, `bun test tests/verification.test.ts tests/gate.test.ts` ends
   ` 0 fail`, and the node command for `tests/mutation-run.test.ts` prints `# fail 0`. (covers R2,
   R6, R7, R11, R12, R20, R21)
 

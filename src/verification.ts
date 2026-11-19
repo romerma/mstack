@@ -322,6 +322,22 @@ export function record(store: Store, receipt: Omit<Receipt, "ts"> & { ts?: strin
   return full;
 }
 
+/**
+ * Item 42: what `verify --mutation` records. `receipts()` keeps only `passed`
+ * and `failed`, so a mutation row satisfies no verification obligation and
+ * every existing reader skips it.
+ */
+export const MUTATION_OUTCOMES = ["mutation-killed", "mutation-survived", "mutation-blocked"] as const;
+export type MutationOutcome = (typeof MUTATION_OUTCOMES)[number];
+
+/** One mutation row in the six columns every receipt has; `tree` is `mutation:` and the key. */
+export function recordMutation(
+  store: Store,
+  row: { readonly target: string; readonly sha: string; readonly command: string; readonly outcome: MutationOutcome; readonly tree: string; readonly ts?: string },
+): void {
+  append(store.verification, HEADER, [row.target, row.sha, row.command, row.outcome, row.ts ?? new Date().toISOString(), row.tree]);
+}
+
 export function receipts(store: Store): Receipt[] {
   return readRecords(store.verification)
     .filter((r) => r["outcome"] === "passed" || r["outcome"] === "failed")
