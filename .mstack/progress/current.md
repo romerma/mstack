@@ -104,6 +104,14 @@ passes bypassPermissions. Do not run `check.mjs` or `verify.mjs` while a batch i
   stages 3 and 4 follow, then round 2 reviews the fixes and the whole. Read the report's last
   section first, and its note on bun ignoring `skip` (the four CASE tests on CI).
 
+## Item 42 stage 3 done (implementer, 2026-11-19)
+
+- Tasks 4.1 and 4.2 are in (`f59db81`, `1c95c3a`), Part B (`f01b82f`, the four case tests chosen by
+  definition), `design.md` corrected (`11b10d6`). Report: `.mstack/progress/impl_mutation-check_r4.md`.
+  Part C: 60 bun and 60 node runs of tests/mutation-restore.test.ts, no failure.
+- Next: stage 4 (group 3, the run and the `verify` command), then task 5.x and review round 2.
+  Read the report's last section first: `restoreCommand` is the one function for R25's messages.
+
 ## Next step
 
 Phases 0 and 1 are closed, except item 50 (waits for the user). Phase 2 has 57 and 58 closed.
