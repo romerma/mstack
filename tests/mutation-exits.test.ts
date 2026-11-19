@@ -516,3 +516,26 @@ test("A2 a symlink or a FIFO at the lock's name: the hook reads it as readLock d
     assert.match(reason, BY_HAND);
   });
 });
+
+test("A4 under a lock the hook denies git --shallow-file with its value after a space, and git's own name in any case", () => {
+  // Round 1 review, non-blocking 1: `git --shallow-file x status` exits 0 (with `=` git exits 129), and on a disk
+  // that folds case `GIT status` runs git. git's subcommand does not fold: `git COMMIT` exits 128, writing nothing.
+  withRepo(startA, editA, (r) => {
+    const denied = [
+      "git --shallow-file x commit -m x",
+      "git --shallow-file x add -A",
+      "git -C . --shallow-file x stash",
+      "git --shallow-file x update-index --add src/a.ts",
+      "GIT commit -m x",
+      "Git add -A",
+      "GIT -C . --shallow-file x update-ref refs/heads/main HEAD~1",
+    ];
+    const allowed = ["git --shallow-file x status", "GIT status", "Git --shallow-file x log -1", "git COMMIT -m x"];
+    for (const command of [...denied, ...allowed]) assert.equal(hookReason(command, r.root), null, `denied with no lock: ${command}`);
+    locked(r);
+    for (const command of denied) assert.match(hookReason(command, r.root) ?? `not denied under a lock: ${command}`, /mstack-mutation\.lock exists/, command);
+    for (const command of allowed) assert.equal(hookReason(command, r.root), null, `denied under a lock: ${command}`);
+  });
+  // The same prefix leads every git guard: a force push spelled GIT is one too.
+  assert.match(hookReason("GIT push --force origin main", tmpdir()) ?? "allowed", /force-push rewrites history/);
+});

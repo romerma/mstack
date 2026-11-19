@@ -399,7 +399,9 @@ else. `receipts()` and `status()` do not change.
 - `preToolUse` keeps `GUARDS` and adds, after them, a test of each segment against `GIT` followed
   by `(?:add|am|apply|checkout|cherry-pick|clean|commit|merge|mv|pull|rebase|reset|restore|revert|rm|stash|switch|update-index|read-tree|checkout-index|write-tree|mktree|commit-tree|update-ref)(?![-\w])`;
   `GIT` takes `--git-dir`, `--work-tree`, `--namespace`, `--config-env` and `--attr-source` with
-  their value after `=` or after a space (round 2 review, non-blocking 5; round 3, non-blocking 1).
+  their value after `=` or after a space (round 2 review, non-blocking 5; round 3, non-blocking 1),
+  `--shallow-file` with its value after a space, the only way git takes it, and git's own name in
+  any case, since a disk that folds case runs git for `GIT` (item 101, round 1 review, non-blocking 1).
   The plumbing is the listed writes spelled low and has no form that only reads; what is not
   listed reads, or cannot save the reverted tree (`hash-object -w` gives the start's blob, which
   exists; `symbolic-ref`, `branch` and `tag` point a ref at a commit that exists;

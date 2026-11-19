@@ -357,10 +357,13 @@ interface Guard {
  * adjacent in `git -C /repo push`, `git -c k=v push`, `git --git-dir=... push`.
  * Every one of those slipped straight past a `\bgit\s+push\b`. This eats the
  * options rather than trying to enumerate them. `--git-dir`, `--work-tree`,
- * `--namespace`, `--config-env` and `--attr-source` also take their value after
- * a space, as `-C` and `-c` do (git.c's `handle_options`; item 101).
+ * `--namespace`, `--config-env`, `--attr-source` and `--shallow-file` also take
+ * their value after a space, as `-C` and `-c` do (git.c's `handle_options`; item
+ * 101). git's own name is matched in any case: on a disk that folds case `GIT`
+ * runs git; its subcommand does not fold (`git COMMIT` exits 128), so the verbs
+ * after it stay as git spells them (item 101, round 1 review, non-blocking 1).
  */
-const GIT = String.raw`\bgit\s+(?:-[cC]\s+\S+\s+|--(?:git-dir|work-tree|namespace|config-env|attr-source)\s+\S+\s+|--(?:git-dir|work-tree|namespace|exec-path|config-env|attr-source)(?:=\S+)?\s+|-{1,2}[a-zA-Z-]+\s+)*`;
+const GIT = String.raw`\b[gG][iI][tT]\s+(?:-[cC]\s+\S+\s+|--(?:git-dir|work-tree|namespace|config-env|attr-source|shallow-file)\s+\S+\s+|--(?:git-dir|work-tree|namespace|exec-path|config-env|attr-source)(?:=\S+)?\s+|-{1,2}[a-zA-Z-]+\s+)*`;
 
 export const GUARDS: readonly Guard[] = [
   {
