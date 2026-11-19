@@ -6,7 +6,7 @@ import { FORGED_IMPL_FIX, FORGED_SPEC_FIX, gateProblems, NO_VERDICT_FIX, NO_VERD
 import { defaultBranch, git, headSha } from "./git.ts";
 import { readGlossary } from "./glossary.ts";
 import {
-  BY_HAND, FOR_A_PERSON, fromLockStore, gitDirOf, lockExistsIn, liveness, LOCK_NAME, placeOf, readLock, rescueDirectories, restoreCommand, validateLock, type Lock, type Place,
+  BY_HAND, checkLock, fromLockStore, gitDirOf, lockExistsIn, liveness, LOCK_NAME, placeOf, readLock, rescueDirectories, restoreCommand, type Lock, type Place,
 } from "./mutation-lock.ts";
 import { runCommand } from "./run.ts";
 import { measureDiff, measureStart, resolveCommit, SMALL_MAX_FILES, SMALL_MAX_LINES } from "./size.ts";
@@ -696,12 +696,9 @@ function checkMutationLock(store: Store, report: Report): void {
 }
 
 function lockProblem(held: NonNullable<ReturnType<typeof readLock>>, file: string, place: Place | null): { message: string; fix: string } {
-  const unreadable = "a mutation lock exists and cannot be read as a run's record";
-  const byHand = `${FOR_A_PERSON}: ${BY_HAND}`;
-  if ("damaged" in held) return { message: `${unreadable}: ${held.damaged}`, fix: byHand };
-  const problems = validateLock(held.lock);
-  if (problems.length > 0) return { message: `${unreadable}: the lock ${file}: ${problems[0] as string}`, fix: byHand };
-  const lock: Lock = held.lock;
+  const checked = checkLock(held, file);
+  if ("unreadable" in checked) return checked.unreadable;
+  const lock: Lock = checked.lock;
   const alive = liveness(lock);
   const what = `the mutation lock ${file} is held by pid ${lock.pid} on ${lock.host}, started ${lock.startedAt}, ${lock.entries.length} path(s)`;
   const command = fromLockStore(restoreCommand(lock.cli), lock.rootFromTop, place);

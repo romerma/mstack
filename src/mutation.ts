@@ -3,7 +3,7 @@ import { existsSync, lstatSync, readlinkSync, realpathSync } from "node:fs";
 import { basename, dirname, join, resolve, sep } from "node:path";
 
 import { git, gitBytes } from "./git.ts";
-import { fold, fromLockStore, liveness, lockPath, placeOf, readLock, restoreCommand } from "./mutation-lock.ts";
+import { checkLock, fold, fromLockStore, liveness, lockPath, placeOf, readLock, restoreCommand } from "./mutation-lock.ts";
 import { entryAt, type Entry } from "./mutation-tree.ts";
 import { runningCliRoot, STORE_DIR, type Store } from "./paths.ts";
 import { measureStart, resolveCommit, scopeClass } from "./size.ts";
@@ -372,17 +372,19 @@ function foreignMerge(store: Store, start: string): string | null {
   return null;
 }
 
-/** The refusal for a lock that exists, by `lstat`, whatever it holds; it says whether its run is alive (R23). */
+/**
+ * The refusal for a lock that exists, by `lstat`, whatever it holds; it says
+ * whether its run is alive (R23). A lock `validateLock` does not accept gets
+ * the gate's words and no restore line, since `verify --restore` refuses it.
+ */
 function lockRefusal(store: Store, lock: string, running: string): Refusal | null {
   const read = readLock(store);
   if (read === null) return null;
+  const checked = checkLock(read, lock);
+  if ("unreadable" in checked) return checked.unreadable;
+  const record = checked.lock;
   const here = join(running, "bin", "mstack");
-  if ("damaged" in read) {
-    return { message: `the lock ${lock} exists and is not a run's record`, fix: `'${here} verify --restore' says what is wrong with it` };
-  }
-  const record = read.lock;
-  const cli = typeof record.cli === "string" ? record.cli : here;
-  const restore = fromLockStore(restoreCommand(cli, here), record.rootFromTop, placeOf(store));
+  const restore = fromLockStore(restoreCommand(record.cli, here), record.rootFromTop, placeOf(store));
   const alive = liveness(record);
   const said = { running: "running", "not-running": "not running", unknown: "cannot tell whether it is running" }[alive.state];
   const fix = {

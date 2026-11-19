@@ -383,7 +383,8 @@ else. `receipts()` and `status()` do not change.
   linked worktree's. An entry is what is directly under a `rescue/`, so each `rescue/<k>/` is
   one. A lock that is JSON but fails `validateLock` is reported as one that cannot be read as a
   run's record, with its first problem and the by-hand recovery, because `liveness` trusts
-  fields that R24 checks. The restore command is `restoreCommand(lock.cli)`
+  fields that R24 checks; R1's refusal says the same words (`checkLock`, item 101), since
+  `verify --restore` refuses such a lock. The restore command is `restoreCommand(lock.cli)`
   (`src/mutation-lock.ts`), shared with the hook and with the messages of task 3.4.
   `runVerification` fails and runs nothing under a lock: it asks for the lock's name first,
   before it reads the item's obligations.
@@ -396,9 +397,9 @@ else. `receipts()` and `status()` do not change.
   `GIT` takes `--git-dir` and `--work-tree` with their value after `=` or after a space (round 2
   review, non-blocking 5).
   Only on a match does it run `git rev-parse --absolute-git-dir` in `input.cwd` and `lstat` the
-  lock; present denies, with the pid and R25's command when the lock holds an integer pid, an
-  absolute `cli` and a string `rootFromTop` (the hook checks no more of it, since the lock's
-  existence decides), the command preceded by `cd <the lock's store> &&`, its top level from a
+  lock; present denies, with the pid and R25's command when `validateLock` accepts the lock and
+  its `cli` is absolute (the lock's existence decides the deny; the check decides only whether
+  the reason names the restore, item 101), the command preceded by `cd <the lock's store> &&`, its top level from a
   second `git rev-parse --show-toplevel` that runs only on a deny, and
   otherwise with a reason that gives the by-hand recovery as one for a person at a terminal, since
   the hook denies an agent both its steps, and points at `mstack gate`, whose line says the same

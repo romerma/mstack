@@ -6,7 +6,7 @@ import * as costs from "./costs.ts";
 import { runGate } from "./gate.ts";
 import { isActive } from "./lifecycle.ts";
 import * as hooklog from "./hooklog.ts";
-import { BY_HAND, FOR_A_PERSON, LOCK_NAME, lockStoreDir, restoreCommand, shellWord } from "./mutation-lock.ts";
+import { BY_HAND, FOR_A_PERSON, LOCK_NAME, lockStoreDir, restoreCommand, shellWord, validateLock, type Lock } from "./mutation-lock.ts";
 import { findStore, type Store } from "./paths.ts";
 import { reportFiles, reportKind, roleOf, substantialReports } from "./roles.ts";
 import { parseState, type Item } from "./state.ts";
@@ -462,12 +462,11 @@ function gitAnswer(cwd: string, args: readonly string[]): string | null {
   }
 }
 
-function readLockRecord(file: string): { pid: number; cli: string; rootFromTop: string } | null {
+/** The lock, when `validateLock` accepts it and its CLI path is absolute; else null, and the reason is the by-hand one, as the gate's line is (item 101, A2). */
+function readLockRecord(file: string): Lock | null {
   try {
     const record: unknown = JSON.parse(readFileSync(file, "utf8"));
-    if (record === null || typeof record !== "object") return null;
-    const { pid, cli, rootFromTop } = record as { pid?: unknown; cli?: unknown; rootFromTop?: unknown };
-    return typeof pid === "number" && Number.isInteger(pid) && typeof cli === "string" && cli.startsWith("/") && typeof rootFromTop === "string" ? { pid, cli, rootFromTop } : null;
+    return validateLock(record).length === 0 && (record as Lock).cli.startsWith("/") ? (record as Lock) : null;
   } catch {
     return null;
   }

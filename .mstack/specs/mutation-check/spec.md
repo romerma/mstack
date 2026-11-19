@@ -66,7 +66,9 @@ run directory and no row.
 #### Scenario: A lock exists
 - **WHEN** the lock exists
 - **THEN** it exits 2, names the lock's pid, its start time and whether that run is alive (R23),
-  and, when it is not, `<CLI that wrote the lock> verify --restore`; no file changes
+  and, when it is not, `<CLI that wrote the lock> verify --restore`; no file changes; for a lock
+  that fails R24's check it says what the gate says of it instead: it cannot be read as a run's
+  record, and the by-hand recovery, with no restore line (item 101)
 
 #### Scenario: Nothing to revert
 - **WHEN** the item's commits touch only `tests/` and `docs/`, or the only code that differs is

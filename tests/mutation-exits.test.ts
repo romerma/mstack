@@ -200,3 +200,64 @@ test("A1 every printed restore line runs as printed when the CLI's path and the 
     rmSync(o.base, { recursive: true, force: true });
   }
 });
+
+const startA = (root: string): void => put(root, "src/a.ts", "old\n");
+const editA = (root: string): void => put(root, "src/a.ts", "new\n");
+
+/** An active item with a base and an obligation, as `verify --mutation` reads it. */
+function active(start: string): { st: State; it: Item } {
+  const it = item({ status: "in_progress", base: start }) as unknown as Item;
+  return { st: state([it], { verify: "true" }) as State, it };
+}
+
+function gateLine(store: Store): string {
+  const { value } = captured(() => runGate(store, { quiet: true }));
+  const found = value.failures.find((f) => f.includes("mstack-mutation.lock"));
+  assert.ok(found !== undefined, `no gate line names the lock: ${JSON.stringify(value.failures)}`);
+  return found;
+}
+
+const BY_HAND = /for a person at a terminal[^\n]*git stash push --include-untracked/;
+
+test("A2 the hook and R1 name the restore only for a lock validateLock accepts, and otherwise say what the gate says", () => {
+  withRepo(startA, editA, (r) => {
+    locked(r);
+    const file = lockFileOf(r);
+    const written = JSON.parse(readFileSync(file, "utf8")) as Record<string, unknown>;
+    const json = (lock: Record<string, unknown>): string => `${JSON.stringify({ ...lock, pid: deadPid() }, null, 2)}\n`;
+    const { st, it } = active(r.start);
+    const cases: [string, string][] = [
+      ["the parent", json({ ...written, rootFromTop: ".." })],
+      ["an absolute path", json({ ...written, rootFromTop: "/abs" })],
+      ["a trailing slash", json({ ...written, rootFromTop: "pkg/a/" })],
+      ["no rootFromTop", json(Object.fromEntries(Object.entries(written).filter(([k]) => k !== "rootFromTop")))],
+      ["not JSON", "garbage\n"],
+    ];
+    for (const [label, text] of cases) {
+      writeFileSync(file, text);
+      const tree = status(r.root);
+      const gate = gateLine(r.store);
+      assert.match(gate, /cannot be read as a run's record/, label);
+
+      const r1 = refusals(r.store, st, it);
+      assert.ok(r1 !== null, `${label}: R1 did not refuse`);
+      assert.equal(`${r1.message} -> ${r1.fix}`, gate, `${label}: R1 does not say what the gate says`);
+      assert.doesNotMatch(r1.fix, /verify --restore|\bcd /, label);
+
+      const hook = hookReason("git commit -m x", r.root);
+      assert.ok(hook !== null, `${label}: the hook allowed git commit under a lock`);
+      assert.doesNotMatch(hook, /\bcd |verify --restore/, `${label}: ${hook}`);
+      assert.match(hook, BY_HAND, label);
+      assert.match(hook, /'mstack gate' says the same/, label);
+
+      assert.equal(readFileSync(file, "utf8"), text, `${label}: the lock changed`);
+      assert.equal(status(r.root), tree, `${label}: the tree changed`);
+    }
+
+    // The control: the lock as the run wrote it, its run not alive.
+    writeFileSync(file, json(written));
+    const r1 = refusals(r.store, st, it);
+    assert.match(r1?.fix ?? "", /verify --restore puts the tree back and removes the lock/);
+    assert.match(hookReason("git commit -m x", r.root) ?? "", /if it is not running, run cd [^\n]*verify --restore/);
+  });
+});

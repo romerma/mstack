@@ -686,6 +686,25 @@ export const BY_HAND = "'git stash push --include-untracked' saves every change 
 /** Who takes `BY_HAND`: while the lock exists the hook denies an agent both of its steps (round 2 review, non-blocking 2). */
 export const FOR_A_PERSON = "by hand, for a person at a terminal (while the lock exists the hook denies an agent git stash and an rm of the lock)";
 
+/** A lock `validateLock` accepts, or what to say of one it does not. */
+export type CheckedLock = { readonly lock: Lock } | { readonly unreadable: { readonly message: string; readonly fix: string } };
+
+/**
+ * The lock at the name, once `validateLock` has accepted it; for one it does
+ * not accept, what the gate and R1's refusal say of it, in one set of words:
+ * it cannot be read as a run's record, and the way out is by hand. Neither
+ * names the restore for such a lock, since `verify --restore` refuses it
+ * (item 101, A2).
+ */
+export function checkLock(held: NonNullable<LockRead>, file: string): CheckedLock {
+  const unreadable = "a mutation lock exists and cannot be read as a run's record";
+  const fix = `${FOR_A_PERSON}: ${BY_HAND}`;
+  if ("damaged" in held) return { unreadable: { message: `${unreadable}: ${held.damaged}`, fix } };
+  const problems = validateLock(held.lock);
+  if (problems.length > 0) return { unreadable: { message: `${unreadable}: the lock ${file}: ${problems[0] as string}`, fix } };
+  return { lock: held.lock };
+}
+
 /** Is there anything at the lock's name in this git directory? Only the name counts, not what it holds. */
 export function lockExistsIn(gitDir: string): boolean {
   try {
