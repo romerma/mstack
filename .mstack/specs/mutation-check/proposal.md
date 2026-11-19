@@ -46,7 +46,8 @@ the plain case and refuses the rest before anything is touched.
 - Changed: `src/cli.ts` (`verify`), `src/gate.ts` (the lock line, the rescue warning, `--full`
   under a lock), `src/hooks.ts` (the lock branch), `src/verification.ts` (`recordMutation`),
   `src/size.ts` (`scopeClass` exported), `src/git.ts` (`gitToFile`), `src/run.ts`
-  (`runCommandAsync`), `src/run-helper.mjs` (an opt-in parent watch; `runCommand` does not use it).
+  (`runCommandAsync`), `src/run-helper.mjs` (an opt-in parent watch; `runCommand` does not use it),
+  `src/worktree.ts` (prune does not offer a worktree holding a lock or a rescue).
 - Docs: `docs/wiki/The-CLI.md` (`verify`, the by-hand recoveries), `docs/wiki/Gates-and-Hooks.md`
   (the hook row, the gate lines), `CHANGELOG.md`.
 - Data: `verification.tsv` gains rows with new `outcome` words and no new column; older CLIs ignore

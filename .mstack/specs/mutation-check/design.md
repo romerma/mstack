@@ -39,6 +39,7 @@ mutation: mutation-check (42), start 3fa9c1d2 (base), 5 code file(s) to revert
 mutation: baseline: `npm test` recorded green at this tree, not re-run
 mutation: lock /repo/.git/mstack-mutation.lock, run 20261119T090211Z-4242-9f3a
 mutation: if this process dies: /home/u/.claude/plugins/cache/mstack/0.3.0/bin/mstack verify --restore
+mutation: until the run ends, save nothing to the files it reverts: a save in the moment one is put back is lost
 mutation: reverting 5 file(s)
 mutation: running `npm test` on the reverted tree
 mutation: `npm test` exit 1 after 8.2s
@@ -63,7 +64,10 @@ A sketch of the contract, not output from a run; task 3.4 pastes real output int
   `scopeClass(store)(p) === "code"`, so the size check does not change.
 - `revertSet(store, start)` parses `git diff --raw -z --no-renames --full-index --relative <start>
   HEAD --` into `{ path, startMode, startBlob, headMode, headBlob }` and keeps class `code`. It also
-  returns every path of that diff, of any class, for R3's prefix test.
+  returns every path of that diff, of any class, for R3's prefix test. It reads git's output as
+  bytes: `git()` decodes with replacement (`src/git.ts:61-76`), which turns a name that is not
+  UTF-8 into one that is not on disk, so R3's name test runs on the bytes (`TextDecoder` with
+  `fatal`).
 - `mutationKey(store, start)`: the tracked part from `git diff --raw -z --no-renames --full-index
   --relative <start> --`, the untracked part from `git ls-files --others --exclude-standard -z`,
   both kept to `code` and `test`; one line per path, sorted: `path NUL tracked|untracked NUL
@@ -88,10 +92,15 @@ path under `realpath(running)`).
   a parent of p is itself a path of the diff (`spec42r3/shape-exp`: it finds a file that became a
   directory, the reverse, and a directory that holds only a test, from the diff alone).
 - R3's collisions: every set path and every parent prefix of one, grouped by `fold(s) =
-  s.normalize("NFD").toUpperCase().toLowerCase().normalize("NFC")`; a group with two spellings is
-  refused. On this APFS volume every pair the filesystem treats as one name (case, NFC/NFD,
-  `ß`/`ss`, `K`/Kelvin sign, `ς`/`σ`, `ﬁ`/`fi`) folds equal, and `İ`/`i` and `a`/`b` do not
-  (`spec42r3/name-exp` e). The refusal applies on every filesystem, so Linux CI tests it.
+  s.normalize("NFD").toLowerCase().toUpperCase().toLowerCase().normalize("NFC")`; a group with two
+  spellings is refused. On this APFS volume every pair the filesystem treats as one name (case,
+  NFC/NFD, `ß`/`ss`, `K`/Kelvin sign, `ς`/`σ`, `ﬁ`/`fi`) folds equal, and `İ`/`i` and `a`/`b` do
+  not (`spec42r3/name-exp` e). Without the first `toLowerCase`, `ẞ` (U+1E9E) and `ss` fold apart;
+  a sweep of 145,748 names finds 2,533 collisions on this volume and 0 that this fold misses
+  (`impl42s1/fold`, node and bun; `specreview42r3/fold` found the one miss). The refusal applies on
+  every filesystem, so Linux CI tests it.
+- R3's names: a set path whose bytes hold a newline, or that `TextDecoder("utf-8", { fatal: true
+  })` rejects.
 - R4: for each `m` of `git rev-list --merges <start>..HEAD`, each parent after the first must pass
   `git merge-base --is-ancestor <parent> <start>` (`spec42r3/merge-exp`: refuses main merged after
   a base on the branch and a sibling merged after a fork-point start, passes main merged after a
@@ -120,6 +129,7 @@ interface LockEntry { n: number; path: string; start: Identity; head: Identity; 
 interface Lock {
   v: 1; run: string; pid: number; host: string; boot: number; pidns: string | null;
   startedAt: string; cli: string; root: string; head: string; start: string;
+  branch: string | null; // `git symbolic-ref --quiet --short HEAD`; null when detached
   entries: LockEntry[]; createdDirs: string[]; removedDirs: string[];
 }
 ```
@@ -134,7 +144,10 @@ interface Lock {
   function that `spawnSync`s git with the staged file's descriptor as stdout, so no buffer exists
   (`spec42r3/stream-exp`: 3 MiB binary and 2 MiB CRLF text equal to what checkout writes, both
   runtimes); `head/<n>` a byte copy of p (regenerating HEAD from git is not the user's bytes:
-  `spec42r2/crlf-exp`). Files and directories are fsynced. `--filters` may fetch a Git LFS object
+  `spec42r2/crlf-exp`), and H(p) is taken from that copy: the SHA-256 of the bytes copied and the
+  bits from an `fstat` of the descriptor read. An edit between the copy and the lock then fails
+  the revert's check and stays; with H read from p at the lock, S was written over it and it
+  existed nowhere (`specreview42r3/hcopy`, node and bun). Files and directories are fsynced. `--filters` may fetch a Git LFS object
   over the network, bounded by the 60 s; one that is missing, or a required filter that cannot
   run, exits 128 and becomes R1's refusal (`specreview42r2/filter-exp`).
 - `acquireLock` writes `mstack-mutation.lock.<run>.tmp`, fsyncs it, `linkSync`s it to the lock
@@ -148,22 +161,28 @@ interface Lock {
 
 `liveness(lock)` returns `running`, `not-running` or `unknown`, with the reason:
 
-| Lock against now | Answer |
+| Lock against now, in this order | Answer |
 |---|---|
-| same boot (within 60 s) and same pid namespace | `process.kill(pid, 0)`: ESRCH is `not-running`; otherwise `ps -o lstart= -p <pid>` (LC_ALL=C), and a start in a later second than `startedAt` is `not-running` (the pid was reused); else, or when `ps` cannot answer, `running` |
-| same boot, another pid namespace | `unknown` |
-| another boot, same host | `not-running` |
-| another boot, another host | `unknown` |
+| another host, at any boot | `unknown` |
+| same boot (within 60 s), another pid namespace (`null` against a non-null one included) | `unknown` |
+| otherwise (same boot and same pid namespace, or another boot of this host) | `process.kill(pid, 0)`: ESRCH is `not-running`; otherwise `ps -o etime= -p <pid>` (LC_ALL=C), whose elapsed time subtracted from now is the process's start, and a start in a later second than `startedAt` is `not-running` (the pid was reused); else, or when `ps` cannot answer, `running` |
+
+A different boot time alone never makes a live pid `not-running`: a step of the wall clock past
+60 s moves `boot` as a reboot does. `etime` and not `lstart`: `lstart` prints local time, which is
+ambiguous for one hour each autumn.
 
 `boot` is `round(Date.now()/1000 - os.uptime())`; `pidns` is `readlink("/proc/self/ns/pid")`, or
 `null` where `/proc` does not exist. `spec42r3/live-exp`, node and bun: the boot time is stable to
 the second and equals `kern.boottime`; `/proc/self/ns/pid` is ENOENT on macOS; an exited pid gives
 ESRCH and pid 1 EPERM (alive); `ps` prints the start to the second, so the comparison is by whole
-seconds (a process started 1.5 s after a lock is caught that way on both runtimes).
+seconds (a process started 1.5 s after a lock is caught that way on both runtimes). That run read
+`lstart`; `etime`, also whole seconds, has not been run against it.
 
 ### Revert (`applyRevert(store, lock, step?)`, `src/mutation-tree.ts`)
 
-Synchronous, no child process. Step names are the test seam, as `LockOptions.step` is
+Synchronous, no child process. It returns `{ ok: true }` or `{ ok: false, path, reason, written }`,
+`written` the numbers of the entries it wrote or unlinked; after R11 the run's own restore takes
+only those (R11, the review's N5). Step names are the test seam, as `LockOptions.step` is
 (`src/tsv.ts:103-104`); all of them: `prepared` (staging done, no lock), `lock-written`,
 `revert-written:<n>`, `reverted:<n>`, `obligations-running`, `rescued:<n>`, `restore-written:<n>`,
 `restored:<n>` (after each entry of the restore), `lock-removed`.
@@ -174,11 +193,15 @@ Synchronous, no child process. Step names are the test seam, as `LockOptions.ste
 3. Entries the start has, shallowest first: p must hold H(p), or, where HEAD lacks p, nothing may
    resolve there (R11); `mkdir` each absent parent (a `createdDirs` entry); open `<dir>/<tmp><pid>.tmp`
    with `wx` and mode 0600, write `start/<n>`, `fchmod` S's bits, fsync, close (step
-   `revert-written:<n>`), `rename` over p, step `reverted:<n>`.
+   `revert-written:<n>`), `lstat` p again and compare inode, size, mtime and ctime with the
+   check's (or, where HEAD lacks p, that nothing resolves there); on a change unlink the temp file
+   and stop (R11); `rename` over p, step `reverted:<n>`.
 
-### Restore (`restoreFromLock(store, lock, { step?, rename? })`, `src/mutation-tree.ts`)
+### Restore (`restoreFromLock(store, lock, { step?, rename?, entries? })`, `src/mutation-tree.ts`)
 
-Synchronous, no child process. First every temp name of every entry that is a regular file is
+Synchronous, no child process. `entries`, given only by the run's restore after R11, keeps the
+restore and its proof to those entries; the temp sweep and the directories are as always. First
+every temp name of every entry that is a regular file is
 unlinked (`spec42r3/ro-exp`: the sweep takes the run's names, leaves a directory with such a name
 and the user's `notes.tmp`). Then entries HEAD lacks, deepest first; `createdDirs`, deepest first,
 `rmdir` when empty, else left and reported; entries HEAD has, shallowest first. Per entry, with E
@@ -193,10 +216,20 @@ the entry at p by exact name:
 | anything else (file, directory, symlink, other) | rescue E, write H | leave E; it is reported |
 | a parent is not a directory by exact name | failure (R15), nothing touched | nothing (p cannot hold S there); reported |
 
+- *A parent under another name*: where the parent is a directory whose name on disk differs from
+  git's (a case-only rename during the run), the failure's fix is `mv <name on disk> <git's name>`;
+  `git stash push -- <p>` does not clear it, since it writes through the renamed directory
+  (`specreview42r3/dircase`).
+- *A missing staged copy*: the fix is `git stash push -- <p>`, then verify --restore; if that
+  still fails, the lock may be deleted by hand, p may then be absent, and `git restore -- <p>` puts
+  HEAD's content back.
 - *Write H*: compare `head/<n>` with H's SHA-256 (missing or different: failure, after any rescue,
   so an edit is saved before the check that fails, the review's N8), then temp name, `wx` 0600,
-  bytes, `fchmod` H's bits, fsync, step `restore-written:<n>`, `rename`. `spec42r3/mode-exp`: 0600,
-  0444 and 0755 come back exact and `git status` is clean; a hard link is split (nlink 2 to 1).
+  bytes, `fchmod` H's bits, fsync, step `restore-written:<n>`, `lstat` E again (inode, size, mtime,
+  ctime; or that nothing resolves where E was absent); on a change unlink the temp file and decide
+  p again by the table, once (a second change is a failure, R15); `rename`. `spec42r3/mode-exp`:
+  0600, 0444 and 0755 come back exact and `git status` is clean; a hard link is split (nlink 2 to
+  1).
 - *Rescue*: a fresh `rescue/<k>/` made with a non-recursive `mkdir` (EEXIST takes k+1), so nothing
   at the target can exist; the entry keeps its path inside it; `rename`; step `rescued:<n>`. On
   EXDEV, a regular file is copied with `COPYFILE_EXCL`, fsynced, compared byte for byte and then
@@ -214,11 +247,12 @@ the entry at p by exact name:
 
 1. Install SIGINT/SIGTERM/SIGHUP handlers that record the first signal and call `stop()` on a
    running obligation; they never exit the process. Removed in `finally`.
-2. `refusals`; sample HEAD.
+2. `refusals`; sample HEAD and the key K0 (`mutationKey`).
 3. Baseline (R6, R7) through `runCommandAsync`. A signal: exit 128+n, no receipt for it.
-4. R2 again, plus HEAD against the sample; refused: nothing recorded. Else the receipts, at one
-   `treeId` taken after the last (as `src/gate.ts:794`).
-5. Key K0 (`mutationKey`) and the list of untracked entries.
+4. R2 again, plus HEAD against the sample and the key against K0 (an untracked test edited while
+   the baseline ran is seen only here, the review's N14); refused: nothing recorded. Else the
+   receipts, at one `treeId` taken after the last (as `src/gate.ts:794`).
+5. The list of untracked entries.
 6. `prepareRun` (git children). Then `await` one `setImmediate` and check the signal: a Ctrl-C that
    killed a `cat-file` child is seen here, so it exits 128+n rather than reporting an unreadable
    blob (`spec42r3/yield-exp` prepare: on both runtimes the flag is null right after the
@@ -226,14 +260,16 @@ the entry at p by exact name:
 7. `acquireLock`; print the lock line and R25's command; `sweepStale`.
 8. One yield, then the signal check: if set, restore (nothing to do), exit 128+n with nothing
    written and nothing spawned (`yield-exp` revert).
-9. `applyRevert`; a failure ends the run as blocked (R11).
+9. `applyRevert`; a failure ends the run as blocked (R11), and step 11 restores only its
+   `written` entries.
 10. Obligations in order through `runCommandAsync`, with one yield and a signal check before each
     spawn. When they end: which paths do not hold S(p) (R18 a), whether the lock is this run's
     (R18 c).
 11. `finally`: `restoreFromLock` from the in-memory record; failed: exit 3.
-12. After the lock is gone (git again): HEAD (R18 b), `git status --porcelain=v1 -z
-    --untracked-files=no` outside the store directory (R18 d), K1 against K0 (R18 e), untracked
-    entries against step 5 (R19). Print the report.
+12. After the lock is gone (git again): HEAD (R18 b) and the branch it is on against the lock's
+    `branch` (R19), `git status --porcelain=v1 -z --untracked-files=no` outside the store
+    directory (R18 d), K1 against K0 (R18 e), untracked entries against step 5 (R19). Print the
+    report.
 13. A signal: exit 128+n. Changed: the final `mutation-blocked: the tree changed under the run`
     line, exit 2. Else `recordMutation` with K1, the final line, the exit of the outcome.
 
@@ -245,8 +281,11 @@ throw out of a restore.
 `runCommandAsync(cmd, { cwd, timeoutMs, tailLines? })` returns `{ result: Promise<RunResult>;
 stop(): void }`. It `spawn`s `process.execPath` with `run-helper.mjs`, the four arguments
 `runCommand` passes (`src/run.ts:93`) and a fifth, `watch-parent`, with `cwd` a fresh temp
-directory and output to a temp file, in the caller's process group, so a terminal Ctrl-C reaches
-the helper, which kills the command's group as it does today. `stop()` sends SIGTERM to the helper.
+directory and output to a temp file, detached, in a process group of its own: a SIGKILL of the
+caller's group then leaves the helper and its watch alive (`specreview42r3/groupkill`: with the
+helper in the caller's group, the obligation outlived a SIGKILL of that group, on both runtimes).
+A terminal Ctrl-C reaches the caller and not the helper; the caller's handler calls `stop()` (The
+run, step 1), and a caller with no handler dies, which the watch sees. `stop()` sends SIGTERM to the helper.
 With `watch-parent` the helper calls `process.kill(<its parent>, 0)` every 250 ms and on ESRCH
 kills the command's group and exits: `spec42r3/orphan-exp` shows the obligation gone 2 s after a
 SIGKILL of the parent with the watch, and alive without it, on both runtimes; bun's
@@ -265,11 +304,21 @@ else. `receipts()` and `status()` do not change.
 ### The gate and the hook
 
 - `checkMutationLock(store, report)` in the workspace section prints R27's line (using
-  `liveness`) and R28's warnings. `runVerification` fails and runs nothing under a lock.
+  `liveness`) and R28's warnings, for every worktree's `rescue/` under `git rev-parse
+  --git-common-dir` (its own `mstack-mutation/` and `worktrees/*/mstack-mutation/`), since the
+  main checkout's gate otherwise never reads a linked worktree's. `runVerification` fails and
+  runs nothing under a lock.
+- `prunable` (`src/worktree.ts:131`) leaves out a worktree whose git directory holds the lock or a
+  `mstack-mutation/*/rescue/` with anything in it: `isDirty` (`:79`) reads the tree only, and once
+  the restore leaves it clean, `git worktree remove` without `--force` deletes the rescue
+  (`specreview42r3/wt`).
 - `preToolUse` keeps `GUARDS` and adds, after them, a test of each segment against `GIT` followed
   by `(?:add|am|apply|checkout|cherry-pick|clean|commit|merge|mv|pull|rebase|reset|restore|revert|rm|stash|switch)(?![-\w])`.
   Only on a match does it run `git rev-parse --absolute-git-dir` in `input.cwd` and `lstat` the
   lock; present denies, with the pid and R25's command when the lock parses.
+- `GUARDS` gets one more entry, `rm` on a path ending in `mstack-mutation.lock`, which needs no
+  git and no lock: an agent told that the gate is red may delete the lock. It reads no lock, so its
+  reason points at `mstack gate` for the restore command rather than naming one (R25).
 
 ### By hand
 
@@ -277,12 +326,15 @@ The wiki page (task 3.4) describes these, each with what it discards. The tool p
 first two, and only where R15 and R24 say.
 
 1. *One path the restore could not write* (R15): `git stash push -- <p>` writes HEAD's content
-   and saves whatever was there first (`spec42r3/recover-exp` c).
+   and saves whatever was there first (`spec42r3/recover-exp` c). If verify --restore still fails
+   on p after it, delete the lock by hand; p may then be absent, and `git restore -- <p>` puts
+   HEAD's content back.
 2. *A damaged lock* (R24): `git stash push --include-untracked` saves every change and untracked
    file, the reverted code included, and discards nothing; it also stashes the store's own files
    until `git stash pop`. Then delete the lock.
 3. *Without mstack*: `GIT_LITERAL_PATHSPECS=1 git stash push --include-untracked -- <each path of
-   the lock>`, then delete the lock and, once read, the run directory. Discards nothing: the stash
+   the lock>`, then delete the lock and the run directory's `start/` and `head/`, keeping its
+   `rescue/`. Discards nothing: the stash
    holds the reverted content and every edit made during the run, and paths outside the lock stay
    (`recover-exp` a). Not `git restore --source=<HEAD> --worktree` with `rm` (round 2's `sh
    <lock>`): it discards every edit made to those paths during the run (`recover-exp` b2).
@@ -315,7 +367,7 @@ experiment named is the one the row rests on.
 | Inside a revert write (temp written, not renamed) | p at H, a temp name beside it | lock (its `tmp` prefix) | verify --restore unlinks the temp (`ro-exp`) |
 | After a start-lacking path is unlinked, or a `removedDirs` entry removed | p absent | lock | verify --restore writes H, making the parent |
 | After a `createdDirs` entry is made | an empty directory | lock | verify --restore removes it when empty |
-| Obligations running | fully reverted | lock | the helper kills the group within 2 s; then verify --restore |
+| Obligations running | fully reverted | lock | the helper, in a group of its own, kills the group within 2 s, after a SIGKILL of mstack alone or of its group; then verify --restore |
 | Between two restore writes | some at H, some at S | lock | verify --restore resumes; it is idempotent |
 | Inside a restore write | p at S or absent, a temp name | lock | verify --restore |
 | After a rescue, before H is written | p absent; the entry in `rescue/<k>/` | lock | verify --restore writes H; the rescue stays and the gate warns (R28) |
@@ -334,14 +386,14 @@ established (walk).
 | An edit to a path HEAD has | rescues it, writes H (R14) | no (a) | the lock goes; the rescue is named and warned on |
 | An edit to a path HEAD lacks (the revert put it back) | leaves it (R14) | no (a or e) | reported |
 | An edit to a tracked file outside the set | nothing | no (d) | reported with `git diff -- <p>` |
-| A commit | restores to the lock's H | no (b) | `git reset <lock HEAD>`, mixed, keeps the tree; `--soft` would leave the reverted code staged (`specreview42r2/reset-exp`) |
+| A commit | restores to the lock's H | no (b) | `git reset <lock HEAD>`, mixed, keeps the tree; `--soft` would leave the reverted code staged (`specreview42r2/reset-exp`); after a `git switch` to another branch, `git switch <the lock's branch>` first, since a reset there moves the other branch (R19) |
 | A `git add` | the tree only; the index is left | no (d) | `git restore --staged -- <p>`, said to discard the staged version |
 | A new untracked file | nothing | no when code or test (e); yes when a doc | "left in place" |
 | A new file or directory where the revert removed one | rescues it, writes H | no (a) | named |
 | A case-only rename of a reverted file | rescues the variant, writes H (`name-exp` c) | no (a) | named |
 | `git stash` or `git checkout .` in a terminal | finds H, or unlinks the start's file | no (a) | the stash holds only the run's content |
 | The lock deleted | restores from memory; writes it again only if the restore fails | no (c) | named |
-| The run directory deleted | rescues what is not S, then fails on the staged copy (R15) | no | `git stash push -- <p>`, then verify --restore; if git's checkout of HEAD is not H's bytes (an `eol` setting, a mode other than 0644), the proof keeps failing and the lock is deleted by hand, which discards nothing: the tree then holds HEAD's content |
+| The run directory deleted | rescues what is not S, then fails on the staged copy (R15) | no | `git stash push -- <p>`, then verify --restore; if git's checkout of HEAD is not H's bytes (an `eol` setting, a mode other than 0644), that restore rescues git's copy and cannot write H, so p is left absent, and the lock is deleted by hand, which discards nothing: HEAD's bytes are in git and in `rescue/`, and `git restore -- <p>` puts them back |
 | A second `verify --mutation` | refused: the lock exists, or the link fails | n/a | none |
 | `verify --restore` while the run is alive | refused (R23) | n/a | wait |
 | Two `verify --restore` on a dead lock | each writes through its own temp name; one may unlink the other's temp and report a failure (exit 3) | n/a | a third run says nothing to restore |
@@ -356,7 +408,9 @@ established (walk).
    rename (a few system calls) is replaced and lost, whether the writer writes in place or renames
    its own temp file (`spec42r3/race-exp`, both runtimes). So is a later write through a
    descriptor opened on the replaced file. This holds for the revert, the restore and an EXDEV
-   copy (between the comparison and the unlink).
+   copy (between the comparison and the unlink). The last check is an `lstat` after the temp
+   file's fsync, which narrows the moment for a 3 MiB file from 4 to 11 ms to 2 to 5 ms
+   (`specreview42r3/window`, both runtimes); the line printed at the lock and the wiki say it.
 2. An orphaned obligation can write for up to 250 ms after mstack's death; a verify --restore that
    starts in that window can be overwritten by it.
 
@@ -399,7 +453,9 @@ makes a checked `cd`; output beside it as `*.out`; node and bun where the runtim
 
 Earlier ones still cited: `spec42r2/` `crlf-exp`, `copy-exp`, `hash-exp`, `sig-exp`, `fs-exp`
 (rename over a directory fails EISDIR, `rmdir` of a non-empty one ENOTEMPTY); `specreview42r2/`
-`filter-exp`, `reset-exp`, `buf-exp`. Not reproduced: EXDEV (no second filesystem here; rename(2)
+`filter-exp`, `reset-exp`, `buf-exp`; from the round 3 review, `specreview42r3/` `hcopy`,
+`groupkill`, `dircase`, `window`, `wt` and `fold`, and the fold re-run with N7's fold,
+`impl42s1/fold`. Not reproduced: EXDEV (no second filesystem here; rename(2)
 semantics, rung 2), ENOSPC (rung 2), Linux.
 
 ## Rejected alternatives
@@ -458,8 +514,14 @@ semantics, rung 2), ENOSPC (rung 2), Linux.
   `unknown`: the exit is verify --restore where it was written, or by hand.
 - The hook is a speed bump: aliases, interpreters, `npm version`, `git -C` from outside and the
   Edit and Write tools pass it. The rescue, R18 and the gate are what hold.
-- `mstack worktree prune` or `git worktree remove` deletes a linked worktree's git directory,
-  rescue included; the gate's warning (R28) is what tells the user first.
+- `git worktree remove` deletes a linked worktree's git directory, rescue included; `mstack
+  worktree prune` does not offer such a worktree, and the gate's warning (R28), in any worktree, is
+  what tells the user first.
+- R4 sees only merges: commits by others that reach the branch after the start by fast-forward,
+  squash or cherry-pick are reverted as the item's, which can kill on code that is not the item's.
+- An obligation that installs dependencies leaves ignored files (`node_modules`) at the start's
+  versions after the run.
+- An obligation that rewrites code (a `--fix`) ends every run with no row and a rescue.
 - The status line does not show the lock; the Stop hook carries the gate's line.
 - Two runners in `src/run.ts`, one helper.
 

@@ -53,10 +53,11 @@ requirements it covers (`agents/implementer.md`, "Your report").
   in the set`, `R3 a file that became a directory`, `R3 a directory that became a file, its other
   files tests`, `R3 a case-only rename`, `R3 a normalisation-only rename`, `R3 parent directories
   that differ only by case`, `R3 plain added, deleted, modified and renamed files are not refused`,
-  `R4 main merged in after a base on the branch`, `R4 a sibling branch merged in after a fork-point
-  start`, `R4 main merged in after a fork-point start is not refused`, `R4 a rebased branch is not
-  refused`. Done when `bun test tests/mutation-shapes.test.ts` ends ` 12 pass` and ` 0 fail`, and
-  the node command prints `# fail 0`. (covers R3, R4)
+  `R3 a name with a newline, and one that is not UTF-8` (built with `git update-index -z
+  --index-info`), `R4 main merged in after a base on the branch`, `R4 a sibling branch merged in
+  after a fork-point start`, `R4 main merged in after a fork-point start is not refused`, `R4 a
+  rebased branch is not refused`. Done when `bun test tests/mutation-shapes.test.ts` ends ` 13
+  pass` and ` 0 fail`, and the node command prints `# fail 0`. (covers R3, R4)
 
 ## 2. Staging, the lock, the tree, the runner
 
@@ -77,25 +78,30 @@ requirements it covers (`agents/implementer.md`, "Your report").
   `R24 a lock path that is absolute, empty, or has a . .. or .git segment is refused`, `R24 an
   unparseable lock is reported as damaged`, `R23 liveness: this process is running, an exited pid
   is not, a process at the pid that started later is not`, `R23 liveness: another boot of this
-  host is not running, another host is unknown`. Done when `bun test tests/mutation-lock.test.ts`
-  ends ` 11 pass` and ` 0 fail`, and the node command prints `# fail 0`. (covers R1, R8, R9, R23,
-  R24)
+  host is not running, another host is unknown at any boot`, `R23 liveness: a live pid that
+  started before the lock is running at another boot time, a ps that fails is running, and a null
+  pid namespace against a non-null one is unknown` (`ps` made to fail through `PATH`). Done when
+  `bun test tests/mutation-lock.test.ts` ends ` 12 pass` and ` 0 fail`, and the node command prints
+  `# fail 0`. (covers R1, R8, R9, R23, R24)
 
 - [ ] 2.2 Create `src/mutation-tree.ts` with `entryAt(root, path)` (design.md "Exact names") and
   `applyRevert(store, lock, step?)` (design.md "Revert"), returning `{ ok: true }` or `{ ok: false,
-  path, reason }`. Tests in a new `tests/mutation-revert.test.ts`, each reading the tree right after
+  path, reason, written }`. Tests in a new `tests/mutation-revert.test.ts`, each reading the tree right after
   `applyRevert` returns: `R9 added, deleted, modified and renamed`, `R9 binary bytes and the
   executable bit`, `R9 line endings are the start's as checked out here` (a `.gitattributes` with
   `*.txt text eol=crlf`), `R9 the index is not touched`, `R9 a directory left empty by an added file
   is removed, and a missing parent is made`, `R10 untracked, test and doc files are byte-identical
   after the revert`, `R11 a path that cannot be written stops the revert` (a read-only directory;
   the result names it and `EACCES`), `R11 a path that changed since the lock stops the revert
-  before it is written` (the edit is made from `step` at `reverted:0`). Done when `bun test
-  tests/mutation-revert.test.ts` ends ` 8 pass` and ` 0 fail`, and the node command prints `# fail
-  0`. (covers R9, R10, R11)
+  before it is written` (the edit is made from `step` at `reverted:0`), `R11 an edit between the
+  staged copy and the lock blocks the revert and keeps the edit` (the edit is made after
+  `prepareRun` and before `acquireLock`), `R11 an edit after the temp file is written and before
+  its rename stops the revert and keeps the edit` (the edit is made from `step` at
+  `revert-written:0`). Done when `bun test tests/mutation-revert.test.ts` ends ` 10 pass` and ` 0
+  fail`, and the node command prints `# fail 0`. (covers R9, R10, R11)
 
 - [ ] 2.3 In `src/mutation-tree.ts`, add `restoreFromLock(store, lock, options?)` with `options` `{
-  step?; rename? }` (`rename` defaults to `renameSync`; a test passes one that throws an `EXDEV`
+  step?; rename?; entries? }` (`rename` defaults to `renameSync`; a test passes one that throws an `EXDEV`
   error for a target under `rescue/`), as design.md "Restore" defines it: the temp sweep, its order,
   its table, the rescue, the proof, then the lock and the staging. Extend `tests/mutation-holder.ts`
   with phase `run`: `prepareRun`, `acquireLock`, `applyRevert`, step `obligations-running`,
@@ -105,22 +111,25 @@ requirements it covers (`agents/implementer.md`, "Your report").
   as before, index untouched, lock and staging gone`, `R13 the whole permission bits come back`
   (0600 and 0444), `R13 a changed tracked file outside the set does not keep the lock`, `R13 a
   SIGKILL between a temp write and its rename leaves nothing after the restore` (SIGKILL at
-  `revert-written:0`), `R14 an edit to a reverted file is rescued byte for byte`, `R14 a directory
-  where HEAD has a file is moved whole into rescue`, `R14 a case variant where HEAD has a file is
+  `revert-written:0`), `R14 an edit to a reverted file is rescued byte for byte`, `R14 an edit after
+  H's temp file is written and before its rename is rescued` (the edit is made from `step` at
+  `restore-written:0`), `R14 a directory where HEAD has a file is moved whole into rescue`, `R14 a case variant where HEAD has a file is
   rescued under its own name` (case-insensitive only), `R14 a file left at a path HEAD lacks is
   left in place`, `R14 a second incident gets its own rescue directory`, `R14 the copy fallback
   keeps the bytes and the mode`, `R15 a read-only directory keeps the lock and the other paths are
-  restored`, `R15 a missing staged copy keeps the lock after rescuing what is there`, `R17 the
+  restored`, `R15 a missing staged copy keeps the lock after rescuing what is there`, `R15 a parent
+  renamed by case fails with the mv back as its fix` (case-insensitive only), `R17 the
   restore starts no child process` (the `nogit` holder; the marker file must not exist), `R22
   killed with the lock written and nothing reverted`, `R22 killed half reverted`, `R22 killed fully
   reverted`, `R22 killed half restored, then restored twice` (each SIGKILLs the holder at its step,
   then calls `restoreFromLock` on `readLock`). Done when `bun test tests/mutation-restore.test.ts`
-  ends ` 17 pass` (or fewer passes plus one skip, on a case-sensitive filesystem) and ` 0 fail`,
+  ends ` 19 pass` (or fewer passes plus two skips, on a case-sensitive filesystem) and ` 0 fail`,
   and the node command prints `# fail 0`. (covers R13, R14, R15, R17, R22)
 
 - [ ] 2.4 In `src/run.ts`, add `runCommandAsync(cmd, { cwd, timeoutMs, tailLines? })` returning `{
   result: Promise<RunResult>; stop(): void }`, and in `src/run-helper.mjs` the fifth argument
-  `watch-parent` (design.md "The async runner"); `runCommand` passes no fifth argument. Tests in a
+  `watch-parent` (design.md "The async runner": with it, the helper is spawned detached);
+  `runCommand` passes no fifth argument. Tests in a
   new `tests/run-async.test.ts`: `R12 async: exit code, signal and tail match runCommand`, `R12
   async: a timeout reports timedOut, code null and SIGKILL, and the group is gone`, `R12 async: a
   command that cannot start gives code null and an error`, `R12 async: timeoutMs must be an integer
@@ -130,8 +139,10 @@ requirements it covers (`agents/implementer.md`, "Your report").
   `tests/run.test.ts:237` does), `R16 async: the caller's signal handler runs while the command
   runs`, `R16 async: when the caller is SIGKILLed the command's group is gone within 2 s` (a child
   caller that starts the command, then `kill -9` of that caller, then `pgrep -f` of a marker in
-  the command, as `tests/run.test.ts:158-161` does). Done when `bun test tests/run-async.test.ts`
-  ends ` 9 pass` and ` 0 fail`, `bun test tests/run.test.ts` ends ` 0 fail`, and the node command
+  the command, as `tests/run.test.ts:158-161` does), `R16 async: when the caller's whole group is
+  SIGKILLed the command's group is gone within 2 s` (the child caller leads its own group, and the
+  test sends `kill -9` to that group). Done when `bun test tests/run-async.test.ts`
+  ends ` 10 pass` and ` 0 fail`, `bun test tests/run.test.ts` ends ` 0 fail`, and the node command
   for both files prints `# fail 0`. (covers R12, R16)
 
 ## 3. The run and the command
@@ -144,14 +155,17 @@ requirements it covers (`agents/implementer.md`, "Your report").
   collecting lines and an obligation that is a shell script under the sandbox's `tests/` (a test
   path, so never reverted) checking the content of `src/a.ts`: `R6 a recorded green counts as the
   baseline`, `R6 a stale green does not count`, `R2 the tree moved during the baseline` (the script
-  commits on its first run), `R7 a red baseline is blocked and reverts nothing`, `R7 a baseline
+  commits on its first run), `R2 an untracked test file edited during the baseline` (the script
+  edits it on its first run), `R7 a red baseline is blocked and reverts nothing`, `R7 a baseline
   timeout records no failed receipt`, `R12 killed`, `R12 a build failure is killed and says so`,
   `R12 an exit of 128+n is killed and names the signal`, `R12 survived lists the paths`, `R12 a
   script removed by the revert is blocked`, `R12 a hang is blocked at the timeout`, `R11 a revert
-  that cannot complete runs no obligation and is blocked`, `R20 a mutation row has six cells and a
+  that cannot complete runs no obligation and is blocked`, `R11 the run's restore after a stopped
+  revert leaves the change that stopped it in place` (the edit is made from `step` at `reverted:0`;
+  no `rescue/` exists afterwards), `R20 a mutation row has six cells and a
   mutation: tree`, `R20 receipts() and status() ignore mutation rows`, `R20 no row after a failed
   restore`, `R21 the run does not move its own key`. Done when `bun test tests/mutation-run.test.ts`
-  ends ` 16 pass` and ` 0 fail`, `bun test tests/verification.test.ts tests/gate.test.ts` ends
+  ends ` 18 pass` and ` 0 fail`, `bun test tests/verification.test.ts tests/gate.test.ts` ends
   ` 0 fail`, and the node command for `tests/mutation-run.test.ts` prints `# fail 0`. (covers R2,
   R6, R7, R11, R12, R20, R21)
 
@@ -163,9 +177,10 @@ requirements it covers (`agents/implementer.md`, "Your report").
   run`, `R18 a tracked test file rewritten during the run`, `R18 an untracked test file edited
   during the run`, `R18 a non-ignored output file written by the obligation`, `R15 a failed restore
   after the lock was deleted writes the lock again`, `R19 HEAD moved: both shas and git reset,
-  mixed`, `R19 the index line names git restore --staged and what it discards`, `R19 left in place
+  mixed`, `R19 HEAD on another branch: git switch to the lock's branch, and no reset when that
+  branch did not move`, `R19 the index line names git restore --staged and what it discards`, `R19 left in place
   and changed files are reported without a cause`. Done when `bun test
-  tests/mutation-changed.test.ts` ends ` 11 pass` and ` 0 fail`, and the node command prints
+  tests/mutation-changed.test.ts` ends ` 12 pass` and ` 0 fail`, and the node command prints
   `# fail 0`. (covers R15, R18, R19)
 
 - [ ] 3.3 In `src/mutation-run.ts`, add the signal handling of design.md "The run" steps 1, 3, 6, 8
@@ -181,10 +196,12 @@ requirements it covers (`agents/implementer.md`, "Your report").
   does not interrupt it` (blocked at `restored:0`, signalled, released), `R17 SIGINT twice during
   the restore`, `R17 SIGINT to the group right after the lock: nothing reverted, no obligation
   started` (blocked at `lock-written`; the journal holds no `reverted:` step and the obligation's
-  marker file does not exist), `R17 SIGINT to the group during prepare exits 130, not a refusal`
+  marker file does not exist), `R17 SIGINT to the group at reverted:0: no obligation starts`
+  (blocked at `reverted:0`; the obligation's marker file does not exist), `R17 SIGINT to the group
+  during prepare exits 130, not a refusal`
   (the start blob's smudge filter is `sleep 2; cat`). Each asserts the exit code, `git status
   --porcelain` against the one taken before, no lock, no row, and no process left (`pgrep -f` of a
-  marker in the obligation). Done when `bun test tests/mutation-signals.test.ts` ends ` 8 pass` and
+  marker in the obligation). Done when `bun test tests/mutation-signals.test.ts` ends ` 9 pass` and
   ` 0 fail`, and the node command prints `# fail 0`. (covers R16, R17)
 
 - [ ] 3.4 In `src/cli.ts`, add `case "verify"` to `main` (`src/cli.ts:72-111`) and `cmdVerify`:
@@ -199,12 +216,15 @@ requirements it covers (`agents/implementer.md`, "Your report").
   suite pass the 120-second default and the 900-second `--timeout` default passes the 600-second
   ceiling); running it alone and last (flaky tests; a code or test commit changes the key); a
   recorded `gate --full` green inheriting the terminal (design.md "Trade-offs accepted"); the
-  refused shapes; an mstack checkout running it from a copy, and hooks of a `--plugin-dir .`
+  refused shapes; a save to a reverted file in the moment it is put back being lost (design.md
+  "What cannot be made safe" 1); a restarted container as the common way to a lock whose run
+  cannot be told; an mstack checkout running it from a copy, and hooks of a `--plugin-dir .`
   session running the reverted `src/`; and "By hand" with the three ways of design.md "By hand",
   each with what it discards. Add an Unreleased entry for `verify` to `CHANGELOG.md`. Tests in a
   new `tests/mutation-cli.test.ts`, running `bin/mstack` as a child in a throwaway repository with
   a store: `R1 neither flag, or both`, `R1 --timeout must be an integer from 1 to 2147483`, `R25
-  the run prints the lock and the absolute restore command before reverting`, `R25 no output names
+  the run prints the lock and the absolute restore command before reverting` (and the line about a
+  save in the moment a file is put back), `R25 no output names
   sh with the lock`, `R22 restore with no lock exits 0`, `R22 kill -9 mid-run, then verify
   --restore` (the obligation sleeps on the reverted tree; the test SIGKILLs the `mstack` pid only,
   runs `verify --restore`, compares `git status --porcelain`), `R23 restore refuses a live run, and
@@ -221,20 +241,28 @@ requirements it covers (`agents/implementer.md`, "Your report").
 
 - [ ] 4.1 In `src/gate.ts`, add `checkMutationLock(store, report)` to the workspace section after
   `checkWorkspace` (`src/gate.ts:89-91`, so it runs with no active item) with R27's line, R25's
-  command and R28's warnings, and make `runVerification` (`src/gate.ts:744`) fail and run nothing
-  while the lock exists. Add the lock line and the rescue warning to "What `mstack gate` checks" in
+  command and R28's warnings (every worktree's rescue, design.md "The gate and the hook"), and make
+  `runVerification` (`src/gate.ts:744`) fail and run nothing while the lock exists. In
+  `src/worktree.ts`, make `prunable` (`:131`) leave out a worktree whose git directory holds the
+  lock or a rescue with anything in it. Add the lock line and the rescue warning to "What `mstack gate` checks" in
   `docs/wiki/Gates-and-Hooks.md` (`:136`), with output pasted from `./bin/mstack gate` in a
   throwaway repository holding a lock from a killed run. Tests in a new
   `tests/mutation-gate.test.ts`: `R27 a lock fails the gate with no active item`, `R27 the line says
   running, not running or cannot tell`, `R27 an unparseable lock fails the gate`, `R27 the Stop hook
   carries the line`, `R27 gate --full runs nothing under a lock`, `R25 the gate line names the
   lock's CLI, and the running CLI when that path is gone`, `R28 a rescue directory that holds
-  anything is a warning`. Done when `bun test tests/mutation-gate.test.ts` ends ` 7 pass` and ` 0
+  anything is a warning`, `R28 a linked worktree's rescue warns from the main checkout, and prune
+  offers no worktree holding a lock or a rescue` (its tree clean, its branch merged). Done when
+  `bun test tests/mutation-gate.test.ts` ends ` 8 pass` and ` 0
   fail`, `bun test tests/gate.test.ts` ends ` 0 fail`, and the node command for both files prints
   `# fail 0`. (covers R25, R27, R28)
 
 - [ ] 4.2 In `src/hooks.ts`, extend `preToolUse` (`src/hooks.ts:537`) with the lock branch of
-  design.md "The gate and the hook". Add a row to "What PreToolUse denies" in
+  design.md "The gate and the hook", and add to `GUARDS` (`:361`) the entry for `rm` of the lock.
+  In `tests/hooks.test.ts`, change `denied()` (`:283-286`) to pass a throwaway directory as `cwd`,
+  so the suite never reads this checkout's lock: otherwise `the safe forms are not denied` fails
+  under every mutation run here (it allows `git reset --soft HEAD~1` and `git reset HEAD~1`, which
+  the lock branch denies). Add a row to "What PreToolUse denies" in
   `docs/wiki/Gates-and-Hooks.md` (`:83`) naming the git commands denied under a lock and what the
   hook does not see (aliases, `"git"`, interpreters, `npm version`, `git -C` from outside the
   repository, the Edit and Write tools), and add the lock to the PreToolUse `description` in
@@ -243,8 +271,9 @@ requirements it covers (`agents/implementer.md`, "Your report").
   `R26 every listed git command is denied under a lock`, `R26 shapes not caught are allowed`, `R26
   an unrelated command spawns no git` (`PATH` points at a directory whose `git` writes a marker
   file, which must not exist), `R26 no lock, or git cannot answer, allows`, `R26 an unparseable lock
-  still denies`, `R25 the deny reason names the lock's CLI`. Done when `bun test
-  tests/mutation-hook.test.ts` ends ` 7 pass` and ` 0 fail`, `bun test tests/hooks.test.ts` ends
+  still denies`, `R26 rm of the lock is denied, with a lock or without one` (no git process starts),
+  `R25 the deny reason names the lock's CLI`. Done when `bun test
+  tests/mutation-hook.test.ts` ends ` 8 pass` and ` 0 fail`, `bun test tests/hooks.test.ts` ends
   ` 0 fail`, `./bin/mstack lint-plugin .` exits 0, and the node command for both test files prints
   `# fail 0`. (covers R25, R26)
 
