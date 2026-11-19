@@ -5,7 +5,7 @@ import {
 } from "node:fs";
 import { dirname, join } from "node:path";
 
-import { errorText, fsyncDirectory, lockPath, pump, READ_FLAGS, runDirectory, validateLock, type Identity, type Lock, type LockEntry } from "./mutation-lock.ts";
+import { errorText, fsyncDirectory, lockPath, pump, READ_FLAGS, readLock, runDirectory, validateLock, type Identity, type Lock, type LockEntry } from "./mutation-lock.ts";
 import type { Store } from "./paths.ts";
 
 /**
@@ -426,12 +426,16 @@ export function restoreFromLock(store: Store, lock: Lock, options: RestoreOption
   }
   if (out.failed.length > 0) return out;
 
-  try {
-    unlinkSync(lockFile);
-  } catch (error) {
-    if (codeOf(error) !== "ENOENT") {
-      fail(lockFile, errorText(error), fixFor(error, lockFile));
-      return out;
+  // Only this run's lock goes: one that another run took after this one's was deleted stays, and so does one that cannot be read.
+  const onDisk = readLock(store);
+  if (onDisk !== null && "lock" in onDisk && onDisk.lock.run === lock.run) {
+    try {
+      unlinkSync(lockFile);
+    } catch (error) {
+      if (codeOf(error) !== "ENOENT") {
+        fail(lockFile, errorText(error), fixFor(error, lockFile));
+        return out;
+      }
     }
   }
   try {

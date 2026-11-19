@@ -145,8 +145,9 @@ requirements it covers (`agents/implementer.md`, "Your report").
   not hold what the lock recorded is not written, and the lock stays` and `R13 a path HEAD lacks
   that holds the start's content at the proof keeps the lock` (the three added in round 1, for
   mutants no named test killed), `R24 the restore checks the lock itself, and writes nothing for one
-  that fails the check` (added in round 1, for NB4). Done when `bun test
-  tests/mutation-restore.test.ts` ends ` 24 pass` (or fewer passes plus two skips, on a
+  that fails the check` (added in round 1, for NB4), `R13 the restore leaves a lock that another
+  run wrote` (added in round 1, for NB6). Done when `bun test
+  tests/mutation-restore.test.ts` ends ` 25 pass` (or fewer passes plus two skips, on a
   case-sensitive filesystem) and ` 0 fail`,
   and the node command prints `# fail 0`. (covers R10, R13, R14, R15, R17, R22, R24)
 

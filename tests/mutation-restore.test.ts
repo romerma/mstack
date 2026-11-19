@@ -552,3 +552,17 @@ test("R24 the restore checks the lock itself, and writes nothing for one that fa
     assert.equal(readFileSync(lockFileOf(r), "utf8"), onDisk);
   });
 });
+
+test("R13 the restore leaves a lock that another run wrote", () => {
+  withRepo(twoFiles, editBoth, (r) => {
+    const a = reverted(r);
+    // The review's E4c: A's lock deleted by hand during its run, and B takes the lock.
+    rmSync(lockFileOf(r));
+    const b = locked(r);
+    clean(restoreFromLock(r.store, a));
+    assert.equal(read(r.root, "src/a.ts"), "a2\n");
+    const now = readLock(r.store);
+    assert.ok(now !== null && "lock" in now, "A's restore unlinked B's lock");
+    assert.equal(now.lock.run, b.run);
+  });
+});

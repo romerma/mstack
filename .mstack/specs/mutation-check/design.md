@@ -264,7 +264,8 @@ the entry at p by exact name:
   (`mode-exp`: a directory moves whole, a second rescue of the same path gets `2/`, the copy keeps
   mode 0750).
 - *Proof*: every entry with H a file holds H(p); every entry with H absent does not hold S(p).
-- Only then: `unlink` the lock (ENOENT is fine), fsync the directory, remove `start/` and `head/`,
+- Only then: `unlink` the lock when the one at its name is this run's by run id (another run's, or
+  one that cannot be read, stays: round 1 review, NB6; ENOENT is fine), fsync the directory, remove `start/` and `head/`,
   and the run directory when `rescue/` is empty. A run whose lock file vanished, and whose restore
   then fails, writes it again from its record with `acquireLock`.
 - The result is `{ restored, rescued: {path, to}[], left: string[], failed: {path, reason, fix}[] }`;
