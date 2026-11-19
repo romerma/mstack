@@ -44,9 +44,10 @@ watch is review rounds per item: if they do not drop after phase 1, intake is ce
   mutants killed, both suites green); next: a review pass that did not write the code. Scratch:
   `/private/tmp/claude-501/-Users-romerma-Code-mstack/4aadee9d-d352-4d5b-825b-4d11a47e2193/scratchpad/impl101/`.
 - 2026-11-20 item 101 round 2 implementer (scratch `.../scratchpad/impl101r2/`): blocking 1
-  committed (f925e61, the gone CLI named in prose, one command offered; decision row). Next if
-  this stops: blocking 2 (the hook reads the lock with readLock's flags), then non-blocking 1, 2,
-  5, 6, then the report `impl_mutation-printed-exits_r2.md`.
+  committed (f925e61, the gone CLI named in prose, one command offered; decision row 324); B2,
+  NB1, NB2, NB5, NB6 committed (ea7cb01 to ab8bafc); 14 of 14 mutants killed; both suites green.
+  Report `impl_mutation-printed-exits_r2.md`. Next: a review round 2 by a pass that did not
+  write the code; NB4 goes to a follow-up item (row 323).
 
 Headless runs: `run.mjs` builds a clean `env -i` env, uses the claude.ai login, and never
 passes bypassPermissions. Do not run `check.mjs` or `verify.mjs` while a batch is running
