@@ -71,6 +71,18 @@ passes bypassPermissions. Do not run `check.mjs` or `verify.mjs` while a batch i
 - Scratch: `/private/tmp/claude-501/-Users-romerma-Code-mstack/4aadee9d-d352-4d5b-825b-4d11a47e2193/scratchpad/impl42s1/`.
 - Next: stage 2 (task group 2) by a fresh implementer; read the report's last section first.
 
+## Item 42 stage 2 in flight (implementer, 2026-11-19)
+
+- Task group 2 (2.1 to 2.4), one commit per task, then `chore: report item 42 stage 2` with
+  `.mstack/progress/impl_mutation-check_r2.md`.
+- Scratch: `/private/tmp/claude-501/-Users-romerma-Code-mstack/4aadee9d-d352-4d5b-825b-4d11a47e2193/scratchpad/impl42s2/`
+  (`prim/` the runtime probes; `prim/etime.out` is why liveness bounds the start by etime+1).
+- Done: 2.1 `5e16b0a`, 2.2 `61e3124`, 2.3 `f178632`, 2.4 `808b616`, fixes `35c34dd` `deb5733`
+  `ca77520`; 984 pass on bun and node; 26 of 28 mutants killed. Report:
+  `.mstack/progress/impl_mutation-check_r2.md`.
+- Next: the review of the primitives by a pass that did not write them (plan row 264); read the
+  report's "What I could not make safe" (the sweep of a stopped run's staging) first.
+
 ## Next step
 
 Phases 0 and 1 are closed, except item 50 (waits for the user). Phase 2 has 57 and 58 closed.
