@@ -712,7 +712,8 @@ function lockProblem(held: NonNullable<ReturnType<typeof readLock>>, file: strin
     case "unknown":
       return {
         message: `${what}: whether the run is running cannot be told (${alive.reason})`,
-        fix: "line" in way ? `${way.lead}run ${way.line} where the run started (host ${lock.host}); or by hand: ${BY_HAND}` : byHand,
+        // It may be alive elsewhere: wait first, as R1 says (round 1 review of item 101, non-blocking 5).
+        fix: "line" in way ? `${way.lead}run ${way.line} where the run started (host ${lock.host}); or by hand: ${BY_HAND}` : `wait for it to end; ${byHand}`,
       };
   }
 }

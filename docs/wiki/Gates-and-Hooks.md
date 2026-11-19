@@ -284,7 +284,9 @@ Walking the lines that carry the weight:
   form than git does gets the by-hand recovery instead, since on a disk that folds names that
   directory is this store, whose restore refuses the lock again. *Cannot be told*
   (another host, or another pid namespace): run the restore where the run started, or by hand
-  with `git stash push --include-untracked`, which saves every change and discards nothing.
+  with `git stash push --include-untracked`, which saves every change and discards nothing; when
+  no restore takes the lock, wait for the run to end, then by hand, as a refused
+  `verify --mutation` says.
   A lock that cannot be read as a run's record fails the same way and names the by-hand
   recovery as one for a person at a terminal: while the lock exists, the hook denies an agent
   both its steps, the stash and the `rm` of the lock, and its reason says the same. The `Stop`

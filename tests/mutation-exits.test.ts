@@ -539,3 +539,60 @@ test("A4 under a lock the hook denies git --shallow-file with its value after a 
   // The same prefix leads every git guard: a force push spelled GIT is one too.
   assert.match(hookReason("GIT push --force origin main", tmpdir()) ?? "allowed", /force-push rewrites history/);
 });
+
+test("A3 a run that cannot be told alive, under a lock whose store no restore takes: the gate says wait, as R1 does, then the by-hand way out", () => {
+  // Round 1 review, non-blocking 5 and 6 (M2): the gate's line for this case said only the by-hand way, so a run
+  // that may be alive on another host was told to stash and delete the lock, and no test reached the branch.
+  withRepo(startA, editA, (r) => {
+    locked(r);
+    const file = lockFileOf(r);
+    const written = JSON.parse(readFileSync(file, "utf8")) as Record<string, unknown>;
+    writeFileSync(file, `${JSON.stringify({ ...written, host: "elsewhere.invalid", rootFromTop: "pkg/gone" }, null, 2)}\n`);
+    const gate = gateLine(r.store);
+    assert.match(gate, /whether the run is running cannot be told \(the lock is from another host, elsewhere\.invalid\)/);
+    const fix = gate.slice(gate.indexOf(" -> ") + " -> ".length);
+    assert.match(fix, /^wait for it to end; no verify --restore takes this lock: it names its store pkg\/gone, and there is no directory /);
+    assert.match(fix, BY_HAND);
+    assert.doesNotMatch(fix, /\bcd |mstack'? verify --restore|where the run started/, fix);
+    const { st, it } = active(r.start);
+    assert.equal(refusals(r.store, st, it)?.fix, fix, "the gate and R1 give another way out");
+  });
+});
+
+test("A2 from inside the git directory, where git names no top level, the hook still denies under a lock and names the store to run from", () => {
+  // Round 1 review, non-blocking 6 (M3): without the `top === null` guard the hook threw there, and the CLI's
+  // hook command fails open on a throw.
+  withRepo(startA, editA, (r) => {
+    locked(r);
+    const file = lockFileOf(r);
+    const gitDir = dirname(file);
+    const asWritten = hookReason("git -C .. commit -am x", gitDir);
+    assert.match(asWritten ?? "allowed", /run from \. under this worktree's top level: \S+ verify --restore$/);
+    const written = JSON.parse(readFileSync(file, "utf8")) as Record<string, unknown>;
+    writeFileSync(file, `${JSON.stringify({ ...written, rootFromTop: "pkg/a" }, null, 2)}\n`);
+    const another = hookReason("git -C .. commit -am x", gitDir);
+    assert.match(another ?? "allowed", /run from pkg\/a under this worktree's top level: \S+ verify --restore$/);
+  });
+});
+
+test("A1 shellWord: a path run through the shell comes back as it was, whatever shell character it holds, and a plain path stays bare", () => {
+  // Round 1 review, non-blocking 6 (M1): no test called shellWord, and the odd paths of A1 hold only a space and quotes.
+  const shells = ["/bin/sh", ...(existsSync("/bin/dash") ? ["/bin/dash"] : [])];
+  const cwd = realpathSync(mkdtempSync(join(tmpdir(), "mstack-word-")));
+  try {
+    for (const c of [" ", "'", '"', "$", "`", ";", "&", "|", "(", ")", "<", ">", "!", "*", "?", "[", "]", "{", "}", "~", "#", "\\", "\t", "\n", "é"]) {
+      const path = `/tmp/a${c}b${c}/bin/mstack`;
+      const word = shellWord(path);
+      assert.ok(word.startsWith("'"), `${JSON.stringify(c)} left bare: ${word}`);
+      for (const shell of shells) {
+        const p = spawnSync(shell, ["-c", `printf '%s' ${word}`], { cwd, encoding: "utf8" });
+        assert.equal(p.stdout, path, `${shell}, ${JSON.stringify(c)}: ${word} -> ${p.stdout}${p.stderr}`);
+      }
+    }
+    assert.deepEqual(spawnSync("/bin/sh", ["-c", "ls -A"], { cwd, encoding: "utf8" }).stdout, "", "a word wrote a file");
+    const plain = "/opt/x-1.2_3/bin/mstack@%+=:,";
+    assert.equal(shellWord(plain), plain, "a plain path is quoted: every transcript of one would change");
+  } finally {
+    rmSync(cwd, { recursive: true, force: true });
+  }
+});
