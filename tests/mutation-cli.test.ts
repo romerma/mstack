@@ -322,3 +322,18 @@ test("R5 the CLI refuses to revert its own source", SPAWN_TEST, () => {
     box.dispose();
   }
 });
+
+test("R23 restore refuses a lock from another host, naming it and the by-hand recovery", SPAWN_TEST, async () => {
+  await withRunRepo(CHECK, startA, editA, async (r) => {
+    const file = writeLock(r, { host: "another-host.example" });
+    const lock = readFileSync(file, "utf8");
+    const before = status(r.root);
+    const ran = cli(r.root, ["verify", "--restore"]);
+    assert.equal(ran.code, 2, ran.all);
+    assert.match(ran.all, /another-host\.example/);
+    assert.match(ran.all, /cannot be told/);
+    assert.match(ran.all, /git stash push --include-untracked/);
+    assert.equal(readFileSync(file, "utf8"), lock);
+    assert.equal(status(r.root), before);
+  });
+});

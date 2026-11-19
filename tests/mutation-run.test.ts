@@ -424,3 +424,28 @@ test("R13 an error right after the lock is taken ends in the restore, and the lo
     nothingLeft(r);
   });
 });
+
+test("R20 a survived run's row says mutation-survived", SPAWN_TEST, async () => {
+  await withRunRepo('echo run >> "$1"\nexit 0\n', startA, editA, async (r) => {
+    const { code, text } = await go(r);
+    assert.equal(code, 1, text);
+    assert.deepEqual(outcomes(r), ["passed", "mutation-survived"]);
+  });
+});
+
+test("R2 a tracked doc edited during the baseline is refused, and no receipt is written", SPAWN_TEST, async () => {
+  const script = 'echo run >> "$1"\nif [ ! -e "$1.edited" ]; then : > "$1.edited"; echo more >> docs/notes.md; fi\ngrep -q new src/a.ts\n';
+  const withDoc = (root: string): void => {
+    startA(root);
+    put(root, "docs/notes.md", "notes\n");
+  };
+  await withRunRepo(script, withDoc, editA, async (r) => {
+    const { code, text } = await go(r);
+    assert.equal(code, 2, text);
+    assert.match(text, /docs\/notes\.md/);
+    assert.deepEqual(outcomes(r), [], "a receipt or a row was written");
+    assert.equal(read(r, "src/a.ts"), "new\n");
+    assert.equal(runs(r), 1);
+    nothingLeft(r);
+  });
+});

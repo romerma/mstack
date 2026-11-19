@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -261,5 +261,35 @@ test("R17 SIGINT to the group during prepare exits 130, not a refusal", SPAWN_TE
       h.dispose();
       killAll(marker);
     }
+  });
+});
+
+// bun ignores the `skip` option of node:test, so the function is chosen; a read-only directory stops nobody running as root.
+const userTest = process.getuid?.() === 0 ? test.skip : test;
+
+userTest("R15 a signal and a restore that fails: exit 3, and the lock stays", SPAWN_TEST, async () => {
+  const marker = sleeper(30);
+  await withRunRepo(onReverted(marker), startA, editA, async (r) => {
+    const before = tree(r);
+    const h = holdRun(r, "none");
+    try {
+      // The signal while the command runs, so that the run has it before the restore, which then fails.
+      assert.ok(await until(() => survivors(marker).length > 0, SIGNAL_MS), `the check never ran on the reverted tree: ${h.journal()}`);
+      chmodSync(join(r.root, "src"), 0o555);
+      process.kill(-h.pid, "SIGINT");
+      assert.equal(await h.exited, 3, h.journal());
+      assert.match(h.journal(), /not restored: src\/a\.ts/);
+      assert.equal(existsSync(lockFileOf(r)), true, "the lock went although the restore failed");
+      assert.ok(await until(() => survivors(marker).length === 0, 3000), `a process of ${marker} is left`);
+    } finally {
+      chmodSync(join(r.root, "src"), 0o755);
+      h.dispose();
+      killAll(marker);
+    }
+    const held = readLock(r.store);
+    assert.ok(held !== null && "lock" in held);
+    assert.deepEqual(restoreFromLock(r.store, held.lock).failed, []);
+    assert.equal(tree(r), before);
+    assert.deepEqual(rows(r).filter((x) => (x["outcome"] ?? "").startsWith("mutation-")), []);
   });
 });

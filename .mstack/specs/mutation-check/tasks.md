@@ -204,9 +204,11 @@ requirements it covers (`agents/implementer.md`, "Your report").
   lock taken by another run after the staging is refused naming its pid, and the staging is
   removed` (added by stage 4, for review round 1 non-blocking 12) and `R12 classify: 0 passes; 126,
   127, a timeout, an error and a signal are blocked; any other code is a kill` (added by stage 4: no
-  named test has an exit 126) and `R13 an error right after the lock is taken ends in the restore,
-  and the lock goes` (added by stage 4, for an exception between the lock and the revert). Done
-  when `bun test tests/mutation-run.test.ts` ends ` 22 pass` and ` 0 fail`, `bun test tests/verification.test.ts tests/gate.test.ts` ends
+  named test has an exit 126), `R13 an error right after the lock is taken ends in the restore,
+  and the lock goes` (added by stage 4, for an exception between the lock and the revert), `R20 a
+  survived run's row says mutation-survived` and `R2 a tracked doc edited during the baseline is
+  refused, and no receipt is written` (both added by stage 4, for mutants no named test killed).
+  Done when `bun test tests/mutation-run.test.ts` ends ` 24 pass` and ` 0 fail`, `bun test tests/verification.test.ts tests/gate.test.ts` ends
   ` 0 fail`, and the node command for `tests/mutation-run.test.ts` prints `# fail 0`. (covers R2,
   R6, R7, R11, R12, R20, R21)
 
@@ -242,8 +244,10 @@ requirements it covers (`agents/implementer.md`, "Your report").
   during prepare exits 130, not a refusal`
   (the start blob's smudge filter is `sleep 2; cat`). Each asserts the exit code, `git status
   --porcelain` against the one taken before, no lock, no row, and no process left (`pgrep -f` of a
-  marker in the obligation). Done when `bun test tests/mutation-signals.test.ts` ends ` 9 pass` and
-  ` 0 fail`, and the node command prints `# fail 0`. (covers R16, R17)
+  marker in the obligation). `R15 a signal and a restore that fails: exit 3, and the lock stays`
+  (added by stage 4, for a mutant no named test killed). Done when `bun test
+  tests/mutation-signals.test.ts` ends ` 10 pass` and ` 0 fail`, and the node command prints `# fail
+  0`. (covers R15, R16, R17)
 
 - [x] 3.4 In `src/cli.ts`, add `case "verify"` to `main` (`src/cli.ts:72-111`) and `cmdVerify`:
   `--mutation [--timeout <seconds>]` calls `runMutation`; `--restore` calls `readLock`,
@@ -273,8 +277,10 @@ requirements it covers (`agents/implementer.md`, "Your report").
   restore refuses a lock that cannot be parsed and names git stash`, `R15 exit 3 when the restore
   fails, over every other code`, `R5 the CLI refuses to revert its own source` (the sandbox holds a
   commit of this checkout's `bin/` and `src/`, a later commit changes `src/run-helper.mjs`, and
-  `<sandbox>/bin/mstack verify --mutation` exits 2). Done when `bun test tests/mutation-cli.test.ts`
-  ends ` 11 pass` and ` 0 fail`, the node command prints `# fail 0`, and `node
+  `<sandbox>/bin/mstack verify --mutation` exits 2), `R23 restore refuses a lock from another host,
+  naming it and the by-hand recovery` (added by stage 4, for a mutant no named test killed). Done
+  when `bun test tests/mutation-cli.test.ts` ends ` 12 pass` and ` 0 fail`, the node command prints
+  `# fail 0`, and `node
   scripts/check-doc-links.mjs README.md docs/wiki/*.md` ends `0 broken`. (covers R1, R5, R15, R22,
   R23, R24, R25)
 
