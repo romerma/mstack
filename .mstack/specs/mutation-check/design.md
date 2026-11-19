@@ -159,7 +159,9 @@ interface Lock {
   one. `readLock` returns `null`, `{ lock }` or `{ damaged }`; existence is `lstat`.
 - `validateLock` is R24. `sweepStale` runs once the run holds the lock: it removes
   `mstack-mutation.lock.*.tmp` other than its own and every run directory the lock does not name
-  whose `rescue/` is empty or absent.
+  whose `rescue/` is empty or absent. A run racing it can have its temp file swept before its link,
+  which then fails with ENOENT, not EEXIST; `acquireLock` names the lock's holder on any failed link
+  while a lock exists (`impl42s2`: 3 of 6 node runs of the two-holder test hit it before).
 
 ### Is the run alive (`src/mutation-lock.ts`)
 

@@ -362,9 +362,11 @@ export function acquireLock(store: Store, lock: Lock): Acquired {
     linkSync(tmp, final);
   } catch (error) {
     rmSync(tmp, { force: true });
-    if (codeOf(error) !== "EEXIST") return { ok: false, reason: `could not link ${final}: ${errorText(error)}` };
+    // EEXIST, or ENOENT when the run that won swept this temp file before the
+    // link: either way a lock exists, and the refusal names whose it is.
     const held = readLock(store);
-    const whose = held !== null && "lock" in held ? `: pid ${String(held.lock.pid)}, run ${String(held.lock.run)}` : "";
+    if (held === null) return { ok: false, reason: `could not link ${final}: ${errorText(error)}` };
+    const whose = "lock" in held ? `: pid ${String(held.lock.pid)}, run ${String(held.lock.run)}` : "";
     return { ok: false, reason: `the lock ${final} exists${whose}` };
   }
   try {
