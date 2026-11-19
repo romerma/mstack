@@ -5,7 +5,9 @@ import { all as decisionsFor } from "./decisions.ts";
 import { FORGED_IMPL_FIX, FORGED_SPEC_FIX, gateProblems, NO_VERDICT_FIX, NO_VERDICT_WORDS, ONLY_FAILED_FIX, ONLY_FAILED_WORDS, SELF_CLOSED_FIX, VERIFICATION_CHECK } from "./closing.ts";
 import { defaultBranch, git, headSha } from "./git.ts";
 import { readGlossary } from "./glossary.ts";
-import { BY_HAND, gitDirOf, lockExistsIn, liveness, LOCK_NAME, readLock, rescueDirectories, restoreCommand, validateLock, type Lock } from "./mutation-lock.ts";
+import {
+  BY_HAND, fromLockStore, gitDirOf, lockExistsIn, liveness, LOCK_NAME, placeOf, readLock, rescueDirectories, restoreCommand, validateLock, type Lock, type Place,
+} from "./mutation-lock.ts";
 import { runCommand } from "./run.ts";
 import { measureDiff, measureStart, resolveCommit, SMALL_MAX_FILES, SMALL_MAX_LINES } from "./size.ts";
 import { describeRow, entries as ledgerEntries, readVerdict } from "./ledger.ts";
@@ -683,7 +685,7 @@ function checkWorkspace(store: Store, report: Report): void {
 function checkMutationLock(store: Store, report: Report): void {
   const held = readLock(store);
   if (held !== null) {
-    const { message, fix } = lockProblem(held, join(gitDirOf(store) ?? "", LOCK_NAME));
+    const { message, fix } = lockProblem(held, join(gitDirOf(store) ?? "", LOCK_NAME), placeOf(store));
     report.fail(message, fix);
   }
   const common = git(store, ["rev-parse", "--path-format=absolute", "--git-common-dir"]);
@@ -693,7 +695,7 @@ function checkMutationLock(store: Store, report: Report): void {
   }
 }
 
-function lockProblem(held: NonNullable<ReturnType<typeof readLock>>, file: string): { message: string; fix: string } {
+function lockProblem(held: NonNullable<ReturnType<typeof readLock>>, file: string, place: Place | null): { message: string; fix: string } {
   const unreadable = "a mutation lock exists and cannot be read as a run's record";
   if ("damaged" in held) return { message: `${unreadable}: ${held.damaged}`, fix: BY_HAND };
   const problems = validateLock(held.lock);
@@ -701,7 +703,7 @@ function lockProblem(held: NonNullable<ReturnType<typeof readLock>>, file: strin
   const lock: Lock = held.lock;
   const alive = liveness(lock);
   const what = `the mutation lock ${file} is held by pid ${lock.pid} on ${lock.host}, started ${lock.startedAt}, ${lock.entries.length} path(s)`;
-  const command = restoreCommand(lock.cli);
+  const command = fromLockStore(restoreCommand(lock.cli), lock.rootFromTop, place);
   switch (alive.state) {
     case "running":
       return { message: `${what}: the run is running (${alive.reason})`, fix: "wait for it to end; the lock goes when it finishes" };

@@ -870,9 +870,11 @@ when it holds the start's content. The gate warns, in every worktree, while a re
 anything; compare it with the tree and delete it by hand. A restore that cannot write, move or
 prove a path keeps the lock (a run whose lock was deleted under it writes it again), names the
 path, the error and what to do, and exits 3, whatever else happened. `verify --restore` refuses, exit 2 and nothing
-written, a lock that is not one document a run wrote (naming what is wrong), and a run that may
-be alive: its pid is a live process that started no later than the lock, or the lock is from
-another host or another pid namespace, where it cannot tell. There is no `--force`.
+written, a lock that is not one document a run wrote (naming what is wrong); the lock of another
+store of the same worktree, which shares its git directory and so its lock (naming the
+directory to run it from, as the gate, the hook and a refused `verify --mutation` do); and a run
+that may be alive: its pid is a live process that started no later than the lock, or the lock is
+from another host or another pid namespace, where it cannot tell. There is no `--force`.
 
 **What it cannot tell, and cannot make safe.**
 

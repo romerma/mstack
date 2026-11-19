@@ -1,11 +1,12 @@
-import { realpathSync } from "node:fs";
 import { constants } from "node:os";
 
 import { git, headSha } from "./git.ts";
 import { isActive } from "./lifecycle.ts";
 import { mutationKey, refusals, revertSet, trackedChanges, type MutationKey } from "./mutation.ts";
-import { acquireLock, BY_HAND, discard, errorText, liveness, lockPath, prepareRun, readLock, restoreCommand, sweepStale, validateLock, type Lock } from "./mutation-lock.ts";
-import { applyRevert, entryAt, holds, restoreFromLock, shellWord, type Entry, type Restored } from "./mutation-tree.ts";
+import {
+  acquireLock, BY_HAND, discard, errorText, liveness, lockPath, lockStoreDir, placeOf, prepareRun, readLock, restoreCommand, shellWord, sweepStale, validateLock, type Lock,
+} from "./mutation-lock.ts";
+import { applyRevert, entryAt, holds, restoreFromLock, type Entry, type Restored } from "./mutation-tree.ts";
 import { runningCliRoot, type Store } from "./paths.ts";
 import { runCommandAsync, type Running, type RunResult } from "./run.ts";
 import { measureStart, resolveCommit } from "./size.ts";
@@ -469,20 +470,13 @@ async function run(store: Store, options: MutationOptions, ctl: Control): Promis
   }
 }
 
-const realOr = (p: string): string => {
-  try {
-    return realpathSync(p);
-  } catch {
-    return p;
-  }
-};
-
 const nothingThere = (entry: Entry): boolean => entry.kind === "absent" && entry.variant === null;
 
 /**
  * `mstack verify --restore` (R22 to R24): the tree of a run that is not alive
  * put back from its lock, proved, and the lock removed. Nothing is written for
- * no lock, a lock that is not a run's record, or a run that may be alive.
+ * no lock, a lock that is not a run's record, the lock of another store of the
+ * worktree, or a run that may be alive.
  * Returns 0 (restored, or nothing to do), 2 (refused) or 3 (not restored).
  */
 export function restoreRun(store: Store, options: { readonly out: (line: string) => void }): number {
@@ -518,6 +512,17 @@ export function restoreRun(store: Store, options: { readonly out: (line: string)
     return 2;
   }
   const lock = held.lock;
+  // Two stores of one worktree share its lock, and the lock's paths are its own store's: never resolved against another's root.
+  const place = placeOf(store);
+  if (place === null) return refuse(out, "git could not say where this store is in its worktree, so whose the lock is cannot be told", "run it again; nothing was written");
+  if (lock.rootFromTop !== place.rel) {
+    const name = (rel: string): string => (rel === "." ? "the worktree's top level" : rel);
+    return refuse(
+      out,
+      `the lock is the run's of the store at ${name(lock.rootFromTop)} in this worktree, and this store is at ${name(place.rel)}; nothing was written, and the lock stays`,
+      `run it from that store: cd ${shellWord(lockStoreDir(place.top, lock.rootFromTop))} && ${restoreCommand(lock.cli)}`,
+    );
+  }
   const alive = liveness(lock);
   const said = { running: "running", "not-running": "not running", unknown: "cannot tell whether it is running" }[alive.state];
   out(`mutation: lock from pid ${lock.pid} (${said}: ${alive.reason}), run ${lock.run}, ${lock.entries.length} path(s)`);
@@ -528,9 +533,6 @@ export function restoreRun(store: Store, options: { readonly out: (line: string)
     refuse(out, `whether the run that wrote the lock is alive cannot be told: pid ${lock.pid} on ${lock.host}, ${alive.reason}`, `run ${restoreCommand(lock.cli)} where it ran, on ${lock.host}; nothing was written`);
     byHand();
     return 2;
-  }
-  if (realOr(lock.root) !== realOr(store.root)) {
-    out(`mutation: the lock names the root ${lock.root}; its paths are resolved against this store's root, ${store.root}`);
   }
   let atHead = 0;
   let atStart = 0;

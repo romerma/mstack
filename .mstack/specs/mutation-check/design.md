@@ -137,6 +137,7 @@ interface LockEntry { n: number; path: string; start: Identity; head: Identity; 
 interface Lock {
   v: 1; run: string; pid: number; host: string; boot: number; pidns: string | null;
   startedAt: string; cli: string; root: string; head: string; start: string;
+  rootFromTop: string; // the store's root relative to the worktree's top level; "." at the top
   branch: string | null; // `git symbolic-ref --quiet --short HEAD`; null when detached
   entries: LockEntry[]; createdDirs: string[]; removedDirs: string[];
 }
@@ -164,6 +165,17 @@ interface Lock {
   one. `readLock` returns `null`, `{ lock }` or `{ damaged }`; whatever is at the name is a lock,
   opened `O_NOFOLLOW | O_NONBLOCK`, so a symlink there is not followed and a FIFO does not block,
   and one that is not a regular file is `damaged` (round 1 review, NB7).
+- `rootFromTop` is what `git rev-parse --show-prefix` prints at the store's root, without its
+  slash (`placeOf`). Two stores of one worktree share its git directory and so one lock, and a
+  restore resolves the lock's paths against the root of the store it runs in: from the other
+  store it deleted and overwrote that store's committed files (round 2 review, B3). So
+  `verify --restore` from a store whose own `rootFromTop` differs refuses, after `validateLock`
+  and before `liveness`, exit 2 and nothing written, and names `cd <top>/<rootFromTop> &&` R25's
+  command; the gate's line and R1's refusal name the same (`fromLockStore`), and so does the
+  hook's reason. `root`, absolute, is kept for a reader and nothing is resolved against it: in a
+  moved checkout it names a directory that is gone, and a comparison of absolute roots would then
+  fall back to this store's root, which for the other store is the loss again. A lock without
+  `rootFromTop` fails `validateLock`, so it is one that cannot be read.
 - `validateLock` is R24; it finds a path that appears twice by R3's `fold`, so two spellings of one
   path are refused (round 1 review, NB3). `sweepStale` runs once the run holds the lock: it removes
   `mstack-mutation.lock.*.tmp` other than its own and every run directory the lock does not name
@@ -374,8 +386,10 @@ else. `receipts()` and `status()` do not change.
 - `preToolUse` keeps `GUARDS` and adds, after them, a test of each segment against `GIT` followed
   by `(?:add|am|apply|checkout|cherry-pick|clean|commit|merge|mv|pull|rebase|reset|restore|revert|rm|stash|switch)(?![-\w])`.
   Only on a match does it run `git rev-parse --absolute-git-dir` in `input.cwd` and `lstat` the
-  lock; present denies, with the pid and R25's command when the lock holds an integer pid and an
-  absolute `cli` (the hook checks no more of it, since the lock's existence decides), and
+  lock; present denies, with the pid and R25's command when the lock holds an integer pid, an
+  absolute `cli` and a string `rootFromTop` (the hook checks no more of it, since the lock's
+  existence decides), the command preceded by `cd <the lock's store> &&`, its top level from a
+  second `git rev-parse --show-toplevel` that runs only on a deny, and
   otherwise with a reason that points at `mstack gate`. A lock name that cannot be `lstat`ed for a
   reason other than ENOENT or ENOTDIR counts as present.
 - `GUARDS` gets one more entry, `rm` on a path ending in `mstack-mutation.lock`, which needs no
@@ -461,6 +475,7 @@ review, NB9); `F_FULLFSYNC` on macOS is not established (walk).
 | The run directory deleted | rescues what is not S, then fails on the staged copy (R15) | no | `git stash push -- <p>`, then verify --restore; if git's checkout of HEAD is not H's bytes (an `eol` setting, a mode other than 0644), that restore rescues git's copy and cannot write H, so p is left absent, and the lock is deleted by hand, which discards nothing: HEAD's bytes are in git and in `rescue/`, and `git restore -- <p>` puts them back |
 | A second `verify --mutation` | refused: the lock exists, or the link fails | n/a | none |
 | `verify --restore` while the run is alive | refused (R23) | n/a | wait |
+| `verify --restore` from another store of the worktree, in place or after a move | refused, nothing written (R24, B3) | n/a | `cd <the lock's store> && verify --restore` |
 | Two `verify --restore` on a dead lock | each writes through its own temp name; one may unlink the other's temp and report a failure (exit 3) | n/a | a third run says nothing to restore |
 | A full disk | prepare: refused, nothing written; revert: blocked (R11); restore: kept (R15) | no | free space, verify --restore |
 | A read-only directory | revert: blocked; restore: kept, EACCES (`ro-exp`) | no | `chmod u+w`, verify --restore |

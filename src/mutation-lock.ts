@@ -49,6 +49,12 @@ export interface Lock {
   /** The absolute path of the `bin/mstack` that wrote the lock. */
   readonly cli: string;
   readonly root: string;
+  /**
+   * The store's root relative to the worktree's top level, `.` at the top. Two
+   * stores of one worktree share its git directory and so one lock; this says
+   * whose it is, and it holds when the checkout is moved, which `root` does not.
+   */
+  readonly rootFromTop: string;
   readonly head: string;
   readonly start: string;
   /** The branch HEAD was on; null when it was detached. */
@@ -91,6 +97,39 @@ export function gitDirOf(store: Store): string | null {
 export function lockPath(store: Store): string | null {
   const dir = gitDirOf(store);
   return dir === null ? null : join(dir, LOCK_NAME);
+}
+
+/** Where a store's root is in its worktree. */
+export interface Place {
+  /** `git rev-parse --show-toplevel`: the worktree's top level, as git resolves it. */
+  readonly top: string;
+  /** The store's root relative to `top`, `.` at the top. */
+  readonly rel: string;
+}
+
+/** Where the store's root is in its worktree; null when git cannot say. */
+export function placeOf(store: Store): Place | null {
+  const out = git(store, ["rev-parse", "--show-toplevel", "--show-prefix"], { raw: true });
+  const [top, prefix] = out === null ? [] : out.split("\n");
+  if (top === undefined || top === "" || prefix === undefined) return null;
+  const rel = prefix.replace(/\/$/, "");
+  return { top, rel: rel === "" ? "." : rel };
+}
+
+/** A path as a shell word: bare when it is plain, else single-quoted. */
+export const shellWord = (p: string): string => (/^[\w./@%+=:,-]+$/.test(p) ? p : `'${p.replace(/'/g, "'\\''")}'`);
+
+/** The directory of the store a lock names, in the worktree whose top level is `top`. */
+export const lockStoreDir = (top: string, rootFromTop: string): string => (rootFromTop === "." ? top : join(top, rootFromTop));
+
+/**
+ * `command` run from the lock's store, when `place` is another store of the
+ * worktree: two stores share the worktree's lock, and a restore resolves the
+ * lock's paths against the root of the store it runs in (round 2 review, B3).
+ */
+export function fromLockStore(command: string, rootFromTop: unknown, place: Place | null): string {
+  if (place === null || typeof rootFromTop !== "string" || rootFromTop === place.rel) return command;
+  return `cd ${shellWord(lockStoreDir(place.top, rootFromTop))} && ${command}`;
 }
 
 /** `<git dir>/mstack-mutation/<run>/`; null outside a repository. */
@@ -177,6 +216,8 @@ export type Prepared =
 export function prepareRun(store: Store, start: string, set: RevertSet): Prepared {
   const gitDir = gitDirOf(store);
   if (gitDir === null) return { ok: false, path: null, reason: "the store is not in a git repository" };
+  const place = placeOf(store);
+  if (place === null) return { ok: false, path: null, reason: "git could not say where the store is in its worktree" };
   const head = git(store, ["rev-parse", "--verify", "HEAD"]);
   if (head === null) return { ok: false, path: null, reason: "git could not read HEAD" };
   const branch = git(store, ["symbolic-ref", "--quiet", "--short", "HEAD"]);
@@ -225,6 +266,7 @@ export function prepareRun(store: Store, start: string, set: RevertSet): Prepare
         startedAt: at.toISOString(),
         cli: join(runningCliRoot(), "bin", "mstack"),
         root: store.root,
+        rootFromTop: place.rel,
         head,
         start,
         branch,
@@ -468,6 +510,14 @@ export function validateLock(value: unknown): string[] {
   if (typeof run !== "string" || !RUN_ID.test(run)) problems.push(`its run id ${JSON.stringify(run)} is not one a run writes`);
   if (!Number.isInteger(l["pid"]) || (l["pid"] as number) <= 0) problems.push(`its pid ${JSON.stringify(l["pid"])} is not a process id`);
   for (const key of ["host", "startedAt", "cli", "root"]) if (typeof l[key] !== "string") problems.push(`its ${key} is not a string`);
+  // Which store of the worktree wrote it: without it, the lock's paths could be resolved against another store's root.
+  const rel = l["rootFromTop"];
+  if (rel === undefined) problems.push("it does not say which store of the worktree wrote it: it has no rootFromTop, the store's root relative to the worktree's top level");
+  else if (typeof rel !== "string") problems.push("its rootFromTop is not a string");
+  else if (rel !== ".") {
+    const bad = badPath(rel);
+    if (bad !== null) problems.push(`its rootFromTop ${JSON.stringify(rel)} ${bad}`);
+  }
   if (typeof l["boot"] !== "number" || !Number.isFinite(l["boot"])) problems.push("its boot time is not a number");
   for (const key of ["pidns", "branch"]) if (l[key] !== null && typeof l[key] !== "string") problems.push(`its ${key} is neither a string nor null`);
   for (const key of ["head", "start"]) if (typeof l[key] !== "string" || !SHA.test(l[key] as string)) problems.push(`its ${key} is not a commit id`);

@@ -5,7 +5,7 @@ import {
 } from "node:fs";
 import { dirname, join } from "node:path";
 
-import { errorText, fsyncDirectory, lockPath, pump, READ_FLAGS, readLock, runDirectory, validateLock, type Identity, type Lock, type LockEntry } from "./mutation-lock.ts";
+import { errorText, fsyncDirectory, lockPath, pump, READ_FLAGS, readLock, runDirectory, shellWord, validateLock, type Identity, type Lock, type LockEntry } from "./mutation-lock.ts";
 import type { Store } from "./paths.ts";
 
 /**
@@ -337,9 +337,6 @@ export interface RestoreOptions {
   /** Only these entries are restored and proved (the run's own restore after R11); the temp sweep and the directories are as always. */
   readonly entries?: readonly number[];
 }
-
-/** A path as a shell word: bare when it is plain, else single-quoted. */
-export const shellWord = (p: string): string => (/^[\w./@%+=:,-]+$/.test(p) ? p : `'${p.replace(/'/g, "'\\''")}'`);
 
 /** What to do about an error the operating system gave for `path`. */
 function fixFor(error: unknown, path: string): string {

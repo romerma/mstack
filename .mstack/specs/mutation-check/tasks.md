@@ -251,7 +251,8 @@ requirements it covers (`agents/implementer.md`, "Your report").
 
 - [x] 3.4 In `src/cli.ts`, add `case "verify"` to `main` (`src/cli.ts:72-111`) and `cmdVerify`:
   `--mutation [--timeout <seconds>]` calls `runMutation`; `--restore` calls `readLock`,
-  `validateLock`, `liveness`, then `restoreFromLock`; any other flag, `--force` included, is a usage
+  `validateLock`, `placeOf` (the lock's store against this one, round 2 review B3), `liveness`, then
+  `restoreFromLock`; any other flag, `--force` included, is a usage
   error; the exit codes and lines of R12, R15, R22-R25. Add `verify --mutation [--timeout S] |
   --restore` to `USAGE` (`src/cli.ts:38`) and exit 3 to its exit-code line (`:68`). Add a `## verify`
   section to `docs/wiki/The-CLI.md`, before `## version`, with the transcripts of a killed run, a
@@ -278,9 +279,14 @@ requirements it covers (`agents/implementer.md`, "Your report").
   fails, over every other code`, `R5 the CLI refuses to revert its own source` (the sandbox holds a
   commit of this checkout's `bin/` and `src/`, a later commit changes `src/run-helper.mjs`, and
   `<sandbox>/bin/mstack verify --mutation` exits 2), `R23 restore refuses a lock from another host,
-  naming it and the by-hand recovery` (added by stage 4, for a mutant no named test killed). Done
-  when `bun test tests/mutation-cli.test.ts` ends ` 12 pass` and ` 0 fail`, the node command prints
-  `# fail 0`, and `node
+  naming it and the by-hand recovery` (added by stage 4, for a mutant no named test killed). In a
+  new `tests/mutation-two-stores.test.ts`, the stores `pkg/a` and `pkg/b` of one worktree (round 2
+  review, B3): `R24 a restore from another store of the worktree refuses, names the lock's store,
+  and the restore there repairs it`, `R24 the same after the whole checkout is moved` and `R24 a
+  lock that does not say which store of the worktree wrote it cannot be read`. Done
+  when `bun test tests/mutation-cli.test.ts` ends ` 12 pass` and ` 0 fail`, `bun test
+  tests/mutation-two-stores.test.ts` ends ` 3 pass` and ` 0 fail`, the node command prints
+  `# fail 0` for both, and `node
   scripts/check-doc-links.mjs README.md docs/wiki/*.md` ends `0 broken`. (covers R1, R5, R15, R22,
   R23, R24, R25)
 

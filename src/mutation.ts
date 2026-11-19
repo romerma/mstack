@@ -3,7 +3,7 @@ import { existsSync, lstatSync, readlinkSync, realpathSync } from "node:fs";
 import { basename, dirname, join, resolve, sep } from "node:path";
 
 import { git, gitBytes } from "./git.ts";
-import { fold, liveness, lockPath, readLock, restoreCommand } from "./mutation-lock.ts";
+import { fold, fromLockStore, liveness, lockPath, placeOf, readLock, restoreCommand } from "./mutation-lock.ts";
 import { entryAt, type Entry } from "./mutation-tree.ts";
 import { runningCliRoot, STORE_DIR, type Store } from "./paths.ts";
 import { measureStart, resolveCommit, scopeClass } from "./size.ts";
@@ -382,7 +382,7 @@ function lockRefusal(store: Store, lock: string, running: string): Refusal | nul
   }
   const record = read.lock;
   const cli = typeof record.cli === "string" ? record.cli : here;
-  const restore = restoreCommand(cli, here);
+  const restore = fromLockStore(restoreCommand(cli, here), record.rootFromTop, placeOf(store));
   const alive = liveness(record);
   const said = { running: "running", "not-running": "not running", unknown: "cannot tell whether it is running" }[alive.state];
   const fix = {

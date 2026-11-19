@@ -6,7 +6,7 @@ import * as costs from "./costs.ts";
 import { runGate } from "./gate.ts";
 import { isActive } from "./lifecycle.ts";
 import * as hooklog from "./hooklog.ts";
-import { LOCK_NAME, restoreCommand } from "./mutation-lock.ts";
+import { LOCK_NAME, lockStoreDir, restoreCommand, shellWord } from "./mutation-lock.ts";
 import { findStore, type Store } from "./paths.ts";
 import { reportFiles, reportKind, roleOf, substantialReports } from "./roles.ts";
 import { parseState, type Item } from "./state.ts";
@@ -427,19 +427,8 @@ const LOCKED_GIT = new RegExp(
  * No git process starts unless a segment is a listed git command.
  */
 function lockReason(cwd: string): string | null {
-  let gitDir: string;
-  try {
-    gitDir = execFileSync("git", ["rev-parse", "--absolute-git-dir"], {
-      cwd,
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "ignore"],
-      timeout: 4_000,
-      env: { ...process.env, GIT_OPTIONAL_LOCKS: "0" },
-    }).trim();
-  } catch {
-    return null;
-  }
-  if (gitDir === "") return null;
+  const gitDir = gitAnswer(cwd, ["rev-parse", "--absolute-git-dir"]);
+  if (gitDir === null) return null;
   const file = join(gitDir, LOCK_NAME);
   try {
     lstatSync(file);
@@ -451,15 +440,33 @@ function lockReason(cwd: string): string | null {
   const lead = `mstack: ${file} exists, so a mutation run has this tree's code reverted and a git command that writes would keep or lose that`;
   const parsed = readLockRecord(file);
   if (parsed === null) return `${lead}. The lock cannot be read as a run's record; 'mstack gate' says what to do`;
-  return `${lead}. It is held by pid ${parsed.pid}: wait for it, or if it is not running, run ${restoreCommand(parsed.cli)}`;
+  // The restore runs from the lock's own store: two stores of one worktree share its lock.
+  const top = gitAnswer(cwd, ["rev-parse", "--show-toplevel"]);
+  const where = top === null ? `from ${parsed.rootFromTop} under this worktree's top level: ` : `cd ${shellWord(lockStoreDir(top, parsed.rootFromTop))} && `;
+  return `${lead}. It is held by pid ${parsed.pid}: wait for it, or if it is not running, run ${where}${restoreCommand(parsed.cli)}`;
 }
 
-function readLockRecord(file: string): { pid: number; cli: string } | null {
+function gitAnswer(cwd: string, args: readonly string[]): string | null {
+  try {
+    const out = execFileSync("git", args, {
+      cwd,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+      timeout: 4_000,
+      env: { ...process.env, GIT_OPTIONAL_LOCKS: "0" },
+    }).trim();
+    return out === "" ? null : out;
+  } catch {
+    return null;
+  }
+}
+
+function readLockRecord(file: string): { pid: number; cli: string; rootFromTop: string } | null {
   try {
     const record: unknown = JSON.parse(readFileSync(file, "utf8"));
     if (record === null || typeof record !== "object") return null;
-    const { pid, cli } = record as { pid?: unknown; cli?: unknown };
-    return typeof pid === "number" && Number.isInteger(pid) && typeof cli === "string" && cli.startsWith("/") ? { pid, cli } : null;
+    const { pid, cli, rootFromTop } = record as { pid?: unknown; cli?: unknown; rootFromTop?: unknown };
+    return typeof pid === "number" && Number.isInteger(pid) && typeof cli === "string" && cli.startsWith("/") && typeof rootFromTop === "string" ? { pid, cli, rootFromTop } : null;
   } catch {
     return null;
   }

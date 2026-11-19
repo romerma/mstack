@@ -676,11 +676,16 @@ not such a process is not alive.
 - **THEN** `verify --restore` exits 2, and no file changes
 
 ### Requirement: R24 The lock is checked before a restore writes
-IF the lock is not one JSON document of version 1, or a path in it is absolute, empty, has an
-empty, `.`, `..` or `.git` segment, or appears twice, THEN `verify --restore` MUST exit 2, write
-nothing, keep the lock, and name what is wrong; for a lock that cannot be read it MUST also name
-the by-hand recovery and what it discards; paths are resolved against the current store's root,
-and the output says so when that differs from the root the lock names.
+IF the lock is not one JSON document of version 1, does not name its store's root relative to the
+worktree's top level, or a path in it is absolute, empty, has an empty, `.`, `..` or `.git`
+segment, or appears twice, THEN `verify --restore` MUST exit 2, write nothing, keep the lock, and
+name what is wrong; for a lock that cannot be read it MUST also name the by-hand recovery and what
+it discards. Two stores of one worktree share its lock: IF the store root the lock names relative
+to the worktree's top level is not this store's, THEN `verify --restore` MUST exit 2, write nothing
+to the tree, the lock or the run directory, and name the directory to run it from, and the gate's
+line, the hook's reason and R1's refusal of the lock MUST name that directory too; a lock's paths
+are resolved against the root of the store it names, never against another store's, in a moved
+checkout or not.
 
 #### Scenario: A path outside the root
 - **WHEN** the lock was edited to name `../outside.txt`
@@ -690,6 +695,14 @@ and the output says so when that differs from the root the lock names.
 - **WHEN** the lock holds `garbage`
 - **THEN** `verify --restore` exits 2, says `git stash push --include-untracked` saves every change
   and discards nothing, and the tree and the lock are unchanged
+
+#### Scenario: Two stores in one worktree
+- **WHEN** a run in the store `pkg/a` is SIGKILLed during its check, and `verify --restore` runs
+  from the store `pkg/b`, in place or after the whole checkout is moved to another directory
+- **THEN** it exits 2 naming the directory of `pkg/a`; the tree (B's tracked and untracked files
+  included), the lock and the run directory are unchanged; B's gate line, B's R1 refusal and the
+  hook's reason in B name that directory; and `verify --restore` from `pkg/a` exits 0, with the
+  tree as it was before the run and no lock
 
 ### Requirement: R25 Every message that names the restore names the CLI that wrote the lock
 WHEN a run, a refusal, a failed restore, the gate or the hook names `verify --restore`, the system

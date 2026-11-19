@@ -36,7 +36,7 @@ function withBox(body: (box: Box, outside: string) => void): void {
   }
 }
 
-const lockText = (cli: string): string => `${JSON.stringify({ v: 1, run: "20261119T090000Z-4242-abcd", pid: 4242, cli, entries: [] })}\n`;
+const lockText = (cli: string): string => `${JSON.stringify({ v: 1, run: "20261119T090000Z-4242-abcd", pid: 4242, cli, rootFromTop: ".", entries: [] })}\n`;
 
 function decide(command: string, cwd: string): { denied: boolean; reason: string } {
   const out = preToolUse({ tool_name: "Bash", tool_input: { command }, cwd });

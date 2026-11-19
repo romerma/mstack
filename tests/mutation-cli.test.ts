@@ -91,7 +91,7 @@ function writeLock(r: { root: string }, fields: Record<string, unknown>): string
   const head = git(r.root, "rev-parse", "HEAD");
   const lock = {
     v: 1, run, pid: spawnSync("true").pid, host: hostname(), boot: bootTime(), pidns: pidNamespace(), startedAt: "2026-01-01T00:00:00.000Z",
-    cli: CLI, root: r.root, head, start: head, branch: null, entries: [], createdDirs: [], removedDirs: [], ...fields,
+    cli: CLI, root: r.root, rootFromTop: ".", head, start: head, branch: null, entries: [], createdDirs: [], removedDirs: [], ...fields,
   };
   const file = join(git(r.root, "rev-parse", "--absolute-git-dir"), "mstack-mutation.lock");
   writeFileSync(file, `${JSON.stringify(lock, null, 2)}\n`);
@@ -254,7 +254,7 @@ test("R24 restore refuses a lock with a path outside the root", SPAWN_TEST, () =
     commitAll(top, "a store in app/");
     const sha = createHash("sha256").update("outside\n").digest("hex");
     const run = "20260101T000000Z-1-abcd";
-    const file = writeLock({ root: top }, { root: app, entries: [{ n: 0, path: "../outside.txt", start: null, head: { sha256: sha, bits: 0o644 }, tmp: `.mstack-mutation-${run}-0.` }] });
+    const file = writeLock({ root: top }, { root: app, rootFromTop: "app", entries: [{ n: 0, path: "../outside.txt", start: null, head: { sha256: sha, bits: 0o644 }, tmp: `.mstack-mutation-${run}-0.` }] });
     const lock = readFileSync(file, "utf8");
     const ran = cli(app, ["verify", "--restore"]);
     assert.equal(ran.code, 2, ran.all);
