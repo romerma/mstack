@@ -83,8 +83,10 @@ A sketch of the contract, not output from a run; task 3.4 pastes real output int
 `null`, in this order: not a repository; no base; base not a commit; start lost; no obligations; an
 operation in progress (`rebase-merge`, `rebase-apply`, `MERGE_HEAD`, `CHERRY_PICK_HEAD`,
 `REVERT_HEAD`, `BISECT_LOG` through `git rev-parse --git-path`); the lock exists; empty revert set;
-the shapes of R3; the merges of R4; tracked changes outside the store directory (`git status
---porcelain=v1 -z --untracked-files=no`); the working-tree entries of R2; R5 (`realpath` of each
+the shapes of R3; the merges of R4; tracked paths outside the store directory flagged
+skip-worktree or assume-unchanged, whose changes `git status` does not show (`git -C <top>
+ls-files -v -z`: tag `S`, or a lower-case letter; round 1 review, B2); tracked changes outside the
+store directory (`git status --porcelain=v1 -z --untracked-files=no`); the working-tree entries of R2; R5 (`realpath` of each
 path under `realpath(running)`).
 
 - R3's modes: anything but `000000`, `100644`, `100755` on either side.

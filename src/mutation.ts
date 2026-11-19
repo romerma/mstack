@@ -259,6 +259,19 @@ export function refusals(store: Store, state: State, item: Item | undefined, run
     };
   }
 
+  const hidden = flaggedTracked(store);
+  if (hidden === null) return { message: "git could not list the tracked files", fix: "run it again; if it persists, check 'git status'" };
+  if (hidden.length > 0) {
+    const clear = [
+      ...(hidden.some((h) => h.flag.includes("skip-worktree")) ? ["'git update-index --no-skip-worktree -- <path>'"] : []),
+      ...(hidden.some((h) => h.flag.includes("assume-unchanged")) ? ["'git update-index --no-assume-unchanged -- <path>'"] : []),
+    ];
+    return {
+      message: `tracked files whose changes git does not show: ${some(hidden.map((h) => `${h.path} (${h.flag})`))}`,
+      fix: `clear the flag, from the repository's top, with ${clear.join(" and ")}, then commit or stash what it hid, and run it again; nothing was changed`,
+    };
+  }
+
   const dirty = dirtyTracked(store);
   if (dirty === null) return { message: "git could not say whether tracked files have changes", fix: "run it again; if it persists, check 'git status'" };
   if (dirty.length > 0) {
@@ -376,15 +389,44 @@ function lockRefusal(store: Store, lock: string, running: string): Refusal | nul
   };
 }
 
+/** The store directory relative to the repository's top, as git names paths from there; null when git cannot answer. */
+function storeDirFromTop(store: Store): string | null {
+  const prefix = git(store, ["rev-parse", "--show-prefix"], { raw: true });
+  return prefix === null ? null : `${prefix.replace(/\n$/, "")}${STORE_DIR}`;
+}
+
+/**
+ * Tracked paths outside the store directory whose changes `git status` does
+ * not show, relative to the repository's top, with the flag that hides them:
+ * `git ls-files -v` tags a skip-worktree path `S`, and an assume-unchanged one
+ * with a lower-case letter. Null when git cannot answer.
+ */
+function flaggedTracked(store: Store): { path: string; flag: string }[] | null {
+  const storeDir = storeDirFromTop(store);
+  const top = git(store, ["rev-parse", "--show-cdup"]);
+  if (storeDir === null || top === null) return null;
+  const out = git(store, ["-C", top, "ls-files", "-v", "-z"], { raw: true });
+  if (out === null) return null;
+  const found: { path: string; flag: string }[] = [];
+  for (const field of out.split("\0")) {
+    const tag = field.slice(0, 1);
+    const path = field.slice(2);
+    if (field === "" || path === storeDir || path.startsWith(`${storeDir}/`)) continue;
+    const skip = tag === "S" || tag === "s";
+    const assume = /^[a-z]$/.test(tag);
+    if (skip || assume) found.push({ path, flag: skip && assume ? "skip-worktree and assume-unchanged" : skip ? "skip-worktree" : "assume-unchanged" });
+  }
+  return found;
+}
+
 /**
  * Tracked paths outside the store directory with a change, staged or not,
  * relative to the repository's top. Null when git cannot answer.
  */
 function dirtyTracked(store: Store): string[] | null {
-  const prefix = git(store, ["rev-parse", "--show-prefix"], { raw: true });
+  const storeDir = storeDirFromTop(store);
   const out = git(store, ["status", "--porcelain=v1", "-z", "--untracked-files=no"], { raw: true });
-  if (prefix === null || out === null) return null;
-  const storeDir = `${prefix.replace(/\n$/, "")}${STORE_DIR}`;
+  if (storeDir === null || out === null) return null;
   const paths: string[] = [];
   const fields = out.split("\0");
   for (let i = 0; i < fields.length; i++) {

@@ -40,8 +40,11 @@ requirements it covers (`agents/implementer.md`, "Your report").
   back` (case-insensitive only), `R2 a path of the set on disk under another case`
   (case-insensitive only), `R2 an untracked symlink at a parent directory`, `R5 a revert path inside
   the running CLI is refused with the copy commands, and not from a copy` (it passes the sandbox
-  root as `running`, then a directory outside it). Done when `bun test
-  tests/mutation-refusals.test.ts` ends ` 16 pass` (or fewer passes plus skips, on a case-sensitive
+  root as `running`, then a directory outside it), `R2 a skip-worktree file is refused, naming the
+  flag and the command that clears it`, `R2 an assume-unchanged file is refused, naming the flag
+  and the command that clears it` and `R2 a flagged file under the store directory is not refused`
+  (the three added in round 1, for B2). Done when `bun test
+  tests/mutation-refusals.test.ts` ends ` 19 pass` (or fewer passes plus skips, on a case-sensitive
   filesystem) and ` 0 fail`, and the node command prints `# fail 0`. (covers R1, R2, R5)
 
 - [x] 1.3 In `src/mutation.ts`, add to `refusals` the shapes of R3 (modes, the file/directory

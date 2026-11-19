@@ -313,3 +313,43 @@ test("R5 a revert path inside the running CLI is refused with the copy commands,
     }
   });
 });
+
+/** The sandbox with `src/conf.ts` changed by the item, then flagged and edited: git status shows nothing. */
+function flagged(box: Sandbox, flag: string, path = "src/conf.ts"): string {
+  const root = box.store.root;
+  put(root, "src/conf.ts", "conf at start\n");
+  const start = started(box);
+  put(root, "src/conf.ts", "conf at head\n");
+  commitAll(root, "the item");
+  git(root, "update-index", flag, path);
+  put(root, path, "a local edit git does not show\n");
+  assert.equal(git(root, "status", "--porcelain", "--untracked-files=no"), "", "git shows the edit, so this test proves nothing");
+  return start;
+}
+
+test("R2 a skip-worktree file is refused, naming the flag and the command that clears it", () => {
+  withBox((box) => {
+    const { st, it } = active(flagged(box, "--skip-worktree"));
+    const r = refused(refuse(box, st, it), /src\/conf\.ts \(skip-worktree\)/);
+    assert.match(r.fix, /git update-index --no-skip-worktree -- <path>/);
+    assert.doesNotMatch(r.fix, /assume-unchanged/);
+    assert.equal(readFileSync(join(box.store.root, "src/conf.ts"), "utf8"), "a local edit git does not show\n");
+  });
+});
+
+test("R2 an assume-unchanged file is refused, naming the flag and the command that clears it", () => {
+  withBox((box) => {
+    const { st, it } = active(flagged(box, "--assume-unchanged"));
+    const r = refused(refuse(box, st, it), /src\/conf\.ts \(assume-unchanged\)/);
+    assert.match(r.fix, /git update-index --no-assume-unchanged -- <path>/);
+    assert.doesNotMatch(r.fix, /skip-worktree/);
+    assert.equal(readFileSync(join(box.store.root, "src/conf.ts"), "utf8"), "a local edit git does not show\n");
+  });
+});
+
+test("R2 a flagged file under the store directory is not refused", () => {
+  withBox((box) => {
+    const { st, it } = active(flagged(box, "--skip-worktree", ".mstack/state.json"));
+    assert.equal(refuse(box, st, it), null);
+  });
+});

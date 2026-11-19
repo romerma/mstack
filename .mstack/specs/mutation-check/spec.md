@@ -79,14 +79,16 @@ run directory and no row.
 - **THEN** it exits 2 naming the path, and no run directory is left
 
 ### Requirement: R2 Refusals on the working tree
-IF a tracked file outside the store directory has an uncommitted change, staged or not; or
+IF a tracked file outside the store directory has an uncommitted change, staged or not, or is
+flagged skip-worktree or assume-unchanged, so that git does not show its changes; or
 anything the filesystem resolves sits at a path the start has and HEAD lacks (a file, a
 directory, a symlink, or a variant); or a path of the set or one of its parent directories exists
 under a name other than git's (it is absent by exact name, but a variant is there); or a parent
 directory of a path of the set is a symlink or not a directory; or, after the baseline ran, HEAD
 is not the commit it was before it, a tracked file outside the store directory changed, or the
 key of R21 is not the one taken before the baseline; THEN the system MUST exit 2, name up to ten
-of the paths, and write no lock, no run directory, no row and no baseline receipt.
+of the paths (a flagged one with its flag and the `git update-index` command that clears it), and
+write no lock, no run directory, no row and no baseline receipt.
 
 #### Scenario: A dirty tracked file
 - **WHEN** `src/a.ts` is modified and uncommitted
@@ -95,6 +97,13 @@ of the paths, and write no lock, no run directory, no row and no baseline receip
 #### Scenario: The store's own files may be dirty
 - **WHEN** only `.mstack/state.json` and `.mstack/progress/current.md` are modified
 - **THEN** the run is not refused
+
+#### Scenario: A flag that hides a change
+- **WHEN** `src/conf.ts` is flagged `--skip-worktree` or `--assume-unchanged` and holds a local edit
+  that `git status` does not show
+- **THEN** it exits 2 naming `src/conf.ts`, the flag and `git update-index --no-skip-worktree` or
+  `--no-assume-unchanged`, and the file is byte-identical afterwards; a flagged file under the
+  store directory is not refused
 
 #### Scenario: An untracked file where the revert puts one back
 - **WHEN** the item deleted `src/old.ts` and an untracked `src/old.ts` exists
