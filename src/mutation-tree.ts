@@ -275,6 +275,8 @@ export function applyRevert(store: Store, lock: Lock, step: (name: string) => vo
 
   for (const d of lock.removedDirs) {
     try {
+      // Only a directory by exact name, every parent too: never one reached through a symlink or under another name.
+      if (entryAt(root, d).kind !== "dir") continue;
       rmdirSync(join(root, d));
     } catch (error) {
       const code = codeOf(error);
@@ -401,6 +403,13 @@ export function restoreFromLock(store: Store, lock: Lock, options: RestoreOption
   }
   for (const d of [...lock.createdDirs].reverse()) {
     try {
+      // Only a directory by exact name, every parent too; anything else there is left and reported.
+      const at = entryAt(root, d);
+      if (empty(at)) continue;
+      if (at.kind !== "dir") {
+        out.left.push(d);
+        continue;
+      }
       rmdirSync(join(root, d));
     } catch (error) {
       if (codeOf(error) !== "ENOENT") out.left.push(d);
@@ -471,6 +480,8 @@ function sweepTemps(root: string, e: LockEntry, fail: (path: string, reason: str
   const dir = join(root, rel);
   let names: string[];
   try {
+    // Listed only as a directory by exact name, every parent too: never through a symlink or under another name.
+    if (rel !== "." && entryAt(root, rel).kind !== "dir") return;
     names = readdirSync(dir);
   } catch (error) {
     const code = codeOf(error);

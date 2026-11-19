@@ -215,7 +215,9 @@ only those (R11, the review's N5). Step names are the test seam, as `LockOptions
    records; the first that does not stops the revert with nothing written (R11).
 1. Entries the start lacks, deepest first: `entryAt` must hold H(p) and every parent must be a
    directory by exact name (R11); `unlink`; step `reverted:<n>`.
-2. `removedDirs`: `rmdir`; ENOTEMPTY leaves it (it holds something the run did not write).
+2. `removedDirs`: `rmdir` where `entryAt` finds a directory by exact name, so never through a
+   symlinked parent (round 1 review, NB8); ENOTEMPTY leaves it (it holds something the run did not
+   write).
 3. Entries the start has, shallowest first: p must hold H(p), or, where HEAD lacks p, nothing may
    resolve there (R11); `mkdir` each absent parent (a `createdDirs` entry); open `<dir>/<tmp><pid>.tmp`
    with `wx` and mode 0600, write `start/<n>`, `fchmod` S's bits, fsync, close (step
@@ -231,8 +233,10 @@ run's restore after R11, keeps the restore and its proof to those entries; the t
 directories are as always. First
 every temp name of every entry that is a regular file is
 unlinked (`spec42r3/ro-exp`: the sweep takes the run's names, leaves a directory with such a name
-and the user's `notes.tmp`). Then entries HEAD lacks, deepest first; `createdDirs`, deepest first,
-`rmdir` when empty, else left and reported; entries HEAD has, shallowest first. Per entry, with E
+and the user's `notes.tmp`), in p's directory only when `entryAt` finds it a directory by exact
+name, so never through a symlinked parent (round 1 review, NB8). Then entries HEAD lacks, deepest
+first; `createdDirs`, deepest first, `rmdir` when empty and a directory by exact name, else left
+and reported; entries HEAD has, shallowest first. Per entry, with E
 the entry at p by exact name:
 
 | E | H(p) a file | H(p) absent |

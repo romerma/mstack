@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { chmodSync, existsSync, lstatSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { acquireLock, sweepStale } from "../src/mutation-lock.ts";
@@ -338,6 +338,28 @@ test("R9 a start file of mode 100755 is put back with its executable bits", () =
       assert.deepEqual(applyRevert(r.store, locked(r)), { ok: true });
       assert.equal(read(r.root, "src/run.sh"), "#!/bin/sh\necho start\n");
       assert.equal(bits(r.root, "src/run.sh").toString(8), (0o777 & ~umask).toString(8));
+    },
+  );
+});
+
+test("R10 the revert removes no directory through a symlinked parent", () => {
+  withRepo(
+    (root) => put(root, "src/keep.ts", "k\n"),
+    (root) => put(root, "src/feature/sub/x.ts", "x\n"),
+    (r) => {
+      const lock = locked(r);
+      assert.deepEqual(lock.removedDirs, ["src/feature/sub", "src/feature"]);
+      // Outside the working tree: an empty directory the rmdir of src/feature/sub would reach through a link.
+      const elsewhere = join(gitDirOf(r), "elsewhere");
+      mkdirSync(join(elsewhere, "sub"), { recursive: true });
+      const x = lock.entries.find((e) => e.path === "src/feature/sub/x.ts");
+      applyRevert(r.store, lock, (step) => {
+        if (step !== `reverted:${x?.n}`) return;
+        rmSync(join(r.root, "src/feature"), { recursive: true });
+        symlinkSync(elsewhere, join(r.root, "src/feature"));
+      });
+      assert.ok(existsSync(join(elsewhere, "sub")), "the revert removed a directory through the symlink");
+      assert.ok(lstatSync(join(r.root, "src/feature")).isSymbolicLink());
     },
   );
 });

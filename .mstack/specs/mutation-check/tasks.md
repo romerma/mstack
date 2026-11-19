@@ -116,8 +116,9 @@ requirements it covers (`agents/implementer.md`, "Your report").
   the lock and the revert: the revert writes nothing` (both added in round 1, for B1), `R10 an
   untracked file in a directory the revert removes when empty is kept` and `R9 a start file of mode
   100755 is put back with its executable bits` (both added in round 1, for mutants no named test
-  killed). Done when `bun test tests/mutation-revert.test.ts` ends ` 15 pass` and ` 0 fail`, and
-  the node command prints `# fail 0`. (covers R8, R9, R10, R11)
+  killed), `R10 the revert removes no directory through a symlinked parent` (added in round 1, for
+  NB8). Done when `bun test tests/mutation-revert.test.ts` ends ` 16 pass` and ` 0 fail`, and the
+  node command prints `# fail 0`. (covers R8, R9, R10, R11)
 
 - [x] 2.3 In `src/mutation-tree.ts`, add `restoreFromLock(store, lock, options?)` with `options` `{
   step?; rename?; entries? }` (`rename` defaults to `renameSync`; a test passes one that throws an `EXDEV`
@@ -148,8 +149,9 @@ requirements it covers (`agents/implementer.md`, "Your report").
   that holds the start's content at the proof keeps the lock` (the three added in round 1, for
   mutants no named test killed), `R24 the restore checks the lock itself, and writes nothing for one
   that fails the check` (added in round 1, for NB4), `R13 the restore leaves a lock that another
-  run wrote` (added in round 1, for NB6). Done when `bun test
-  tests/mutation-restore.test.ts` ends ` 25 pass` (or fewer passes plus two skips, on a
+  run wrote` (added in round 1, for NB6), `R10 the restore lists and removes nothing through a
+  symlinked parent` (added in round 1, for NB8). Done when `bun test
+  tests/mutation-restore.test.ts` ends ` 26 pass` (or fewer passes plus two skips, on a
   case-sensitive filesystem) and ` 0 fail`,
   and the node command prints `# fail 0`. (covers R10, R13, R14, R15, R17, R22, R24)
 

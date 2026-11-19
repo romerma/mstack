@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { chmodSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { join, sep } from "node:path";
 
 import { readLock, type Lock } from "../src/mutation-lock.ts";
@@ -565,4 +565,36 @@ test("R13 the restore leaves a lock that another run wrote", () => {
     assert.ok(now !== null && "lock" in now, "A's restore unlinked B's lock");
     assert.equal(now.lock.run, b.run);
   });
+});
+
+test("R10 the restore lists and removes nothing through a symlinked parent", () => {
+  withRepo(
+    (root) => {
+      put(root, "src/lib/a.ts", "a\n");
+      put(root, "src/gone/sub/y.ts", "y\n");
+    },
+    (root) => {
+      put(root, "src/lib/a.ts", "a2\n");
+      rmSync(join(root, "src/gone"), { recursive: true });
+    },
+    (r) => {
+      const lock = reverted(r);
+      assert.deepEqual(lock.createdDirs, ["src/gone", "src/gone/sub"]);
+      // Outside the working tree: a file with the run's temp name, and an empty directory where createdDirs reach.
+      const elsewhere = join(lock.root, ".git", "elsewhere");
+      const a = lock.entries.find((e) => e.path === "src/lib/a.ts");
+      const tempNamed = join(elsewhere, "lib", `${a?.tmp}99999.tmp`);
+      put(elsewhere, `lib/${a?.tmp}99999.tmp`, "not the run's\n");
+      mkdirSync(join(elsewhere, "gone", "sub"), { recursive: true });
+      for (const d of ["lib", "gone"]) {
+        rmSync(join(r.root, "src", d), { recursive: true });
+        symlinkSync(join(elsewhere, d), join(r.root, "src", d));
+      }
+      const result = restoreFromLock(r.store, lock);
+      assert.ok(existsSync(tempNamed), "the temp sweep unlinked a file through the symlink");
+      assert.ok(existsSync(join(elsewhere, "gone", "sub")), "the restore removed a directory through the symlink");
+      assert.deepEqual(result.failed.map((f) => f.path), ["src/lib/a.ts"]);
+      assert.ok(existsSync(lockFileOf(r)), "the lock went with a path not restored");
+    },
+  );
 });
