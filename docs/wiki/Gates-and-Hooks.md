@@ -270,10 +270,12 @@ Walking the lines that carry the weight:
   records no receipt. The line names the lock, the pid, the host, the start time and the number
   of paths, then says one of three things. *Running*: wait; it does not name the restore.
   *Not running*: the fix is the absolute path of the CLI that wrote the lock followed by
-  `verify --restore` (and the running CLI's as well, when that file is gone), preceded by
-  `cd <its directory> &&` when another store of the same worktree wrote the lock: two stores
-  share a worktree's git directory, and so its lock. A path with a character the shell reads (a
-  space, a quote) is single-quoted, so the line runs as printed. The `cd` is printed only when
+  `verify --restore`, preceded by `cd <its directory> &&` when another store of the same
+  worktree wrote the lock: two stores share a worktree's git directory, and so its lock. When
+  that file is gone (a plugin update moves the versioned cache path), the line says so, naming
+  it, and the command it offers is the running CLI's instead: a path that is gone is never
+  offered as a command, since it cannot run. A path with a character the shell reads (a space, a
+  quote) is single-quoted, so the line runs as printed. The `cd` is printed only when
   the restore run there takes the lock; a lock that names its store in another case or Unicode
   form than git does gets the by-hand recovery instead, since on a disk that folds names that
   directory is this store, whose restore refuses the lock again. *Cannot be told*

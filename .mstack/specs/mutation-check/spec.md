@@ -712,9 +712,11 @@ checkout or not.
 ### Requirement: R25 Every message that names the restore names the CLI that wrote the lock
 WHEN a run, a refusal, a failed restore, the gate or the hook names `verify --restore`, the system
 MUST give it as the absolute path of the CLI that wrote the lock followed by `verify --restore`,
-and, when no file exists at that path, also the absolute path of the CLI that is running, each
-path one shell word (single-quoted when it holds a character the shell reads, item 101) and the
-directory of a `cd` in front of it the same, so the line runs as printed; it
+and, when no file exists at that path, the absolute path of the CLI that is running followed by
+`verify --restore` instead, with the path that is gone named in front of the way out and not
+offered as a command, since it cannot run (item 101); each path one shell word (single-quoted
+when it holds a character the shell reads, item 101) and the directory of a `cd` in front of the
+command the same, so every command a line offers runs as printed; it
 MUST NOT name `sh` together with the lock in any output; and the lines a run prints when it
 takes the lock MUST also say that a file saved at a reverted path in the moment the run puts it
 back is lost.
@@ -727,7 +729,9 @@ back is lost.
 
 #### Scenario: The writing CLI is gone
 - **WHEN** the gate runs with a lock whose CLI path no longer exists
-- **THEN** its line names that path and the running CLI's path, each with `verify --restore`
+- **THEN** its line names that path, and the one command it offers is the running CLI's path
+  with `verify --restore`, preceded by `cd <the lock's store> &&` when another store of the
+  worktree wrote the lock; the gone path is not followed by `verify --restore` (item 101)
 
 ### Requirement: R26 The PreToolUse hook denies git writes under a lock
 WHILE the lock exists in the git directory of the hook input's `cwd`, the system MUST deny any

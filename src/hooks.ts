@@ -455,13 +455,16 @@ function lockReason(cwd: string): string | null {
   const parsed = readLockRecord(file);
   if (parsed === null) return `${lead}. The lock cannot be read as a run's record, so the way out is ${FOR_A_PERSON}: ${BY_HAND}; 'mstack gate' says the same`;
   // The restore runs from the lock's own store: two stores of one worktree share its lock.
-  const held = `${lead}. It is held by pid ${parsed.pid}: wait for it, or if it is not running`;
+  const held = `${lead}. It is held by pid ${parsed.pid}`;
+  const restore = restoreCommand(parsed.cli);
   const top = gitAnswer(cwd, ["rev-parse", "--show-toplevel"]);
-  if (top === null) return `${held}, run from ${parsed.rootFromTop} under this worktree's top level: ${restoreCommand(parsed.cli)}`;
+  if (top === null) {
+    return `${held}: ${restore.lead}wait for it, or if it is not running, run from ${parsed.rootFromTop} under this worktree's top level: ${restore.command}`;
+  }
   // The `cd` only to a store whose restore takes the lock: a spelling that differs only in case or Unicode form would loop (item 101, A3).
-  const way = inLockStore(restoreCommand(parsed.cli), top, parsed.rootFromTop);
-  if ("line" in way) return `${held}, run ${way.line}`;
-  return `${held}: ${way.none}, so the way out is ${FOR_A_PERSON}: ${BY_HAND}; 'mstack gate' says the same`;
+  const way = inLockStore(restore, top, parsed.rootFromTop);
+  if ("line" in way) return `${held}: ${way.lead}wait for it, or if it is not running, run ${way.line}`;
+  return `${held}: wait for it, or if it is not running: ${way.none}, so the way out is ${FOR_A_PERSON}: ${BY_HAND}; 'mstack gate' says the same`;
 }
 
 function gitAnswer(cwd: string, args: readonly string[]): string | null {

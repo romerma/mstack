@@ -157,7 +157,9 @@ test("R25 the gate line names the lock's CLI, and the running CLI when that path
 
       rmSync(there);
       const gone = lineWith(quiet(r).failures, /mstack-mutation\.lock/);
-      assert.ok(gone.includes(`${there} verify --restore`) && gone.includes(`${running} verify --restore`), gone);
+      // Item 101, round 1 review B1: a CLI that is gone cannot run, so it is named and not offered as a command.
+      assert.ok(gone.endsWith(` -> the CLI that wrote the lock, ${there}, is gone; run ${running} verify --restore`), gone);
+      assert.ok(!gone.includes(`${there} verify --restore`), gone);
       assert.doesNotMatch(gone, /\bsh [^\n]*mstack-mutation\.lock/);
     } finally {
       rmSync(base, { recursive: true, force: true });

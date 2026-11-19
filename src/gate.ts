@@ -708,11 +708,11 @@ function lockProblem(held: NonNullable<ReturnType<typeof readLock>>, file: strin
     case "running":
       return { message: `${what}: the run is running (${alive.reason})`, fix: "wait for it to end; the lock goes when it finishes" };
     case "not-running":
-      return { message: `${what}: the run is not running (${alive.reason})`, fix: "line" in way ? `run ${way.line}` : byHand };
+      return { message: `${what}: the run is not running (${alive.reason})`, fix: "line" in way ? `${way.lead}run ${way.line}` : byHand };
     case "unknown":
       return {
         message: `${what}: whether the run is running cannot be told (${alive.reason})`,
-        fix: "line" in way ? `run ${way.line} where the run started (host ${lock.host}); or by hand: ${BY_HAND}` : byHand,
+        fix: "line" in way ? `${way.lead}run ${way.line} where the run started (host ${lock.host}); or by hand: ${BY_HAND}` : byHand,
       };
   }
 }

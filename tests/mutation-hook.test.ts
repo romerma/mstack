@@ -161,7 +161,9 @@ test("R25 the deny reason names the lock's CLI", () => {
     const gone = join(tmpdir(), "mstack-no-such-copy", "bin", "mstack");
     writeFileSync(box.lockFile, lockText(gone));
     const d = decide("git commit -m x", box.root);
-    assert.ok(d.reason.includes(`${gone} verify --restore`) && d.reason.includes(`${running} verify --restore`), d.reason);
+    // Item 101, round 1 review B1: a CLI that is gone cannot run, so it is named and not offered as a command.
+    assert.ok(d.reason.includes(`the CLI that wrote the lock, ${gone}, is gone; `) && d.reason.endsWith(` && ${running} verify --restore`), d.reason);
+    assert.ok(!d.reason.includes(`${gone} verify --restore`), d.reason);
     assert.ok(d.reason.includes(box.lockFile) && d.reason.includes("4242"), d.reason);
     assert.doesNotMatch(d.reason, /\bsh [^\n]*mstack-mutation\.lock/);
     writeFileSync(box.lockFile, lockText(running));

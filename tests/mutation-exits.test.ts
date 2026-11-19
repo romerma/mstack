@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 import { runGate } from "../src/gate.ts";
 import { preToolUse } from "../src/hooks.ts";
 import { refusals, revertSet } from "../src/mutation.ts";
-import { acquireLock, prepareRun } from "../src/mutation-lock.ts";
+import { acquireLock, prepareRun, shellWord } from "../src/mutation-lock.ts";
 import { restoreRun } from "../src/mutation-run.ts";
 import { storeAt, type Store } from "../src/paths.ts";
 import { setup } from "../src/setup.ts";
@@ -38,10 +38,19 @@ interface Ran {
   readonly all: string;
 }
 
-function run(bin: string, cwd: string, args: readonly string[]): Ran {
+function run(bin: string, cwd: string, args: readonly string[], input?: string): Ran {
   outsideCheckout(cwd);
-  const p = spawnSync(bin, [...args], { cwd, encoding: "utf8", env: { ...process.env, NO_COLOR: "1" }, timeout: 120_000 });
+  const p = spawnSync(bin, [...args], { cwd, encoding: "utf8", input, env: { ...process.env, NO_COLOR: "1" }, timeout: 120_000 });
   return { code: p.status, out: p.stdout, all: `${p.stdout}${p.stderr}` };
+}
+
+/** The hook's reason for `git commit -m x` in `cwd`, from `cli`'s own process, so the running CLI it names is that copy. */
+function hookOf(cli: string, cwd: string): string {
+  const input = JSON.stringify({ hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: { command: "git commit -m x" }, cwd });
+  const ran = run(cli, cwd, ["hook", "pre-tool-use"], input);
+  assert.equal(ran.code, 0, ran.all);
+  assert.notEqual(ran.out.trim(), "", `the hook allowed git commit under a lock: ${ran.all}`);
+  return (JSON.parse(ran.out) as { hookSpecificOutput: { permissionDecisionReason: string } }).hookSpecificOutput.permissionDecisionReason;
 }
 
 /** A printed line, run as printed: `/bin/sh -c <line>`. */
@@ -196,13 +205,41 @@ test("A1 every printed restore line runs as printed when the CLI's path and the 
     assert.equal(again, fromRun);
     repairs(o, again, o.a);
 
-    // Third run, its CLI gone since: the gate names the running CLI as well, and that line runs.
-    await killedRun(o);
-    const lock = JSON.parse(readFileSync(o.lockFile, "utf8")) as Record<string, unknown>;
-    writeFileSync(o.lockFile, `${JSON.stringify({ ...lock, cli: join(o.base, `gone ${ODD}`, "bin", "mstack") }, null, 2)}\n`);
-    const gone = captureOf(run(o.cli, o.a, ["gate", "--quiet"]).all, /mstack-mutation\.lock[^\n]* -> run [^\n]* \(that file is gone\), or (.+)$/m, "A's gate, the CLI gone");
-    assert.equal(gone, fromRun);
-    repairs(o, gone, o.a);
+    // Third run, its CLI gone since: the gate names the gone CLI in prose and offers the running one, and that line runs.
+    const goneCli = join(o.base, `gone ${ODD}`, "bin", "mstack");
+    const lead = `the CLI that wrote the lock, ${shellWord(goneCli)}, is gone; `;
+    const killedGone = async (): Promise<void> => {
+      await killedRun(o);
+      const lock = JSON.parse(readFileSync(o.lockFile, "utf8")) as Record<string, unknown>;
+      writeFileSync(o.lockFile, `${JSON.stringify({ ...lock, cli: goneCli }, null, 2)}\n`);
+    };
+    await killedGone();
+    const gone = captureOf(run(o.cli, o.a, ["gate", "--quiet"]).all, /mstack-mutation\.lock[^\n]* -> (.+)$/m, "A's gate, the CLI gone");
+    assert.equal(gone, `${lead}run ${fromRun}`);
+    repairs(o, gone.slice(`${lead}run `.length), o.a);
+
+    // Runs four to seven, the CLI gone, read from B: each of the four printers offers one command, the running
+    // CLI's behind the cd to A, never the gone one, and that command, run as printed from B, puts A's tree back.
+    const goneFromB: [string, () => string, RegExp][] = [
+      ["B's gate", () => run(o.cli, o.b, ["gate", "--quiet"]).all, /mstack-mutation\.lock[^\n]* -> (.+)$/m],
+      ["B's R1 refusal", () => run(o.cli, o.b, ["verify", "--mutation"]).all, /^mutation: (.+ puts the tree back and removes the lock)$/m],
+      ["the hook in B", () => hookOf(o.cli, o.b), /It is held by pid \d+: (.+)$/],
+      ["B's restore", () => run(o.cli, o.b, ["verify", "--restore"]).out, /^mutation: ((?:.+; )?run it from that store: .+)$/m],
+    ];
+    const said = [
+      `${lead}run ${fromB}`,
+      `${lead}${fromB} puts the tree back and removes the lock`,
+      `${lead}wait for it, or if it is not running, run ${fromB}`,
+      `${lead}run it from that store: ${fromB}`,
+    ];
+    for (const [i, [what, print, pattern]] of goneFromB.entries()) {
+      await killedGone();
+      const printed = captureOf(print(), pattern, `${what}, the CLI gone`);
+      assert.equal(printed, said[i], `${what}: the CLI gone`);
+      assert.ok(!printed.includes(`${shellWord(goneCli)} verify --restore`), `${what} offers the gone CLI as a command: ${printed}`);
+      // The one command the line offers, as printed: from its cd to the end of the line or to the prose after it.
+      repairs(o, captureOf(printed, /(cd .+? verify --restore)(?: puts the tree back|$)/, what), o.b);
+    }
   } finally {
     killAll(o.marker);
     rmSync(o.base, { recursive: true, force: true });

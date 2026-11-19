@@ -82,6 +82,12 @@ function refuse(out: (line: string) => void, message: string, fix: string): numb
   return 2;
 }
 
+/** R15's line after a restore that failed, a run's or `verify --restore`'s: R25's command for once the paths are cleared. */
+function stillLocked(lock: Lock): string {
+  const restoreLine = restoreCommand(lock.cli);
+  return `mutation: the lock stays; ${restoreLine.lead}once each path above is cleared: ${restoreLine.command}`;
+}
+
 /** The paths whose line in the key differs between two keys. */
 function keyChanges(before: MutationKey, after: MutationKey): string[] {
   if (before.key === null || after.key === null) return [];
@@ -350,7 +356,8 @@ async function run(store: Store, options: MutationOptions, ctl: Control): Promis
   let revertDone = false;
   try {
     out(`mutation: lock ${lockPath(store) ?? ""}, run ${lock.run}`);
-    out(`mutation: if this process dies: ${restoreCommand(lock.cli)}`);
+    const restoreLine = restoreCommand(lock.cli);
+    out(`mutation: if this process dies: ${restoreLine.lead}${restoreLine.command}`);
     out("mutation: until the run ends, save nothing to the files it reverts: a save in the moment one is put back is lost");
     step("lock-written");
     sweepStale(store, lock);
@@ -409,7 +416,7 @@ async function run(store: Store, options: MutationOptions, ctl: Control): Promis
       const again = acquireLock(store, lock);
       out(again.ok ? "mutation: the lock file was gone, so it was written again from the run's record" : `mutation: the lock file was gone and could not be written again: ${again.reason}`);
     }
-    out(`mutation: the lock stays; once each path above is cleared: ${restoreCommand(lock.cli)}`);
+    out(stillLocked(lock));
     if (held.length > 0) out(changedLine(held));
     return 3;
   }
@@ -526,7 +533,7 @@ export function restoreRun(store: Store, options: { readonly out: (line: string)
     refuse(
       out,
       `the lock is the run's of the store at ${name(lock.rootFromTop)} in this worktree, and this store is at ${name(place.rel)}; nothing was written, and the lock stays`,
-      "line" in way ? `run it from that store: ${way.line}` : way.none,
+      "line" in way ? `${way.lead}run it from that store: ${way.line}` : way.none,
     );
     if ("none" in way) byHand();
     return 2;
@@ -538,7 +545,12 @@ export function restoreRun(store: Store, options: { readonly out: (line: string)
     return refuse(out, `the run that wrote the lock may be alive: pid ${lock.pid} on ${lock.host}, ${alive.reason}`, "wait for it to end: it restores the tree itself; nothing was written");
   }
   if (alive.state === "unknown") {
-    refuse(out, `whether the run that wrote the lock is alive cannot be told: pid ${lock.pid} on ${lock.host}, ${alive.reason}`, `run ${restoreCommand(lock.cli)} where it ran, on ${lock.host}; nothing was written`);
+    const restoreLine = restoreCommand(lock.cli);
+    refuse(
+      out,
+      `whether the run that wrote the lock is alive cannot be told: pid ${lock.pid} on ${lock.host}, ${alive.reason}`,
+      `${restoreLine.lead}run ${restoreLine.command} where it ran, on ${lock.host}; nothing was written`,
+    );
     byHand();
     return 2;
   }
@@ -558,7 +570,7 @@ export function restoreRun(store: Store, options: { readonly out: (line: string)
   const restored = restore(store, lock, undefined, () => {});
   reportRestore(out, restored);
   if (restored.failed.length > 0) {
-    out(`mutation: the lock stays; once each path above is cleared: ${restoreCommand(lock.cli)}`);
+    out(stillLocked(lock));
     return 3;
   }
   out(restoredLine(restored));

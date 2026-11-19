@@ -391,8 +391,8 @@ function lockRefusal(store: Store, lock: string, running: string): Refusal | nul
   const said = { running: "running", "not-running": "not running", unknown: "cannot tell whether it is running" }[alive.state];
   const fix = {
     running: "wait for it to end",
-    "not-running": "line" in way ? `${way.line} puts the tree back and removes the lock` : byHand,
-    unknown: "line" in way ? `wait for it to end, or run ${way.line} where it ran, on ${String(record.host)}` : `wait for it to end; ${byHand}`,
+    "not-running": "line" in way ? `${way.lead}${way.line} puts the tree back and removes the lock` : byHand,
+    unknown: "line" in way ? `${way.lead}wait for it to end, or run ${way.line} where it ran, on ${String(record.host)}` : `wait for it to end; ${byHand}`,
   }[alive.state];
   return {
     message: `a mutation run holds the tree: lock ${lock}, pid ${String(record.pid)}, started ${String(record.startedAt)}, ${said} (${alive.reason})`,

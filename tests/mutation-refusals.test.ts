@@ -189,7 +189,9 @@ test("R1 an existing lock is refused naming its pid", () => {
     const { st, it } = active(start);
     const r = refused(refuse(box, st, it), new RegExp(`pid ${pid}\\b`));
     assert.match(`${r.message}\n${r.fix}`, /2026-11-19T09:02:11Z[\s\S]*not running/);
-    assert.match(r.fix, /\/opt\/mstack\/bin\/mstack verify --restore/);
+    // No file is at /opt/mstack/bin/mstack, so it is named and the running CLI's command offered (item 101, round 1 review B1).
+    assert.match(r.fix, /^the CLI that wrote the lock, \/opt\/mstack\/bin\/mstack, is gone; \S+\/bin\/mstack verify --restore puts the tree back/);
+    assert.doesNotMatch(r.fix, /\/opt\/mstack\/bin\/mstack verify --restore/);
   });
 });
 

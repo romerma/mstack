@@ -127,22 +127,26 @@ export const shellWord = (p: string): string => (/^[\w./@%+=:,-]+$/.test(p) ? p 
 /** The directory of the store a lock names, in the worktree whose top level is `top`. */
 export const lockStoreDir = (top: string, rootFromTop: string): string => (rootFromTop === "." ? top : join(top, rootFromTop));
 
-/** A restore line that runs as printed, or why there is none. */
-export type RestoreLine = { readonly line: string } | { readonly none: string };
+/**
+ * A restore line that runs as printed, with what a message says in front of the
+ * way out that holds it (`Restore.lead`), or why there is none.
+ */
+export type RestoreLine = { readonly line: string; readonly lead: string } | { readonly none: string };
 
 const storeName = (rel: string): string => (rel === "." ? "the worktree's top level" : rel);
 
 /**
- * `cd <the lock's store> && command`, when the restore run from that directory
- * takes the lock as its own store's: the store it finds there is the one git
- * names `rootFromTop` in the worktree whose top level is `top`. Otherwise why
- * no directory does. A `rootFromTop` that differs from git's spelling only in
- * case or Unicode form names, on a disk that folds them, this same store, whose
- * restore refuses the lock again, so a `cd` there would lead in a loop; on a
- * disk that does not fold them it names no directory, or another store. The
- * disk decides, through git, and nothing here folds a name (item 101, A3).
+ * `cd <the lock's store> && <the restore's command>`, when the restore run from
+ * that directory takes the lock as its own store's: the store it finds there is
+ * the one git names `rootFromTop` in the worktree whose top level is `top`.
+ * Otherwise why no directory does. A `rootFromTop` that differs from git's
+ * spelling only in case or Unicode form names, on a disk that folds them, this
+ * same store, whose restore refuses the lock again, so a `cd` there would lead
+ * in a loop; on a disk that does not fold them it names no directory, or
+ * another store. The disk decides, through git, and nothing here folds a name
+ * (item 101, A3).
  */
-export function inLockStore(command: string, top: string, rootFromTop: string): RestoreLine {
+export function inLockStore(restore: Restore, top: string, rootFromTop: string): RestoreLine {
   const dir = lockStoreDir(top, rootFromTop);
   const lead = `no verify --restore takes this lock: it names its store ${storeName(rootFromTop)}, and`;
   let isDirectory = false;
@@ -155,7 +159,7 @@ export function inLockStore(command: string, top: string, rootFromTop: string): 
   const found = findStore(dir);
   const there = found === null ? null : placeOf(found);
   if (there === null || there.top !== top) return { none: `${lead} there is no store of this worktree at ${dir}` };
-  if (there.rel === rootFromTop) return { line: `cd ${shellWord(dir)} && ${command}` };
+  if (there.rel === rootFromTop) return { line: `cd ${shellWord(dir)} && ${restore.command}`, lead: restore.lead };
   if (fold(there.rel) === fold(rootFromTop)) {
     return { none: `${lead} ${dir} is the store git spells ${storeName(there.rel)}, which differs only in case or Unicode form, so its restore refuses the lock too` };
   }
@@ -163,14 +167,14 @@ export function inLockStore(command: string, top: string, rootFromTop: string): 
 }
 
 /**
- * `command` run from the lock's store, when `place` is another store of the
- * worktree: two stores share the worktree's lock, and a restore resolves the
- * lock's paths against the root of the store it runs in (round 2 review, B3).
- * When git cannot say where this store is, the command as it is.
+ * The restore's command run from the lock's store, when `place` is another
+ * store of the worktree: two stores share the worktree's lock, and a restore
+ * resolves the lock's paths against the root of the store it runs in (round 2
+ * review, B3). When git cannot say where this store is, the command as it is.
  */
-export function fromLockStore(command: string, rootFromTop: string, place: Place | null): RestoreLine {
-  if (place === null || rootFromTop === place.rel) return { line: command };
-  return inLockStore(command, place.top, rootFromTop);
+export function fromLockStore(restore: Restore, rootFromTop: string, place: Place | null): RestoreLine {
+  if (place === null || rootFromTop === place.rel) return { line: restore.command, lead: restore.lead };
+  return inLockStore(restore, place.top, rootFromTop);
 }
 
 /** `<git dir>/mstack-mutation/<run>/`; null outside a repository. */
@@ -704,16 +708,26 @@ function processAge(pid: number): number | null {
   return Number(m[1] ?? 0) * 86400 + Number(m[2] ?? 0) * 3600 + Number(m[3]) * 60 + Number(m[4]);
 }
 
+/** R25: the restore as a message names it. */
+export interface Restore {
+  /** `<cli> verify --restore`, the one command a line offers for the restore; its path is one shell word. */
+  readonly command: string;
+  /** Empty, or, when the CLI that wrote the lock is gone, the clause that names it, said in front of the way out. */
+  readonly lead: string;
+}
+
 /**
- * R25: how a message names the restore. The CLI that wrote the lock, since a
- * restore run by another copy may not know the lock's format; and, when that
- * file is gone, the CLI that is running as well. Each path is one shell word
- * (`shellWord`), so the line runs as printed from a home directory with a
- * space in it (item 101).
+ * R25: the CLI that wrote the lock, since a restore run by another copy may not
+ * know the lock's format. When no file is at that path it cannot run, so it is
+ * named in prose, in front of the way out, and the command is the CLI that is
+ * running: every command a line offers runs as printed, and a `cd` goes in
+ * front of that command, never of prose (item 101, round 1 review, B1). Each
+ * path is one shell word (`shellWord`), so the line runs as printed from a home
+ * directory with a space in it.
  */
-export function restoreCommand(cli: string, running: string = join(runningCliRoot(), "bin", "mstack")): string {
-  if (existsSync(cli)) return `${shellWord(cli)} verify --restore`;
-  return `${shellWord(cli)} verify --restore (that file is gone), or ${shellWord(running)} verify --restore`;
+export function restoreCommand(cli: string, running: string = join(runningCliRoot(), "bin", "mstack")): Restore {
+  if (existsSync(cli)) return { command: `${shellWord(cli)} verify --restore`, lead: "" };
+  return { command: `${shellWord(running)} verify --restore`, lead: `the CLI that wrote the lock, ${shellWord(cli)}, is gone; ` };
 }
 
 /** The by-hand recovery for a lock that cannot be read as a run's record (R24), in the gate's words and in `verify --restore`'s. */
