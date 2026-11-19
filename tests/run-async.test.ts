@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -272,6 +272,36 @@ ${delay === 0 ? `${kill};` : `setTimeout(() => ${kill}, ${delay});`}
         killGroup(victim);
         killAll(mark);
       }
+    });
+  }
+});
+
+test("R12 async: a capture file that is gone or cannot be read still settles the result, which says so", SPAWN_TEST, async () => {
+  // Round 2 review, non-blocking 8: the close handler read the capture file with no catch.
+  for (const how of ["removed", "replaced by a directory"]) {
+    await inDir(async (dir) => {
+      const tmp = join(dir, "tmp");
+      mkdirSync(tmp);
+      const release = join(dir, "release");
+      const saved = process.env["TMPDIR"];
+      process.env["TMPDIR"] = tmp;
+      let running: ReturnType<typeof runCommandAsync>;
+      try {
+        running = runCommandAsync(`while [ ! -e '${release}' ]; do sleep 0.05; done; echo printed; exit 3`, { cwd: dir, timeoutMs: 20_000 });
+      } finally {
+        if (saved === undefined) delete process.env["TMPDIR"];
+        else process.env["TMPDIR"] = saved;
+      }
+      const made = readdirSync(tmp);
+      assert.equal(made.length, 1, `the runner's temp directory is not under the TMPDIR set: ${JSON.stringify(made)}`);
+      const capture = join(tmp, made[0] as string, "out");
+      rmSync(capture);
+      if (how === "replaced by a directory") mkdirSync(capture);
+      writeFileSync(release, "");
+      const r = await Promise.race([running.result, sleep(15_000).then(() => null)]);
+      assert.ok(r !== null, `${how}: the result did not settle`);
+      assert.equal(r.code, 3, how);
+      assert.match(r.tail, /the output could not be read/, how);
     });
   }
 });

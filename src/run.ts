@@ -1,5 +1,5 @@
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
-import { closeSync, existsSync, mkdtempSync, openSync, readFileSync, rmSync } from "node:fs";
+import { closeSync, mkdtempSync, openSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -170,7 +170,13 @@ export function runCommandAsync(cmd: string, options: AsyncOptions): Running {
       if (done) return;
       done = true;
       try {
-        const tail = existsSync(out) ? lastLines(readFileSync(out, "utf8"), options.tailLines ?? DEFAULT_TAIL_LINES) : "";
+        let tail: string;
+        try {
+          tail = lastLines(readFileSync(out, "utf8"), options.tailLines ?? DEFAULT_TAIL_LINES);
+        } catch (error) {
+          // Gone, or not a file: what the command printed is lost, and its result still stands. A throw here would leave the caller's promise unsettled.
+          tail = `(the output could not be read: ${error instanceof Error ? error.message : String(error)})`;
+        }
         try {
           const h = JSON.parse(readFileSync(join(dir, "result.json"), "utf8")) as RunResult;
           resolve(result(h.code, h.signal, h.error === undefined ? undefined : new Error(h.error), h.timedOut, tail));

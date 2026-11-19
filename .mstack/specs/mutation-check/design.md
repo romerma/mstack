@@ -359,7 +359,10 @@ on both runtimes. The pid comes in argv and not from `process.ppid`: a caller th
 helper's first line had left it to pid 1, whose `kill(1, 0)` is EPERM and reads as alive, and the
 command ran to `--timeout` (round 2 review, non-blocking 1: a SIGKILL 3 or 10 ms after the spawn,
 both runtimes); and bun's `process.ppid` keeps a dead parent's pid. `runCommand` passes no
-fifth argument and does not change.
+fifth argument and does not change. When the helper has closed, a capture file that is gone or
+cannot be read gives a `tail` that says the output could not be read, and the result stands: a
+read that threw there was an uncaught exception with the tree reverted (round 2 review,
+non-blocking 8).
 
 `classify(result)`: `timedOut`, `error` or a non-null `signal` is blocked; 126 or 127 blocked; 0
 passed; anything else, 128+n included, failed (a kill).

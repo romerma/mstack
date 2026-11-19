@@ -178,8 +178,10 @@ requirements it covers (`agents/implementer.md`, "Your report").
   SIGKILLed the command's group is gone within 2 s` (the child caller leads its own group, and the
   test sends `kill -9` to that group), `R16 async: a caller SIGKILLed in the first milliseconds
   after the spawn leaves no command 3 s later` (added in review round 2, for non-blocking 1: the
-  child caller kills itself 0, 3 and 10 ms after `runCommandAsync` returns). Done when `bun test tests/run-async.test.ts`
-  ends ` 11 pass` and ` 0 fail`, `bun test tests/run.test.ts` ends ` 0 fail`, and the node command
+  child caller kills itself 0, 3 and 10 ms after `runCommandAsync` returns), `R12 async: a
+  capture file that is gone or cannot be read still settles the result, which says so` (added in
+  review round 2, for non-blocking 8). Done when `bun test tests/run-async.test.ts`
+  ends ` 12 pass` and ` 0 fail`, `bun test tests/run.test.ts` ends ` 0 fail`, and the node command
   for both files prints `# fail 0`. (covers R12, R16)
 
 ## 3. The run and the command
