@@ -342,9 +342,16 @@ else. `receipts()` and `status()` do not change.
 
 - `checkMutationLock(store, report)` in the workspace section prints R27's line (using
   `liveness`) and R28's warnings, for every worktree's `rescue/` under `git rev-parse
-  --git-common-dir` (its own `mstack-mutation/` and `worktrees/*/mstack-mutation/`), since the
-  main checkout's gate otherwise never reads a linked worktree's. `runVerification` fails and
-  runs nothing under a lock.
+  --path-format=absolute --git-common-dir` (git 2.31 or later; with an older git there is no
+  rescue warning, since the plain form may print a relative path) (its own `mstack-mutation/`
+  and `worktrees/*/mstack-mutation/`), since the main checkout's gate otherwise never reads a
+  linked worktree's. An entry is what is directly under a `rescue/`, so each `rescue/<k>/` is
+  one. A lock that is JSON but fails `validateLock` is reported as one that cannot be read as a
+  run's record, with its first problem and the by-hand recovery, because `liveness` trusts
+  fields that R24 checks. The restore command is `restoreCommand(lock.cli)`
+  (`src/mutation-lock.ts`), shared with the hook and with the messages of task 3.4.
+  `runVerification` fails and runs nothing under a lock: it asks for the lock's name first,
+  before it reads the item's obligations.
 - `prunable` (`src/worktree.ts:131`) leaves out a worktree whose git directory holds the lock or a
   `mstack-mutation/*/rescue/` with anything in it: `isDirty` (`:79`) reads the tree only, and once
   the restore leaves it clean, `git worktree remove` without `--force` deletes the rescue
@@ -352,7 +359,10 @@ else. `receipts()` and `status()` do not change.
 - `preToolUse` keeps `GUARDS` and adds, after them, a test of each segment against `GIT` followed
   by `(?:add|am|apply|checkout|cherry-pick|clean|commit|merge|mv|pull|rebase|reset|restore|revert|rm|stash|switch)(?![-\w])`.
   Only on a match does it run `git rev-parse --absolute-git-dir` in `input.cwd` and `lstat` the
-  lock; present denies, with the pid and R25's command when the lock parses.
+  lock; present denies, with the pid and R25's command when the lock holds an integer pid and an
+  absolute `cli` (the hook checks no more of it, since the lock's existence decides), and
+  otherwise with a reason that points at `mstack gate`. A lock name that cannot be `lstat`ed for a
+  reason other than ENOENT or ENOTDIR counts as present.
 - `GUARDS` gets one more entry, `rm` on a path ending in `mstack-mutation.lock`, which needs no
   git and no lock: an agent told that the gate is red may delete the lock. It reads no lock, so its
   reason points at `mstack gate` for the restore command rather than naming one (R25).
