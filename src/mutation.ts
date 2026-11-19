@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { existsSync, lstatSync, readdirSync, readFileSync, readlinkSync, realpathSync } from "node:fs";
 import { basename, dirname, join, resolve, sep } from "node:path";
 
-import { git } from "./git.ts";
+import { git, gitBytes } from "./git.ts";
 import { runningCliRoot, STORE_DIR, type Store } from "./paths.ts";
 import { measureStart, resolveCommit, scopeClass } from "./size.ts";
 import type { Item, State } from "./state.ts";
@@ -30,6 +30,10 @@ export interface RevertEntry {
 
 export interface RevertSet {
   readonly entries: readonly RevertEntry[];
+  /** Every path of the start..HEAD diff under the store's root, of any class: R3's file and directory test reads them. */
+  readonly diffPaths: readonly string[];
+  /** Paths of `entries` whose name is not UTF-8, as decoded with U+FFFD in place of the bytes that are not. */
+  readonly notUtf8: readonly string[];
 }
 
 /** The key, or null with the reason, which the run prints instead of writing a row. */
@@ -41,27 +45,46 @@ interface RawRecord {
   readonly srcSha: string;
   readonly dstSha: string;
   readonly path: string;
+  /** False when the path's bytes are not UTF-8, and `path` holds U+FFFD for them. */
+  readonly utf8: boolean;
 }
+
+const UTF8 = new TextDecoder("utf-8", { fatal: true });
 
 /**
  * `git diff --raw -z --no-renames --no-abbrev --relative <revs> --` in the
  * store's root: `:<src mode> <dst mode> <src sha> <dst sha> <status>` NUL
  * `<path>` NUL per path, the path relative to that root and never quoted.
- * Null when git fails or prints a record this parser does not understand.
+ * Read as bytes, so a name that is not UTF-8 is known to be one. Null when git
+ * fails or prints a record this parser does not understand.
  */
 function rawDiff(store: Store, revs: readonly string[]): RawRecord[] | null {
-  const out = git(store, ["diff", "--raw", "-z", "--no-renames", "--no-abbrev", "--relative", ...revs, "--"], { raw: true });
+  const out = gitBytes(store, ["diff", "--raw", "-z", "--no-renames", "--no-abbrev", "--relative", ...revs, "--"]);
   if (out === null) return null;
-  const fields = out.split("\0");
-  const records: RawRecord[] = [];
-  let i = 0;
-  for (; i + 1 < fields.length && fields[i] !== ""; i += 2) {
-    const m = /^:([0-7]{6}) ([0-7]{6}) ([0-9a-f]{40}|[0-9a-f]{64}) ([0-9a-f]{40}|[0-9a-f]{64}) [A-Z][0-9]*$/.exec(fields[i] as string);
-    if (m === null) return null;
-    records.push({ srcMode: m[1] as string, dstMode: m[2] as string, srcSha: m[3] as string, dstSha: m[4] as string, path: fields[i + 1] as string });
+  const fields: Buffer[] = [];
+  let at = 0;
+  for (let i = 0; i < out.length; i++) {
+    if (out[i] !== 0) continue;
+    fields.push(out.subarray(at, i));
+    at = i + 1;
   }
-  // Anything but the one empty field after the last NUL is a record cut short.
-  if (fields.slice(i).some((f) => f !== "")) return null;
+  // A record not ended by its NUL, or a header without its path, is cut short.
+  if (at !== out.length || fields.length % 2 !== 0) return null;
+  const records: RawRecord[] = [];
+  for (let i = 0; i < fields.length; i += 2) {
+    const m = /^:([0-7]{6}) ([0-7]{6}) ([0-9a-f]{40}|[0-9a-f]{64}) ([0-9a-f]{40}|[0-9a-f]{64}) [A-Z][0-9]*$/.exec((fields[i] as Buffer).toString("latin1"));
+    if (m === null) return null;
+    const bytes = fields[i + 1] as Buffer;
+    let path: string;
+    let utf8 = true;
+    try {
+      path = UTF8.decode(bytes);
+    } catch {
+      path = bytes.toString("utf8");
+      utf8 = false;
+    }
+    records.push({ srcMode: m[1] as string, dstMode: m[2] as string, srcSha: m[3] as string, dstSha: m[4] as string, path, utf8 });
+  }
   return records;
 }
 
@@ -70,10 +93,12 @@ export function revertSet(store: Store, start: string): RevertSet | null {
   const records = rawDiff(store, [start, "HEAD"]);
   if (records === null) return null;
   const scope = scopeClass(store);
-  const entries = records
-    .filter((r) => scope(r.path) === "code")
-    .map((r) => ({ path: r.path, startMode: r.srcMode, startBlob: r.srcSha, headMode: r.dstMode, headBlob: r.dstSha }));
-  return { entries };
+  const code = records.filter((r) => scope(r.path) === "code");
+  return {
+    entries: code.map((r) => ({ path: r.path, startMode: r.srcMode, startBlob: r.srcSha, headMode: r.dstMode, headBlob: r.dstSha })),
+    diffPaths: records.map((r) => r.path),
+    notUtf8: code.filter((r) => !r.utf8).map((r) => r.path),
+  };
 }
 
 /**
@@ -219,6 +244,22 @@ export function refusals(store: Store, state: State, item: Item | undefined, run
     };
   }
 
+  const odd = shapes(set);
+  if (odd.length > 0) {
+    return {
+      message: `the revert does not handle these shapes: ${some(odd.map((o) => `${o.path} (${o.why})`))}`,
+      fix: "nothing was changed; such an item gets no mutation receipt",
+    };
+  }
+
+  const merge = foreignMerge(store, start.from);
+  if (merge !== null) {
+    return {
+      message: merge,
+      fix: `rebase the branch onto ${start.branch} instead of merging it in, or 'mstack state set ${item.slug} --base <commit>' with a base after the merge`,
+    };
+  }
+
   const dirty = dirtyTracked(store);
   if (dirty === null) return { message: "git could not say whether tracked files have changes", fix: "run it again; if it persists, check 'git status'" };
   if (dirty.length > 0) {
@@ -243,6 +284,71 @@ export function refusals(store: Store, state: State, item: Item | undefined, run
       message: `the revert would change the source of the mstack that is running, ${running}: ${some(own)}`,
       fix: `run it from a copy of the CLI outside the tree: git worktree add --detach ${copy} HEAD, then ${copy.slice(0, -1)}/bin/mstack" verify --mutation, then git worktree remove ${copy}`,
     };
+  }
+  return null;
+}
+
+const REGULAR = new Set(["000000", "100644", "100755"]);
+
+/**
+ * Two spellings the filesystem may treat as one name fold equal: case, and
+ * Unicode normalisation. The first `toLowerCase` joins `ẞ` (U+1E9E) with `ss`,
+ * which upper-then-lower case alone keeps apart.
+ */
+function fold(s: string): string {
+  return s.normalize("NFD").toLowerCase().toUpperCase().toLowerCase().normalize("NFC");
+}
+
+/** Each set path or parent directory whose shape R3 refuses, with the reason. */
+function shapes(set: RevertSet): { path: string; why: string }[] {
+  const found = new Map<string, string>();
+  const note = (path: string, why: string): void => {
+    if (!found.has(path)) found.set(path, why);
+  };
+  const notUtf8 = new Set(set.notUtf8);
+  const diff = new Set(set.diffPaths);
+  for (const e of set.entries) {
+    if (e.path.includes("\n")) note(JSON.stringify(e.path).slice(1, -1), "a name that holds a newline");
+    else if (notUtf8.has(e.path)) note(e.path, "a name that is not UTF-8");
+    if (!REGULAR.has(e.startMode) || !REGULAR.has(e.headMode)) note(e.path, "not a regular file");
+    const parts = e.path.split("/");
+    const parentInDiff = parts.slice(1).some((_, i) => diff.has(parts.slice(0, i + 1).join("/")));
+    if (parentInDiff || set.diffPaths.some((d) => d.startsWith(`${e.path}/`))) note(e.path, "a file on one side and a directory on the other");
+  }
+  // Every set path and every parent of one, on both sides, by the name it would fold to.
+  const spellings = new Map<string, Set<string>>();
+  for (const e of set.entries) {
+    const parts = e.path.split("/");
+    for (let i = 1; i <= parts.length; i++) {
+      const s = parts.slice(0, i).join("/");
+      const key = fold(s);
+      const group = spellings.get(key) ?? new Set<string>();
+      group.add(s);
+      spellings.set(key, group);
+    }
+  }
+  for (const group of spellings.values()) {
+    if (group.size < 2) continue;
+    const names = [...group].sort();
+    for (const n of names) note(n, `differs only by case or Unicode normalisation from ${names.filter((o) => o !== n).join(", ")}`);
+  }
+  return [...found].map(([path, why]) => ({ path, why }));
+}
+
+/**
+ * R4: the first merge in `start..HEAD` with a parent other than its first that
+ * is not an ancestor of the start, said as the refusal's message; null when
+ * there is none. A git error reads as not an ancestor, so it refuses.
+ */
+function foreignMerge(store: Store, start: string): string | null {
+  const merges = git(store, ["rev-list", "--merges", `${start}..HEAD`]);
+  if (merges === null) return `git could not list the merges since ${short(start)}`;
+  for (const merge of merges.split("\n").filter((m) => m !== "")) {
+    const parents = git(store, ["rev-list", "--parents", "-n", "1", merge])?.split(" ").slice(2) ?? [];
+    for (const parent of parents) {
+      if (git(store, ["merge-base", "--is-ancestor", parent, start]) !== null) continue;
+      return `merge ${short(merge)} brings in ${short(parent)}, which is not in the history of the start ${short(start)}: the code since the start holds commits that are not the item's`;
+    }
   }
   return null;
 }

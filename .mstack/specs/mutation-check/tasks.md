@@ -44,7 +44,7 @@ requirements it covers (`agents/implementer.md`, "Your report").
   tests/mutation-refusals.test.ts` ends ` 16 pass` (or fewer passes plus skips, on a case-sensitive
   filesystem) and ` 0 fail`, and the node command prints `# fail 0`. (covers R1, R2, R5)
 
-- [ ] 1.3 In `src/mutation.ts`, add to `refusals` the shapes of R3 (modes, the file/directory
+- [x] 1.3 In `src/mutation.ts`, add to `refusals` the shapes of R3 (modes, the file/directory
   prefix test over every path of the start..HEAD diff, and the `fold` collisions over the set and
   its parent prefixes) and the merge rule of R4, as design.md "Refusals" defines them. Tests in a
   new `tests/mutation-shapes.test.ts`; a commit a case-insensitive checkout cannot hold is built in

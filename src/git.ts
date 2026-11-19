@@ -58,6 +58,9 @@ export interface GitOptions {
   readonly stdin?: string;
 }
 
+// A git that stops to ask for credentials never returns on its own.
+const gitEnv = (): NodeJS.ProcessEnv => ({ ...process.env, GIT_TERMINAL_PROMPT: "0", GIT_OPTIONAL_LOCKS: "0" });
+
 export function git(store: Store, args: readonly string[], options: GitOptions = {}): string | null {
   try {
     const out = execFileSync("git", args, {
@@ -66,10 +69,22 @@ export function git(store: Store, args: readonly string[], options: GitOptions =
       stdio: [options.stdin === undefined ? "ignore" : "pipe", "pipe", "ignore"],
       ...(options.stdin === undefined ? {} : { input: options.stdin }),
       timeout: GIT_TIMEOUT_MS,
-      // A git that stops to ask for credentials never returns on its own.
-      env: { ...process.env, GIT_TERMINAL_PROMPT: "0", GIT_OPTIONAL_LOCKS: "0" },
+      env: gitEnv(),
     });
     return options.raw === true ? out : out.trim();
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * `git()` with the output as bytes. UTF-8 decoding replaces a byte sequence
+ * that is not UTF-8 with U+FFFD, which turns a path git holds into one that is
+ * not on disk; a caller that must tell the two apart reads the bytes.
+ */
+export function gitBytes(store: Store, args: readonly string[]): Buffer | null {
+  try {
+    return execFileSync("git", args, { cwd: store.root, stdio: ["ignore", "pipe", "ignore"], timeout: GIT_TIMEOUT_MS, env: gitEnv() });
   } catch {
     return null;
   }
