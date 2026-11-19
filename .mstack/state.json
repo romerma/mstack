@@ -1540,11 +1540,12 @@
       "status": "specifying",
       "description": "Second half of the mutation check. Depends on item 42 (the mechanism). The round 2 spec review of item 42 worked out the rule for a receipt after a merge (its B3, rule C-prime with two companions) and measured five merge shapes; start from that table. R23 to R25 and R41 of the round 2 spec are the draft requirements.",
       "sdd": true,
+      "decision_required": "How is a state.json whose rules has no require_mutation_to_close read? A: as true, like every other rule (an upgraded store's items at verifying with code turn red until verify --mutation kills or a forced close records why). B: as false, with setup writing true for new stores (upgraded stores see nothing until they add the key). The spec author recommends A; only R10 depends on the answer. See .mstack/progress/spec_mutation-closing-check.md, 'Fork for the user'.",
       "source": "item 42 split, user decision of 2026-11-19 (A); spec_review_mutation-check_r2.md B3",
       "seams": [
         "CLI: mstack gate and state set --status done on an item at verifying with and without a killed receipt, on the branch and on the default branch after each merge shape"
       ],
-      "decision_required": "How is a state.json whose rules has no require_mutation_to_close read? A: as true, like every other rule (an upgraded store's items at verifying with code turn red until verify --mutation kills or a forced close records why). B: as false, with setup writing true for new stores (upgraded stores see nothing until they add the key). The spec author recommends A; only R10 depends on the answer. See .mstack/progress/spec_mutation-closing-check.md, 'Fork for the user'."
+      "size": "l"
     },
     {
       "id": 101,
