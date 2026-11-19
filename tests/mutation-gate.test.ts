@@ -234,3 +234,19 @@ test("R27 the line for a lock that cannot be read says the way out is a person a
     }
   });
 });
+
+test("R27 gate --full runs nothing under a lock that cannot be parsed", () => {
+  // Round 2 review, non-blocking 3, mutant g: only the lock's name decides, not whether it parses.
+  withRepo(twoFiles, edit, (r) => {
+    const marker = join(r.root, "ran.marker");
+    r.box.writeState(state([item({ status: "in_progress", base: r.start })], { verify: `node -e "require('fs').writeFileSync('${marker}','ran')"` }));
+    trackCurrent(r.box);
+    writeFileSync(lockFileOf(r), "garbage");
+    const before = existsSync(r.store.verification) ? readFileSync(r.store.verification, "utf8") : null;
+    const { value } = captured(() => runGate(r.store, { full: true }));
+    assert.ok(value.failed, "gate --full passed under a lock that cannot be parsed");
+    assert.ok(!existsSync(marker), "gate --full ran the obligation under a lock that cannot be parsed");
+    assert.equal(existsSync(r.store.verification) ? readFileSync(r.store.verification, "utf8") : null, before, "gate --full recorded a receipt");
+    assert.equal(readFileSync(lockFileOf(r), "utf8"), "garbage");
+  });
+});

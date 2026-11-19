@@ -190,3 +190,39 @@ test("R19 left in place and changed files are reported without a cause", SPAWN_T
     assert.equal(read(r, "out.log"), "log\n");
   });
 });
+
+test("R18 an edit to a path the item added, made during the run, writes no row", SPAWN_TEST, async () => {
+  // Round 2 review, non-blocking 3, mutant l: (a) blind to a path the start lacks wrote a killed row here.
+  const addB = (root: string): void => {
+    editA(root);
+    put(root, "src/b.ts", "added by the item\n");
+  };
+  await withRunRepo(CHECK, startA, addB, async (r) => {
+    const m = await mutate(r, during(() => writeFileSync(join(r.root, "src/b.ts"), "an edit during the run\n")));
+    assert.equal(m.code, 2, m.text);
+    assert.match(m.last, CHANGED);
+    assert.match(m.last, /\(a\)[^;]*src\/b\.ts/);
+    assert.deepEqual(mutationRows(r), []);
+    assert.equal(read(r, "src/b.ts"), "added by the item\n");
+    const rescued = m.lines.find((l) => /rescued src\/b\.ts to /.test(l));
+    assert.ok(rescued !== undefined, m.text);
+    assert.equal(readFileSync(rescued.replace(/^.* to /, ""), "utf8"), "an edit during the run\n");
+  });
+});
+
+test("R18 the lock replaced by another run's during the run: no row, and that lock stays", SPAWN_TEST, async () => {
+  // Round 2 review, non-blocking 3, mutant j: (c) blind to another run's lock wrote a killed row here.
+  await withRunRepo(CHECK, startA, editA, async (r) => {
+    const other = "20260101T000000Z-1-abcd";
+    const m = await mutate(r, during(() => {
+      const lock = JSON.parse(readFileSync(lockFileOf(r), "utf8")) as Record<string, unknown>;
+      writeFileSync(lockFileOf(r), `${JSON.stringify({ ...lock, run: other })}\n`);
+    }));
+    assert.equal(m.code, 2, m.text);
+    assert.match(m.last, CHANGED);
+    assert.match(m.last, new RegExp(`\\(c\\) the lock file names another run, ${other}`));
+    assert.deepEqual(mutationRows(r), []);
+    assert.equal(read(r, "src/a.ts"), "new\n");
+    assert.equal((JSON.parse(readFileSync(lockFileOf(r), "utf8")) as { run: string }).run, other, "the other run's lock did not stay");
+  });
+});

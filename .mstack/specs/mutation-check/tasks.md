@@ -224,8 +224,11 @@ requirements it covers (`agents/implementer.md`, "Your report").
   after the lock was deleted writes the lock again`, `R19 HEAD moved: both shas and git reset,
   mixed`, `R19 HEAD on another branch: git switch to the lock's branch, and no reset when that
   branch did not move`, `R19 the index line names git restore --staged and what it discards`, `R19 left in place
-  and changed files are reported without a cause`. Done when `bun test
-  tests/mutation-changed.test.ts` ends ` 12 pass` and ` 0 fail`, and the node command prints
+  and changed files are reported without a cause`, `R18 an edit to a path the item added, made
+  during the run, writes no row` and `R18 the lock replaced by another run's during the run: no
+  row, and that lock stays` (both added in review round 2, for its non-blocking 3, mutants l and
+  j). Done when `bun test
+  tests/mutation-changed.test.ts` ends ` 14 pass` and ` 0 fail`, and the node command prints
   `# fail 0`. (covers R15, R18, R19)
 
 - [x] 3.3 In `src/mutation-run.ts`, add the signal handling of design.md "The run" steps 1, 3, 6, 8
@@ -309,8 +312,9 @@ requirements it covers (`agents/implementer.md`, "Your report").
   anything is a warning`, `R28 a linked worktree's rescue warns from the main checkout, and prune
   offers no worktree holding a lock or a rescue` (its tree clean, its branch merged), `R27 the line
   for a lock that cannot be read says the way out is a person at a terminal` (added in review round
-  2, for non-blocking 2). Done when
-  `bun test tests/mutation-gate.test.ts` ends ` 9 pass` and ` 0
+  2, for non-blocking 2), `R27 gate --full runs nothing under a lock that cannot be parsed` (added
+  in review round 2, for its non-blocking 3, mutant g). Done when
+  `bun test tests/mutation-gate.test.ts` ends ` 10 pass` and ` 0
   fail`, `bun test tests/gate.test.ts` ends ` 0 fail`, and the node command for both files prints
   `# fail 0`. (covers R25, R27, R28)
 
