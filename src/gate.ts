@@ -5,6 +5,7 @@ import { all as decisionsFor } from "./decisions.ts";
 import { FORGED_IMPL_FIX, FORGED_SPEC_FIX, gateProblems, NO_VERDICT_FIX, NO_VERDICT_WORDS, ONLY_FAILED_FIX, ONLY_FAILED_WORDS, SELF_CLOSED_FIX, VERIFICATION_CHECK } from "./closing.ts";
 import { defaultBranch, git, headSha } from "./git.ts";
 import { readGlossary } from "./glossary.ts";
+import { gitDirOf, lockExistsIn, liveness, LOCK_NAME, readLock, rescueDirectories, restoreCommand, validateLock, type Lock } from "./mutation-lock.ts";
 import { runCommand } from "./run.ts";
 import { measureDiff, measureStart, resolveCommit, SMALL_MAX_FILES, SMALL_MAX_LINES } from "./size.ts";
 import { describeRow, entries as ledgerEntries, readVerdict } from "./ledger.ts";
@@ -89,6 +90,7 @@ export function runGate(store: Store, options: GateOptions = {}): Report {
   report.section("workspace");
   checkCliProvenance(store, report);
   checkWorkspace(store, report);
+  checkMutationLock(store, report);
 
   if (options.full === true && state !== null) {
     report.section("verification");
@@ -671,6 +673,50 @@ function checkWorkspace(store: Store, report: Report): void {
   }
 }
 
+const BY_HAND = "'git stash push --include-untracked' saves every change and discards nothing; then delete the lock";
+
+/**
+ * Item 42, R27 and R28. A lock means a run has reverted the item's code, or has
+ * left it reverted: nothing is green until it is restored. It fails whatever
+ * the item's status, with no active item included. A restore's rescue is
+ * reported from every worktree of the repository, since a linked worktree's
+ * gate is not the one anybody runs in the main checkout.
+ */
+function checkMutationLock(store: Store, report: Report): void {
+  const held = readLock(store);
+  if (held !== null) {
+    const { message, fix } = lockProblem(held, join(gitDirOf(store) ?? "", LOCK_NAME));
+    report.fail(message, fix);
+  }
+  const common = git(store, ["rev-parse", "--path-format=absolute", "--git-common-dir"]);
+  if (common === null || common === "") return;
+  for (const { dir, entries } of rescueDirectories(common)) {
+    report.warn(`${entries} ${entries === 1 ? "entry" : "entries"} in ${dir}: content a restore moved aside before it wrote HEAD's; compare it with the tree, then delete the directory`);
+  }
+}
+
+function lockProblem(held: NonNullable<ReturnType<typeof readLock>>, file: string): { message: string; fix: string } {
+  const unreadable = "a mutation lock exists and cannot be read as a run's record";
+  if ("damaged" in held) return { message: `${unreadable}: ${held.damaged}`, fix: BY_HAND };
+  const problems = validateLock(held.lock);
+  if (problems.length > 0) return { message: `${unreadable}: the lock ${file}: ${problems[0] as string}`, fix: BY_HAND };
+  const lock: Lock = held.lock;
+  const alive = liveness(lock);
+  const what = `the mutation lock ${file} is held by pid ${lock.pid} on ${lock.host}, started ${lock.startedAt}, ${lock.entries.length} path(s)`;
+  const command = restoreCommand(lock.cli);
+  switch (alive.state) {
+    case "running":
+      return { message: `${what}: the run is running (${alive.reason})`, fix: "wait for it to end; the lock goes when it finishes" };
+    case "not-running":
+      return { message: `${what}: the run is not running (${alive.reason})`, fix: `run ${command}` };
+    case "unknown":
+      return {
+        message: `${what}: whether the run is running cannot be told (${alive.reason})`,
+        fix: `run ${command} where the run started (host ${lock.host}); or by hand: ${BY_HAND}`,
+      };
+  }
+}
+
 /**
  * Has this item's verification actually been executed, here, at this commit?
  *
@@ -742,6 +788,12 @@ function checkVerificationRuns(store: Store, state: State, report: Report, full:
 }
 
 function runVerification(store: Store, state: State, report: Report): void {
+  const gitDir = gitDirOf(store);
+  if (gitDir !== null && lockExistsIn(gitDir)) {
+    // The workspace section above names the lock; a run's reverted tree is not the item's code.
+    report.fail("--full ran no verification: a mutation lock exists, so the working tree is not the item's code", "restore it first; the lock's line in the workspace section says how");
+    return;
+  }
   const active = state.items.find((i) => isActive(i.status));
   const required = obligations(state, active);
   if (required.length === 0) {

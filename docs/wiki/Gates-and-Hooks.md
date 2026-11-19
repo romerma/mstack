@@ -243,6 +243,39 @@ Walking the lines that carry the weight:
   non-trivially sized once an `sdd` item advances. Four zero-byte files used to satisfy it;
   they do not now.
 
+- **The mutation lock** (`src/gate.ts`, `checkMutationLock`) is a failure whatever the item's
+  status, with no active item included. `mstack verify --mutation` reverts the item's code in
+  your working tree behind `<git dir>/mstack-mutation.lock`; while that file exists the tree is
+  not the item's code, so the gate is red and `mstack gate --full` runs no obligation and
+  records no receipt. The line names the lock, the pid, the host, the start time and the number
+  of paths, then says one of three things. *Running*: wait; it does not name the restore.
+  *Not running*: the fix is the absolute path of the CLI that wrote the lock followed by
+  `verify --restore` (and the running CLI's as well, when that file is gone). *Cannot be told*
+  (another host, or another pid namespace): run the restore where the run started, or by hand
+  with `git stash push --include-untracked`, which saves every change and discards nothing.
+  A lock that cannot be read as a run's record fails the same way and names the by-hand
+  recovery. The `Stop` hook lists the line as a failure.
+
+  A restore that moved a file aside keeps it in `<git dir>/mstack-mutation/<run>/rescue/`.
+  While that directory holds anything, the gate in **any** worktree of the repository warns,
+  naming it and the number of entries, and `mstack worktree prune` does not offer a worktree
+  whose git directory holds the lock or such a directory, since removing the worktree would
+  delete it. A warning does not change the exit code. From a throwaway repository, with the
+  lock of a run that stopped after taking it (a script called `prepareRun` and `acquireLock`
+  and exited, so its pid is gone; the paths and the host name are shortened here):
+
+  ```console
+  $ mstack gate
+  -- workspace
+  [ok]    on branch feat/greet-flag
+  [ok]    working tree is clean
+  [fail]  the mutation lock /repo/.git/mstack-mutation.lock is held by pid 80885 on devbox, started 2026-11-19T12:35:40.747Z, 1 path(s): the run is not running (no such process)
+          fix: run /home/u/.claude/plugins/cache/mstack/0.3.0/bin/mstack verify --restore
+  [warn]  1 entry in /repo/.git/mstack-mutation/20261119T090000Z-4000-abcd/rescue: content a restore moved aside before it wrote HEAD's; compare it with the tree, then delete the directory
+
+  FAILED - 1 failure, 1 warning
+  ```
+
 - **"closed items to audit"** is `require_verdict_to_close`. An item marked `done` fails the
   gate if the ledger holds no verdict for it, if its only verdict is `verifier-failed`, or if
   every verdict it has came from the pass that wrote the code (`only implementer`). Three more

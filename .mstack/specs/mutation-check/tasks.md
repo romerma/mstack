@@ -274,7 +274,7 @@ requirements it covers (`agents/implementer.md`, "Your report").
 
 ## 4. The gate and the hook
 
-- [ ] 4.1 In `src/gate.ts`, add `checkMutationLock(store, report)` to the workspace section after
+- [x] 4.1 In `src/gate.ts`, add `checkMutationLock(store, report)` to the workspace section after
   `checkWorkspace` (`src/gate.ts:89-91`, so it runs with no active item) with R27's line, R25's
   command and R28's warnings (every worktree's rescue, design.md "The gate and the hook"), and make
   `runVerification` (`src/gate.ts:744`) fail and run nothing while the lock exists. In

@@ -1,7 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { createHash, randomBytes, type Hash } from "node:crypto";
 import {
-  closeSync, constants, fstatSync, fsyncSync, linkSync, lstatSync, mkdirSync, openSync, readdirSync, readFileSync,
+  closeSync, constants, existsSync, fstatSync, fsyncSync, linkSync, lstatSync, mkdirSync, openSync, readdirSync, readFileSync,
   readlinkSync, readSync, rmdirSync, rmSync, unlinkSync, writeSync,
 } from "node:fs";
 import { hostname, uptime } from "node:os";
@@ -611,4 +611,48 @@ function processAge(pid: number): number | null {
   const m = /^\s*(?:(?:(\d+)-)?(\d+):)?(\d+):(\d+)\s*$/.exec(r.stdout);
   if (m === null) return null;
   return Number(m[1] ?? 0) * 86400 + Number(m[2] ?? 0) * 3600 + Number(m[3]) * 60 + Number(m[4]);
+}
+
+/**
+ * R25: how a message names the restore. The CLI that wrote the lock, since a
+ * restore run by another copy may not know the lock's format; and, when that
+ * file is gone, the CLI that is running as well.
+ */
+export function restoreCommand(cli: string, running: string = join(runningCliRoot(), "bin", "mstack")): string {
+  if (existsSync(cli)) return `${cli} verify --restore`;
+  return `${cli} verify --restore (that file is gone), or ${running} verify --restore`;
+}
+
+/** Is there anything at the lock's name in this git directory? Only the name counts, not what it holds. */
+export function lockExistsIn(gitDir: string): boolean {
+  try {
+    lstatSync(join(gitDir, LOCK_NAME));
+    return true;
+  } catch (error) {
+    return codeOf(error) !== "ENOENT" && codeOf(error) !== "ENOTDIR";
+  }
+}
+
+export interface Rescue {
+  readonly dir: string;
+  readonly entries: number;
+}
+
+/** Every `<git dir>/mstack-mutation/<run>/rescue/` that holds an entry. */
+export function rescuesIn(gitDir: string): Rescue[] {
+  const found: Rescue[] = [];
+  const base = join(gitDir, RUNS);
+  for (const run of safeList(base)) {
+    const dir = join(base, run, "rescue");
+    const entries = safeList(dir).length;
+    if (entries > 0) found.push({ dir, entries });
+  }
+  return found;
+}
+
+/** The rescues of every worktree: the common git directory's own, and each linked worktree's under `worktrees/`. */
+export function rescueDirectories(commonDir: string): Rescue[] {
+  const own = rescuesIn(commonDir);
+  const linked = safeList(join(commonDir, "worktrees")).flatMap((name) => rescuesIn(join(commonDir, "worktrees", name)));
+  return [...own, ...linked];
 }

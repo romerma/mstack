@@ -4,6 +4,7 @@ import { basename, dirname, join, resolve } from "node:path";
 
 import { defaultBranch } from "./git.ts";
 import { git } from "./git.ts";
+import { lockExistsIn, rescuesIn } from "./mutation-lock.ts";
 import { UserError, type Store } from "./paths.ts";
 
 /**
@@ -134,8 +135,29 @@ export function prunable(store: Store): PruneCandidate[] {
   // so it was offered as safe to delete.
   const here = resolve(process.cwd());
   return list(store)
-    .filter((w) => !w.isMain && w.merged && !w.dirty && !isInside(here, w.path))
+    .filter((w) => !w.isMain && w.merged && !w.dirty && !isInside(here, w.path) && !holdsMutation(w.path))
     .map((info) => ({ info, reason: `${info.branch} is merged into the default branch` }));
+}
+
+/**
+ * Does this worktree's git directory hold a mutation lock, or a rescue with
+ * anything in it? `isDirty` reads the tree only, and once a restore has left the
+ * tree clean `git worktree remove` would delete the rescue with the worktree.
+ * One whose git directory cannot be read counts as holding, as in `isDirty`.
+ */
+function holdsMutation(path: string): boolean {
+  let gitDir: string;
+  try {
+    gitDir = execFileSync("git", ["rev-parse", "--absolute-git-dir"], {
+      cwd: path,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+      timeout: 5_000,
+    }).trim();
+  } catch {
+    return true;
+  }
+  return lockExistsIn(gitDir) || rescuesIn(gitDir).length > 0;
 }
 
 function isInside(candidate: string, directory: string): boolean {
