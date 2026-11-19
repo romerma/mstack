@@ -159,7 +159,11 @@ interface Lock {
   one. `readLock` returns `null`, `{ lock }` or `{ damaged }`; existence is `lstat`.
 - `validateLock` is R24. `sweepStale` runs once the run holds the lock: it removes
   `mstack-mutation.lock.*.tmp` other than its own and every run directory the lock does not name
-  whose `rescue/` is empty or absent. A run racing it can have its temp file swept before its link,
+  whose `rescue/` is empty or absent. That includes the staging of a live run that has prepared and
+  not yet linked its lock: one `setImmediate` (The run, step 6), or as long as that run is stopped.
+  If that run links after the sweeper has ended, its lock names staging that is gone, and the
+  revert's check of every staged copy (Revert, step 0) finds it before the first write and writes
+  nothing (round 1 review, B1). A run racing it can have its temp file swept before its link,
   which then fails with ENOENT, not EEXIST; `acquireLock` names the lock's holder on any failed link
   while a lock exists (`impl42s2`: 3 of 6 node runs of the two-holder test hit it before).
 
@@ -200,6 +204,8 @@ only those (R11, the review's N5). Step names are the test seam, as `LockOptions
 `revert-written:<n>`, `reverted:<n>`, `obligations-running`, `rescued:<n>`, `restore-written:<n>`,
 `restored:<n>` (after each entry of the restore), `lock-removed`.
 
+0. Every staged copy, `start/<n>` and `head/<n>`, must exist and hash to S(p) or H(p) as the lock
+   records; the first that does not stops the revert with nothing written (R11).
 1. Entries the start lacks, deepest first: `entryAt` must hold H(p) and every parent must be a
    directory by exact name (R11); `unlink`; step `reverted:<n>`.
 2. `removedDirs`: `rmdir`; ENOTEMPTY leaves it (it holds something the run did not write).
@@ -375,7 +381,7 @@ experiment named is the one the row rests on.
 | State | Tree | Lock, run directory | Exit |
 |---|---|---|---|
 | Refusals, baseline | untouched | none | none needed; an orphaned baseline obligation dies within 2 s (`orphan-exp`) |
-| Staging, or inside the temp lock write | untouched | run directory and maybe `mstack-mutation.lock.<run>.tmp`, no lock | none needed; the next run removes both (R8) |
+| Staging, or inside the temp lock write | untouched | run directory and maybe `mstack-mutation.lock.<run>.tmp`, no lock | none needed; the next run removes both (R8). A run stopped here, whose staging a later run swept, and that links after it: its revert finds a staged copy missing and writes nothing (Revert, step 0) |
 | Lock linked, nothing reverted | untouched | lock, staging | verify --restore: nothing to write, lock removed |
 | Between two revert writes | some paths at S, the rest at H | lock, staging | verify --restore: S back to H |
 | Inside a revert write (temp written, not renamed) | p at H, a temp name beside it | lock (its `tmp` prefix) | verify --restore unlinks the temp (`ro-exp`) |

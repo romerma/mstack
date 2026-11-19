@@ -3,9 +3,9 @@ import assert from "node:assert/strict";
 import { chmodSync, existsSync, lstatSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { acquireLock } from "../src/mutation-lock.ts";
-import { applyRevert } from "../src/mutation-tree.ts";
-import { git, gitDirOf, indexEntries, locked, put, runDirOf, staged, withRepo } from "./mutation-fixture.ts";
+import { acquireLock, sweepStale } from "../src/mutation-lock.ts";
+import { applyRevert, restoreFromLock } from "../src/mutation-tree.ts";
+import { git, gitDirOf, indexEntries, locked, put, runDirOf, staged, status, withRepo } from "./mutation-fixture.ts";
 
 /**
  * Item 42, task 2.2: what `applyRevert` leaves in the working tree, read right
@@ -239,6 +239,75 @@ test("R11 an added file edited since the lock is not removed", () => {
       assert.ok(!result.ok, "the revert unlinked an edit");
       assert.deepEqual([result.path, result.written], ["src/new.ts", []]);
       assert.equal(read(r.root, "src/new.ts"), "edited after the lock, before the revert unlinks it\n");
+    },
+  );
+});
+
+test("R8 a run whose staging another run swept before it linked its lock writes nothing", () => {
+  withRepo(
+    (root) => {
+      put(root, "src/a.ts", "a\n");
+      put(root, "src/keep.ts", "k\n");
+    },
+    (root) => {
+      put(root, "src/a.ts", "a2\n");
+      put(root, "src/new.ts", "new, the item's added file\n");
+    },
+    (r) => {
+      const before = status(r.root);
+      // The review's E1: A stages; B stages, takes the lock, sweeps and ends; then A takes the lock.
+      const a = staged(r);
+      const b = locked(r);
+      sweepStale(r.store, b);
+      assert.equal(existsSync(runDirOf(r, a)), false, "the sweep kept A's staging, so this test proves nothing");
+      assert.deepEqual(restoreFromLock(r.store, b).failed, []);
+      assert.ok(acquireLock(r.store, a).ok);
+      const result = applyRevert(r.store, a);
+      assert.ok(!result.ok, "the revert went on with its staging gone");
+      assert.deepEqual(result.written, []);
+      assert.match(result.reason, /staged copy/);
+      assert.equal(read(r.root, "src/new.ts"), "new, the item's added file\n");
+      assert.equal(status(r.root), before, "the revert wrote to the tree");
+      assert.deepEqual(restoreFromLock(r.store, a, { entries: result.written }).failed, []);
+      assert.equal(existsSync(join(gitDirOf(r), "mstack-mutation.lock")), false);
+    },
+  );
+});
+
+test("R11 a staged copy changed, or the run directory deleted, between the lock and the revert: the revert writes nothing", () => {
+  withRepo(
+    (root) => {
+      put(root, "src/a.ts", "a\n");
+      put(root, "src/old.ts", "old\n");
+    },
+    (root) => {
+      put(root, "src/a.ts", "a2\n");
+      rmSync(join(root, "src/old.ts"));
+      put(root, "src/new.ts", "new\n");
+    },
+    (r) => {
+      const before = status(r.root);
+      const lock = locked(r);
+      const run = runDirOf(r, lock);
+      const a = lock.entries.find((e) => e.path === "src/a.ts");
+      assert.ok(a !== undefined);
+      for (const side of ["start", "head"]) {
+        const copy = join(run, side, String(a.n));
+        const kept = readFileSync(copy);
+        writeFileSync(copy, "not what the lock recorded\n");
+        const result = applyRevert(r.store, lock);
+        assert.ok(!result.ok, `the revert went on with ${side}/${a.n} changed`);
+        assert.deepEqual([result.path, result.written], ["src/a.ts", []]);
+        assert.match(result.reason, /staged copy/);
+        assert.equal(status(r.root), before, `the revert wrote to the tree with ${side}/${a.n} changed`);
+        writeFileSync(copy, kept);
+      }
+      rmSync(run, { recursive: true });
+      const result = applyRevert(r.store, lock);
+      assert.ok(!result.ok, "the revert went on with its run directory gone");
+      assert.deepEqual(result.written, []);
+      assert.equal(read(r.root, "src/new.ts"), "new\n");
+      assert.equal(status(r.root), before, "the revert wrote to the tree with its run directory gone");
     },
   );
 });

@@ -214,7 +214,32 @@ export type Reverted =
   | { readonly ok: false; readonly path: string; readonly reason: string; readonly written: readonly number[] };
 
 /**
- * Bring every path of the lock to the start's content (R9). Paths the start
+ * The first staged copy that is missing or does not hold what the lock records
+ * (S at `start/<n>`, H at `head/<n>`), or null. The revert checks every one
+ * before its first write: a run directory that another run's sweep removed
+ * before this run linked its lock, or one deleted by hand, then stops the
+ * revert with nothing written.
+ */
+function stagingFault(run: string, lock: Lock): { path: string; reason: string } | null {
+  for (const e of lock.entries) {
+    for (const [side, id] of [["start", e.start], ["head", e.head]] as const) {
+      if (id === null) continue;
+      const copy = join(run, side, String(e.n));
+      let sha: string;
+      try {
+        sha = digest(copy);
+      } catch (error) {
+        return { path: e.path, reason: `its staged copy ${copy} cannot be read: ${errorText(error)}` };
+      }
+      if (sha !== id.sha256) return { path: e.path, reason: `its staged copy ${copy} does not hold what the lock recorded` };
+    }
+  }
+  return null;
+}
+
+/**
+ * Bring every path of the lock to the start's content (R9). Every staged copy
+ * is checked first, and a missing or changed one writes nothing. Paths the start
  * lacks are unlinked first, deepest first, then the directories only they
  * held; then the start's files are written, shallowest first, each through a
  * temp name and a rename. Before each write the path must still hold H(p) (or,
@@ -228,6 +253,8 @@ export function applyRevert(store: Store, lock: Lock, step: (name: string) => vo
   const written: number[] = [];
   const stop = (path: string, reason: string): Reverted => ({ ok: false, path, reason, written: [...written] });
   if (run === null) return stop(lock.entries[0]?.path ?? ".", "the store is not in a git repository");
+  const unstaged = stagingFault(run, lock);
+  if (unstaged !== null) return stop(unstaged.path, unstaged.reason);
 
   for (const e of lock.entries.filter((x) => x.start === null).sort(deepestFirst)) {
     let at: Entry;

@@ -98,8 +98,11 @@ requirements it covers (`agents/implementer.md`, "Your report").
   `prepareRun` and before `acquireLock`), `R11 an edit after the temp file is written and before
   its rename stops the revert and keeps the edit` (the edit is made from `step` at
   `revert-written:0`), `R11 an added file edited since the lock is not removed` (added by stage 2,
-  for a mutant no named test killed). Done when `bun test tests/mutation-revert.test.ts` ends ` 11
-  pass` and ` 0 fail`, and the node command prints `# fail 0`. (covers R9, R10, R11)
+  for a mutant no named test killed), `R8 a run whose staging another run swept before it linked
+  its lock writes nothing` and `R11 a staged copy changed, or the run directory deleted, between
+  the lock and the revert: the revert writes nothing` (both added in round 1, for B1). Done when
+  `bun test tests/mutation-revert.test.ts` ends ` 13 pass` and ` 0 fail`, and the node command
+  prints `# fail 0`. (covers R8, R9, R10, R11)
 
 - [x] 2.3 In `src/mutation-tree.ts`, add `restoreFromLock(store, lock, options?)` with `options` `{
   step?; rename?; entries? }` (`rename` defaults to `renameSync`; a test passes one that throws an `EXDEV`
