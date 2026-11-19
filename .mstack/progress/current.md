@@ -120,6 +120,14 @@ passes bypassPermissions. Do not run `check.mjs` or `verify.mjs` while a batch i
   `chore: report item 42 stage 4` with `.mstack/progress/impl_mutation-check_r5.md`. No task group 5.
 - Scratch: `/private/tmp/claude-501/-Users-romerma-Code-mstack/4aadee9d-d352-4d5b-825b-4d11a47e2193/scratchpad/impl42s4/`.
 - Never run `verify --mutation` or `verify --restore` with this checkout as the store.
+- Done: 3.1 `8f5d01e`, 3.2 `9e65aa4`, 3.3 `cab9e09` (a yield is two setImmediates: node missed a
+  signal with one, `impl42s4/probe-tick/`), 3.4 `7a48ceb`, fix `56f2ff8` (the try starts at the
+  lock). Wiki transcripts: `impl42s4/wiki/run-wiki.sh`, bun and node. Mutants: `impl42s4/mutants.txt`;
+  K2, L2, B6 and F3 survived and now have tests (`e028603`), G2 is equivalent: 42 of 43 killed.
+  Suite at `53bad11`: bun 1084 pass 2 skip 0 fail, node 1086 pass 0 fail. Report:
+  `.mstack/progress/impl_mutation-check_r5.md`.
+- Next: task group 5 (5.1 the seams by hand, then 5.2 the review of the whole by a pass that did
+  not write it). Read the report's last section first; 5.3 runs from a copy of the CLI, never here.
 
 ## Next step
 
