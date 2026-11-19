@@ -7,7 +7,7 @@
 > empty template below.
 
 - **Item:** 42 mutation-check (the mechanism; item 100 is the closing check)
-- **Status:** in_progress, fixing the round 2 review (B3: two stores in one worktree share the lock), then review round 3
+- **Status:** reviewing, round 3 (scoped to the round 2 fixes: B3 and the non-blocking points taken with it)
 - **Branch:** feat/mutation-check
 - **Base:** a9b2a56b62c3f9a5640a27f9df7931d064bb56d4
 - **Worktree:** none
