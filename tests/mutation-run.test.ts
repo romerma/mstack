@@ -197,15 +197,17 @@ test("R12 survived lists the paths", SPAWN_TEST, async () => {
 test("R12 a script removed by the revert is blocked", SPAWN_TEST, async () => {
   const addScript = (root: string): void => {
     editA(root);
-    put(root, "scripts/check.sh", "exit 0\n");
+    put(root, "scripts/check.sh", "#!/bin/sh\nexit 0\n", 0o755);
   };
   await withRunRepo(CHECK, startA, addScript, async (r) => {
-    r.box.writeState({ ...(parseState(r.store.state) as object), verify: "sh scripts/check.sh" });
+    // Run by name, not as `sh scripts/check.sh`: for a script that is gone, dash exits 2 and
+    // bash 127, and only 127 is blocked. A command that is not there is 127 under both.
+    r.box.writeState({ ...(parseState(r.store.state) as object), verify: "scripts/check.sh" });
     const { code, text, last } = await go(r);
     assert.equal(code, 2, text);
     assert.match(last, /^mutation-blocked: /);
     assert.match(text, /127/);
-    assert.equal(read(r, "scripts/check.sh"), "exit 0\n");
+    assert.equal(read(r, "scripts/check.sh"), "#!/bin/sh\nexit 0\n");
     nothingLeft(r);
   });
 });
