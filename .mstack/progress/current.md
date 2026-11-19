@@ -7,7 +7,7 @@
 > empty template below.
 
 - **Item:** 42 mutation-check (the mechanism; item 100 is the closing check)
-- **Status:** in_progress, fixing the round 1 review (B1, B2), then stages 3 and 4, then review round 2
+- **Status:** reviewing, round 2: the round 1 fixes and the whole (stages 1 to 4 done)
 - **Branch:** feat/mutation-check
 - **Base:** a9b2a56b62c3f9a5640a27f9df7931d064bb56d4
 - **Worktree:** none
