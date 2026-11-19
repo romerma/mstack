@@ -475,14 +475,21 @@ export function acquireLock(store: Store, lock: Lock): Acquired {
 /** No lock (null), a JSON object (`lock`, not yet checked: `validateLock`), or one that cannot be read as one. */
 export type LockRead = null | { readonly lock: Lock } | { readonly damaged: string };
 
-/**
- * The lock as it is on disk. Whatever is at the name is a lock: it is opened
- * with `READ_FLAGS`, so a symlink there is not followed and a FIFO does not
- * block, and anything that is not a regular file is damaged.
- */
+/** The store's lock as it is on disk (`readLockAt`); null outside a repository. */
 export function readLock(store: Store): LockRead {
   const file = lockPath(store);
-  if (file === null) return null;
+  return file === null ? null : readLockAt(file);
+}
+
+/**
+ * The lock at `file` as it is on disk. Whatever is at the name is a lock: it is
+ * opened with `READ_FLAGS`, so a symlink there is not followed and a FIFO does
+ * not block, and anything that is not a regular file is damaged. The one reader
+ * of a lock: the gate, R1, the restore and the hook all read through it, so none
+ * names a restore for a lock the others call unreadable (item 101, round 1
+ * review, B2).
+ */
+export function readLockAt(file: string): LockRead {
   let fd: number;
   try {
     fd = openSync(file, READ_FLAGS);

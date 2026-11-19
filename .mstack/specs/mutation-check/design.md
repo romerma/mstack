@@ -162,7 +162,7 @@ interface Lock {
 - `acquireLock` writes `mstack-mutation.lock.<run>.tmp`, fsyncs it, `linkSync`s it to the lock
   name (EEXIST: refuse), fsyncs the directory, unlinks the temp. A run refused the lock removes its
   own staging with `discard(store, run)` (round 1 review, NB12). A reader sees no lock or a whole
-  one. `readLock` returns `null`, `{ lock }` or `{ damaged }`; whatever is at the name is a lock,
+  one. `readLock` (through `readLockAt`, which the hook calls too) returns `null`, `{ lock }` or `{ damaged }`; whatever is at the name is a lock,
   opened `O_NOFOLLOW | O_NONBLOCK`, so a symlink there is not followed and a FIFO does not block,
   and one that is not a regular file is `damaged` (round 1 review, NB7).
 - `rootFromTop` is what `git rev-parse --show-prefix` prints at the store's root, without its
@@ -405,9 +405,11 @@ else. `receipts()` and `status()` do not change.
   exists; `symbolic-ref`, `branch` and `tag` point a ref at a commit that exists;
   `sparse-checkout` leaves a modified file in place) (item 101).
   Only on a match does it run `git rev-parse --absolute-git-dir` in `input.cwd` and `lstat` the
-  lock; present denies, with the pid and R25's command when `validateLock` accepts the lock and
-  its `cli` is absolute (the lock's existence decides the deny; the check decides only whether
-  the reason names the restore, item 101), the command preceded by `cd <the lock's store> &&`, its top level from a
+  lock; present denies, with the pid and R25's command when `validateLock` accepts the lock, read
+  by `readLockAt` as `readLock` reads it (a symlink at the name is not followed and a FIFO does
+  not block: either is `damaged`, round 1 review of item 101, B2), and its `cli` is absolute (the
+  lock's existence decides the deny; the check decides only whether the reason names the restore,
+  item 101), the command preceded by `cd <the lock's store> &&`, its top level from a
   second `git rev-parse --show-toplevel` that runs only on a deny and the `cd` checked by a third
   in the lock's store (`inLockStore`; without a directory that qualifies, the by-hand reason), and
   otherwise with a reason that gives the by-hand recovery as one for a person at a terminal, since

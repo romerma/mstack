@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -476,4 +476,43 @@ test("A6 an obligation that runs a script the revert removed through an interpre
       assert.equal(readFileSync(join(r.root, script), "utf8"), body);
     });
   }
+});
+
+test("A2 a symlink or a FIFO at the lock's name: the hook reads it as readLock does, names no restore, and does not block", SPAWN_TEST, () => {
+  // Round 1 review, blocking 2 and non-blocking 3: readFileSync followed the link, and blocked on the FIFO.
+  withRepo(startA, editA, (r) => {
+    locked(r);
+    const file = lockFileOf(r);
+    const written = JSON.parse(readFileSync(file, "utf8")) as Record<string, unknown>;
+    const target = join(dirname(file), "real-lock.json");
+    writeFileSync(target, `${JSON.stringify({ ...written, pid: deadPid() }, null, 2)}\n`);
+    rmSync(file);
+    symlinkSync("real-lock.json", file);
+    const tree = status(r.root);
+
+    const gate = gateLine(r.store);
+    assert.match(gate, /cannot be read as a run's record/);
+    const lines: string[] = [];
+    assert.equal(restoreRun(r.store, { out: (l) => lines.push(l) }), 2, lines.join("\n"));
+    const hook = hookReason("git commit -m x", r.root);
+    assert.ok(hook !== null, "the hook allowed git commit with a symlink at the lock's name");
+    assert.doesNotMatch(hook, /\bcd |verify --restore/, `the hook names a restore that refuses the lock: ${hook}`);
+    assert.match(hook, BY_HAND);
+    assert.match(hook, /'mstack gate' says the same/);
+    assert.ok(lstatSync(file).isSymbolicLink(), "the symlink changed");
+    assert.equal(status(r.root), tree, "the tree changed");
+
+    // In its own process, under a timeout that kills it: in this one a blocked open would never return.
+    rmSync(file);
+    assert.equal(spawnSync("mkfifo", [file]).status, 0, "mkfifo failed");
+    const input = JSON.stringify({ hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: { command: "git commit -m x" }, cwd: r.root });
+    const began = Date.now();
+    const p = spawnSync(CLI, ["hook", "pre-tool-use"], { cwd: r.root, input, encoding: "utf8", timeout: SIGNAL_MS, killSignal: "SIGKILL", env: { ...process.env, NO_COLOR: "1" } });
+    rmSync(file);
+    assert.equal(p.signal, null, `the hook blocked on a FIFO at the lock's name until it was killed, after ${Date.now() - began} ms`);
+    assert.equal(p.status, 0, `${p.stdout}${p.stderr}`);
+    const reason = (JSON.parse(p.stdout) as { hookSpecificOutput: { permissionDecisionReason: string } }).hookSpecificOutput.permissionDecisionReason;
+    assert.doesNotMatch(reason, /\bcd |verify --restore/, reason);
+    assert.match(reason, BY_HAND);
+  });
 });
