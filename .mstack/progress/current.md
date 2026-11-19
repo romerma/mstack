@@ -6,10 +6,10 @@
 > On close: append the summary to `history.md` and reset this file to the
 > empty template below.
 
-- **Item:** none active (42 and 104 closed 2026-11-19; 100 parked on two forks for the user after three spec rounds)
-- **Status:** -
-- **Branch:** main
-- **Base:** -
+- **Item:** 101 mutation-printed-exits (follow-ups of item 42; item 100 is parked on two forks for the user)
+- **Status:** in_progress, implementer at work
+- **Branch:** fix/mutation-printed-exits
+- **Base:** 7e9637372d38b5fac650653c9df8c289d2e9a417
 - **Worktree:** none
 
 ## Plan
