@@ -402,10 +402,14 @@ else. `receipts()` and `status()` do not change.
   their value after `=` or after a space (round 2 review, non-blocking 5; round 3, non-blocking 1),
   `--shallow-file` with its value after a space, the only way git takes it, and git's own name in
   any case, since a disk that folds case runs git for `GIT` (item 101, round 1 review, non-blocking 1).
-  The plumbing is the listed writes spelled low and has no form that only reads; what is not
-  listed reads, or cannot save the reverted tree (`hash-object -w` gives the start's blob, which
-  exists; `symbolic-ref`, `branch` and `tag` point a ref at a commit that exists;
-  `sparse-checkout` leaves a modified file in place) (item 101).
+  The plumbing is the listed writes spelled low, and a form of one that only reads is denied with
+  the rest (`read-tree -n`, a dry run); what is not listed reads, or writes no object of the
+  reverted tree by itself (`hash-object -w` gives the start's blob, which exists; `symbolic-ref`,
+  `branch` and `tag` point a ref at a commit that exists; `sparse-checkout` leaves a modified
+  file in place) (item 101). The list is for the accidental save: one built on purpose is not
+  covered, since `git fast-import`, fed a stream written for it, commits the reverted content,
+  and it is not denied because it does not read the working tree (round 1 review of item 101,
+  non-blocking 2).
   Only on a match does it run `git rev-parse --absolute-git-dir` in `input.cwd` and `lstat` the
   lock; present denies, with the pid and R25's command when `validateLock` accepts the lock, read
   by `readLockAt` as `readLock` reads it (a symlink at the name is not followed and a FIFO does

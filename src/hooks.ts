@@ -426,12 +426,15 @@ export const GUARDS: readonly Guard[] = [
  * from the tree (`update-index`) or from a tree object (`read-tree`, which can
  * also write the tree), the tree from the index (`checkout-index`), a tree object
  * (`write-tree`, `mktree`), a commit (`commit-tree`) and a ref (`update-ref`).
- * None of them has a form that only reads. What is left out either reads, or
- * cannot save the reverted tree, since nothing above makes an object of it:
- * `hash-object -w` (the reverted content is the start's blob, already an
- * object), `symbolic-ref`, `branch` and `tag` (a ref to a commit that exists;
- * each has a form that only reads), `sparse-checkout` (it leaves a modified
- * file in place), and every other command git has.
+ * A form of one that only reads is denied with the rest: `read-tree -n` is a
+ * dry run. What is left out either reads, or writes no object of the reverted
+ * tree by itself: `hash-object -w` (the reverted content is the start's blob,
+ * already an object), `symbolic-ref`, `branch` and `tag` (a ref to a commit that
+ * exists; each has a form that only reads), `sparse-checkout` (it leaves a
+ * modified file in place), and every other command git has. The list is for the
+ * accidental save; one built on purpose is not covered: `git fast-import`, fed
+ * a stream written for it, commits the reverted content (item 101, round 1
+ * review, non-blocking 2).
  */
 const LOCKED_GIT = new RegExp(
   `${GIT}(?:add|am|apply|checkout|cherry-pick|clean|commit|merge|mv|pull|rebase|reset|restore|revert|rm|stash|switch` +

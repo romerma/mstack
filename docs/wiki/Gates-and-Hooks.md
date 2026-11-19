@@ -108,8 +108,12 @@ outside that repository, and the Edit and Write tools, which change the tree wit
 gate and the rescue are what hold there. Of git's plumbing, what is not listed is not covered:
 `hash-object -w` (the reverted content is the start's blob, which exists already), `symbolic-ref`,
 `branch -f` and `tag` (each points a ref at a commit that exists, and the reverted tree is in
-none unless a denied command made one), `sparse-checkout` (it leaves a modified file in place),
-and every other command git has. None of these can save the reverted tree.
+none that a denied command or a save built on purpose did not make), `sparse-checkout` (it
+leaves a modified file in place), and every other command git has. A form of a listed command
+that only reads is denied with the rest: `git read-tree -n` is a dry run. The lock rows are there for the accidental save, the
+commit, add or stash a session makes out of habit while the tree is reverted; they do not stop
+one built on purpose. `git fast-import`, fed a stream written for it, commits the reverted
+content, and no listed command takes part.
 
 Two sentences in Claude Code's permissions documentation carry this table's weight: "PreToolUse
 hooks run before the permission prompt, for every tool except EndConversation", and "A hook
