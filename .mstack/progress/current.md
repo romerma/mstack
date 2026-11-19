@@ -7,7 +7,7 @@
 > empty template below.
 
 - **Item:** 42 mutation-check (the mechanism; item 100 is the closing check)
-- **Status:** reviewing, round 3 (scoped to the round 2 fixes: B3 and the non-blocking points taken with it)
+- **Status:** verifying; round 3 APPROVED (0 blocking, 7 non-blocking, all to follow-up items); next task 5.3, the item's own mutation run from a copy of the CLI
 - **Branch:** feat/mutation-check
 - **Base:** a9b2a56b62c3f9a5640a27f9df7931d064bb56d4
 - **Worktree:** none

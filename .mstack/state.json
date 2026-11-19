@@ -614,7 +614,7 @@
         "A lock under the git dir holds the restore list; restore runs in finally and on SIGINT/SIGTERM, the tree is as it was afterwards, verify --restore repairs a SIGKILLed run, PreToolUse denies git commit/add/stash while the lock exists, and the gate fails on a lock",
         "No path through the run, the restore or a recovery the tool prints removes or overwrites content the run did not write without first saving it, and no state keeps the lock with deleting work as the only way out"
       ],
-      "status": "reviewing",
+      "status": "verifying",
       "sdd": true,
       "size": "l",
       "base": "a9b2a56b62c3f9a5640a27f9df7931d064bb56d4",

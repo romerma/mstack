@@ -346,7 +346,7 @@ requirements it covers (`agents/implementer.md`, "Your report").
 
 ## 5. Verification and close
 
-- [ ] 5.1 `bun run test && bun run typecheck && ./bin/mstack lint-plugin . && node
+- [x] 5.1 `bun run test && bun run typecheck && ./bin/mstack lint-plugin . && node
   scripts/check-doc-links.mjs README.md docs/wiki/*.md` all exit 0 (the Bash tool's `timeout:
   600000`). Then the seams of item 42 by hand in a throwaway repository with this checkout's
   `./bin/mstack`, outputs pasted into the implementation report: `verify --mutation` killed,
@@ -355,7 +355,7 @@ requirements it covers (`agents/implementer.md`, "Your report").
   `./bin/mstack hook pre-tool-use`, `verify --restore`, and `git status --porcelain` identical to
   before. The implementation report's `| R | Test | Where |` table has a row for each of R1-R28.
   (covers R1-R28)
-- [ ] 5.2 Independent review by a pass that did not write the code. It tries first to lose a byte
+- [x] 5.2 Independent review by a pass that did not write the code. It tries first to lose a byte
   of the user's work or to keep the lock with deleting as the only way out: a SIGKILL at each named
   step followed by `verify --restore`; a Ctrl-C to the whole group at `lock-written` and during the
   restore; an edit, a commit, a `git add`, a case-only rename and a new directory at a reverted path
