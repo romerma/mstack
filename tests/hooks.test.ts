@@ -1,6 +1,7 @@
-import { test } from "node:test";
+import { after, test } from "node:test";
 import assert from "node:assert/strict";
-import { writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import {
@@ -13,6 +14,15 @@ import {
   subagentStop,
 } from "../src/hooks.ts";
 import { captured, item, sandbox, state } from "./helpers.ts";
+
+/**
+ * The `cwd` the guard tests hand the hook: a directory in no repository. Under a
+ * mutation lock the hook also denies `git reset --soft HEAD~1`, and it reads the
+ * lock of `cwd`'s repository, so with this checkout as `cwd` these tests fail
+ * for as long as a run holds the lock here.
+ */
+const NO_REPOSITORY = mkdtempSync(join(tmpdir(), "mstack-hooks-"));
+after(() => rmSync(NO_REPOSITORY, { recursive: true, force: true }));
 
 const decisionOf = (json: string | null) =>
   json === null ? null : (JSON.parse(json).hookSpecificOutput.permissionDecision as string);
@@ -37,7 +47,7 @@ test("the destructive-command guard denies what it should and nothing more", () 
     ["rm -rf node_modules", null],
   ];
   for (const [command, expected] of cases) {
-    const out = preToolUse({ tool_name: "Bash", tool_input: { command } });
+    const out = preToolUse({ tool_name: "Bash", tool_input: { command }, cwd: NO_REPOSITORY });
     assert.equal(decisionOf(out), expected, `wrong verdict for: ${command}`);
   }
 });
@@ -281,7 +291,7 @@ const ALLOW: readonly [string, string][] = [
 ];
 
 function denied(command: string): boolean {
-  const output = preToolUse({ tool_name: "Bash", tool_input: { command }, cwd: process.cwd() });
+  const output = preToolUse({ tool_name: "Bash", tool_input: { command }, cwd: NO_REPOSITORY });
   return output !== null && output.includes('"deny"');
 }
 

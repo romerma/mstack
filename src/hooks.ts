@@ -1,10 +1,12 @@
-import { readFileSync, statSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { lstatSync, readFileSync, statSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 
 import * as costs from "./costs.ts";
 import { runGate } from "./gate.ts";
 import { isActive } from "./lifecycle.ts";
 import * as hooklog from "./hooklog.ts";
+import { LOCK_NAME, restoreCommand } from "./mutation-lock.ts";
 import { findStore, type Store } from "./paths.ts";
 import { reportFiles, reportKind, roleOf, substantialReports } from "./roles.ts";
 import { parseState, type Item } from "./state.ts";
@@ -399,7 +401,69 @@ export const GUARDS: readonly Guard[] = [
     pattern: /\brm\s+-[a-zA-Z]*[rR][a-zA-Z]*[^\n]*(?:\.mstack|\.mstac[^\s\/]|\.msta[^\s\/]{0,2}\*)/,
     why: "that would delete the durable state this workflow runs on",
   },
+  {
+    // A path that ends in the lock's name: `rm .git/mstack-mutation.lock.<run>.tmp`
+    // is a temp file and is not this. It reads no lock and starts no git, so it
+    // holds with or without one, and names `mstack gate` for the restore command.
+    pattern: /\brm\s[^\n]*mstack-mutation\.lock["']?(?=\s|$)/,
+    why: "that deletes the lock of a mutation run, which leaves the item's code reverted with no record of it; `mstack gate` names the restore command",
+  },
 ];
+
+/**
+ * Item 42, R26. Git commands that write the index, the tree or a ref: while a
+ * mutation run holds the lock, the tree holds reverted code, and a commit, an add
+ * or a stash would keep it, or lose it. Matched per segment like the guards, so it
+ * is as loose within a command and as blind to an alias, `"git"`, an interpreter
+ * one-liner or `git -C "a b"` as they are.
+ */
+const LOCKED_GIT = new RegExp(
+  `${GIT}(?:add|am|apply|checkout|cherry-pick|clean|commit|merge|mv|pull|rebase|reset|restore|revert|rm|stash|switch)(?![-\\w])`,
+);
+
+/**
+ * The deny reason when the lock exists in `cwd`'s git directory, or null. Only the
+ * lock's existence decides: a lock that does not parse denies too, with less to say.
+ * No git process starts unless a segment is a listed git command.
+ */
+function lockReason(cwd: string): string | null {
+  let gitDir: string;
+  try {
+    gitDir = execFileSync("git", ["rev-parse", "--absolute-git-dir"], {
+      cwd,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+      timeout: 4_000,
+      env: { ...process.env, GIT_OPTIONAL_LOCKS: "0" },
+    }).trim();
+  } catch {
+    return null;
+  }
+  if (gitDir === "") return null;
+  const file = join(gitDir, LOCK_NAME);
+  try {
+    lstatSync(file);
+  } catch (error) {
+    // Anything but "not there" (no permission, say) is a lock we cannot rule out.
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code === "ENOENT" || code === "ENOTDIR") return null;
+  }
+  const lead = `mstack: ${file} exists, so a mutation run has this tree's code reverted and a git command that writes would keep or lose that`;
+  const parsed = readLockRecord(file);
+  if (parsed === null) return `${lead}. The lock cannot be read as a run's record; 'mstack gate' says what to do`;
+  return `${lead}. It is held by pid ${parsed.pid}: wait for it, or if it is not running, run ${restoreCommand(parsed.cli)}`;
+}
+
+function readLockRecord(file: string): { pid: number; cli: string } | null {
+  try {
+    const record: unknown = JSON.parse(readFileSync(file, "utf8"));
+    if (record === null || typeof record !== "object") return null;
+    const { pid, cli } = record as { pid?: unknown; cli?: unknown };
+    return typeof pid === "number" && Number.isInteger(pid) && typeof cli === "string" && cli.startsWith("/") ? { pid, cli } : null;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Cut a command line where the shell would start a new command.
@@ -547,14 +611,18 @@ export function preToolUse(input: HookInput): string | null {
   // forgotten on the seventh rule.
   const segments = shellSegments(command);
   const hit = GUARDS.find((g) => segments.some((segment) => g.pattern.test(segment)));
-  if (hit === undefined) return null;
+  if (hit === undefined) {
+    if (!segments.some((segment) => LOCKED_GIT.test(segment))) return null;
+    const reason = lockReason(input.cwd ?? process.cwd());
+    return reason === null ? null : deny(reason);
+  }
 
+  return deny(`mstack: ${hit.why}`);
+}
+
+function deny(reason: string): string {
   return JSON.stringify({
-    hookSpecificOutput: {
-      hookEventName: "PreToolUse",
-      permissionDecision: "deny",
-      permissionDecisionReason: `mstack: ${hit.why}`,
-    },
+    hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: reason },
   });
 }
 

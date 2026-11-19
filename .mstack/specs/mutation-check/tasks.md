@@ -292,7 +292,7 @@ requirements it covers (`agents/implementer.md`, "Your report").
   fail`, `bun test tests/gate.test.ts` ends ` 0 fail`, and the node command for both files prints
   `# fail 0`. (covers R25, R27, R28)
 
-- [ ] 4.2 In `src/hooks.ts`, extend `preToolUse` (`src/hooks.ts:537`) with the lock branch of
+- [x] 4.2 In `src/hooks.ts`, extend `preToolUse` (`src/hooks.ts:537`) with the lock branch of
   design.md "The gate and the hook", and add to `GUARDS` (`:361`) the entry for `rm` of the lock.
   In `tests/hooks.test.ts`, change `denied()` (`:283-286`) to pass a throwaway directory as `cwd`,
   so the suite never reads this checkout's lock: otherwise `the safe forms are not denied` fails

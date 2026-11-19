@@ -92,6 +92,18 @@ The guard list, from `src/hooks.ts:230-271`:
 | `git branch -D` (and the `--delete --force` spellings) | deleting an unmerged branch loses the work on it; `-d` refuses when that would happen |
 | `gh pr merge --admin` | merges past a check `gh` would otherwise refuse; fix the check instead |
 | `rm -r` on `.mstack` | deletes the durable state this workflow runs on |
+| `rm` of a path that ends in `mstack-mutation.lock`, with or without a lock | the lock is what keeps a run's reverted code from being forgotten; `mstack gate` names the restore command |
+| while `<git dir>/mstack-mutation.lock` exists: `git add`, `am`, `apply`, `checkout`, `cherry-pick`, `clean`, `commit`, `merge`, `mv`, `pull`, `rebase`, `reset`, `restore`, `revert`, `rm`, `stash`, `switch` | a `mstack verify --mutation` run has the item's code reverted in this working tree; a commit or an add would keep that state and a stash or a checkout would lose it. The reason names the lock, its pid and the absolute path of the CLI that wrote it followed by `verify --restore` |
+
+The lock rows are the one place the hook reads anything but the command. When a segment of the
+command runs one of the listed git commands (with git's global options, in a compound command),
+the hook asks git for the git directory of the hook input's `cwd` and looks for the lock by its
+name alone, so a lock that cannot be parsed denies too. A command with no such segment starts no
+git process at all, and no lock, or a `cwd` outside a repository, allows. What it does **not**
+see, because it only ever sees the string: an alias (`git ci`), `"git" commit`, `git -C "dir
+with space" commit`, an interpreter one-liner, `npm version`, a `git -C <repo>` from a `cwd`
+outside that repository, and the Edit and Write tools, which change the tree without git. The
+gate and the rescue are what hold there.
 
 Two sentences in Claude Code's permissions documentation carry this table's weight: "PreToolUse
 hooks run before the permission prompt, for every tool except EndConversation", and "A hook
