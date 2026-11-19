@@ -3,7 +3,7 @@ import { existsSync, lstatSync, readlinkSync, realpathSync } from "node:fs";
 import { basename, dirname, join, resolve, sep } from "node:path";
 
 import { git, gitBytes } from "./git.ts";
-import { liveness, lockPath, readLock } from "./mutation-lock.ts";
+import { fold, liveness, lockPath, readLock } from "./mutation-lock.ts";
 import { entryAt, type Entry } from "./mutation-tree.ts";
 import { runningCliRoot, STORE_DIR, type Store } from "./paths.ts";
 import { measureStart, resolveCommit, scopeClass } from "./size.ts";
@@ -301,15 +301,6 @@ export function refusals(store: Store, state: State, item: Item | undefined, run
 }
 
 const REGULAR = new Set(["000000", "100644", "100755"]);
-
-/**
- * Two spellings the filesystem may treat as one name fold equal: case, and
- * Unicode normalisation. The first `toLowerCase` joins `ẞ` (U+1E9E) with `ss`,
- * which upper-then-lower case alone keeps apart.
- */
-function fold(s: string): string {
-  return s.normalize("NFD").toLowerCase().toUpperCase().toLowerCase().normalize("NFC");
-}
 
 /** Each set path or parent directory whose shape R3 refuses, with the reason. */
 function shapes(set: RevertSet): { path: string; why: string }[] {

@@ -403,6 +403,16 @@ export function readLock(store: Store): LockRead {
   return { lock: parsed as Lock };
 }
 
+/**
+ * Two spellings the filesystem may treat as one name fold equal: case, and
+ * Unicode normalisation. The first `toLowerCase` joins `ẞ` (U+1E9E) with `ss`,
+ * which upper-then-lower case alone keeps apart. R3 groups the revert set by
+ * it, and `validateLock` finds a path that appears twice by it.
+ */
+export function fold(s: string): string {
+  return s.normalize("NFD").toLowerCase().toUpperCase().toLowerCase().normalize("NFC");
+}
+
 /** Why `path` cannot be a path of the lock, or null. */
 function badPath(path: unknown): string | null {
   if (typeof path !== "string") return "is not a string";
@@ -445,7 +455,8 @@ export function validateLock(value: unknown): string[] {
   const entries = l["entries"];
   if (!Array.isArray(entries)) problems.push("its entries are not a list");
   else {
-    const seen = new Set<string>();
+    // By the folded name: two spellings of one path on a filesystem that folds them are one path.
+    const seen = new Map<string, string>();
     entries.forEach((raw: unknown, i) => {
       if (raw === null || typeof raw !== "object") {
         problems.push(`entry ${i} is not an object`);
@@ -454,9 +465,11 @@ export function validateLock(value: unknown): string[] {
       const e = raw as Record<string, unknown>;
       if (e["n"] !== i) problems.push(`entry ${i} is numbered ${JSON.stringify(e["n"])}`);
       const bad = badPath(e["path"]);
+      const path = e["path"] as string;
+      const first = bad === null ? seen.get(fold(path)) : undefined;
       if (bad !== null) problems.push(`entry ${i}: the path ${JSON.stringify(e["path"])} ${bad}`);
-      else if (seen.has(e["path"] as string)) problems.push(`entry ${i}: the path ${JSON.stringify(e["path"])} appears twice`);
-      else seen.add(e["path"] as string);
+      else if (first !== undefined) problems.push(`entry ${i}: the path ${JSON.stringify(path)} appears twice${first === path ? "" : `, as ${JSON.stringify(first)}`}`);
+      else seen.set(fold(path), path);
       if (!isIdentity(e["start"]) || !isIdentity(e["head"])) problems.push(`entry ${i}: an identity is neither null nor a SHA-256 and permission bits`);
       else if (e["start"] === null && e["head"] === null) problems.push(`entry ${i}: absent at the start and at HEAD`);
       if (typeof run === "string" && e["tmp"] !== `.mstack-mutation-${run}-${i}.`) problems.push(`entry ${i}: its temp prefix ${JSON.stringify(e["tmp"])} is not the one its run derives`);

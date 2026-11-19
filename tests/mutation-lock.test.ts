@@ -281,3 +281,14 @@ test("R23 liveness: a live process this user may not signal (EPERM) is running",
   const verdict = liveness({ ...here(), pid: 1, startedAt: new Date().toISOString() });
   assert.equal(verdict.state, "running", JSON.stringify(verdict));
 });
+
+test("R24 two lock paths that differ only by case or Unicode normalisation are refused", () => {
+  withRepo(threeFiles, editDeleteAdd, (r) => {
+    const lock = staged(r);
+    const withPaths = (first: string, second: string): Lock => ({ ...lock, entries: lock.entries.map((e, i) => (i === 0 ? { ...e, path: first } : i === 1 ? { ...e, path: second } : e)) });
+    for (const [first, second] of [["src/a.ts", "src/A.ts"], ["src/a.ts", "SRC/a.ts"], ["src/café.ts", "src/café.ts"]] as const) {
+      const problems = validateLock(withPaths(first, second));
+      assert.ok(problems.some((p) => /appears twice/.test(p) && p.includes(JSON.stringify(second))), `${JSON.stringify([first, second])} was not refused: ${JSON.stringify(problems)}`);
+    }
+  });
+});

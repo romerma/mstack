@@ -159,7 +159,8 @@ interface Lock {
 - `acquireLock` writes `mstack-mutation.lock.<run>.tmp`, fsyncs it, `linkSync`s it to the lock
   name (EEXIST: refuse), fsyncs the directory, unlinks the temp. A reader sees no lock or a whole
   one. `readLock` returns `null`, `{ lock }` or `{ damaged }`; existence is `lstat`.
-- `validateLock` is R24. `sweepStale` runs once the run holds the lock: it removes
+- `validateLock` is R24; it finds a path that appears twice by R3's `fold`, so two spellings of one
+  path are refused (round 1 review, NB3). `sweepStale` runs once the run holds the lock: it removes
   `mstack-mutation.lock.*.tmp` other than its own and every run directory the lock does not name
   whose `rescue/` is empty or absent. That includes the staging of a live run that has prepared and
   not yet linked its lock: one `setImmediate` (The run, step 6), or as long as that run is stopped.
