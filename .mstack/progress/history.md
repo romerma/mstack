@@ -1579,3 +1579,34 @@ where it should live.
 after the verdict.
 
 **Filed.** Item 99 `bench-trace-and-durability`.
+
+## 2026-11-19 - item 42 mutation-check closed (3 rounds, after 3 spec rounds)
+
+**What shipped.** `mstack verify --mutation` puts the code part of the active item's diff back to
+the item's start, in place, runs the test obligations, restores, and records `mutation-killed`,
+`mutation-survived` or `mutation-blocked` keyed by the code and test tree. A lock under the git
+dir holds the restore list as data; `verify --restore` is the one way out of a dead run; the gate
+fails and the PreToolUse hook denies `git commit`, `add` and `stash` while the lock exists. Shapes
+that cannot be put back safely are refused before anything is written. The user chose this (in
+place behind a lock, split in two) on 2026-11-19 against the recommendation of a copy; item 100
+holds the closing check.
+
+**What the rounds taught.** Each code round found a loss path that reading had not: a sweep that
+deleted a live run's staging (round 1), paths git was told to ignore (round 1), and two stores in
+one worktree sharing the lock, where a restore from the wrong one overwrote its files (round 2).
+All three were found by running the real command in fixture repositories, none by a unit test.
+Round 3 ran 13 store layouts and 11 hand-edited locks on both runtimes and lost nothing.
+
+**Evidence.** bun 1096 pass, 2 skip, 0 fail; node 1098 pass, 0 fail, by the implementer and again
+by the reviewer. Task 5.3, the item's own run on this repository from a copy of the CLI outside
+the tree: 14 files reverted, the obligations failed in 198 s (892 pass, 22 fail, 13 errors),
+`restored 14, tree verified, lock removed`, `mutation-killed`, tree clean after.
+
+**Known limits, stated in the docs.** A save in the moment a file is put back is lost; a
+hand-damaged lock needs a person at a terminal; the restore is quadratic in a directory's size.
+Not run before the close: Linux and a case-sensitive disk beyond one APFS volume (CI is the first).
+
+**Closing.** `gate --full` green on the first run. Nothing was taken after the verdict.
+
+**Filed.** Items 101 `mutation-printed-exits`, 102 `mutation-test-pins`, 103
+`mutation-restore-scaling`.

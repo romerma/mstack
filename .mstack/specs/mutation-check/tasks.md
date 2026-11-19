@@ -361,7 +361,7 @@ requirements it covers (`agents/implementer.md`, "Your report").
   restore; an edit, a commit, a `git add`, a case-only rename and a new directory at a reverted path
   from another terminal during the obligations; a second run and a `verify --restore` racing a live
   one; and each refused shape of R3 and R4. (covers R2, R3, R4, R13, R14, R16, R17, R18, R23)
-- [ ] 5.3 Item 42's own mutation run, from a copy of the CLI outside the tree: R5 refuses
+- [x] 5.3 Item 42's own mutation run, from a copy of the CLI outside the tree: R5 refuses
   `./bin/mstack verify --mutation` here, because the item changes `src/`. Do it after 5.2 has
   approved and every code and test change is committed. Run every step from the checkout's root,
   and make every mstack call from step 2 to step 6 through `"${TMPDIR:-/tmp}/mstack-42-cli/bin/mstack"`:
@@ -388,6 +388,6 @@ requirements it covers (`agents/implementer.md`, "Your report").
   Done when `tail -1 .mstack/verification.tsv | cut -f4` prints `mutation-killed`, `git status
   --porcelain` prints nothing outside `.mstack/`, and `./bin/mstack gate --quiet` prints no line
   containing "mutation". (covers R5, R20, R25)
-- [ ] 5.4 PR, merge gate and close, as `skills/ship/SKILL.md` says. No closing check holds item 42
+- [x] 5.4 PR, merge gate and close, as `skills/ship/SKILL.md` says. No closing check holds item 42
   to its receipt (that is item 100), so it closes on its verification receipts, its table and an
   independent verdict. (covers R1-R28)

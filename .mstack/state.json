@@ -614,7 +614,7 @@
         "A lock under the git dir holds the restore list; restore runs in finally and on SIGINT/SIGTERM, the tree is as it was afterwards, verify --restore repairs a SIGKILLed run, PreToolUse denies git commit/add/stash while the lock exists, and the gate fails on a lock",
         "No path through the run, the restore or a recovery the tool prints removes or overwrites content the run did not write without first saving it, and no state keeps the lock with deleting work as the only way out"
       ],
-      "status": "verifying",
+      "status": "done",
       "sdd": true,
       "size": "l",
       "base": "a9b2a56b62c3f9a5640a27f9df7931d064bb56d4",
@@ -624,7 +624,8 @@
         "CLI: mstack verify --mutation and verify --restore in a throwaway git repository with a store: exit code, output, the receipt row, and the working tree before, during and after",
         "CLI: mstack gate with a lock present",
         "the PreToolUse hook answer to git commit, git add and git stash while the lock exists"
-      ]
+      ],
+      "closed_by": "three rounds; review_mutation-check_r3.md APPROVED at cb1b255; gate --full green on the first run; its own verify --mutation recorded mutation-killed"
     },
     {
       "id": 43,
@@ -1543,6 +1544,49 @@
       "seams": [
         "CLI: mstack gate and state set --status done on an item at verifying with and without a killed receipt, on the branch and on the default branch after each merge shape"
       ]
+    },
+    {
+      "id": 101,
+      "slug": "mutation-printed-exits",
+      "title": "Follow-ups from item 42: every recovery line the mutation lock prints runs as printed, and the hook reads the rest of git's spaced options",
+      "acceptance": [
+        "the restore command quotes the CLI path: with the CLI under a directory with a space, the printed line run as printed exits 0 and removes the lock (today: /bin/sh: S/cli: No such file or directory, exit 127, and the lock stays)",
+        "the hook and the R1 refusal add the cd only for a lock that validateLock accepts; for a lock with no rootFromTop, R1 no longer says verify --restore puts the tree back when the restore then refuses it",
+        "a rootFromTop that differs from this store's only in case (or Unicode normalisation) does not lead in a loop: the message prints a way out that works, or the comparison folds as the refusals do",
+        "under a lock the hook denies git --namespace foo commit, git --config-env k=v commit and git --attr-source HEAD add; the plumbing commands round 2 left (non-blocking 5) are decided: denied, or named in the docs as not covered",
+        "CHANGELOG.md names the refusal of verify --restore under the lock of another store of the worktree"
+      ],
+      "status": "pending",
+      "description": "The round 3 review approved item 42 with no loss path left and listed places where a printed way out does not work as printed, all without writing anything. They were not taken after the verdict.",
+      "size": "m",
+      "source": "item 42 reviews, .mstack/progress/review_mutation-check_r3.md non-blocking 1, 2, 3, 6, 7 and review_mutation-check_r2.md non-blocking 5, 2026-11-19"
+    },
+    {
+      "id": 102,
+      "slug": "mutation-test-pins",
+      "title": "Follow-ups from item 42: tests for the mutants of the mutation check that survive",
+      "acceptance": [
+        "a test fails for each of round 2's mutants i, k, m, a, b and n, or the report says why one is equivalent",
+        "a test fails for each of round 3's three mutants of the B3 path; first D, under which the hook allows git commit under a lock with no rootFromTop (join(top, undefined) throws and the hook fails open)",
+        "the helper's check at start is pinned: given a pid that is already dead and the command sleep 0.15 then write a file, the file is never written; the decision row that says it cannot be tested is answered"
+      ],
+      "status": "pending",
+      "description": "The behaviour is right in each case; no test fails when it is removed. Round 2 listed ten surviving mutants and four (l, d, g, j) got a test in the round 2 fixes. Round 3 added three on the B3 path and showed the helper's check at start can be pinned without a timing bound.",
+      "size": "m",
+      "source": "item 42 reviews, .mstack/progress/review_mutation-check_r2.md non-blocking 3 and review_mutation-check_r3.md non-blocking 4 and 5, 2026-11-19"
+    },
+    {
+      "id": 103,
+      "slug": "mutation-restore-scaling",
+      "title": "Follow-up from item 42: the mutation restore is quadratic in the size of a directory",
+      "acceptance": [
+        "for 3005 paths in one directory, staging, revert and restore are measured before and after, and restore time grows about linearly with the path count (round 2 measured staging 41.5 s, revert 3.8 s, restore 12.3 s; for 305 paths 4.5 s, 0.16 s, 0.33 s)",
+        "no check of item 42's requirements R1 to R28 is weakened: every listing reused is one the run can show is still current"
+      ],
+      "status": "pending",
+      "description": "sweepTemps lists a path's directory once per entry, and entryAt re-reads every parent's listing on each call (src/mutation-tree.ts). The exact-name check must keep reading the directory entry, not trusting a cache across writes the run did not make.",
+      "size": "m",
+      "source": "item 42 review, .mstack/progress/review_mutation-check_r2.md non-blocking 6, 2026-11-19"
     }
   ]
 }
