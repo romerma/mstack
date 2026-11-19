@@ -268,7 +268,8 @@ the entry at p by exact name:
   with `fchmod` from the source's `fstat` (not left to `copyFileSync`, whose keeping of the mode is
   the runtime's), fsynced, compared byte for byte and then unlinked; a symlink is re-made from `readlink` and unlinked; anything else is a failure
   (`mode-exp`: a directory moves whole, a second rescue of the same path gets `2/`, the copy keeps
-  mode 0750).
+  mode 0750). A rescue that fails names `move <p> aside` as what to do: its error may be the
+  rescue directory's and not the tree's (round 1 review, NB10).
 - *Proof*: every entry with H a file holds H(p); every entry with H absent does not hold S(p).
 - Only then: `unlink` the lock when the one at its name is this run's by run id (another run's, or
   one that cannot be read, stays: round 1 review, NB6; ENOENT is fine), fsync the directory, remove `start/` and `head/`,

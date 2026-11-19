@@ -671,3 +671,42 @@ nodeOnly("R13 the restore fsyncs the directories it wrote before it unlinks the 
     assert.ok(synced >= 0 && synced < unlocked, `src/ was not fsynced before the lock was unlinked: ${JSON.stringify(events)}`);
   });
 });
+
+test("R15 a rescue that cannot be made names moving the entry aside as the fix", () => {
+  withRepo(
+    (root) => put(root, "src/a.ts", "a\n"),
+    (root) => {
+      put(root, "src/a.ts", "a2\n");
+      put(root, "src/new.ts", "new\n");
+    },
+    (r) => {
+      const lock = reverted(r);
+      // A directory where HEAD has a file, and a rename into rescue/ that crosses filesystems: it cannot be copied.
+      put(r.root, "src/new.ts/out.log", "written during the run\n");
+      const crossDevice = (from: string, to: string): void => {
+        if (to.includes(`${sep}rescue${sep}`)) throw Object.assign(new Error("EXDEV: cross-device link not permitted"), { code: "EXDEV" });
+        renameSync(from, to);
+      };
+      const exdev = restoreFromLock(r.store, lock, { rename: crossDevice });
+      assert.deepEqual(exdev.failed.map((f) => f.path), ["src/new.ts"]);
+      assert.match(exdev.failed[0]?.fix ?? "", /move src\/new\.ts aside/);
+      assert.equal(read(r.root, "src/new.ts/out.log"), "written during the run\n");
+      // An edit to src/a.ts, and a rescue directory this user cannot write: the fix is not about src/.
+      rmSync(join(r.root, "src/new.ts"), { recursive: true });
+      writeFileSync(join(r.root, "src/a.ts"), "an edit the restore cannot save\n");
+      const rescue = join(runDirOf(r, lock), "rescue");
+      mkdirSync(rescue, { recursive: true });
+      chmodSync(rescue, 0o555);
+      try {
+        const eacces = restoreFromLock(r.store, lock);
+        assert.deepEqual(eacces.failed.map((f) => f.path), ["src/a.ts"]);
+        assert.match(eacces.failed[0]?.reason ?? "", /EACCES/);
+        assert.match(eacces.failed[0]?.fix ?? "", /move src\/a\.ts aside/);
+        assert.doesNotMatch(eacces.failed[0]?.fix ?? "", /chmod u\+w src\b/);
+        assert.equal(read(r.root, "src/a.ts"), "an edit the restore cannot save\n");
+      } finally {
+        chmodSync(rescue, 0o755);
+      }
+    },
+  );
+});

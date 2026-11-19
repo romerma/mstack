@@ -573,7 +573,8 @@ function putBack(ctx: PutBack, e: LockEntry): void {
       try {
         rescue(ctx, e, source);
       } catch (error) {
-        fail(e.path, `${source} could not be moved into ${join(run, "rescue")}: ${errorText(error)}`, fixFor(error, source));
+        // The error may be the rescue directory's, not the tree's: what clears it either way is the entry out of the way.
+        fail(e.path, `${source} could not be moved into ${join(run, "rescue")}: ${errorText(error)}`, `move ${shellWord(source)} aside, so that HEAD's content can be written at ${shellWord(e.path)}`);
         return;
       }
       expect = { kind: "absent", variant: null };

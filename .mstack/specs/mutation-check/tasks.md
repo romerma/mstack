@@ -153,10 +153,11 @@ requirements it covers (`agents/implementer.md`, "Your report").
   symlinked parent` (added in round 1, for NB8), `R14 the copy fallback fsyncs its copy's
   directory before it unlinks the source` and `R13 the restore fsyncs the directories it wrote
   before it unlinks the lock` (both added in round 1, for NB9; node only, through
-  `syncBuiltinESMExports`, and skipped under bun). Done when `bun test
-  tests/mutation-restore.test.ts` ends ` 26 pass`, ` 2 skip` (or fewer passes plus two more skips,
+  `syncBuiltinESMExports`, and skipped under bun), `R15 a rescue that cannot be made names moving
+  the entry aside as the fix` (added in round 1, for NB10). Done when `bun test
+  tests/mutation-restore.test.ts` ends ` 27 pass`, ` 2 skip` (or fewer passes plus two more skips,
   on a case-sensitive filesystem) and ` 0 fail`,
-  and the node command prints `# fail 0` with 28 passing. (covers R10, R13, R14, R15, R17, R22, R24)
+  and the node command prints `# fail 0` with 29 passing. (covers R10, R13, R14, R15, R17, R22, R24)
 
 - [x] 2.4 In `src/run.ts`, add `runCommandAsync(cmd, { cwd, timeoutMs, tailLines? })` returning `{
   result: Promise<RunResult>; stop(): void }`, and in `src/run-helper.mjs` the fifth argument
