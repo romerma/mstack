@@ -732,7 +732,9 @@ back is lost.
 ### Requirement: R26 The PreToolUse hook denies git writes under a lock
 WHILE the lock exists in the git directory of the hook input's `cwd`, the system MUST deny any
 Bash command with a segment running git `add`, `am`, `apply`, `checkout`, `cherry-pick`, `clean`,
-`commit`, `merge`, `mv`, `pull`, `rebase`, `reset`, `restore`, `revert`, `rm`, `stash` or `switch`
+`commit`, `merge`, `mv`, `pull`, `rebase`, `reset`, `restore`, `revert`, `rm`, `stash` or `switch`,
+or the plumbing `update-index`, `read-tree`, `checkout-index`, `write-tree`, `mktree`,
+`commit-tree` or `update-ref` (item 101)
 (with git's global options, in a compound command), with a reason that names the lock and the
 restore command of R25; it MUST decide by the lock's existence alone, so a lock that cannot be
 parsed denies too; it MUST start no git process for a command with no such segment; it MUST
@@ -748,7 +750,8 @@ MUST deny a segment running `rm` on a path that ends in `mstack-mutation.lock`, 
 #### Scenario: Not caught, and said so
 - **WHEN** the command is `git ci` through an alias, `"git" commit`, `git -C "dir with space"
   commit`, an interpreter one-liner, `npm version`, or a `git -C <repo>` from a `cwd` outside the
-  repository
+  repository; or plumbing that is not listed (`hash-object -w`, `symbolic-ref`, `branch -f`,
+  `tag`, `sparse-checkout`)
 - **THEN** the hook allows it
 
 #### Scenario: What decides

@@ -370,3 +370,45 @@ caseSensitiveTest("A3 where the disk tells case apart, PKG/A and pkg/a are two s
     rmSync(top, { recursive: true, force: true });
   }
 });
+
+test("A4 under a lock the hook denies git's options given with a space and the plumbing that writes the index, a tree, a commit or a ref", () => {
+  withRepo(startA, editA, (r) => {
+    const denied = [
+      "git --namespace foo commit -m x",
+      "git --namespace foo add -A",
+      "git --config-env core.editor=EDITOR commit -m x",
+      "git --attr-source HEAD add -A",
+      "git --attr-source=HEAD add -A",
+      "git update-index --add src/a.ts",
+      "git -C . update-index --refresh",
+      "GIT_INDEX_FILE=/tmp/i git update-index --add src/a.ts",
+      "git read-tree HEAD",
+      "git read-tree -u --reset HEAD",
+      "git checkout-index -f -a",
+      "git write-tree",
+      "git mktree < tree.txt",
+      "git commit-tree HEAD^{tree} -p HEAD -m x",
+      "git update-ref refs/heads/main HEAD~1",
+    ];
+    // Reads, and the writes the docs name as not covered: none can save the reverted tree.
+    const allowed = [
+      "git --namespace foo log -1",
+      "git --attr-source HEAD status",
+      "git cat-file -p HEAD",
+      "git ls-files -s",
+      "git ls-tree HEAD",
+      "git diff-index HEAD",
+      "git merge-base HEAD HEAD",
+      "git hash-object src/a.ts",
+      "git hash-object -w src/a.ts",
+      "git symbolic-ref HEAD",
+      "git branch -f x HEAD",
+      "git tag x",
+      "git sparse-checkout set src",
+    ];
+    for (const command of [...denied, ...allowed]) assert.equal(hookReason(command, r.root), null, `denied with no lock: ${command}`);
+    locked(r);
+    for (const command of denied) assert.ok(hookReason(command, r.root) !== null, `not denied under a lock: ${command}`);
+    for (const command of allowed) assert.equal(hookReason(command, r.root), null, `denied under a lock: ${command}`);
+  });
+});

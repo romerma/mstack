@@ -397,9 +397,13 @@ else. `receipts()` and `status()` do not change.
   the restore leaves it clean, `git worktree remove` without `--force` deletes the rescue
   (`specreview42r3/wt`).
 - `preToolUse` keeps `GUARDS` and adds, after them, a test of each segment against `GIT` followed
-  by `(?:add|am|apply|checkout|cherry-pick|clean|commit|merge|mv|pull|rebase|reset|restore|revert|rm|stash|switch)(?![-\w])`;
-  `GIT` takes `--git-dir` and `--work-tree` with their value after `=` or after a space (round 2
-  review, non-blocking 5).
+  by `(?:add|am|apply|checkout|cherry-pick|clean|commit|merge|mv|pull|rebase|reset|restore|revert|rm|stash|switch|update-index|read-tree|checkout-index|write-tree|mktree|commit-tree|update-ref)(?![-\w])`;
+  `GIT` takes `--git-dir`, `--work-tree`, `--namespace`, `--config-env` and `--attr-source` with
+  their value after `=` or after a space (round 2 review, non-blocking 5; round 3, non-blocking 1).
+  The plumbing is the listed writes spelled low and has no form that only reads; what is not
+  listed reads, or cannot save the reverted tree (`hash-object -w` gives the start's blob, which
+  exists; `symbolic-ref`, `branch` and `tag` point a ref at a commit that exists;
+  `sparse-checkout` leaves a modified file in place) (item 101).
   Only on a match does it run `git rev-parse --absolute-git-dir` in `input.cwd` and `lstat` the
   lock; present denies, with the pid and R25's command when `validateLock` accepts the lock and
   its `cli` is absolute (the lock's existence decides the deny; the check decides only whether

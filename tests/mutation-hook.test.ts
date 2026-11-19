@@ -82,7 +82,7 @@ test("R26 every listed git command is denied under a lock", () => {
     // Git's global options do not hide the verb.
     assert.ok(decide("git --no-pager -C . reset HEAD~1", box.root).denied, "the safe reset forms are denied under a lock");
     // What is not listed, and what only starts with a listed word.
-    for (const command of ["git status", "git log -1", "git diff", "git commit-tree HEAD^{tree}", "git add-note x", "git branch -a"]) {
+    for (const command of ["git status", "git log -1", "git diff", "git merge-base HEAD HEAD", "git add-note x", "git branch -a"]) {
       assert.ok(!decide(command, box.root).denied, `denied under a lock though it is not listed: ${command}`);
     }
   });

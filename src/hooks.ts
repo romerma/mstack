@@ -356,10 +356,11 @@ interface Guard {
  * `git` accepts global options before the subcommand, so `git push` is not
  * adjacent in `git -C /repo push`, `git -c k=v push`, `git --git-dir=... push`.
  * Every one of those slipped straight past a `\bgit\s+push\b`. This eats the
- * options rather than trying to enumerate them. `--git-dir` and `--work-tree`
- * also take their value after a space, as `-C` and `-c` do.
+ * options rather than trying to enumerate them. `--git-dir`, `--work-tree`,
+ * `--namespace`, `--config-env` and `--attr-source` also take their value after
+ * a space, as `-C` and `-c` do (git.c's `handle_options`; item 101).
  */
-const GIT = String.raw`\bgit\s+(?:-[cC]\s+\S+\s+|--(?:git-dir|work-tree)\s+\S+\s+|--(?:git-dir|work-tree|namespace|exec-path|config-env)(?:=\S+)?\s+|-{1,2}[a-zA-Z-]+\s+)*`;
+const GIT = String.raw`\bgit\s+(?:-[cC]\s+\S+\s+|--(?:git-dir|work-tree|namespace|config-env|attr-source)\s+\S+\s+|--(?:git-dir|work-tree|namespace|exec-path|config-env|attr-source)(?:=\S+)?\s+|-{1,2}[a-zA-Z-]+\s+)*`;
 
 export const GUARDS: readonly Guard[] = [
   {
@@ -417,9 +418,21 @@ export const GUARDS: readonly Guard[] = [
  * or a stash would keep it, or lose it. Matched per segment like the guards, so it
  * is as loose within a command and as blind to an alias, `"git"`, an interpreter
  * one-liner or `git -C "a b"` as they are.
+ *
+ * The plumbing after them is the same writes spelled low (item 101): the index
+ * from the tree (`update-index`) or from a tree object (`read-tree`, which can
+ * also write the tree), the tree from the index (`checkout-index`), a tree object
+ * (`write-tree`, `mktree`), a commit (`commit-tree`) and a ref (`update-ref`).
+ * None of them has a form that only reads. What is left out either reads, or
+ * cannot save the reverted tree, since nothing above makes an object of it:
+ * `hash-object -w` (the reverted content is the start's blob, already an
+ * object), `symbolic-ref`, `branch` and `tag` (a ref to a commit that exists;
+ * each has a form that only reads), `sparse-checkout` (it leaves a modified
+ * file in place), and every other command git has.
  */
 const LOCKED_GIT = new RegExp(
-  `${GIT}(?:add|am|apply|checkout|cherry-pick|clean|commit|merge|mv|pull|rebase|reset|restore|revert|rm|stash|switch)(?![-\\w])`,
+  `${GIT}(?:add|am|apply|checkout|cherry-pick|clean|commit|merge|mv|pull|rebase|reset|restore|revert|rm|stash|switch` +
+    `|update-index|read-tree|checkout-index|write-tree|mktree|commit-tree|update-ref)(?![-\\w])`,
 );
 
 /**
