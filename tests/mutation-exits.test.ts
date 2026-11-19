@@ -261,3 +261,112 @@ test("A2 the hook and R1 name the restore only for a lock validateLock accepts, 
     assert.match(hookReason("git commit -m x", r.root) ?? "", /if it is not running, run cd [^\n]*verify --restore/);
   });
 });
+
+/**
+ * A store at `pkg/café`, its name in NFC as git gives it, and the run staged and
+ * the lock taken, then edited to name its store `rootFromTop`.
+ */
+function cafeLock(rootFromTop: (written: string) => string, body: (s: { store: Store; root: string; file: string; start: string }) => void): void {
+  const top = realpathSync(mkdtempSync(join(tmpdir(), "mstack-exits-case-")));
+  try {
+    const rel = "pkg/café";
+    repoWithStores(top, [rel]);
+    const root = join(top, rel);
+    const store = storeAt(root);
+    startA(root);
+    const start = commitAll(top, "start");
+    editA(root);
+    writeState(root, state([item({ status: "in_progress", base: start })], { verify: "true" }));
+    commitAll(top, "the item");
+    const set = revertSet(store, start);
+    assert.ok(set !== null);
+    const prepared = prepareRun(store, start, set);
+    assert.ok(prepared.ok, prepared.ok ? "" : prepared.reason);
+    assert.equal(prepared.lock.rootFromTop, rel);
+    assert.ok(acquireLock(store, prepared.lock).ok);
+    const file = join(top, ".git", "mstack-mutation.lock");
+    writeFileSync(file, `${JSON.stringify({ ...prepared.lock, pid: deadPid(), rootFromTop: rootFromTop(rel) }, null, 2)}\n`);
+    body({ store, root, file, start });
+  } finally {
+    rmSync(top, { recursive: true, force: true });
+  }
+}
+
+test("A3 a rootFromTop that differs from this store's only in case or Unicode form prints no cd that loops but the by-hand way out, and writes nothing", () => {
+  // On a disk that folds them both spellings name this store, and on one that does not, no directory.
+  const spellings: [string, (rel: string) => string][] = [
+    ["in upper case", (rel) => rel.toUpperCase()],
+    ["in NFD", (rel) => rel.normalize("NFD")],
+  ];
+  for (const [label, spell] of spellings) {
+    cafeLock(spell, ({ store, root, file, start }) => {
+      const text = readFileSync(file, "utf8");
+      const tree = status(root);
+      const lines: string[] = [];
+      assert.equal(restoreRun(store, { out: (l) => lines.push(l) }), 2, `${label}: ${lines.join("\n")}`);
+      const restore = lines.join("\n");
+      assert.match(restore, /refused: the lock is the run's of the store at/, label);
+      assert.match(restore, /no verify --restore takes this lock/, label);
+      assert.doesNotMatch(restore, /\bcd |mstack'? verify --restore/, `${label}:\n${restore}`);
+      assert.match(restore, BY_HAND, label);
+
+      const gate = gateLine(store);
+      assert.doesNotMatch(gate, /\bcd |mstack'? verify --restore/, `${label}: ${gate}`);
+      assert.match(gate, BY_HAND, label);
+
+      const { st, it } = active(start);
+      const r1 = refusals(store, st, it);
+      assert.ok(r1 !== null);
+      assert.doesNotMatch(r1.fix, /\bcd |mstack'? verify --restore/, `${label}: ${r1.fix}`);
+      assert.match(r1.fix, BY_HAND, label);
+
+      const hook = hookReason("git commit -m x", root);
+      assert.ok(hook !== null, `${label}: the hook allowed git commit under a lock`);
+      assert.doesNotMatch(hook, /\bcd |mstack'? verify --restore/, `${label}: ${hook}`);
+      assert.match(hook, BY_HAND, label);
+
+      assert.equal(readFileSync(file, "utf8"), text, `${label}: the lock changed`);
+      assert.equal(status(root), tree, `${label}: the tree changed`);
+    });
+  }
+});
+
+// bun ignores the `skip` option of node:test, so choose the function at definition time
+const caseSensitiveTest = caseInsensitive ? test.skip : test;
+
+caseSensitiveTest("A3 where the disk tells case apart, PKG/A and pkg/a are two stores and the cd to the lock's store runs as printed", SPAWN_TEST, () => {
+  const top = realpathSync(mkdtempSync(join(tmpdir(), "mstack-exits-cs-")));
+  try {
+    repoWithStores(top, ["PKG/A", "pkg/a"]);
+    const upper = join(top, "PKG", "A");
+    const lower = join(top, "pkg", "a");
+    startA(upper);
+    startA(lower);
+    const start = commitAll(top, "start");
+    editA(upper);
+    writeState(upper, state([item({ status: "in_progress", base: start })], { verify: "true" }));
+    commitAll(top, "the item");
+    const store = storeAt(upper);
+    const set = revertSet(store, start);
+    assert.ok(set !== null);
+    const prepared = prepareRun(store, start, set);
+    assert.ok(prepared.ok, prepared.ok ? "" : prepared.reason);
+    assert.equal(prepared.lock.rootFromTop, "PKG/A");
+    assert.ok(acquireLock(store, prepared.lock).ok);
+    const file = join(top, ".git", "mstack-mutation.lock");
+    writeFileSync(file, `${JSON.stringify({ ...prepared.lock, pid: deadPid() }, null, 2)}\n`);
+
+    const lines: string[] = [];
+    assert.equal(restoreRun(storeAt(lower), { out: (l) => lines.push(l) }), 2, lines.join("\n"));
+    const line = captureOf(lines.join("\n"), /^mutation: run it from that store: (.+)$/m, "pkg/a's restore");
+    assert.ok(line.startsWith(`cd ${upper} && `), line);
+    const ran = sh(line, lower);
+    assert.equal(ran.code, 0, ran.all);
+    assert.match(ran.out, /tree verified, lock removed/);
+    assert.equal(existsSync(file), false);
+    assert.equal(readFileSync(join(upper, "src", "a.ts"), "utf8"), "new\n");
+    assert.equal(readFileSync(join(lower, "src", "a.ts"), "utf8"), "old\n");
+  } finally {
+    rmSync(top, { recursive: true, force: true });
+  }
+});

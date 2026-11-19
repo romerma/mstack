@@ -4,7 +4,7 @@ import { git, headSha } from "./git.ts";
 import { isActive } from "./lifecycle.ts";
 import { mutationKey, refusals, revertSet, trackedChanges, type MutationKey } from "./mutation.ts";
 import {
-  acquireLock, BY_HAND, discard, FOR_A_PERSON, errorText, liveness, lockPath, lockStoreDir, placeOf, prepareRun, readLock, restoreCommand, shellWord, sweepStale, validateLock, type Lock,
+  acquireLock, BY_HAND, discard, FOR_A_PERSON, errorText, inLockStore, liveness, lockPath, placeOf, prepareRun, readLock, restoreCommand, shellWord, sweepStale, validateLock, type Lock,
 } from "./mutation-lock.ts";
 import { applyRevert, entryAt, holds, restoreFromLock, type Entry, type Restored } from "./mutation-tree.ts";
 import { runningCliRoot, type Store } from "./paths.ts";
@@ -521,11 +521,15 @@ export function restoreRun(store: Store, options: { readonly out: (line: string)
   if (place === null) return refuse(out, "git could not say where this store is in its worktree, so whose the lock is cannot be told", "run it again; nothing was written");
   if (lock.rootFromTop !== place.rel) {
     const name = (rel: string): string => (rel === "." ? "the worktree's top level" : rel);
-    return refuse(
+    // The `cd` only to a store whose restore takes the lock: a spelling that differs only in case or Unicode form would loop (item 101, A3).
+    const way = inLockStore(restoreCommand(lock.cli), place.top, lock.rootFromTop);
+    refuse(
       out,
       `the lock is the run's of the store at ${name(lock.rootFromTop)} in this worktree, and this store is at ${name(place.rel)}; nothing was written, and the lock stays`,
-      `run it from that store: cd ${shellWord(lockStoreDir(place.top, lock.rootFromTop))} && ${restoreCommand(lock.cli)}`,
+      "line" in way ? `run it from that store: ${way.line}` : way.none,
     );
+    if ("none" in way) byHand();
+    return 2;
   }
   const alive = liveness(lock);
   const said = { running: "running", "not-running": "not running", unknown: "cannot tell whether it is running" }[alive.state];

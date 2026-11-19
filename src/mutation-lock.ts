@@ -2,14 +2,14 @@ import { spawnSync } from "node:child_process";
 import { createHash, randomBytes, type Hash } from "node:crypto";
 import {
   closeSync, constants, existsSync, fstatSync, fsyncSync, linkSync, lstatSync, mkdirSync, openSync, readdirSync, readFileSync,
-  readlinkSync, readSync, rmdirSync, rmSync, unlinkSync, writeSync,
+  readlinkSync, readSync, rmdirSync, rmSync, statSync, unlinkSync, writeSync,
 } from "node:fs";
 import { hostname, uptime } from "node:os";
 import { join } from "node:path";
 
 import { git, gitToFile } from "./git.ts";
 import type { RevertSet } from "./mutation.ts";
-import { runningCliRoot, type Store } from "./paths.ts";
+import { findStore, runningCliRoot, type Store } from "./paths.ts";
 
 /**
  * The run's staging, its lock, and whether the run that wrote a lock is alive
@@ -127,14 +127,50 @@ export const shellWord = (p: string): string => (/^[\w./@%+=:,-]+$/.test(p) ? p 
 /** The directory of the store a lock names, in the worktree whose top level is `top`. */
 export const lockStoreDir = (top: string, rootFromTop: string): string => (rootFromTop === "." ? top : join(top, rootFromTop));
 
+/** A restore line that runs as printed, or why there is none. */
+export type RestoreLine = { readonly line: string } | { readonly none: string };
+
+const storeName = (rel: string): string => (rel === "." ? "the worktree's top level" : rel);
+
+/**
+ * `cd <the lock's store> && command`, when the restore run from that directory
+ * takes the lock as its own store's: the store it finds there is the one git
+ * names `rootFromTop` in the worktree whose top level is `top`. Otherwise why
+ * no directory does. A `rootFromTop` that differs from git's spelling only in
+ * case or Unicode form names, on a disk that folds them, this same store, whose
+ * restore refuses the lock again, so a `cd` there would lead in a loop; on a
+ * disk that does not fold them it names no directory, or another store. The
+ * disk decides, through git, and nothing here folds a name (item 101, A3).
+ */
+export function inLockStore(command: string, top: string, rootFromTop: string): RestoreLine {
+  const dir = lockStoreDir(top, rootFromTop);
+  const lead = `no verify --restore takes this lock: it names its store ${storeName(rootFromTop)}, and`;
+  let isDirectory = false;
+  try {
+    isDirectory = statSync(dir).isDirectory();
+  } catch {
+    // Not there, or not readable: either way no `cd` to it runs.
+  }
+  if (!isDirectory) return { none: `${lead} there is no directory ${dir}` };
+  const found = findStore(dir);
+  const there = found === null ? null : placeOf(found);
+  if (there === null || there.top !== top) return { none: `${lead} there is no store of this worktree at ${dir}` };
+  if (there.rel === rootFromTop) return { line: `cd ${shellWord(dir)} && ${command}` };
+  if (fold(there.rel) === fold(rootFromTop)) {
+    return { none: `${lead} git names the store at ${dir} ${storeName(there.rel)}, which differs from it only in case or Unicode form, so the restore there refuses the lock too` };
+  }
+  return { none: `${lead} a restore run from ${dir} finds the store at ${storeName(there.rel)}, which refuses the lock too` };
+}
+
 /**
  * `command` run from the lock's store, when `place` is another store of the
  * worktree: two stores share the worktree's lock, and a restore resolves the
  * lock's paths against the root of the store it runs in (round 2 review, B3).
+ * When git cannot say where this store is, the command as it is.
  */
-export function fromLockStore(command: string, rootFromTop: unknown, place: Place | null): string {
-  if (place === null || typeof rootFromTop !== "string" || rootFromTop === place.rel) return command;
-  return `cd ${shellWord(lockStoreDir(place.top, rootFromTop))} && ${command}`;
+export function fromLockStore(command: string, rootFromTop: string, place: Place | null): RestoreLine {
+  if (place === null || rootFromTop === place.rel) return { line: command };
+  return inLockStore(command, place.top, rootFromTop);
 }
 
 /** `<git dir>/mstack-mutation/<run>/`; null outside a repository. */

@@ -172,7 +172,11 @@ interface Lock {
   `verify --restore` from a store whose own `rootFromTop` differs refuses, after `validateLock`
   and before `liveness`, exit 2 and nothing written, and names `cd <top>/<rootFromTop> &&` R25's
   command; the gate's line and R1's refusal name the same (`fromLockStore`), and so does the
-  hook's reason. `root`, absolute, is kept for a reader and nothing is resolved against it: in a
+  hook's reason. All four print that `cd` only when the store a restore finds from that
+  directory is the one git names `rootFromTop` in the same worktree (`inLockStore`, one more
+  `git rev-parse` there): a spelling that differs only in case or Unicode form names this same
+  store on a disk that folds them, and the `cd` looped; when no directory qualifies they say
+  why and give the by-hand recovery, and nothing folds a name (item 101). `root`, absolute, is kept for a reader and nothing is resolved against it: in a
   moved checkout it names a directory that is gone, and a comparison of absolute roots would then
   fall back to this store's root, which for the other store is the loss again. A lock without
   `rootFromTop` fails `validateLock`, so it is one that cannot be read.
@@ -400,7 +404,8 @@ else. `receipts()` and `status()` do not change.
   lock; present denies, with the pid and R25's command when `validateLock` accepts the lock and
   its `cli` is absolute (the lock's existence decides the deny; the check decides only whether
   the reason names the restore, item 101), the command preceded by `cd <the lock's store> &&`, its top level from a
-  second `git rev-parse --show-toplevel` that runs only on a deny, and
+  second `git rev-parse --show-toplevel` that runs only on a deny and the `cd` checked by a third
+  in the lock's store (`inLockStore`; without a directory that qualifies, the by-hand reason), and
   otherwise with a reason that gives the by-hand recovery as one for a person at a terminal, since
   the hook denies an agent both its steps, and points at `mstack gate`, whose line says the same
   (round 2 review, non-blocking 2). A lock name that cannot be `lstat`ed for a

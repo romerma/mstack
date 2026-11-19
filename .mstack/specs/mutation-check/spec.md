@@ -685,7 +685,10 @@ name what is wrong; for a lock that cannot be read it MUST also name the by-hand
 it discards. Two stores of one worktree share its lock: IF the store root the lock names relative
 to the worktree's top level is not this store's, THEN `verify --restore` MUST exit 2, write nothing
 to the tree, the lock or the run directory, and name the directory to run it from, and the gate's
-line, the hook's reason and R1's refusal of the lock MUST name that directory too; a lock's paths
+line, the hook's reason and R1's refusal of the lock MUST name that directory too; a directory is
+named only when the restore run there takes the lock as its store's, and when none does (a
+`rootFromTop` that differs from git's spelling only in case or Unicode form, which on a disk that
+folds them names this same store), each MUST say so and name the by-hand recovery (item 101); a lock's paths
 are resolved against the root of the store it names, never against another store's, in a moved
 checkout or not.
 

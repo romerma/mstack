@@ -6,7 +6,7 @@ import * as costs from "./costs.ts";
 import { runGate } from "./gate.ts";
 import { isActive } from "./lifecycle.ts";
 import * as hooklog from "./hooklog.ts";
-import { BY_HAND, FOR_A_PERSON, LOCK_NAME, lockStoreDir, restoreCommand, shellWord, validateLock, type Lock } from "./mutation-lock.ts";
+import { BY_HAND, FOR_A_PERSON, inLockStore, LOCK_NAME, restoreCommand, validateLock, type Lock } from "./mutation-lock.ts";
 import { findStore, type Store } from "./paths.ts";
 import { reportFiles, reportKind, roleOf, substantialReports } from "./roles.ts";
 import { parseState, type Item } from "./state.ts";
@@ -442,9 +442,13 @@ function lockReason(cwd: string): string | null {
   const parsed = readLockRecord(file);
   if (parsed === null) return `${lead}. The lock cannot be read as a run's record, so the way out is ${FOR_A_PERSON}: ${BY_HAND}; 'mstack gate' says the same`;
   // The restore runs from the lock's own store: two stores of one worktree share its lock.
+  const held = `${lead}. It is held by pid ${parsed.pid}: wait for it, or if it is not running`;
   const top = gitAnswer(cwd, ["rev-parse", "--show-toplevel"]);
-  const where = top === null ? `from ${parsed.rootFromTop} under this worktree's top level: ` : `cd ${shellWord(lockStoreDir(top, parsed.rootFromTop))} && `;
-  return `${lead}. It is held by pid ${parsed.pid}: wait for it, or if it is not running, run ${where}${restoreCommand(parsed.cli)}`;
+  if (top === null) return `${held}, run from ${parsed.rootFromTop} under this worktree's top level: ${restoreCommand(parsed.cli)}`;
+  // The `cd` only to a store whose restore takes the lock: a spelling that differs only in case or Unicode form would loop (item 101, A3).
+  const way = inLockStore(restoreCommand(parsed.cli), top, parsed.rootFromTop);
+  if ("line" in way) return `${held}, run ${way.line}`;
+  return `${held}: ${way.none}, so the way out is ${FOR_A_PERSON}: ${BY_HAND}; 'mstack gate' says the same`;
 }
 
 function gitAnswer(cwd: string, args: readonly string[]): string | null {

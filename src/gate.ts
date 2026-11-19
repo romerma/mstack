@@ -6,7 +6,7 @@ import { FORGED_IMPL_FIX, FORGED_SPEC_FIX, gateProblems, NO_VERDICT_FIX, NO_VERD
 import { defaultBranch, git, headSha } from "./git.ts";
 import { readGlossary } from "./glossary.ts";
 import {
-  BY_HAND, checkLock, fromLockStore, gitDirOf, lockExistsIn, liveness, LOCK_NAME, placeOf, readLock, rescueDirectories, restoreCommand, type Lock, type Place,
+  BY_HAND, checkLock, FOR_A_PERSON, fromLockStore, gitDirOf, lockExistsIn, liveness, LOCK_NAME, placeOf, readLock, rescueDirectories, restoreCommand, type Lock, type Place,
 } from "./mutation-lock.ts";
 import { runCommand } from "./run.ts";
 import { measureDiff, measureStart, resolveCommit, SMALL_MAX_FILES, SMALL_MAX_LINES } from "./size.ts";
@@ -701,16 +701,18 @@ function lockProblem(held: NonNullable<ReturnType<typeof readLock>>, file: strin
   const lock: Lock = checked.lock;
   const alive = liveness(lock);
   const what = `the mutation lock ${file} is held by pid ${lock.pid} on ${lock.host}, started ${lock.startedAt}, ${lock.entries.length} path(s)`;
-  const command = fromLockStore(restoreCommand(lock.cli), lock.rootFromTop, place);
+  // A lock whose store no restore takes (item 101, A3) gets the by-hand way out instead of a line that loops.
+  const way = fromLockStore(restoreCommand(lock.cli), lock.rootFromTop, place);
+  const byHand = "none" in way ? `${way.none}; ${FOR_A_PERSON}: ${BY_HAND}` : "";
   switch (alive.state) {
     case "running":
       return { message: `${what}: the run is running (${alive.reason})`, fix: "wait for it to end; the lock goes when it finishes" };
     case "not-running":
-      return { message: `${what}: the run is not running (${alive.reason})`, fix: `run ${command}` };
+      return { message: `${what}: the run is not running (${alive.reason})`, fix: "line" in way ? `run ${way.line}` : byHand };
     case "unknown":
       return {
         message: `${what}: whether the run is running cannot be told (${alive.reason})`,
-        fix: `run ${command} where the run started (host ${lock.host}); or by hand: ${BY_HAND}`,
+        fix: "line" in way ? `run ${way.line} where the run started (host ${lock.host}); or by hand: ${BY_HAND}` : byHand,
       };
   }
 }

@@ -3,7 +3,7 @@ import { existsSync, lstatSync, readlinkSync, realpathSync } from "node:fs";
 import { basename, dirname, join, resolve, sep } from "node:path";
 
 import { git, gitBytes } from "./git.ts";
-import { checkLock, fold, fromLockStore, liveness, lockPath, placeOf, readLock, restoreCommand } from "./mutation-lock.ts";
+import { BY_HAND, checkLock, fold, FOR_A_PERSON, fromLockStore, liveness, lockPath, placeOf, readLock, restoreCommand } from "./mutation-lock.ts";
 import { entryAt, type Entry } from "./mutation-tree.ts";
 import { runningCliRoot, STORE_DIR, type Store } from "./paths.ts";
 import { measureStart, resolveCommit, scopeClass } from "./size.ts";
@@ -384,13 +384,15 @@ function lockRefusal(store: Store, lock: string, running: string): Refusal | nul
   if ("unreadable" in checked) return checked.unreadable;
   const record = checked.lock;
   const here = join(running, "bin", "mstack");
-  const restore = fromLockStore(restoreCommand(record.cli, here), record.rootFromTop, placeOf(store));
+  // A lock whose store no restore takes (item 101, A3) gets the by-hand way out instead of a line that loops.
+  const way = fromLockStore(restoreCommand(record.cli, here), record.rootFromTop, placeOf(store));
+  const byHand = "none" in way ? `${way.none}; ${FOR_A_PERSON}: ${BY_HAND}` : "";
   const alive = liveness(record);
   const said = { running: "running", "not-running": "not running", unknown: "cannot tell whether it is running" }[alive.state];
   const fix = {
     running: "wait for it to end",
-    "not-running": `${restore} puts the tree back and removes the lock`,
-    unknown: `wait for it to end, or run ${restore} where it ran, on ${String(record.host)}`,
+    "not-running": "line" in way ? `${way.line} puts the tree back and removes the lock` : byHand,
+    unknown: "line" in way ? `wait for it to end, or run ${way.line} where it ran, on ${String(record.host)}` : `wait for it to end; ${byHand}`,
   }[alive.state];
   return {
     message: `a mutation run holds the tree: lock ${lock}, pid ${String(record.pid)}, started ${String(record.startedAt)}, ${said} (${alive.reason})`,
