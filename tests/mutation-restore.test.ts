@@ -535,3 +535,20 @@ test("R13 a path HEAD lacks that holds the start's content at the proof keeps th
     },
   );
 });
+
+test("R24 the restore checks the lock itself, and writes nothing for one that fails the check", () => {
+  withRepo(twoFiles, editBoth, (r) => {
+    const lock = reverted(r);
+    put(r.root, "src/notes.tmp", "the user's own notes, untracked\n");
+    const before = status(r.root);
+    const onDisk = readFileSync(lockFileOf(r), "utf8");
+    // The review's E5: a temp prefix of "" would make the temp sweep take every *.tmp file there.
+    const result = restoreFromLock(r.store, { ...lock, entries: lock.entries.map((e) => ({ ...e, tmp: "" })) });
+    assert.equal(result.failed.length, 1, JSON.stringify(result.failed));
+    assert.match(result.failed[0]?.reason ?? "", /temp prefix/);
+    assert.deepEqual([result.restored, result.rescued, result.left], [0, [], []]);
+    assert.equal(read(r.root, "src/notes.tmp"), "the user's own notes, untracked\n");
+    assert.equal(status(r.root), before, "the restore wrote to the tree with a lock that fails its check");
+    assert.equal(readFileSync(lockFileOf(r), "utf8"), onDisk);
+  });
+});

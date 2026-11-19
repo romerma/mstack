@@ -143,9 +143,11 @@ requirements it covers (`agents/implementer.md`, "Your report").
   written into a directory the revert made survives the restore`, `R15 a staged copy of H that does
   not hold what the lock recorded is not written, and the lock stays` and `R13 a path HEAD lacks
   that holds the start's content at the proof keeps the lock` (the three added in round 1, for
-  mutants no named test killed). Done when `bun test tests/mutation-restore.test.ts` ends ` 23
-  pass` (or fewer passes plus two skips, on a case-sensitive filesystem) and ` 0 fail`,
-  and the node command prints `# fail 0`. (covers R10, R13, R14, R15, R17, R22)
+  mutants no named test killed), `R24 the restore checks the lock itself, and writes nothing for one
+  that fails the check` (added in round 1, for NB4). Done when `bun test
+  tests/mutation-restore.test.ts` ends ` 24 pass` (or fewer passes plus two skips, on a
+  case-sensitive filesystem) and ` 0 fail`,
+  and the node command prints `# fail 0`. (covers R10, R13, R14, R15, R17, R22, R24)
 
 - [x] 2.4 In `src/run.ts`, add `runCommandAsync(cmd, { cwd, timeoutMs, tailLines? })` returning `{
   result: Promise<RunResult>; stop(): void }`, and in `src/run-helper.mjs` the fifth argument

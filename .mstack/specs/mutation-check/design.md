@@ -221,8 +221,10 @@ only those (R11, the review's N5). Step names are the test seam, as `LockOptions
 
 ### Restore (`restoreFromLock(store, lock, { step?, rename?, entries? })`, `src/mutation-tree.ts`)
 
-Synchronous, no child process. `entries`, given only by the run's restore after R11, keeps the
-restore and its proof to those entries; the temp sweep and the directories are as always. First
+Synchronous, no child process. It runs `validateLock` first: a lock that fails it writes nothing
+and is one failure naming what is wrong (R24; round 1 review, NB4). `entries`, given only by the
+run's restore after R11, keeps the restore and its proof to those entries; the temp sweep and the
+directories are as always. First
 every temp name of every entry that is a regular file is
 unlinked (`spec42r3/ro-exp`: the sweep takes the run's names, leaves a directory with such a name
 and the user's `notes.tmp`). Then entries HEAD lacks, deepest first; `createdDirs`, deepest first,

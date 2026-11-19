@@ -5,7 +5,7 @@ import {
 } from "node:fs";
 import { dirname, join } from "node:path";
 
-import { errorText, fsyncDirectory, lockPath, pump, READ_FLAGS, runDirectory, type Identity, type Lock, type LockEntry } from "./mutation-lock.ts";
+import { errorText, fsyncDirectory, lockPath, pump, READ_FLAGS, runDirectory, validateLock, type Identity, type Lock, type LockEntry } from "./mutation-lock.ts";
 import type { Store } from "./paths.ts";
 
 /**
@@ -365,7 +365,8 @@ const AGAIN = "run the restore again once nothing else writes to it";
  * again just before the rename; anything else there (an edit, a directory, a
  * symlink, a case variant) is first moved into a fresh `rescue/<k>/` under the
  * name it has on disk. A path that cannot be written, moved or proved is
- * named in `failed` with what to do, and the lock stays (R15). Synchronous,
+ * named in `failed` with what to do, and the lock stays (R15). A lock that
+ * fails `validateLock` writes nothing and is one failure (R24). Synchronous,
  * no child process, and from the lock's record alone: the lock file is not
  * read.
  */
@@ -381,6 +382,12 @@ export function restoreFromLock(store: Store, lock: Lock, options: RestoreOption
   const lockFile = lockPath(store);
   if (run === null || lockFile === null) {
     fail(".", "the store is not in a git repository", "run the restore from the repository the lock is in");
+    return out;
+  }
+  // R24: no field of a lock that fails the check is trusted, the temp prefix that the sweep unlinks by included.
+  const problems = validateLock(lock);
+  if (problems.length > 0) {
+    fail(lockFile, `the lock is not one a run wrote: ${problems.join("; ")}`, "nothing was written; git stash push --include-untracked saves every change, the reverted code included, and discards nothing");
     return out;
   }
 
