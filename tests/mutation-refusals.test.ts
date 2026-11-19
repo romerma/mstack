@@ -1,11 +1,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { hostname, tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 
 import { lockPath, refusals, type Refusal } from "../src/mutation.ts";
+import { bootTime, pidNamespace } from "../src/mutation-lock.ts";
 import type { Item, State } from "../src/state.ts";
 import { item, sandbox, state, type Sandbox } from "./helpers.ts";
 
@@ -183,10 +184,11 @@ test("R1 an existing lock is refused naming its pid", () => {
     const lock = lockPath(box.store);
     assert.ok(lock !== null);
     assert.equal(lock, join(git(box.store.root, "rev-parse", "--absolute-git-dir"), "mstack-mutation.lock"));
-    writeFileSync(lock, JSON.stringify({ v: 1, pid: 4242, startedAt: "2026-11-19T09:02:11Z", cli: "/opt/mstack/bin/mstack" }));
+    const pid = spawnSync("true").pid; // a process that has exited: the run that wrote the lock is not alive (R23)
+    writeFileSync(lock, JSON.stringify({ v: 1, pid, host: hostname(), boot: bootTime(), pidns: pidNamespace(), startedAt: "2026-11-19T09:02:11Z", cli: "/opt/mstack/bin/mstack" }));
     const { st, it } = active(start);
-    const r = refused(refuse(box, st, it), /4242/);
-    assert.match(`${r.message}\n${r.fix}`, /2026-11-19T09:02:11Z/);
+    const r = refused(refuse(box, st, it), new RegExp(`pid ${pid}\\b`));
+    assert.match(`${r.message}\n${r.fix}`, /2026-11-19T09:02:11Z[\s\S]*not running/);
     assert.match(r.fix, /\/opt\/mstack\/bin\/mstack verify --restore/);
   });
 });

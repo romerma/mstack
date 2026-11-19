@@ -165,11 +165,18 @@ interface Lock {
 |---|---|
 | another host, at any boot | `unknown` |
 | same boot (within 60 s), another pid namespace (`null` against a non-null one included) | `unknown` |
-| otherwise (same boot and same pid namespace, or another boot of this host) | `process.kill(pid, 0)`: ESRCH is `not-running`; otherwise `ps -o etime= -p <pid>` (LC_ALL=C), whose elapsed time subtracted from now is the process's start, and a start in a later second than `startedAt` is `not-running` (the pid was reused); else, or when `ps` cannot answer, `running` |
+| otherwise (same boot and same pid namespace, or another boot of this host) | `process.kill(pid, 0)`: ESRCH is `not-running`; otherwise `ps -o etime= -p <pid>` (LC_ALL=C), and the process started after `now - (etime + 1)` seconds (now read before `ps`); when that bound is in a later second than `startedAt` it is `not-running` (the pid was reused); else, or when `ps` cannot answer, `running` |
 
 A different boot time alone never makes a live pid `not-running`: a step of the wall clock past
 60 s moves `boot` as a reboot does. `etime` and not `lstart`: `lstart` prints local time, which is
-ambiguous for one hour each autumn.
+ambiguous for one hour each autumn. The `+ 1`: `etime` is whole seconds. macOS `ps` takes the
+difference of the whole seconds of now and of the start, so `now - etime` is in the start's own
+second (`impl42s2/prim/etime.out`, node and bun); Linux procps counts them on the uptime clock,
+whose seconds are offset from the wall clock's by the fraction of the boot instant, so `now -
+etime` can land one second after the start (walk, rung 2). Read literally, that judges a live run
+`not-running` when its lock was written in the same second as its start (a recorded baseline, a
+small repository), and `verify --restore` would restore under it. The cost of the bound: a pid
+reused less than about two seconds after the lock reads `running`.
 
 `boot` is `round(Date.now()/1000 - os.uptime())`; `pidns` is `readlink("/proc/self/ns/pid")`, or
 `null` where `/proc` does not exist. `spec42r3/live-exp`, node and bun: the boot time is stable to

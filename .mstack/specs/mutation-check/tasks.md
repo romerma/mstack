@@ -61,7 +61,7 @@ requirements it covers (`agents/implementer.md`, "Your report").
 
 ## 2. Staging, the lock, the tree, the runner
 
-- [ ] 2.1 In `src/git.ts`, add `gitToFile(store, args, fd, timeoutMs): boolean`, a `spawnSync` of
+- [x] 2.1 In `src/git.ts`, add `gitToFile(store, args, fd, timeoutMs): boolean`, a `spawnSync` of
   git with the environment of `git()` (`src/git.ts:61-76`) and `fd` as stdout. Create
   `src/mutation-lock.ts` with the `Identity`, `LockEntry` and `Lock` types, `prepareRun`,
   `acquireLock`, `readLock`, `validateLock`, `sweepStale` and `liveness` (design.md "The lock and

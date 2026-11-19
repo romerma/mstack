@@ -1,4 +1,4 @@
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 
 import type { Store } from "./paths.ts";
 
@@ -88,6 +88,16 @@ export function gitBytes(store: Store, args: readonly string[]): Buffer | null {
   } catch {
     return null;
   }
+}
+
+/**
+ * Run git with `fd` as its stdout, so what it writes goes straight to that file
+ * and no output buffer exists to overflow (`execFileSync`'s 1 MiB default fails
+ * with ENOBUFS on a larger blob). True when git exited 0 within `timeoutMs`.
+ */
+export function gitToFile(store: Store, args: readonly string[], fd: number, timeoutMs: number): boolean {
+  const r = spawnSync("git", args, { cwd: store.root, stdio: ["ignore", fd, "ignore"], timeout: timeoutMs, env: gitEnv() });
+  return r.error === undefined && r.status === 0;
 }
 
 export function headSha(store: Store): string | null {

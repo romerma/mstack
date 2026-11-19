@@ -1,8 +1,9 @@
 import { createHash } from "node:crypto";
-import { existsSync, lstatSync, readdirSync, readFileSync, readlinkSync, realpathSync } from "node:fs";
+import { existsSync, lstatSync, readdirSync, readlinkSync, realpathSync } from "node:fs";
 import { basename, dirname, join, resolve, sep } from "node:path";
 
 import { git, gitBytes } from "./git.ts";
+import { liveness, lockPath, readLock } from "./mutation-lock.ts";
 import { runningCliRoot, STORE_DIR, type Store } from "./paths.ts";
 import { measureStart, resolveCommit, scopeClass } from "./size.ts";
 import type { Item, State } from "./state.ts";
@@ -174,11 +175,8 @@ export interface Refusal {
   readonly fix: string;
 }
 
-/** `<git dir>/mstack-mutation.lock`, the git dir being this worktree's own; null outside a repository. */
-export function lockPath(store: Store): string | null {
-  const dir = git(store, ["rev-parse", "--absolute-git-dir"]);
-  return dir === null || dir === "" ? null : join(dir, "mstack-mutation.lock");
-}
+// The lock is `src/mutation-lock.ts`'s; exported here too, where the refusals use it.
+export { lockPath };
 
 /** At most ten, then how many more: a message names paths, it does not list a tree. */
 function some(paths: readonly string[]): string {
@@ -232,7 +230,7 @@ export function refusals(store: Store, state: State, item: Item | undefined, run
   const op = IN_PROGRESS[found];
   if (op !== undefined) return { message: `${op.what} is in progress`, fix: op.fix };
 
-  const held = lockRefusal(lock, running);
+  const held = lockRefusal(store, lock, running);
   if (held !== null) return held;
 
   const set = revertSet(store, start.from);
@@ -353,29 +351,27 @@ function foreignMerge(store: Store, start: string): string | null {
   return null;
 }
 
-/** The refusal for a lock that exists, by `lstat`, whatever it holds. */
-function lockRefusal(lock: string, running: string): Refusal | null {
-  try {
-    lstatSync(lock);
-  } catch {
-    return null;
-  }
+/** The refusal for a lock that exists, by `lstat`, whatever it holds; it says whether its run is alive (R23). */
+function lockRefusal(store: Store, lock: string, running: string): Refusal | null {
+  const read = readLock(store);
+  if (read === null) return null;
   const here = join(running, "bin", "mstack");
-  let record: { pid?: unknown; startedAt?: unknown; cli?: unknown } | null = null;
-  try {
-    const parsed: unknown = JSON.parse(readFileSync(lock, "utf8"));
-    if (parsed !== null && typeof parsed === "object") record = parsed as { pid?: unknown; startedAt?: unknown; cli?: unknown };
-  } catch {
-    record = null;
-  }
-  if (record === null) {
+  if ("damaged" in read) {
     return { message: `the lock ${lock} exists and is not a run's record`, fix: `'${here} verify --restore' says what is wrong with it` };
   }
+  const record = read.lock;
   const cli = typeof record.cli === "string" ? record.cli : here;
   const restore = existsSync(cli) || cli === here ? `'${cli} verify --restore'` : `'${cli} verify --restore' (that path is gone; this CLI: '${here} verify --restore')`;
+  const alive = liveness(record);
+  const said = { running: "running", "not-running": "not running", unknown: "cannot tell whether it is running" }[alive.state];
+  const fix = {
+    running: "wait for it to end",
+    "not-running": `${restore} puts the tree back and removes the lock`,
+    unknown: `wait for it to end, or run ${restore} where it ran, on ${String(record.host)}`,
+  }[alive.state];
   return {
-    message: `a mutation run holds the tree: lock ${lock}, pid ${String(record.pid)}, started ${String(record.startedAt)}`,
-    fix: `wait for it to end; if it is not running, ${restore}`,
+    message: `a mutation run holds the tree: lock ${lock}, pid ${String(record.pid)}, started ${String(record.startedAt)}, ${said} (${alive.reason})`,
+    fix,
   };
 }
 
