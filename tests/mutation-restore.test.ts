@@ -454,3 +454,23 @@ test("R22 killed half restored, then restored twice", SPAWN_TEST, async () => {
     assert.equal(sha(read(r.root, "src/d.ts")), sha("d, added\n"));
   });
 });
+
+test("R13 a path changed after its own restore fails the proof and keeps the lock", () => {
+  withRepo(twoFiles, editBoth, (r) => {
+    const lock = reverted(r);
+    const at = `restored:${nOf(lock, "src/a.ts")}`;
+    const result = restoreFromLock(r.store, lock, {
+      step: (name) => {
+        if (name === at) writeFileSync(join(r.root, "src/a.ts"), "saved just after its restore, before the proof\n");
+      },
+    });
+    assert.deepEqual(result.failed.map((f) => f.path), ["src/a.ts"], "the proof passed over a path that does not hold H");
+    assert.ok(existsSync(lockFileOf(r)), "the lock went before the proof held");
+    assert.equal(read(r.root, "src/a.ts"), "saved just after its restore, before the proof\n");
+    const again = restoreFromLock(r.store, lock);
+    clean(again);
+    assert.equal(readFileSync(again.rescued[0]?.to as string, "utf8"), "saved just after its restore, before the proof\n");
+    assert.equal(read(r.root, "src/a.ts"), "a2\n");
+    assert.equal(existsSync(lockFileOf(r)), false);
+  });
+});

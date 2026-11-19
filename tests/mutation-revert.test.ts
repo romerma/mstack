@@ -227,3 +227,18 @@ test("R11 an edit after the temp file is written and before its rename stops the
     assert.deepEqual(temps(join(r.root, "src")), [], "the temp file was left");
   });
 });
+
+test("R11 an added file edited since the lock is not removed", () => {
+  withRepo(
+    (root) => put(root, "src/keep.ts", "k\n"),
+    (root) => put(root, "src/new.ts", "new\n"),
+    (r) => {
+      const lock = locked(r);
+      writeFileSync(join(r.root, "src/new.ts"), "edited after the lock, before the revert unlinks it\n");
+      const result = applyRevert(r.store, lock);
+      assert.ok(!result.ok, "the revert unlinked an edit");
+      assert.deepEqual([result.path, result.written], ["src/new.ts", []]);
+      assert.equal(read(r.root, "src/new.ts"), "edited after the lock, before the revert unlinks it\n");
+    },
+  );
+});

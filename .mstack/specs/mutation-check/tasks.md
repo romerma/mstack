@@ -97,8 +97,9 @@ requirements it covers (`agents/implementer.md`, "Your report").
   staged copy and the lock blocks the revert and keeps the edit` (the edit is made after
   `prepareRun` and before `acquireLock`), `R11 an edit after the temp file is written and before
   its rename stops the revert and keeps the edit` (the edit is made from `step` at
-  `revert-written:0`). Done when `bun test tests/mutation-revert.test.ts` ends ` 10 pass` and ` 0
-  fail`, and the node command prints `# fail 0`. (covers R9, R10, R11)
+  `revert-written:0`), `R11 an added file edited since the lock is not removed` (added by stage 2,
+  for a mutant no named test killed). Done when `bun test tests/mutation-revert.test.ts` ends ` 11
+  pass` and ` 0 fail`, and the node command prints `# fail 0`. (covers R9, R10, R11)
 
 - [x] 2.3 In `src/mutation-tree.ts`, add `restoreFromLock(store, lock, options?)` with `options` `{
   step?; rename?; entries? }` (`rename` defaults to `renameSync`; a test passes one that throws an `EXDEV`
@@ -122,8 +123,10 @@ requirements it covers (`agents/implementer.md`, "Your report").
   restore starts no child process` (the `nogit` holder; the marker file must not exist), `R22
   killed with the lock written and nothing reverted`, `R22 killed half reverted`, `R22 killed fully
   reverted`, `R22 killed half restored, then restored twice` (each SIGKILLs the holder at its step,
-  then calls `restoreFromLock` on `readLock`). Done when `bun test tests/mutation-restore.test.ts`
-  ends ` 19 pass` (or fewer passes plus two skips, on a case-sensitive filesystem) and ` 0 fail`,
+  then calls `restoreFromLock` on `readLock`), `R13 a path changed after its own restore fails the
+  proof and keeps the lock` (added by stage 2, for two mutants no named test killed). Done when `bun
+  test tests/mutation-restore.test.ts` ends ` 20 pass` (or fewer passes plus two skips, on a
+  case-sensitive filesystem) and ` 0 fail`,
   and the node command prints `# fail 0`. (covers R13, R14, R15, R17, R22)
 
 - [x] 2.4 In `src/run.ts`, add `runCommandAsync(cmd, { cwd, timeoutMs, tailLines? })` returning `{
