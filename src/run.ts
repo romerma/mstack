@@ -1,5 +1,5 @@
-import { spawnSync } from "node:child_process";
-import { closeSync, mkdtempSync, openSync, readFileSync, rmSync } from "node:fs";
+import { spawn, spawnSync, type ChildProcess } from "node:child_process";
+import { closeSync, existsSync, mkdtempSync, openSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -110,6 +110,94 @@ export function runCommand(cmd: string, options: RunOptions): RunResult {
     closeSync(fd);
     rmSync(dir, { recursive: true, force: true });
   }
+}
+
+export interface AsyncOptions {
+  readonly cwd: string;
+  /** Required: the command and its whole group are killed after this long. */
+  readonly timeoutMs: number;
+  /** How many trailing lines `tail` keeps. Defaults to 40. */
+  readonly tailLines?: number;
+}
+
+export interface Running {
+  /** Settles when the helper has exited, with what `runCommand` would have returned. */
+  readonly result: Promise<RunResult>;
+  /** SIGTERM to the helper, which kills the command's group and exits; nothing once the result is in. */
+  stop(): void;
+}
+
+/**
+ * `runCommand` with capture and a timeout, without blocking: the caller's
+ * event loop runs while the command does, so its signal handlers run too
+ * (`spawnSync` runs none while it blocks).
+ *
+ * The helper is spawned detached, in a process group of its own, with a fifth
+ * argument, `watch-parent`: it polls this process and kills the command's
+ * group when this process is gone. Detached, a SIGKILL of the caller's whole
+ * group does not reach the helper, so its watch still runs; a terminal Ctrl-C
+ * reaches the caller and not the helper, and the caller's handler is what
+ * calls `stop()` (a caller with no handler dies, which the watch sees).
+ */
+export function runCommandAsync(cmd: string, options: AsyncOptions): Running {
+  const limit = options.timeoutMs;
+  if (!(Number.isInteger(limit) && limit >= 1 && limit <= MAX_TIMEOUT_MS)) {
+    throw new TypeError(`runCommandAsync: timeoutMs must be an integer from 1 to ${MAX_TIMEOUT_MS}, got ${String(limit)}`);
+  }
+  const dir = mkdtempSync(join(tmpdir(), "mstack-run-"));
+  const out = join(dir, "out");
+  const fd = openSync(out, "w");
+  let child: ChildProcess;
+  try {
+    // Not the target directory, as in runCommand: bun loads its bunfig.toml and .env.
+    child = spawn(process.execPath, [HELPER, join(dir, "result.json"), String(limit), options.cwd, cmd, "watch-parent"], {
+      cwd: dir,
+      stdio: ["ignore", fd, fd],
+      detached: true,
+    });
+  } catch (error) {
+    rmSync(dir, { recursive: true, force: true });
+    throw error;
+  } finally {
+    // The helper has its own copy of the descriptor.
+    closeSync(fd);
+  }
+  let done = false;
+  const settled = new Promise<RunResult>((resolve) => {
+    let spawnError: Error | undefined;
+    const finish = (signal: string | null): void => {
+      if (done) return;
+      done = true;
+      try {
+        const tail = existsSync(out) ? lastLines(readFileSync(out, "utf8"), options.tailLines ?? DEFAULT_TAIL_LINES) : "";
+        try {
+          const h = JSON.parse(readFileSync(join(dir, "result.json"), "utf8")) as RunResult;
+          resolve(result(h.code, h.signal, h.error === undefined ? undefined : new Error(h.error), h.timedOut, tail));
+        } catch {
+          // The helper never reported: it could not start, it was stopped, or it died.
+          resolve(result(null, signal, spawnError ?? new Error("the timeout helper did not report a result"), false, tail));
+        }
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    };
+    child.on("error", (error) => {
+      spawnError = error;
+      if (child.pid === undefined) finish(null);
+    });
+    child.on("close", (_code, signal) => finish(signal));
+  });
+  return {
+    result: settled,
+    stop() {
+      if (done || child.pid === undefined) return;
+      try {
+        process.kill(child.pid, "SIGTERM");
+      } catch {
+        // It has exited; its close event settles the result.
+      }
+    },
+  };
 }
 
 /** bun reports `undefined` where node reports `null`; the contract is `null`. */

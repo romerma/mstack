@@ -126,7 +126,7 @@ requirements it covers (`agents/implementer.md`, "Your report").
   ends ` 19 pass` (or fewer passes plus two skips, on a case-sensitive filesystem) and ` 0 fail`,
   and the node command prints `# fail 0`. (covers R13, R14, R15, R17, R22)
 
-- [ ] 2.4 In `src/run.ts`, add `runCommandAsync(cmd, { cwd, timeoutMs, tailLines? })` returning `{
+- [x] 2.4 In `src/run.ts`, add `runCommandAsync(cmd, { cwd, timeoutMs, tailLines? })` returning `{
   result: Promise<RunResult>; stop(): void }`, and in `src/run-helper.mjs` the fifth argument
   `watch-parent` (design.md "The async runner": with it, the helper is spawned detached);
   `runCommand` passes no fifth argument. Tests in a

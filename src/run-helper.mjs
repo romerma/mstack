@@ -7,12 +7,19 @@
 // `spawn({detached: true})` does, on both runtimes: the child leads its own group,
 // so its pid is the pgid with nothing to read back.
 //
-// argv: <result file> <timeout ms> <cwd> <command>. The command's stdout and
-// stderr are this process's own, which the caller pointed at the capture file.
+// argv: <result file> <timeout ms> <cwd> <command> [watch-parent]. The
+// command's stdout and stderr are this process's own, which the caller pointed
+// at the capture file.
+//
+// `watch-parent` is passed by `runCommandAsync`, which spawns this helper
+// detached, in a group of its own: a SIGKILL of the caller, alone or with its
+// whole group, then leaves this process alive, and it takes the command's
+// group down itself once the caller is gone. `runCommand` passes no fifth
+// argument; it waits in spawnSync and is in this helper's group.
 import { spawn } from "node:child_process";
 import { writeFileSync } from "node:fs";
 
-const [resultFile, timeoutMs, cwd, cmd] = process.argv.slice(2);
+const [resultFile, timeoutMs, cwd, cmd, mode] = process.argv.slice(2);
 let timedOut = false;
 const child = spawn("/bin/sh", ["-c", cmd], { cwd, detached: true, stdio: ["ignore", "inherit", "inherit"] });
 
@@ -49,6 +56,25 @@ for (const [name, number] of [["SIGINT", 2], ["SIGTERM", 15], ["SIGHUP", 1]]) {
   });
 }
 
+// The caller's pid, read once: bun's process.ppid keeps the dead parent's pid,
+// so the poll asks whether that process exists rather than re-reading ppid.
+let orphaned = false;
+if (mode === "watch-parent") {
+  const parent = process.ppid;
+  setInterval(() => {
+    try {
+      process.kill(parent, 0);
+    } catch (error) {
+      // EPERM: alive, under another user. Only "no such process" is gone.
+      if (error.code !== "ESRCH" || orphaned) return;
+      orphaned = true;
+      clearTimeout(timer);
+      killGroup();
+      setTimeout(() => process.exit(0), 2000).unref();
+    }
+  }, 250).unref();
+}
+
 child.on("error", (error) => {
   clearTimeout(timer);
   finish({ code: null, signal: null, timedOut: false, error: error.message });
@@ -57,7 +83,9 @@ child.on("exit", (code, signal) => {
   clearTimeout(timer);
   // A second kill: the first can land while the command is mid-fork, and the
   // child it was creating is born into the group after the signal went out.
-  if (timedOut || signalExit !== null) killGroup();
+  if (timedOut || signalExit !== null || orphaned) killGroup();
   if (signalExit !== null) process.exit(signalExit);
+  // Nobody is left to read a result.
+  if (orphaned) process.exit(0);
   finish({ code, signal, timedOut });
 });
