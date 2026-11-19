@@ -18,8 +18,8 @@
   lock exists the gate fails, `gate --full` runs nothing, and the PreToolUse hook denies the git
   commands that would keep or lose the reverted state. `--restore` refuses while the run may be
   alive and has no `--force`; whatever it finds at a reverted path that the run did not write is
-  moved into `<git dir>/mstack-mutation/<run>/rescue/` first, and the gate warns until that is
-  removed. No reader of receipts counts a mutation row, and no closing check reads one yet. The
+  moved into `<git dir>/mstack-mutation/<run>/rescue/` before HEAD's content is written (at a
+  path HEAD lacks, it is left in place), and the gate warns until a rescue is removed. No reader of receipts counts a mutation row, and no closing check reads one yet. The
   wiki's [The-CLI](docs/wiki/The-CLI.md#verify) says what it cannot make safe and the ways to
   recover by hand. **Upgrading:** nothing changes for a store that does not run it; `mstack help`
   gains the command and an exit code 3.
