@@ -6,9 +6,9 @@
 > On close: append the summary to `history.md` and reset this file to the
 > empty template below.
 
-- **Item:** none active (49 closed 2026-11-18; 42 parked on a fork for the user)
-- **Status:** -
-- **Branch:** main
+- **Item:** 42 mutation-check (the mechanism; item 100 is the closing check)
+- **Status:** specifying, spec round 3
+- **Branch:** feat/mutation-check
 - **Base:** -
 - **Worktree:** none
 
@@ -32,7 +32,7 @@ watch is review rounds per item: if they do not drop after phase 1, intake is ce
 
 - Easy tier: `impl_benchmark-harness_baseline.md`.
 - Hard tier: `impl_benchmark-hard-tier_baseline.md`.
-- 2026-11-16 and 17: items 52 to 99 filed; 52, 53, 54, 47, 46, 70, 55, 56, 73, 74, 57, 58, 59, 67, 61, 62, 64, 39, 40, 41, 43, 82, 96, 95 and 49 closed; the rest of phases 3 and 4 waits on the user's answers (items 42, 60, 99); see `history.md`. Item 60 needs the user's yes to open a real PR.
+- 2026-11-16 and 17: items 52 to 99 filed; 52, 53, 54, 47, 46, 70, 55, 56, 73, 74, 57, 58, 59, 67, 61, 62, 64, 39, 40, 41, 43, 82, 96, 95 and 49 closed; item 42 answered A on 2026-11-19 (in place, split: 42 the mechanism, 100 the closing check); 60 and 99 still wait on the user; see `history.md`. Item 60 needs the user's yes to open a real PR.
 - Sessions launched as plain `claude` have no mstack plugin: no `mstack:*` agents, no hooks, no
   cost rows. On 2026-11-16 the user chose to continue anyway, with general-purpose agents
   briefed from `agents/*.md` (Sonnet implements, Opus reviews).
@@ -73,9 +73,6 @@ Waiting on the user, each asked on 2026-11-17 with a recommendation of yes:
 - Item 75 `spec-path-for-answered-forks`: does an item whose forks are all answered take the
   direct path, unless it is sdd, crosses several subsystems, or the user steps away?
 - Item 50 (`plugin validate --strict`): the icon is the user's call per its own acceptance.
-- Item 42 `mutation-check`: how the check touches the user's tree (in place and split in two, a copy of
-  the tree, or not at all); its spec and two spec reviews are in `.mstack/specs/mutation-check/` and
-  `.mstack/progress/spec_review_mutation-check*.md`. Recommended: the copy of the tree.
 - Item 60 `ship-pr-body`: may a real PR be opened on GitHub for its third criterion?
 - Item 99 `bench-trace-and-durability`: where the benchmark harness and its baseline live; today
   `sandbox/bench/` is under no version control.

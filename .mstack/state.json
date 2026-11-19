@@ -608,19 +608,21 @@
     {
       "id": 42,
       "slug": "mutation-check",
-      "title": "mstack verify --mutation proves the tests fail without the change",
+      "title": "mstack verify --mutation proves the tests fail without the change (the mechanism: run, lock, restore, receipt)",
       "acceptance": [
-        "verify --mutation reverts the code part of base..HEAD in place (store, tests and docs excluded), confirms a green baseline first, runs the obligations and records mutation-killed, mutation-survived or mutation-blocked in verification.tsv keyed by the code and test tree (design amendment of 2026-11-18: a test edit voids the receipt)",
-        "A lock under the git dir holds the restore list; restore runs in finally and on SIGINT/SIGTERM, the tree is clean afterwards, verify --restore repairs a SIGKILLed run, PreToolUse denies git commit/add/stash while the lock exists, and the gate fails on a lock",
-        "From verifying, an item with base, size other than s and a code diff needs a killed receipt at the current code and test tree, enforced in the gate and at the done transition"
+        "verify --mutation reverts the code part of the item diff in place (store, tests and docs excluded), confirms a green baseline first, runs the obligations and records mutation-killed, mutation-survived or mutation-blocked in verification.tsv keyed by the code and test tree",
+        "A lock under the git dir holds the restore list; restore runs in finally and on SIGINT/SIGTERM, the tree is as it was afterwards, verify --restore repairs a SIGKILLed run, PreToolUse denies git commit/add/stash while the lock exists, and the gate fails on a lock",
+        "No path through the run, the restore or a recovery the tool prints removes or overwrites content the run did not write without first saving it, and no state keeps the lock with deleting work as the only way out"
       ],
-      "status": "pending",
+      "status": "specifying",
       "sdd": true,
+      "size": "l",
       "decision_required": "How the mutation check touches the user's tree. Two spec reviews each found ways the in-place design loses work or leaves a lock for good (spec_review_mutation-check.md, _r2.md). (A) Keep reverting in place, behind a lock and a restore, and split the item: the command, lock, restore, receipt and hook first; the closing check second, with a rule that lets a receipt proven on the branch survive the merge. (B) Run the mutation in a copy of the tree (a git worktree): no lock, no restore, nothing of the user's is touched; the store then needs a way to give the copy the ignored files the obligations use (installed dependencies, env files). (C) Leave the mutation check out of the program. Each changes the item's acceptance.",
+      "decision_resolved": "2026-11-19T08:27:17.890Z",
       "seams": [
         "CLI: mstack verify --mutation and verify --restore in a throwaway git repository with a store: exit code, output, the receipt row, and the working tree before, during and after",
-        "CLI: mstack gate and state set --status done on an item at verifying with and without a killed receipt, and with a lock present",
-        "the PreToolUse hook's answer to git commit, git add and git stash while the lock exists"
+        "CLI: mstack gate with a lock present",
+        "the PreToolUse hook answer to git commit, git add and git stash while the lock exists"
       ]
     },
     {
@@ -1522,6 +1524,24 @@
       "description": "sandbox/ is gitignored in this repository and bench/ is untracked in the nested sandbox repository: the harness, the tasks, the recorded baseline results, streams and evidence exist only on disk. Item 49 matched five hidden tests of H3 and H4 to README sentences assertion by assertion; the other 39 were not checked.",
       "decision_required": "Where the benchmark harness and its recorded baseline live: committed to the nested sandbox repository, moved into this repository, or kept unversioned with a backup. It holds hidden tests and reference patches that must not reach a public repository.",
       "source": "item 49 round 1 review, .mstack/progress/review_bench-hygiene-followups.md, 2026-11-18"
+    },
+    {
+      "id": 100,
+      "slug": "mutation-closing-check",
+      "title": "An item cannot close without a killed mutation receipt, and a receipt proven on the branch survives the merge",
+      "acceptance": [
+        "From verifying, an item with base, size other than s and a code diff needs a killed receipt at the current code and test tree, enforced in the gate and at the done transition",
+        "A killed receipt proven on the item branch still holds on the default branch after a merge commit, a squash merge and a rebase merge, and is void when a code or test path of the item changed after the run",
+        "An item already in flight when the check lands has a stated way to close, and a forced close past the check is on the record",
+        "state set --status done is refused while a mutation lock exists"
+      ],
+      "status": "pending",
+      "description": "Second half of the mutation check. Depends on item 42 (the mechanism). The round 2 spec review of item 42 worked out the rule for a receipt after a merge (its B3, rule C-prime with two companions) and measured five merge shapes; start from that table. R23 to R25 and R41 of the round 2 spec are the draft requirements.",
+      "sdd": true,
+      "source": "item 42 split, user decision of 2026-11-19 (A); spec_review_mutation-check_r2.md B3",
+      "seams": [
+        "CLI: mstack gate and state set --status done on an item at verifying with and without a killed receipt, on the branch and on the default branch after each merge shape"
+      ]
     }
   ]
 }
