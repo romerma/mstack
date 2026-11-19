@@ -381,17 +381,29 @@ export function acquireLock(store: Store, lock: Lock): Acquired {
 /** No lock (null), a JSON object (`lock`, not yet checked: `validateLock`), or one that cannot be read as one. */
 export type LockRead = null | { readonly lock: Lock } | { readonly damaged: string };
 
-/** The lock as it is on disk; existence is `lstat`, so whatever is at the name is a lock. */
+/**
+ * The lock as it is on disk. Whatever is at the name is a lock: it is opened
+ * with `READ_FLAGS`, so a symlink there is not followed and a FIFO does not
+ * block, and anything that is not a regular file is damaged.
+ */
 export function readLock(store: Store): LockRead {
   const file = lockPath(store);
   if (file === null) return null;
-  let text: string;
+  let fd: number;
   try {
-    lstatSync(file);
-    text = readFileSync(file, "utf8");
+    fd = openSync(file, READ_FLAGS);
   } catch (error) {
     if (codeOf(error) === "ENOENT") return null;
     return { damaged: `the lock ${file} cannot be read: ${errorText(error)}` };
+  }
+  let text: string;
+  try {
+    if (!fstatSync(fd).isFile()) return { damaged: `the lock ${file} is not a regular file` };
+    text = readFileSync(fd, "utf8");
+  } catch (error) {
+    return { damaged: `the lock ${file} cannot be read: ${errorText(error)}` };
+  } finally {
+    closeSync(fd);
   }
   let parsed: unknown;
   try {

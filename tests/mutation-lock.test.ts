@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync, spawn, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { hostname, tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -289,6 +289,30 @@ test("R24 two lock paths that differ only by case or Unicode normalisation are r
     for (const [first, second] of [["src/a.ts", "src/A.ts"], ["src/a.ts", "SRC/a.ts"], ["src/caf\u00e9.ts", "src/cafe\u0301.ts"]] as const) {
       const problems = validateLock(withPaths(first, second));
       assert.ok(problems.some((p) => /appears twice/.test(p) && p.includes(JSON.stringify(second))), `${JSON.stringify([first, second])} was not refused: ${JSON.stringify(problems)}`);
+    }
+  });
+});
+
+test("R24 a lock that is a symlink or a FIFO is damaged, read without following the link or blocking", () => {
+  withRepo(threeFiles, editDeleteAdd, (r) => {
+    const elsewhere = join(gitDirOf(r), "a-whole-lock-elsewhere.json");
+    writeFileSync(elsewhere, JSON.stringify(staged(r)));
+    symlinkSync(elsewhere, lockFileOf(r));
+    const viaLink = readLock(r.store);
+    assert.ok(viaLink !== null && "damaged" in viaLink, `the symlink was followed: ${JSON.stringify(viaLink)?.slice(0, 60)}`);
+    rmSync(lockFileOf(r));
+    execFileSync("mkfifo", [lockFileOf(r)]);
+    // A reader that blocks waits for a writer: this one opens the FIFO after 2 s, so such a read ends, late.
+    const writer = spawn("sh", ["-c", `sleep 2; : > '${lockFileOf(r)}'`], { stdio: "ignore" });
+    try {
+      const t0 = Date.now();
+      const viaFifo = readLock(r.store);
+      const took = Date.now() - t0;
+      assert.ok(viaFifo !== null && "damaged" in viaFifo, JSON.stringify(viaFifo));
+      assert.match(viaFifo.damaged, /not a regular file/);
+      assert.ok(took < 1500, `readLock blocked for ${took} ms`);
+    } finally {
+      writer.kill("SIGKILL");
     }
   });
 });
