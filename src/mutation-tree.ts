@@ -327,6 +327,8 @@ export interface Restored {
   readonly left: string[];
   /** Paths the restore could not write, move or prove, with the operating system's error and what to do; the lock stays. */
   readonly failed: { readonly path: string; readonly reason: string; readonly fix: string }[];
+  /** The restore unlinked this run's lock; false when the lock at the name was gone, or was another run's or unreadable and stays. */
+  lockRemoved: boolean;
 }
 
 export interface RestoreOptions {
@@ -373,7 +375,7 @@ export function restoreFromLock(store: Store, lock: Lock, options: RestoreOption
   const step = options.step ?? ((): void => {});
   const rename = options.rename ?? renameSync;
   const root = store.root;
-  const out: Restored = { restored: 0, rescued: [], left: [], failed: [] };
+  const out: Restored = { restored: 0, rescued: [], left: [], failed: [], lockRemoved: false };
   const fail = (path: string, reason: string, fix: string): void => {
     if (!out.failed.some((f) => f.path === path)) out.failed.push({ path, reason, fix });
   };
@@ -446,6 +448,7 @@ export function restoreFromLock(store: Store, lock: Lock, options: RestoreOption
   if (onDisk !== null && "lock" in onDisk && onDisk.lock.run === lock.run) {
     try {
       unlinkSync(lockFile);
+      out.lockRemoved = true;
     } catch (error) {
       if (codeOf(error) !== "ENOENT") {
         fail(lockFile, errorText(error), fixFor(error, lockFile));

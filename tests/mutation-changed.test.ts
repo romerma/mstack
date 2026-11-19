@@ -226,3 +226,27 @@ test("R18 the lock replaced by another run's during the run: no row, and that lo
     assert.equal((JSON.parse(readFileSync(lockFileOf(r), "utf8")) as { run: string }).run, other, "the other run's lock did not stay");
   });
 });
+
+test("R13 the restore's line says lock removed only when it removed the run's lock", SPAWN_TEST, async () => {
+  // Round 2 review, non-blocking 7: the line said "lock removed" when the lock was gone, or was another run's and stayed.
+  const acts: Record<string, (r: RunRepo) => void> = {
+    gone: (r) => rmSync(lockFileOf(r)),
+    another: (r) => {
+      const lock = JSON.parse(readFileSync(lockFileOf(r), "utf8")) as Record<string, unknown>;
+      writeFileSync(lockFileOf(r), `${JSON.stringify({ ...lock, run: "20260101T000000Z-1-abcd" })}\n`);
+    },
+  };
+  for (const [name, act] of Object.entries(acts)) {
+    await withRunRepo(CHECK, startA, editA, async (r) => {
+      const m = await mutate(r, during(() => act(r)));
+      const line = m.lines.find((l) => /^mutation: restored \d+, tree verified/.test(l));
+      assert.ok(line !== undefined, `${name}: ${m.text}`);
+      assert.doesNotMatch(line, /lock removed/, name);
+      assert.match(line, /no lock of this run's was at its name, so none was removed/, name);
+    });
+  }
+  await withRunRepo(CHECK, startA, editA, async (r) => {
+    const m = await mutate(r);
+    assert.ok(m.lines.includes("mutation: restored 1, tree verified, lock removed"), `the control: ${m.text}`);
+  });
+});

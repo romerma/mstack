@@ -105,6 +105,10 @@ export function reportRestore(out: (line: string) => void, restored: Restored): 
   }
 }
 
+/** A restore's last line: "lock removed" only when it removed this run's lock, not when the one at its name was gone or another run's. */
+const restoredLine = (restored: Restored): string =>
+  `mutation: restored ${restored.restored}, tree verified${restored.lockRemoved ? ", lock removed" : "; no lock of this run's was at its name, so none was removed"}`;
+
 /** R18 (a): the lock's paths that do not hold the start's content by exact name (where the start lacks one, something resolves there). */
 function pathsNotAtStart(root: string, lock: Lock): string[] {
   const listings = new Map<string, string[]>();
@@ -162,7 +166,7 @@ function restore(store: Store, lock: Lock, entries: readonly number[] | undefine
   try {
     return restoreFromLock(store, lock, { step, ...(entries === undefined ? {} : { entries }) });
   } catch (error) {
-    return { restored: 0, rescued: [], left: [], failed: [{ path: ".", reason: `the restore stopped: ${errorText(error)}`, fix: "clear the cause" }] };
+    return { restored: 0, rescued: [], left: [], failed: [{ path: ".", reason: `the restore stopped: ${errorText(error)}`, fix: "clear the cause" }], lockRemoved: false };
   }
 }
 
@@ -409,7 +413,7 @@ async function run(store: Store, options: MutationOptions, ctl: Control): Promis
     if (held.length > 0) out(changedLine(held));
     return 3;
   }
-  out(`mutation: restored ${restored.restored}, tree verified, lock removed`);
+  out(restoredLine(restored));
 
   // The lock is gone, so git may run again: R18 (b), (d) and (e), and the report of R19, which names no cause.
   const head1 = headSha(store);
@@ -553,6 +557,6 @@ export function restoreRun(store: Store, options: { readonly out: (line: string)
     out(`mutation: the lock stays; once each path above is cleared: ${restoreCommand(lock.cli)}`);
     return 3;
   }
-  out(`mutation: restored ${restored.restored}, tree verified, lock removed`);
+  out(restoredLine(restored));
   return 0;
 }

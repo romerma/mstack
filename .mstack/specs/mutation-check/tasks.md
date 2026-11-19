@@ -227,8 +227,9 @@ requirements it covers (`agents/implementer.md`, "Your report").
   and changed files are reported without a cause`, `R18 an edit to a path the item added, made
   during the run, writes no row` and `R18 the lock replaced by another run's during the run: no
   row, and that lock stays` (both added in review round 2, for its non-blocking 3, mutants l and
-  j). Done when `bun test
-  tests/mutation-changed.test.ts` ends ` 14 pass` and ` 0 fail`, and the node command prints
+  j), `R13 the restore's line says lock removed only when it removed the run's lock` (added in
+  review round 2, for non-blocking 7). Done when `bun test
+  tests/mutation-changed.test.ts` ends ` 15 pass` and ` 0 fail`, and the node command prints
   `# fail 0`. (covers R15, R18, R19)
 
 - [x] 3.3 In `src/mutation-run.ts`, add the signal handling of design.md "The run" steps 1, 3, 6, 8

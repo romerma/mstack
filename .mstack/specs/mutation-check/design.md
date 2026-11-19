@@ -289,8 +289,10 @@ the entry at p by exact name:
   one that cannot be read, stays: round 1 review, NB6; ENOENT is fine), fsync the directory, remove `start/` and `head/`,
   and the run directory when `rescue/` is empty. A run whose lock file vanished, and whose restore
   then fails, writes it again from its record with `acquireLock`.
-- The result is `{ restored, rescued: {path, to}[], left: string[], failed: {path, reason, fix}[] }`;
-  a reason is the `fs` error's code and message. Index and HEAD are never written.
+- The result is `{ restored, rescued: {path, to}[], left: string[], failed: {path, reason, fix}[],
+  lockRemoved }`; a reason is the `fs` error's code and message. Index and HEAD are never written.
+  The last line says `lock removed` only when `lockRemoved`, and otherwise that no lock of the
+  run's was at its name (round 2 review, non-blocking 7).
 
 ### The run (`runMutation`, `src/mutation-run.ts`)
 
