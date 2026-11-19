@@ -63,6 +63,14 @@ passes bypassPermissions. Do not run `check.mjs` or `verify.mjs` while a batch i
   inside the branch, then main merged in, still counts main's commits) and decision 1 (the local
   default branch and `origin/` together, against the brief's "prefer the local branch").
 
+## Item 42 stage 1 in flight (implementer, 2026-11-19)
+
+- Part A committed at `75d4b88`: N1 to N17 of `spec_review_mutation-check_r3.md` in the spec
+  (28 requirements, 157 tests named). Part B, task group 1: `c0506e6` (1.1), `eec2ffa` (1.2),
+  `01a816c` (1.3); 26 mutants killed. Report: `.mstack/progress/impl_mutation-check.md`.
+- Scratch: `/private/tmp/claude-501/-Users-romerma-Code-mstack/4aadee9d-d352-4d5b-825b-4d11a47e2193/scratchpad/impl42s1/`.
+- Next: stage 2 (task group 2) by a fresh implementer; read the report's last section first.
+
 ## Next step
 
 Phases 0 and 1 are closed, except item 50 (waits for the user). Phase 2 has 57 and 58 closed.
