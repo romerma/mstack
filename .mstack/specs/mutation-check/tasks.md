@@ -11,7 +11,7 @@ requirements it covers (`agents/implementer.md`, "Your report").
 
 ## 1. What is reverted, the key and the refusals (reads only)
 
-- [ ] 1.1 In `src/size.ts`, move the `counted` closure out of `measureDiff` (`src/size.ts:149-152`)
+- [x] 1.1 In `src/size.ts`, move the `counted` closure out of `measureDiff` (`src/size.ts:149-152`)
   into an exported `scopeClass(store)` that returns a store-relative path's class or `null` under
   the store directory, and make `measureDiff` count `scopeClass(store)(path) === "code"`. Create
   `src/mutation.ts` with `revertSet(store, start)` and `mutationKey(store, start)` as design.md

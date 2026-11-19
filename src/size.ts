@@ -3,7 +3,7 @@ import { join, relative } from "node:path";
 
 import { defaultBranch, git, headSha } from "./git.ts";
 import type { Store } from "./paths.ts";
-import { classifyPath } from "./pathclass.ts";
+import { classifyPath, type PathClass } from "./pathclass.ts";
 
 /**
  * An item's size, and the one measurement the gate takes against it.
@@ -136,20 +136,8 @@ export function measureDiff(store: Store, from: string): DiffSize | null {
   const untracked = git(store, ["ls-files", "--others", "--exclude-standard", "-z"], { raw: true });
   if (numstat === null || untracked === null) return null;
 
-  // Both sides real, so a root reached through a symlink (macOS /var, a linked
-  // checkout) and a store directory resolved elsewhere cannot relate as "..".
-  const real = (p: string): string => {
-    try {
-      return realpathSync(p);
-    } catch {
-      return p;
-    }
-  };
-  const storeDir = relative(real(store.root), real(store.dir)).split("\\").join("/");
-  const counted = (path: string): boolean => {
-    if (storeDir !== "" && !storeDir.startsWith("..") && (path === storeDir || path.startsWith(`${storeDir}/`))) return false;
-    return classifyPath(path) === "code";
-  };
+  const scope = scopeClass(store);
+  const counted = (path: string): boolean => scope(path) === "code";
 
   // A count is a non-negative integer, or "-" for a binary file. Anything else
   // is a record this parser does not understand (a rename record, if
@@ -175,6 +163,29 @@ export function measureDiff(store: Store, from: string): DiffSize | null {
     lines += countLines(join(store.root, path));
   }
   return { lines, files };
+}
+
+/**
+ * The class of a path relative to the store's root, or null for a path under
+ * the store directory, which is never the item's code or tests. The size check
+ * counts the `code` paths; the mutation check reverts them and keys its receipt
+ * by the `code` and `test` ones.
+ */
+export function scopeClass(store: Store): (path: string) => PathClass | null {
+  // Both sides real, so a root reached through a symlink (macOS /var, a linked
+  // checkout) and a store directory resolved elsewhere cannot relate as "..".
+  const real = (p: string): string => {
+    try {
+      return realpathSync(p);
+    } catch {
+      return p;
+    }
+  };
+  const storeDir = relative(real(store.root), real(store.dir)).split("\\").join("/");
+  return (path: string): PathClass | null => {
+    if (storeDir !== "" && !storeDir.startsWith("..") && (path === storeDir || path.startsWith(`${storeDir}/`))) return null;
+    return classifyPath(path);
+  };
 }
 
 /** Lines in a text file; a file with a NUL byte is binary and has none. */

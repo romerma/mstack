@@ -62,13 +62,13 @@ A sketch of the contract, not output from a run; task 3.4 pastes real output int
 - `scopeClass(store)` moves out of `measureDiff` and is exported from `src/size.ts`; it returns a
   store-relative path's class, or `null` under the store directory. `measureDiff` counts
   `scopeClass(store)(p) === "code"`, so the size check does not change.
-- `revertSet(store, start)` parses `git diff --raw -z --no-renames --full-index --relative <start>
-  HEAD --` into `{ path, startMode, startBlob, headMode, headBlob }` and keeps class `code`. It also
+- `revertSet(store, start)` parses `git diff --raw -z --no-renames --no-abbrev --relative <start>
+  HEAD --` (`--full-index` leaves `--raw` blobs at 7 digits: `impl42s1/raw`) into `{ path, startMode, startBlob, headMode, headBlob }` and keeps class `code`. It also
   returns every path of that diff, of any class, for R3's prefix test. It reads git's output as
   bytes: `git()` decodes with replacement (`src/git.ts:61-76`), which turns a name that is not
   UTF-8 into one that is not on disk, so R3's name test runs on the bytes (`TextDecoder` with
   `fatal`).
-- `mutationKey(store, start)`: the tracked part from `git diff --raw -z --no-renames --full-index
+- `mutationKey(store, start)`: the tracked part from `git diff --raw -z --no-renames --no-abbrev
   --relative <start> --`, the untracked part from `git ls-files --others --exclude-standard -z`,
   both kept to `code` and `test`; one line per path, sorted: `path NUL tracked|untracked NUL
   startMode:startBlob NUL now`, where `now` is `-`, `120000:<target>` (from `lstat`/`readlink`, as
