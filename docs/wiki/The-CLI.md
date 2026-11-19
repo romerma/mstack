@@ -796,7 +796,9 @@ the baseline (`recorded green at this tree, not re-run`); otherwise the commands
 their output captured, and their receipts are written as `gate --full` writes them. A red or
 timed-out baseline is blocked, and nothing is reverted. A recorded green was run by `gate
 --full` on your terminal, while the reverted run captures its output, so a suite whose result
-depends on a terminal can pass there and fail here: a false kill.
+depends on a terminal can pass there and fail here: a false kill. A verification that only
+checks that the tree is clean, such as `git diff --quiet HEAD -- src`, always kills, because the
+reverted tree never is: that kill says nothing about the tests.
 
 **What it refuses.** Each refusal exits 2, names the reason and the fix, and writes nothing: no
 active item, no git repository, no base or a start that is lost, no verification command, a
@@ -834,7 +836,9 @@ writes a file that is not ignored gets no row until the file is in `.gitignore`.
 process group; the tree is restored and proved, and the run exits 130, 143 or 129 with no row.
 Nothing interrupts a revert or a restore: a signal then is acted on after the proof. A `kill -9`
 of mstack, alone or with its group, cannot be caught: the command's group is gone within 2
-seconds (the runner watches its caller), the lock stays, and the gate names the restore. Here
+seconds, the lock stays, and the gate names the restore. The runner's helper checks for mstack
+as it starts and every 250 ms after; killed at 0 to 1000 ms after a command started, 35 times on
+each runtime, no process of it was left after at most 264 ms. Here
 the run was killed from another terminal while the tests ran on the reverted tree (the host
 name is shortened to `devbox`):
 
@@ -881,7 +885,8 @@ from another host or another pid namespace, where it cannot tell. There is no `-
 - A save to a reverted file in the moment the run puts it back, between its last check and the
   rename, a few system calls, is lost, and so is a later write through a descriptor opened on
   the file it replaced. That is the line printed at the lock. An orphaned command can also
-  write for up to 250 ms after mstack dies.
+  write for up to the helper's next check after mstack dies: 250 ms, and somewhat more on a
+  busy machine (264 ms at most in the runs above).
 - A lock from another host or pid namespace cannot be told running or not; the common way to
   one is a restarted container. Run `verify --restore` where the run ran, or recover by hand.
 - On Linux, `ps` counts a process's age on the boot clock, so a forward step of the wall clock

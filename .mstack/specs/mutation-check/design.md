@@ -181,7 +181,7 @@ interface Lock {
   `mstack-mutation.lock.*.tmp` other than its own and every run directory the lock does not name
   whose `rescue/` is empty or absent; one it cannot remove is left for a later sweep, and the run
   goes on (round 1 review, NB11). That includes the staging of a live run that has prepared and
-  not yet linked its lock: one `setImmediate` (The run, step 6), or as long as that run is stopped.
+  not yet linked its lock: a yield, two `setImmediate`s (The run, step 6), or as long as that run is stopped.
   If that run links after the sweeper has ended, its lock names staging that is gone, and the
   revert's check of every staged copy (Revert, step 0) finds it before the first write and writes
   nothing (round 1 review, B1). A run racing it can have its temp file swept before its link,

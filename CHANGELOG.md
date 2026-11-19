@@ -21,8 +21,10 @@
   moved into `<git dir>/mstack-mutation/<run>/rescue/` before HEAD's content is written (at a
   path HEAD lacks, it is left in place), and the gate warns until a rescue is removed. No reader of receipts counts a mutation row, and no closing check reads one yet. The
   wiki's [The-CLI](docs/wiki/The-CLI.md#verify) says what it cannot make safe and the ways to
-  recover by hand. **Upgrading:** nothing changes for a store that does not run it; `mstack help`
-  gains the command and an exit code 3.
+  recover by hand. **Upgrading:** for a store that does not run it, the PreToolUse hook now starts
+  one `git rev-parse` for each Bash command with a segment that runs one of the git commands it
+  lists, to look for the lock, and denies an `rm` of a path that ends in `mstack-mutation.lock`;
+  `mstack help` gains the command and an exit code 3.
 
 - **`state set --status done` refuses an item with no ledger row, and the closing-role rule
   reads names the way the evidence check reads filenames.** Before, an item with no row at all

@@ -280,20 +280,23 @@ Walking the lines that carry the weight:
   While that directory holds anything, the gate in **any** worktree of the repository warns,
   naming it and the number of entries, and `mstack worktree prune` does not offer a worktree
   whose git directory holds the lock or such a directory, since removing the worktree would
-  delete it. A warning does not change the exit code. From a throwaway repository, with the
-  lock of a run that stopped after taking it (a script called `prepareRun` and `acquireLock`
-  and exited, so its pid is gone; the paths and the host name are shortened here):
+  delete it. A warning does not change the exit code. From a throwaway repository, after two
+  runs of `mstack verify --mutation`: the first had a save made to its reverted file while its
+  tests ran, which the restore rescued; the second was killed with `kill -9` while its tests
+  ran on the reverted tree, so the file is still reverted. `<scratch>` stands for the scratch
+  directory that held the repository and the copy of the CLI that ran, and the host name is
+  replaced by `devbox`; the sections before `workspace` are left out:
 
   ```console
   $ mstack gate
   -- workspace
   [ok]    on branch feat/greet-flag
-  [ok]    working tree is clean
-  [fail]  the mutation lock /repo/.git/mstack-mutation.lock is held by pid 80885 on devbox, started 2026-11-19T12:35:40.747Z, 1 path(s): the run is not running (no such process)
-          fix: run /home/u/.claude/plugins/cache/mstack/0.3.0/bin/mstack verify --restore
-  [warn]  1 entry in /repo/.git/mstack-mutation/20261119T090000Z-4000-abcd/rescue: content a restore moved aside before it wrote HEAD's; compare it with the tree, then delete the directory
+  [warn]  1 uncommitted change(s); expected mid-session, not at close
+  [fail]  the mutation lock <scratch>/repo/.git/mstack-mutation.lock is held by pid 86485 on devbox, started 2026-11-19T15:55:19.335Z, 1 path(s): the run is not running (no such process)
+          fix: run <scratch>/mstack/bin/mstack verify --restore
+  [warn]  1 entry in <scratch>/repo/.git/mstack-mutation/20261119T155514Z-86266-3815/rescue: content a restore moved aside before it wrote HEAD's; compare it with the tree, then delete the directory
 
-  FAILED - 1 failure, 1 warning
+  FAILED - 1 failure, 2 warnings
   ```
 
 - **"closed items to audit"** is `require_verdict_to_close`. An item marked `done` fails the
