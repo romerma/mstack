@@ -43,7 +43,8 @@ test("R8 the lock is one JSON document before the first write", () => {
     assert.deepEqual(parsed, JSON.parse(JSON.stringify(lock)), "the lock on disk is not the record");
     assert.equal(parsed.v, 1);
     assert.match(parsed.run, new RegExp(`^\\d{8}T\\d{6}Z-${process.pid}-[0-9a-f]{4}$`));
-    assert.deepEqual([parsed.pid, parsed.host, parsed.boot, parsed.pidns], [process.pid, hostname(), bootTime(), pidNamespace()]);
+    // Node's os.uptime() is whole seconds here, so two reads of the boot time can differ by one.
+    assert.deepEqual([parsed.pid, parsed.host, Math.abs(parsed.boot - bootTime()) <= 1, parsed.pidns], [process.pid, hostname(), true, pidNamespace()]);
     assert.ok(Math.abs(Date.parse(parsed.startedAt) - Date.now()) < 60_000, `startedAt ${parsed.startedAt}`);
     assert.match(parsed.cli, /^\/.*\/bin\/mstack$/);
     assert.deepEqual([parsed.root, parsed.head, parsed.start, parsed.branch], [r.root, git(r.root, "rev-parse", "HEAD"), r.start, git(r.root, "branch", "--show-current")]);
