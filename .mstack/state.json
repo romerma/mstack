@@ -620,12 +620,12 @@
       "base": "a9b2a56b62c3f9a5640a27f9df7931d064bb56d4",
       "decision_required": "How the mutation check touches the user's tree. Two spec reviews each found ways the in-place design loses work or leaves a lock for good (spec_review_mutation-check.md, _r2.md). (A) Keep reverting in place, behind a lock and a restore, and split the item: the command, lock, restore, receipt and hook first; the closing check second, with a rule that lets a receipt proven on the branch survive the merge. (B) Run the mutation in a copy of the tree (a git worktree): no lock, no restore, nothing of the user's is touched; the store then needs a way to give the copy the ignored files the obligations use (installed dependencies, env files). (C) Leave the mutation check out of the program. Each changes the item's acceptance.",
       "decision_resolved": "2026-11-19T08:27:17.890Z",
+      "closed_by": "three rounds; review_mutation-check_r3.md APPROVED at cb1b255; gate --full green on the first run; its own verify --mutation recorded mutation-killed",
       "seams": [
         "CLI: mstack verify --mutation and verify --restore in a throwaway git repository with a store: exit code, output, the receipt row, and the working tree before, during and after",
         "CLI: mstack gate with a lock present",
         "the PreToolUse hook answer to git commit, git add and git stash while the lock exists"
-      ],
-      "closed_by": "three rounds; review_mutation-check_r3.md APPROVED at cb1b255; gate --full green on the first run; its own verify --mutation recorded mutation-killed"
+      ]
     },
     {
       "id": 43,
@@ -1554,7 +1554,8 @@
         "the hook and the R1 refusal add the cd only for a lock that validateLock accepts; for a lock with no rootFromTop, R1 no longer says verify --restore puts the tree back when the restore then refuses it",
         "a rootFromTop that differs from this store's only in case (or Unicode normalisation) does not lead in a loop: the message prints a way out that works, or the comparison folds as the refusals do",
         "under a lock the hook denies git --namespace foo commit, git --config-env k=v commit and git --attr-source HEAD add; the plumbing commands round 2 left (non-blocking 5) are decided: denied, or named in the docs as not covered",
-        "CHANGELOG.md names the refusal of verify --restore under the lock of another store of the worktree"
+        "CHANGELOG.md names the refusal of verify --restore under the lock of another store of the worktree",
+        "the docs say that an obligation written as <interpreter> <script> whose script the revert removed is recorded as killed, not blocked, wherever the interpreter does not exit 126 or 127 for a missing file (dash exits 2 for sh missing.sh, bash 127; found by CI on ubuntu, run 44574734393)"
       ],
       "status": "pending",
       "description": "The round 3 review approved item 42 with no loss path left and listed places where a printed way out does not work as printed, all without writing anything. They were not taken after the verdict.",
@@ -1587,6 +1588,21 @@
       "description": "sweepTemps lists a path's directory once per entry, and entryAt re-reads every parent's listing on each call (src/mutation-tree.ts). The exact-name check must keep reading the directory entry, not trusting a cache across writes the run did not make.",
       "size": "m",
       "source": "item 42 review, .mstack/progress/review_mutation-check_r2.md non-blocking 6, 2026-11-19"
+    },
+    {
+      "id": 104,
+      "slug": "mutation-run-test-dash",
+      "title": "CI is red on Linux: the R12 blocked test relies on bash's exit 127 for sh <missing script>, and dash exits 2",
+      "acceptance": [
+        "the R12 blocked test passes under a /bin/sh that is dash and under one that is bash: its obligation is a command both shells answer with 127 when the revert removed it",
+        "CI is green on both jobs at the commit that carries the fix"
+      ],
+      "status": "reviewing",
+      "description": "tests/mutation-run.test.ts 'R12 a script removed by the revert is blocked' sets the obligation to sh scripts/check.sh. With the script gone, bash (macOS /bin/sh) exits 127 and dash (ubuntu /bin/sh) exits 2 with 'cannot open', so on Linux the run is mutation-killed, as R12 says for exit 2. The code follows the spec; the test's fixture is not portable.",
+      "size": "s",
+      "base": "0dd6b2dc5d2f34a5958643b07ca849b698c84387",
+      "source": "CI run 44574734393 at 0dd6b2d, both jobs, 2026-11-19",
+      "verification": "bun test tests/mutation-run.test.ts && node --test tests/mutation-run.test.ts"
     }
   ]
 }

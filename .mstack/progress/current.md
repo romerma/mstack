@@ -6,10 +6,10 @@
 > On close: append the summary to `history.md` and reset this file to the
 > empty template below.
 
-- **Item:** none active (42 closed 2026-11-19; next is 100 mutation-closing-check)
-- **Status:** -
-- **Branch:** main
-- **Base:** -
+- **Item:** 104 mutation-run-test-dash (CI red on Linux at 0dd6b2d, one test)
+- **Status:** reviewing; fix is test-only, loop at scratchpad/item104/dash-loop.sh (red before, green after, with dash as sh)
+- **Branch:** fix/mutation-run-test-dash
+- **Base:** 0dd6b2dc5d2f34a5958643b07ca849b698c84387
 - **Worktree:** none
 
 ## Plan
