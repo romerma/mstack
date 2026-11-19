@@ -1,9 +1,10 @@
 ## Context
 
-Each fact was read at the cited line on `feat/mutation-closing-check` at `7d2d42b`, or measured by
-a script under the session scratchpad: round 1's in `spec100/`, the review's in `specreview100/`,
-round 2's in `spec100r2/` (absolute:
-`/private/tmp/claude-501/-Users-romerma-Code-mstack/4aadee9d-d352-4d5b-825b-4d11a47e2193/scratchpad/spec100r2/`),
+Each fact was read at the cited line on `feat/mutation-closing-check` at `7d2d42b` (`src/`,
+`tests/`, `docs/` and `skills/` are unchanged at `a2b5f8d`), or measured by a script under the
+session scratchpad: round 1's in `spec100/`, the reviews' in `specreview100/` and
+`specreview100r2/`, round 2's in `spec100r2/`, round 3's in `spec100r3/` (absolute:
+`/private/tmp/claude-501/-Users-romerma-Code-mstack/4aadee9d-d352-4d5b-825b-4d11a47e2193/scratchpad/spec100r3/`),
 each a `bash` file that starts `set -euo pipefail` with a checked `cd`, its output beside it as
 `*.out`. macOS 26 on APFS, git 2.54.0, node v26.13.1. Every fixture ran this checkout's
 `./bin/mstack` with a fixture repository as its working directory and an empty `HOME`; none ran
@@ -61,77 +62,79 @@ A test that imports the new module and asserts nothing kills; `git diff --quiet 
 (127). In the Getting-Started repository the run kills in 1 s because `test_shout` raises
 `TypeError: greet() got an unexpected keyword argument 'shout'`: the test reaches the code. Rung 4.
 
-### Fact 4: the shapes, under three wordings
+### Fact 4: the shapes, under this spec's words (`spec100r3/shapes.sh`)
 
-`spec100r2/shapes.sh` rebuilds every shape of both earlier passes on one seed (item `greet` on
-`feat/greet`, base the branch's first commit, `src/greet.js` and its test changed, a real `verify
---mutation`, `mutation-killed`), adds four (`w2.sh` rebuilds W2 and `bases0.sh` adds BASESM0),
-and judges each three ways:
-**Round 1**, the round 1 spec's words, and **Qab**, the review's rule, both by the review's
-emulation `rv.mjs` (copied unchanged); **This spec**, by `rule.mjs`, written fresh from Terms and
-R1 to R15, whose output names the requirement that voided each row. Git's answers are rung 4;
-every verdict is rung 3 (emulated; no code exists). "Main moved" means another item's
-`src/other.js` and `tests/other.test.mjs` landed on `main` first; a rebase merge is `git
-cherry-pick` onto `main` with a later committer date. `pass` is the check answered, `held` it is
-not.
+`shapes.sh` rebuilds every shape of the four earlier passes (the round 1 and round 2 authors' and
+reviews'; most on one seed: item `greet` on `feat/greet`, base the branch's first commit,
+`src/greet.js` and its test changed, a real `verify --mutation`, `mutation-killed`; the round 2
+review's second set and the linked-worktree shapes on their own repositories) and adds 27, two of
+the seeds new: the base a commit of `main`, as `mstack worktree new` gives (names ending `B`), and
+`src/prep.js` committed on the branch before the base (`PREBASE`). 108 shapes in all. Each is
+judged by `words3.mjs`, written fresh from Terms, R1, R3 to R15 and R25 of this spec (**This
+spec**), and by the round 2 review's emulation of the round 2 spec's words (**Round 2**,
+`words-r2.mjs`, copied unchanged); `summary.out` has one line per shape. **A2** is what acceptance
+2 demands at the close, or on the branch A1's "at the current code and test tree"; "other work"
+means no path of the item changed after the run. `pass` is the check answered, `held` it is not,
+and bold an answer A2 does not demand. Git's answers are rung 4; every verdict is rung 3
+(emulated; no code exists). "Main moved" means another item's `src/other.js` and
+`tests/other.test.mjs` landed on `main` first; a rebase merge is `git cherry-pick` onto `main` with
+a later committer date. The fast search for Q in "Shape" found the full walk's Q on every row that
+reached it.
 
-| Shape | Round 1 | Qab | This spec | Voided by |
+| Shape | A2 | Round 2 | This spec | Voided by |
 |---|---|---|---|---|
-| on the branch right after the run | pass | pass | pass | - |
-| A fast-forward | pass | pass | pass | - |
-| B, E merge commit, main not moved / moved | pass | pass | pass | - |
-| C, C2 squash, main not moved / moved | pass | pass | pass | - |
-| D, D2 rebase merge, main not moved / moved | pass | pass | pass | - |
-| V4 main edited line 1 of `src/greet.js`, merge commit | held | held | held | R10 `src/greet.js` |
-| V5B test after the run, merge commit | held | held | held | R11 `tests/helpers.test.mjs` |
-| V5C test after the run, squash | **pass** | held | held | R12 `tests/helpers.test.mjs` |
-| V5A test after the run, fast-forward | held | held | held | R8 |
-| V6 code edit after the run, on the branch | held | held | held | R8 |
-| V7 docs after the run, squash | pass | pass | pass | - |
-| L fast-forward, then other work before the close | held | held | held | R8 `src/other.js` |
-| U untracked `notes.txt` and test after the run | pass | pass | pass | - |
-| RE1 rebased after the run; RE2, RE3 rebased before, then squash or merge commit | pass | pass | pass | - |
-| V5D test after the run, rebase merge | **pass** | held | held | R13 |
-| AM1, AM2 amend after the run adding a test, or `src/other.js` | **pass** | held | held | R13 |
-| AM3 amend changing `src/greet.js` | held | held | held | R13 |
-| RB2 rebased after the run, then a test committed | **pass** | held | held | R13 |
-| RS `reset --soft` and one recommit with a test | **pass** | held | held | R12 |
-| CPR rebase merge, the after-run test commit reordered first | pass | pass | **pass** | - (the miss) |
-| RV1 revert and reapply, same content, squash | pass | pass | pass | - |
-| RV2 reapplied with different content, squash | held | held | held | R12 (no Q) |
-| OCT octopus merge with another branch | pass | pass | pass | - |
-| OCT2 the same, a test after the run | held | held | held | R11 |
-| FPB main merged into the branch after the run, fast-forward | held | held | held | R8 |
-| REN, FLIP renamed, or the test moved to `docs/`, squash | held | held | held | R12 (no Q) |
-| MODE `chmod +x src/greet.js` after the run | held | held | held | R8 |
-| MODE2 `chmod +x src/other.js` after the run, squash | **pass** | held | held | R12 `src/other.js` |
-| C3 squash, then another item's code before the close | pass | held | **held** | R13 `src/other.js` (the cost) |
-| TWO squash, then another item edits `src/greet.js` | held | held | held | R13 |
-| INTEG branch into `develop`, `develop` into main | held | held | held | R11 |
-| BASES `--base <S>` after a void, then squash | **pass** | held | held | R9 (P empty) |
-| BASESM the same, then a merge commit | held | held | held | R9 (P empty) |
-| BASESM0 (`bases0.sh`) `--base <S>` with no edit, main moved, merge commit | **pass** | held | held | R9 (P empty) |
-| BASEH `--base HEAD` after a void, on the branch | not held | not held | not held | - (N1, trade-offs) |
-| W1 a row of an abandoned attempt in a linked worktree | **pass** | held | held | R13 `src/extra.js` |
-| SHA a hand-written row whose `sha` is `HEAD` | **pass** | **pass** | held | R7 |
-| FLAG, W3 `assume-unchanged` then an edit | **pass** | **pass** | held | R14 |
-| W2 (`w2.sh`) a `prunable` worktree record with a forged row | **pass** | **pass** | held | Terms, stores read |
-| DELU the item deletes `src/other.js`, squash, untracked `src/other.js` | pass | **held** | pass | - |
-| WT1, WT2 a linked worktree's row, merge commit or fast-forward | pass | pass | pass | - |
-| WTRM the linked worktree removed first | held | held | held | no row |
+| seed; A fast-forward; B, E merge commit, main not moved / moved; C, C2 squash; D, D2 rebase merge; V7 docs after the run; U untracked `notes.txt` and test; RE1 rebased after the run; RE2, RE3 rebased before a second run; RV1 revert and reapply; OCT octopus; DELU; REVERTED a test after the run, reverted; QAMB1; RBM rebased, then a merge commit | pass | pass | pass | - |
+| WT1, WT2 a linked worktree's row; SUBDIR, SUB-sq, SUB-rb, SUB-mc, SUB-top a store in `pkg/`; GLOB the item's `src/[id].js` after `main` changed `src/i.js` | pass | pass | pass | - |
+| C2B, D2B, EB, AB, RE1B the base a commit of `main`, main moved; PREBASE code before the base, rebased after the run | pass | pass | pass | - |
+| ALLDEL the item only deletes a file `main` added; REVITEM it reverts earlier work; each squashed | pass | **held** | pass | - (Q not in S's history) |
+| SHA256, SHA256-sq a SHA-256 repository, on the branch and squashed | pass | **held** | pass | - (R7 reads the object format) |
+| V4 main edited line 1 of `src/greet.js`, merge commit; MCF2 the item's follow-up edits it on `main` after one | void | held | held | R10 `src/greet.js` |
+| V5B, OCT2 a test after the run, merge commit; PREM the same, the test also cherry-picked to `main` first | void | held | held | R11 `tests/helpers.test.mjs` |
+| V5C, V5CB, SUB-v5c, RS, IREBS, RBM2 a test after the run, then a squash, a recommit, a reorder and squash, or a rebase and merge commit; AM1, AM2 an amend; MODE2 `chmod +x src/other.js`, squash | void | held | held | R12, Q's own change |
+| AM3, RV2, REN, FLIP the item's content changed or moved after the run | void | held | held | R12, no Q |
+| V5D, RB2, W1, TWO, SQF, RBF work after Q | void | held | held | R13 |
+| V5A, V6, MODE, DELWT, CASE on the first-parent history after S | void | held | held | R8 |
+| STAGED an edit staged, the working tree file put back | void | **pass** | held | R8 (the index) |
+| IREB, IREBB, IREB0, IREBX, IREBC, IREBM an after-run test or `src/extra.js` moved or folded ahead of the code with `rebase -i`, on the branch | void | **pass** | held | R25 |
+| BASES, BASESM, BASESM0 `--base <S>` after the run | void | held | held | R9 (P empty) |
+| SHA a row whose `sha` is `HEAD` | void | held | held | R7 |
+| FLAG, W3 `assume-unchanged`, then an edit | void | held | held | R14 |
+| W2 a `prunable` worktree record with a forged row | void | held | held | not read (Terms) |
+| BASEH, WAYS-size, WAYS-base `--base HEAD` or `--size s` at `verifying` | on the record | not held, no record | refused without `--closed-by` | R26, R27 |
+| CPR, PRE, PRER, IREBR, IREBXR, IREBCR, IREBF, PRERB, PREO, PREOM, MCF, MCF3 | void | **pass** | **pass** | - (the misses, below) |
+| IGN, GITIG an ignored scratch test earned the kill, then deleted | void | **pass** | **pass** | - (a trade-off) |
+| UNTR an untracked scratch test earned the kill (today's CLI) | void | **pass** | no row | R16 refuses the run |
+| L, FPB other work on the first-parent history after S, fast-forward | pass | **held** | **held** | R8 `src/other.js` |
+| C3, QAMB2 other work after a squash | pass | **held** | **held** | R13 `src/other.js` |
+| INTEG through a `develop` with other work, merge commits | pass | **held** | **held** | R11 `src/other.js` |
+| SQDEV squashed into a `develop` with other work, merged into `main` | pass | **held** | **held** | R12 `src/other.js` |
+| PREBASES code before the base, rebased, squashed | pass | **held** | **held** | R12 `src/prep.js` |
+| GC squash, branch deleted, `gc --prune=now` | pass | **held** | **held** | R7 |
+| WTRM the linked worktree removed first | pass | **held** | **held** | no row (Fact 2) |
 
-On the 19 shapes of round 1 (the seed, A to V7, L, U, RE1 to RE3, V5C) all three agree except
-V5C. On the review's 24 (V5D to BASEH, W1 to W3) this spec gives Qab's answer on every one but W2
-and W3. Where it differs from Qab it is for a finding of the review applied (SHA: non-blocking 5;
-FLAG, W3: 6; W2: 3) or for DELU, below.
+Round 2's words and this spec differ on 11 shapes, each for a finding of the round 2 review: R25
+(B1) on the six IREB shapes, the index (non-blocking 3) on STAGED, Q outside S's history (2) on
+ALLDEL and REVITEM, the object format (4) on SHA256 and SHA256-sq. UNTR's "no row" is R16 read,
+not run (today's CLI has no R16).
 
-**Checked against the review's definition.** Qab as worded has R5's own test of the working tree
-(`lstat` and `hash-object`) in front of its two clauses. Given clause (a) (nothing differs between
-Q and the working tree) and Q's definition (every path of P has S's blob and mode at Q), that test
-adds nothing for a tracked file; it only sees an untracked file, and on DELU it voids a receipt
-because an untracked `src/other.js` sits where the item deleted one, while R8 holds the same tree
-on the branch. So this spec states "differs from the working tree" once, as `git diff` against
-the commit (Terms), for R8, R10 and R13 alike, and catches the edit `git diff` cannot see by R14.
+**Against the round 2 review's clause.** As the review words it ("where the start at HEAD can be
+computed, a path that is not in P differs between the start at HEAD and Q"), the clause voids IREB
+and also six shapes that hold: C2B, D2B, SUB-sq, SUB-rb and SHA256-sq, squash and rebase merges
+of an item whose base is a commit of `main` after `main` moved (there the start at HEAD is the
+base, and the default branch's own work lies between it and Q), and PREBASE, a branch rebased
+after the run that carries code from before its base (`REVIEW-CLAUSE=HELD` in `shapes.out`). So
+R25 reads only where HEAD is ahead of the default branch, and compares Q with S, less what the
+default branch changed between the start at S and the start at HEAD. It holds all six; it gives up
+IREBF on `main`, which the review's clause voids there (both void it on the branch).
+
+**Checked against the round 1 review's definition** (round 2, `spec100r2/`). Qab as worded has
+R5's own test of the working tree (`lstat` and `hash-object`) in front of its two clauses. Given
+clause (a) (nothing differs between Q and the working tree) and Q's definition (every path of P has
+S's blob and mode at Q), that test adds nothing for a tracked file; it only sees an untracked file,
+and on DELU it voids a receipt because an untracked `src/other.js` sits where the item deleted one,
+while R8 holds the same tree on the branch. So this spec states "differs from the working tree"
+once, as `git diff` against the commit (Terms; the index too, from round 3), for R8, R10 and R13
+alike, and catches the edit `git diff` cannot see by R14.
 No clause of Qab can go. Without (ii) V5C, RS and MODE2 pass, and without (a) V5D, AM1, AM2, RB2
 and W1 pass (the review's Qb column; each is a row above). Without (i), an empty P after a squash
 makes Q the first commit, whose own change already voids by (ii), so (i) decides alone only after
@@ -142,20 +145,49 @@ empty`).
 
 ### What the rule misses, and what it voids that should hold
 
-- **Misses: CPR.** A rebase merge that puts a commit made after the run before the item's code:
-  Q is the code's commit, the test commit is older than Q, and nothing in git separates it from
-  the default branch's own earlier work. It is the one shape measured where a code or test path of
-  the item changed after the run and the receipt still holds.
-- **Correct holds, not misses:** RV1 (the content at the close is the content the run saw; a
-  receipt is about content, as R8 already is on the branch) and OCT (the other branch's paths are
-  not the item's; R11 still sees an after-run change on the item's branch, OCT2).
-- **Voids that should hold:** C3, other work landing on the default branch between a squash or
-  rebase merge and the close (R13), and L, the same after a fast-forward (R8). First-parent
-  history cannot say whose commits came after Q or S. After a merge commit other work does not
-  void (R10 reads the item's paths only). The way out is to close right after the merge, as
-  `skills/ship/SKILL.md` step 7 already does, or the forced close.
+**Misses: one class.** A test or code file the item adds or changes after its run, at a file the
+run's commit had not changed, that reaches the default branch by a route other than the item's own
+merge. For example: a test written after the run reaches `main` before the item does (cherry-picked
+from the branch, or merged as its own PR); or it is moved ahead of the item's code with `rebase -i`
+and the branch is then rebase-merged or fast-forwarded; or a rebase merge is reordered by hand; or
+the item's follow-up is committed on `main` after a merge commit. Twelve members were measured:
 
-### Fact 5: which shipped tests change (`spec100r2/probe/`)
+| Member | How the change reached `main` | The branch's own gate before the merge |
+|---|---|---|
+| CPR | reordered ahead of the code by hand in a rebase merge | void (R8) |
+| PRE, PRER | cherry-picked from the branch to `main`, then a squash or a rebase merge | void (R8) |
+| IREBR, IREBXR, IREBCR | moved or folded ahead of the code with `rebase -i` (a test; a test folded into an earlier commit; `src/extra.js`), then a rebase merge | void (R25), from the reorder on |
+| IREBF | moved ahead with `rebase -i`, then `main` fast-forwarded | void (R25), from the reorder on |
+| PRERB | cherry-picked to `main`, then the branch rebased onto `main` and fast-forwarded | void (R8) until the rebase; holds after it |
+| PREO, PREOM | a test written for the item, merged as its own PR before the item (then a squash; a merge commit) | holds: the branch never had it |
+| MCF, MCF3 | committed on `main` after a merge commit (`src/extra.js`; a test) | none: it came after the merge |
+
+Where the class stops, argued from the words (rung 3, not proven): a change at a path of P is
+seen wherever it lands (R8, R10, R12's "no Q", R13), unless the content is back to the run's
+(REVERTED, RV1: correct holds). A change outside P is seen on HEAD's first-parent history after S
+(R8), on the merged branch after S (R11), in Q or after it (R12, R13), and before Q on the branch
+(R25). It is not seen in four places: before Q on the default branch (R25 does not read there:
+git cannot tell the item's commit from the default branch's own work); on the default branch's
+side of a merge commit (R11 reads the merged branch); after a merge commit (R10 reads P); and on a
+branch rebased onto a default branch that already had it (R25 excuses what the default branch
+brought). Every member above is in one of the four, and no shape built here misses outside them.
+PREO and PREOM are, to git, C2 and E: whether the test is the item's is not in the repository.
+
+- **Correct holds, not misses:** RV1 and REVERTED (the content at the close is the content the run
+  saw; a receipt is about content, as R8 already is on the branch) and OCT (the other branch's
+  paths are not the item's; R11 still sees an after-run change on the item's branch, OCT2).
+- **Voids that should hold:** other work on the first-parent history after a squash or rebase
+  merge (C3, QAMB2, R13) or after S on a fast-forward (L, and FPB, `main` merged into the branch
+  first; R8), since first-parent history cannot say whose commits came after Q or S; an
+  integration branch with other work between the item and `main` (INTEG by R11, SQDEV by R12,
+  whose Q is the merge of `develop`); a squash of a branch that carries code from before the
+  item's base (PREBASES, R12: the squash commit holds that code too); and a run commit pruned after
+  a squash and a deleted branch (GC, R7). After a merge commit, other work on `main` does not void
+  (R10 reads the item's paths only). The way out is to close right after the merge, as
+  `skills/ship/SKILL.md` step 7 already does; for PREBASES, `--base` at the branch's fork with a
+  reason (R26); else the forced close.
+
+### Fact 5: which shipped tests change (`spec100r2/probe/`, `spec100r3/probe.sh`)
 
 `run.sh` takes three archive copies of `7d2d42b`, patches two with a stand-in for the check
 (`patch.mjs`: the rule in `state.ts` read as A or as B, `seedState` writing it `true`, a closing
@@ -196,6 +228,14 @@ for those the tests were read: `rg` finds no test that clears a marked `closed_b
 under a lock, and two that start a run with an untracked test file (`tests/mutation-run.test.ts:113`,
 `tests/mutation-changed.test.ts:90-100`). Rung 4 for the stand-in, rung 3 for the three read.
 
+**R26 and R28** (`spec100r3/probe.sh`): an archive copy of `a2b5f8d` with that stand-in under
+answer A, `state()` writing the rule `false` (as the round 2 review ran it), and `patch-nb1.mjs`
+(R26: a change of `size`, `base` or `verification` of an item R1 holds, left at `verifying`, exits
+2 without `--closed-by`; R28: `done` runs the closing checks on a copy of the item taken before
+the clears) gives `1095 pass`, `2 skip`, `1 fail`, the failure the walkthrough with the stand-in's
+`PROBE it has no mutation run`, as the review measured without the patch; no test met the R26
+refusal (`PROBE-R26` in the output: 0). Rung 4 for the stand-in; R27's row is not in it.
+
 ## Usage
 
 A sketch of the shape below, not a run (task 1.2 pastes real output into the wiki):
@@ -229,20 +269,27 @@ block in `spec100r2/walk.out` (killed, 1 s).
     `prunable` line, `<path>/<prefix>/.mstack/verification.tsv`. Each is read with `readRecords`
     (`src/tsv.ts:79`) in a `try`.
   - `holds(store, item, row)`: `{ holds: true } | { holds: false; why: string; paths: string[] }`.
-    First `/^[0-9a-f]{40}$/` on S, then `git cat-file -e S^{commit}` (R7); then R14 from `git
-    ls-files -v -z` at the store's root, kept to in-scope `code` and `test`. S on HEAD's
-    first-parent history (`git rev-list --first-parent HEAD` holds S): R8, `git diff --name-only
-    --no-renames --relative -z S --`. Otherwise M (walking the first-parent list from HEAD, the
-    first commit with two or more parents whose first parent lacks S and another parent has it,
-    by `git merge-base --is-ancestor`), the start at S and P (`git diff ... <start at S> S --`),
-    R9; with M, R10 (`git diff ... S -- <P>`) and R11 (`git diff ... S <M's parent with S> --`);
-    without, Q, R12 (`git diff ... <Q^ or the empty tree> Q --`) and R13 (`git diff ... Q --`).
-    Q is looked for only among the first-parent commits that change a path of P, oldest first
-    (`git rev-list --first-parent --reverse HEAD -- <P>`, then the root commit): a commit that
-    changes no path of P has its first parent's content of P, so the oldest commit holding S's
-    content of P is one of those, and each needs one `git ls-tree <c> -- <P>` compared with `git
-    ls-tree S -- <P>` (`spec100r2/qcheck.mjs`: the same Q as the full walk on the 23 shapes with no
-    merge commit, rung 4 for git). Every `git diff` here has `--relative` (review non-blocking 7).
+    First `/^[0-9a-f]{40}$/`, or `{64}` where `git rev-parse --show-object-format` prints
+    `sha256`, on S, then `git cat-file -e S^{commit}` (R7); then R14 from `git ls-files -v -z` at
+    the store's root, kept to in-scope `code` and `test`. "Differs from the working tree" is two
+    calls, `git diff --name-only --no-renames --relative -z C --` and the same with `--cached`.
+    S on HEAD's first-parent history (`git rev-list --first-parent HEAD` holds S): R8. Otherwise
+    M (walking the first-parent list from HEAD, the first commit with two or more parents whose
+    first parent lacks S and another parent has it, by `git merge-base --is-ancestor`), the start
+    at S and P (`git diff ... <start at S> S --`), R9; with M, R10 (the working-tree diff of S
+    kept to P) and R11 (`git diff ... S <M's parent with S> --`); without, Q, R12 (`git diff ...
+    <Q^ or the empty tree of the object format> Q --`), R25 and R13 (the working-tree diff of
+    Q). Q is looked for only among the first-parent commits not in S's history that change a path
+    of P, plus the oldest of them (`git rev-list --first-parent --reverse HEAD ^S -- <P>` and
+    `git rev-list --first-parent --reverse HEAD ^S`): a commit that changes no path of P has its
+    first parent's content of P, so the oldest commit holding S's content of P is one of those,
+    and each needs one `git ls-tree <c> -- <P>` compared with `git ls-tree S -- <P>`
+    (`spec100r3/shapes.out`: the same Q as the full walk on every row that reached it, a merge of
+    `develop` as Q included). R25: HEAD is ahead when `git merge-base --is-ancestor HEAD <ref>`
+    fails for each default ref that resolves; then the paths of `git diff ... S Q --` less those
+    of `git diff ... <start at S> <start at HEAD> --`. Every git call here runs as `git
+    --literal-pathspecs` (`spec100r3/shapes.out` GLOB: `git diff --name-only S -- 'src/[id].js'`
+    lists `src/i.js`, with the flag nothing), and every `git diff` has `--relative`.
   - `answer`: the decisive rows of the joined command, newest `ts` first, judged until one holds;
     then R5's precedence. A gate after one run judges one row.
 - `src/cli.ts`, the `done` branch: before `closingProblems`, `readLock(store) !== null` throws a
@@ -251,6 +298,13 @@ block in `spec100r2/walk.out` (killed, 1 s).
   seven; none is a prefix of another (each is `closed <phrases> (forced): `, and a phrase holds no
   `(forced)`), so the `find` at `:861` stays right. `--clear closed-by` on a marked note throws
   before `clearField` runs. One forced line per overridden check.
+- `src/cli.ts`, `cmdState`'s `set`: a copy of the item is taken before the clears (`:694`), next to
+  `closedByBefore` (`:687`). R28: `closingProblems` (`:759`) runs on that copy. R26: before
+  `assertNotSddSmall` (`:988`), when the rule is on, the item ends at `verifying`, `heldByR1(store,
+  state, copy)` (exported from `src/mutation-close.ts`) is true and `size`, `base` or
+  `verification` differs from the copy's, a missing `--closed-by` throws; R27: with it, the
+  `closed_by` loop skips the note, as it does for `forcedSpecSize` (`:846`), and a `mutation-scope`
+  row is written after the save, as the `spec-size` row is (`:997-1006`).
 - `src/mutation.ts`, `refusals`: R16 after the tracked-change refusals, from `git ls-files --others
   --exclude-standard -z`, kept to `test`.
 - `src/state.ts`: `require_mutation_to_close` in `State.rules`, the parse and `KNOWN_RULE_KEYS`;
@@ -270,12 +324,29 @@ that changed a path of P on the first-parent history. A gate after one run judge
 - **Q for a merge commit too**, one rule for every merge. M's own change against its first parent
   is everything the branch brought, so OCT (an octopus with another branch) and other work after
   a merge commit would void; R10 and R11 hold both, correctly.
+- **The round 2 review's clause as it words it** ("where the start at HEAD can be computed, a
+  path that is not in P differs between the start at HEAD and Q"). It voids six shapes that hold
+  (C2B, D2B, SUB-sq, SUB-rb, SHA256-sq, PREBASE; Fact 4), among them the ordinary squash of an
+  item started from `mstack worktree new` after `main` moved; R25 holds all six and gives up IREBF
+  on `main` (still void on the branch).
 - **A rule that closes CPR from the branch's ref**: find each commit of `S..feat/greet` by its
   patch id among the first-parent commits before Q. It works only while a ref to the branch's
   commits exists, which the merge often ends (a forge's branch auto-delete, `git branch -d`); with
   the ref gone the answer changes for the same tree.
   **By the author date** of the commits before Q: the other item's commit on `main` was authored
   after the run too, and dates are the committer's to set.
+- **Recording the item's commits at the run** (the round 2 hand-off's "no" to fork 2). Commits made
+  after the run are not in the record, so after a rebase merge or a fast-forward the record finds
+  an after-run change only where it sits among the copies of the item's recorded commits, between
+  them or folded into one (IREBR, IREBXR, IREBCR, IREBF); CPR (moved before all of them), PRE,
+  PRER, PRERB, PREO, PREOM, MCF and MCF3 land outside them and stay unseen (argued, rung 2). Closing the class needs every commit
+  tied to its item when it is made (a trailer, or a hook that records it), and then only for the
+  commits that carry the tie.
+- **R26 for every item at `verifying`**, as the review words it. Three fixes the gate already
+  prints at `verifying` would then be refused: the size check's `--size m` and `--base <commit>`
+  for a size `s` item (`src/gate.ts:297-333`) and `gate --full`'s `--verification "<command>"`
+  for an item with no obligation (`src/gate.ts:800-810`). None of those items is held by R1, and
+  no edit to an item R1 does not hold can take it out of this check, so R26 reads R1.
 - **Item 42's key on the branch, the round 1 review's C' only after a merge.** The key depends on
   the checkout's untracked files (a linked worktree's row read in the main checkout was void by
   the key, `2c63a070` there and `f5d6dd16` here, with an untracked `notes.txt`), and R8 is the same
@@ -293,11 +364,13 @@ that changed a path of P on the first-parent history. A gate after one run judge
   holds. Only a refusal at the run sees it. R16 makes item 42's two untracked-test scenarios
   unreachable for a test file; both mechanisms (R2's key check during the baseline, R18's (e)) are
   still reached by an untracked code file, so task 1.5 moves the two tests to one.
-- **Refusing `--base` at `verifying`**, against the `--base HEAD` way out. It cannot tell the dodge
-  from R3's own way out after a squash (`--base Q^`, which empties the code diff of an item with no
-  code), nor from the way out for an item with no code after a merge commit. **Recording every base
-  move after `in_progress`** (a decision row, as `spec-size` does) would be the sound fix; it is a
-  mechanism the acceptance does not need and the size check lacks too.
+- **Refusing `--base` at `verifying`** outright, against the `--base HEAD` way out. It cannot tell
+  the dodge from R3's own way out after a squash (`--base Q^`, which empties the code diff of an
+  item with no code), nor from the way out for an item with no code after a merge commit; R26 asks
+  for the reason instead and R27 records it. **Recording every base move after `in_progress`**
+  would also cover an edit made at `reviewing` and then moved to `verifying`; it would record the
+  size check's own `--base` fix at `in_progress` too, and the acceptance asks for the record at the
+  close.
 - **Holding an item with no obligation**, against the `--clear verification` way out. No run can be
   made for it, so every item of a store without a `verify` would close only by `--force`; the
   verification check lets such an item close with a warning for the same reason
@@ -312,21 +385,29 @@ that changed a path of P on the first-parent history. A gate after one run judge
 
 ## Trade-offs accepted
 
-- **CPR** is not seen (above). It is the user's to accept: the hand-off's second fork.
-- **C3 and L** void a receipt that should hold. Close right after the merge, or force.
-- **`--base` moved to a commit after the item's code** (BASEH) empties the code diff, and the item
-  closes with no marker. The base is the item's own declaration, every check trusts it (the size
-  check, the table, the run itself), and the move is printed (`base: "<old>" -> "<new>"`) and lands
-  in the `state.json` the close commit carries. R3's fix says never HEAD.
-- **`--status done --clear verification`** in a store whose `verify` is `""` removes the only
-  obligation before the checks run (`src/cli.ts:694`; `specreview100/worktrees.out` W5), and R1
-  then does not hold the item. The same command already gets past the verification check; the clear
-  is printed and lands in `state.json`.
+- **The class of misses** (above) is not seen. It is the user's to accept: the hand-off's second
+  fork.
+- **The voids that should hold** (above): close right after the merge, or force.
+- **R25 reads only on the branch.** On the default branch a commit before Q cannot be told from the
+  default branch's own work, and reading there voids the ordinary squash of an item whose base is
+  a commit of `main` (Fact 4, against the review's clause); IREBF is the shape that costs.
+- **`--base` moved to a commit after the item's code** (BASEH), `--size s` and `--clear
+  verification` at `verifying` each take a held item out of the check. R26 and R27 put each on the
+  record with its reason, and R28 judges `--status done --clear verification` before the clear. An
+  edit made at `reviewing` and then carried to `verifying` by a second command is not recorded: it
+  is printed and lands in the `state.json` the close commit carries, as every edit of what the item
+  declares does, and R3's fix says never HEAD.
+- **An ignored in-scope test file can still earn a kill** (the round 2 review's IGN and GITIG: a
+  scratch test under an ignore rule bit, the committed test did not, and after the scratch test is
+  deleted the row holds by R8). R16 leaves ignored files alone so that a log or build output under
+  `tests/` (`tests/out.log` is a `test` path to the classifier, `src/pathclass.ts:11`) does not
+  refuse every run; its fix no longer suggests `.gitignore`.
 - Other work outside the item's paths that changes whether its tests bite (a shared helper, a
   runner setting) is not seen after a merge commit (R10 reads the item's paths only).
 - An item with no code of its own, merged with a merge commit after the default branch gained
   other code, or squash- or rebase-merged from a base on its branch, is held after the merge; the
-  way out is `--base` with the commit before the merge, or the forced close.
+  way out is `--base` with the commit before the merge and a `--closed-by` reason (R26), or the
+  forced close.
 - `git worktree remove` deletes a linked worktree's receipts, with exit 0. Close first (task 1.4).
 - A kill does not say the tests check behaviour (fact 3); the check makes "nothing noticed" a
   recorded decision.

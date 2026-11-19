@@ -1,7 +1,8 @@
 > Source: item 100 (`./bin/mstack state show 100`), split from item 42 by the user's decision of
 > 2026-11-19 (decisions.tsv 08:27:17Z), and `.mstack/progress/spec_review_mutation-check_r2.md`
-> B3. Round 2 answers `.mstack/progress/spec_review_mutation-closing-check.md`. This spec is
-> authoritative for implementation; the item remains the discussion venue.
+> B3. Round 2 answers `.mstack/progress/spec_review_mutation-closing-check.md`, round 3
+> `.mstack/progress/spec_review_mutation-closing-check_r2.md`. This spec is authoritative for
+> implementation; the item remains the discussion venue.
 
 ## Why
 
@@ -41,24 +42,41 @@ the mechanism. No item here is in flight; item 100 closes under its own rule (ta
   since that commit; after a merge commit, when the item's code and test paths still hold the
   run's content and the merged branch changed nothing after the run; after a squash or a rebase
   merge, when the first commit that holds the run's content of the item's paths brought nothing
-  else and nothing changed after it. A row's commit must be a full sha, and a file flagged
-  `assume-unchanged` or `skip-worktree` voids every row.
+  else and nothing changed after it; and on a branch rewritten after the run, when that commit
+  holds outside the item's paths what the run's commit held, less what the default branch brought.
+  A row's commit must be a full sha of the repository's object format, the index counts as well as
+  the working tree, and a file flagged `assume-unchanged` or `skip-worktree` voids every row.
 - Rows are read from every worktree's store of the repository, not only this one.
-- `verify --mutation` refuses while an untracked test file is in scope.
+- `verify --mutation` refuses while an untracked test file is in scope, and says to commit it or
+  move it out of the store's root.
+- At `verifying`, an edit of a held item's `size`, `base` or `verification` needs `--closed-by
+  "<why>"`, written as a `mutation-scope` decision row; `state set --status done` judges the closing
+  checks on the item as it was before the same command's `--clear`s.
 - A forced close past the check writes `closed without a killed mutation receipt (forced): <why>`
   (composed with the existing phrases), keeps it, and refuses `--clear closed-by` on it.
 - `rules.require_mutation_to_close`, written `true` by `setup`; how it reads when absent is fork 1.
 - `state set --status done` is refused while this checkout's mutation lock exists.
 
-## Acceptance 2, and its one exception
+## Acceptance 2, and its exception
 
-Acceptance 2 is met except for one shape: a rebase merge that reorders a commit made after the run
-so that it lands before the item's code (CPR). Git alone cannot tell that commit from the default
-branch's own earlier work, and nothing records which commits were the item's. The rule also voids
-a receipt that should hold when other work lands on the default branch between the merge and the
-close, after a squash, a rebase merge or a fast-forward (C3, L); closing right after the merge, as
-ship already does, avoids it. **This exception is waiting for the user's yes** (fork 2,
-`.mstack/progress/spec_mutation-closing-check_r2.md`).
+Acceptance 2 is met except for one class of change: a test or code file the item adds or changes
+after its mutation run, at a file the run's commit had not changed, that reaches the default
+branch by a route other than the item's own merge. For example, a test written after the run
+reaches the default branch before the item does (cherry-picked from the branch, or as its own PR),
+or is moved ahead of the item's code with `rebase -i` and the branch is then rebase-merged or
+fast-forwarded, or a rebase merge is reordered by hand, or the item's follow-up is committed on the
+default branch after a merge commit. Git alone cannot tell such a commit from the default branch's
+own work, and nothing records which commits were the item's. Twelve such shapes were measured; in
+seven the branch's own gate showed the receipt void before the merge, in one until the branch was
+rebased, and in four nothing did (design.md, "What the rule misses").
+
+The rule also voids receipts that should hold: other work landing on the default branch between
+the merge and the close (C3, L, QAMB2, and FPB, other work merged into the branch before a
+fast-forward), an integration branch carrying other work between the item and the default branch
+(INTEG, SQDEV), a squash of a branch that carries code from before the item's base (PREBASES), and
+a run commit pruned by `git gc` after a squash (GC). Closing right after the merge, as ship already
+does, avoids most of them; the forced close covers the rest. **This exception is waiting for the
+user's yes** (fork 2, `.mstack/progress/spec_mutation-closing-check_r3.md`).
 
 ## A new user's first close
 
@@ -66,7 +84,8 @@ Getting-Started's walkthrough closes an item with code at `verifying`, and under
 close is refused until a run has killed. The page and its test (`tests/walkthrough.test.ts`) gain
 one command: after the reviewer's `gate --full`, at `reviewing`, the reviewer runs `mstack verify
 --mutation`, which puts `greet.py` back as it was at the item's start, runs the verification, sees
-`test_shout` fail, puts `greet.py` back and records `mutation-killed`, in about a second
+`test_shout` error (a `TypeError`), puts `greet.py` back and records `mutation-killed`, in about a
+second
 (design.md Fact 3); the close then reads that row. The first item a new user closes is an ordinary
 item with code, so the page shows the check every such item meets, rather than an item it does not
 hold (size `s`, or the rule off), which would teach that the check is optional.
@@ -75,14 +94,16 @@ hold (size `s`, or the rule off), which would teach that the check is optional.
 
 - New: `src/mutation-close.ts`. Changed: `src/closing.ts` (one entry), `src/size.ts`
   (`measureStart` at a given commit), `src/cli.ts` (the lock refusal at `done`, the markers, the
-  refused clear), `src/gate.ts` (its lock line moved to be shared), `src/mutation.ts` (R16),
-  `src/state.ts`, `src/setup.ts`, `.mstack/state.json` of this repository (the rule, `true`).
+  refused clear, the edits at `verifying` and the checks before the clears), `src/gate.ts` (its
+  lock line moved to be shared), `src/mutation.ts` (R16), `src/state.ts`, `src/setup.ts`,
+  `.mstack/state.json` of this repository (the rule, `true`).
 - Tests: `tests/helpers.ts` (`state()` writes the rule `false`), `tests/walkthrough.test.ts`, two
   item 42 tests moved from an untracked test file to an untracked code file.
 - Docs: `docs/wiki/Gates-and-Hooks.md` (the check, the markers, the receipts paragraph at
-  `:703-707`), `docs/wiki/The-CLI.md` (verify: the closing check, R16, after the merge; `--clear`),
-  `docs/wiki/State-Files.md` (five rules), `docs/wiki/Getting-Started.md`, `skills/ship/SKILL.md`
-  (close before removing a worktree), `CHANGELOG.md`, and two scenarios of item 42's spec.
+  `:703-707`), `docs/wiki/The-CLI.md` (verify: the closing check, R16, after the merge; `--clear`;
+  "Size and base": edits at `verifying`), `docs/wiki/State-Files.md` (five rules),
+  `docs/wiki/Getting-Started.md`, `skills/ship/SKILL.md` (close before removing a worktree),
+  `CHANGELOG.md`, and two scenarios of item 42's spec.
 - Data: no new file or column. Rows of other worktrees are read, never written.
 - Dependencies: none. No build step. Both runtimes.
 
@@ -90,24 +111,30 @@ hold (size `s`, or the rule off), which would teach that the check is optional.
 
 - **Upgraded stores.** Under answer A of fork 1, a store that upgrades with an item at `verifying`
   and code gets a red gate until a run kills or a forced close records why; under answer B it sees
-  nothing until it adds the key. New stores get the check under either answer.
+  nothing, and its first rewrite of `state.json` writes `"require_mutation_to_close": false`
+  (R22), so the rule is off by an explicit key until someone sets it `true`. New stores get the
+  check under either answer.
 - **The walkthrough's first close** needs the mutation run (above).
 - **Item 42's two untracked-test scenarios** (its R2 "An untracked test edited during the baseline"
   and R18 "Untracked code and tests") cannot happen for a test file any more, since R16 refuses
   the run first; `tests/mutation-run.test.ts:113` would pass for R16's reason and
   `tests/mutation-changed.test.ts:90-100` would fail. Both move to an untracked code file, which
   reaches the same mechanisms, and item 42's spec is amended to say so (task 1.5). A session with a
-  scratch test file must commit it or ignore it before a run.
+  scratch test file must commit it or move it out of the store's root before a run.
 - **`--clear closed-by` on a marked note** exits 2, for today's three markers too; today it erases
   the record with exit 0.
-- **False holds** after other work lands between a squash, rebase merge or fast-forward and the
-  close (C3, L): a forced close or a close made earlier.
+- **Edits at `verifying`.** `state set --size`, `--base` or `--verification` (or the `--clear` of
+  one) on a held item at `verifying` exits 2 without `--closed-by "<why>"`, R3's own `--base` way
+  out after a squash included; with it, the reason is a `mutation-scope` row in `decisions.tsv`.
+  `--status done` with a `--clear` is judged on the item before the clear, for every closing check.
+  A shipped-suite run with a stand-in for both changes no test (design.md Fact 5).
+- **Voids that should hold** (above): a forced close or a close made earlier.
 - **This repository**: every item with code needs one copy-and-run per close.
 
 ## Human gate
 
-Two forks, written in `.mstack/progress/spec_mutation-closing-check_r2.md` under "Forks for the
+Two forks, written in `.mstack/progress/spec_mutation-closing-check_r3.md` under "Forks for the
 user". Fork 1: how a `state.json` without the rule reads; R21 and the two R21 tests of tasks 1.1
-and 1.2 depend on it, nothing else. Fork 2: whether acceptance 2 stands with the CPR exception.
-The other choices are decided with their reasons in decisions.tsv (phase `spec`, item
-`mutation-closing-check`).
+and 1.2 depend on it, nothing else. Fork 2: whether acceptance 2 stands with the class of misses
+above as its exception. The other choices are decided with their reasons in decisions.tsv (phase
+`spec`, item `mutation-closing-check`).

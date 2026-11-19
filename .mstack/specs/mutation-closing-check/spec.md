@@ -1,25 +1,32 @@
 > Source: item 100 (`./bin/mstack state show 100`), split from item 42 by the user's decision of
 > 2026-11-19 (decisions.tsv 08:27:17Z), and `.mstack/progress/spec_review_mutation-check_r2.md`
 > finding B3. Round 2 answers `.mstack/progress/spec_review_mutation-closing-check.md` as the
-> coordinator's row of 2026-11-19T18:55:36Z says (rule Qab for a receipt). This spec is
-> authoritative for implementation; the item remains the discussion venue. The mechanism it reads
-> is item 42's, `.mstack/specs/mutation-check/spec.md`, and nothing here restates it.
+> coordinator's row of 2026-11-19T18:55:36Z says (rule Qab for a receipt); round 3 answers
+> `.mstack/progress/spec_review_mutation-closing-check_r2.md` as the row of 2026-11-19T20:04:24Z
+> says. This spec is authoritative for implementation; the item remains the discussion venue. The
+> mechanism it reads is item 42's, `.mstack/specs/mutation-check/spec.md`, and nothing here
+> restates it.
 
 | Acceptance bullet of item 100 | Covered by |
 |---|---|
-| A1: From verifying, an item with base, size other than s and a code diff needs a killed receipt at the current code and test tree, enforced in the gate and at the done transition | R1, R2, R3, R4, R5, R7, R8, R14 |
-| A2: A killed receipt proven on the item branch still holds on the default branch after a merge commit, a squash merge and a rebase merge, and is void when a code or test path of the item changed after the run | R8 to R13, R15, R16 |
-| A3: An item already in flight when the check lands has a stated way to close, and a forced close past the check is on the record | R6, R17, R18, R19, R20, R21, R22, R23 |
+| A1: From verifying, an item with base, size other than s and a code diff needs a killed receipt at the current code and test tree, enforced in the gate and at the done transition | R1, R2, R3, R4, R5, R7, R8, R14, R28 |
+| A2: A killed receipt proven on the item branch still holds on the default branch after a merge commit, a squash merge and a rebase merge, and is void when a code or test path of the item changed after the run | R8 to R13, R15, R16, R25 |
+| A3: An item already in flight when the check lands has a stated way to close, and a forced close past the check is on the record | R6, R17, R18, R19, R20, R21, R22, R23, R26, R27 |
 | A4: state set --status done is refused while a mutation lock exists | R24 |
 
 Readings of the acceptance that are decisions (decisions.tsv, phase `spec`, this item): R1 leaves
 out an item with no obligation, as the verification check does (it only warns,
 `src/gate.ts:756-765`), so A1 is met for every item a run can be made for; "the current code and
-test tree" is the tracked code and test content, so an untracked file never voids a receipt and
-R16 keeps one from earning it; "a mutation lock" is this checkout's (R24). A2 is met for every
-shape measured except one, a rebase merge that reorders a commit made after the run before the
-item's code (design.md, "What the rule misses"); that exception waits for the user's answer.
-R21 is the one requirement that depends on the open fork (how an absent rule reads).
+test tree" is the tracked code and test content, in the working tree and in the index, so an
+untracked file never voids a receipt and R16 keeps one from earning it, except an ignored one: R16
+leaves ignored files alone so that a log under `tests/` does not refuse a run, and so an ignored
+test file can still earn a kill (design.md, "Trade-offs accepted"); "a mutation lock" is this
+checkout's (R24). A2 is met for every shape measured except one class: a change the item makes
+after its run, at a file the run's commit had not changed, that reaches the default branch by a
+route other than the item's own merge (design.md, "What the rule misses"); that exception waits
+for the user's answer (fork 2). A3's "on the record" also covers an edit at `verifying` that could
+take the item out of the check (R26, R27) and a close in the same command as a `--clear` (R28).
+R21 is the one requirement that depends on fork 1 (how an absent rule reads).
 
 ## Terms
 
@@ -30,10 +37,12 @@ R21 is the one requirement that depends on the open fork (how an absent rule rea
   --absolute-git-dir` prints at the store's root.
 - *The start at HEAD* is item 42's *start*, `measureStart(store, base)` (`src/size.ts:81`).
 - A path *differs between C and the working tree* when `git diff --name-only --no-renames
-  --relative C --`, run at the store's root, lists it: a tracked file, staged or not. An untracked
-  file never differs. A path *differs between C and D* when `git diff --name-only --no-renames
-  --relative C D --` lists it. Only in-scope `code` and `test` paths count, unless a requirement
-  says `code`.
+  --relative C --` (the working tree) or `git diff --cached --name-only --no-renames --relative C
+  --` (the index), run at the store's root, lists it: a tracked file whose content in the working
+  tree or in the index is not C's. An untracked file never differs. A path *differs between C and
+  D* when `git diff --name-only --no-renames --relative C D --` lists it. Only in-scope `code` and
+  `test` paths count, unless a requirement says `code`. A path is a name, never a pattern: every
+  git command given one runs as `git --literal-pathspecs`.
 - *The code diff* is the in-scope `code` paths that differ between the start at HEAD and the
   working tree.
 - *The joined command* is the item's obligations (`obligations`, `src/verification.ts:106`) joined
@@ -45,17 +54,22 @@ R21 is the one requirement that depends on the open fork (how an absent rule rea
   that is not this worktree's and has no `prunable` line, the store at the same path below that
   worktree's top as this store is below this worktree's top (`git rev-parse --show-prefix`).
 - *HEAD's first-parent history* is what `git rev-list --first-parent HEAD` lists.
+- *HEAD is ahead of the default branch* when it is in the history of neither
+  `refs/heads/<default>` nor `refs/remotes/origin/<default>` (`git merge-base --is-ancestor HEAD
+  <ref>` fails for each that resolves; when neither resolves, HEAD is ahead): an item branch
+  before its merge, and not the default branch after it.
 - *The merge that brought S in*, M, is the commit on HEAD's first-parent history whose first
   parent does not have S in its history and one of whose other parents, *M's parent with S*, does.
 - *The start at S* is what `measureStart` answers with S in HEAD's place and, as the default
   branch, M's first parent when a merge brought S in, else `refs/heads/<default>` and
-  `refs/remotes/origin/<default>` as they are now.
+  `refs/remotes/origin/<default>` as they are now. It is lost when the item's base is not a
+  commit.
 - *The item's paths of a row*, P, are the paths that differ between the start at S and S.
-- *Q* is, when no merge brought S in, the oldest commit on HEAD's first-parent history at which
-  every path of P has the mode and blob that `git ls-tree S -- <path>` gives (absent where S lacks
-  it). *Q's own change* is the paths that differ between Q's first parent and Q (the empty tree
-  when Q has no parent).
-- A row *holds* when none of R7 to R14 voids it.
+- *Q* is, when no merge brought S in, the oldest commit on HEAD's first-parent history that is
+  not in S's history (`git rev-list --first-parent HEAD ^S`) at which every path of P has the mode
+  and blob that `git ls-tree S -- <path>` gives (absent where S lacks it). *Q's own change* is the
+  paths that differ between Q's first parent and Q (the empty tree when Q has no parent).
+- A row *holds* when none of R7 to R14 and R25 voids it.
 
 ## ADDED Requirements
 
@@ -96,9 +110,9 @@ else.
 ### Requirement: R3 A code diff that cannot be computed
 IF the item's base is not a commit, or the start at HEAD is lost, or git cannot list the code
 diff, and no holding killed row answers the check, THEN the problem of R5 MUST also say which of
-the three held and name `mstack state set <slug> --base <commit>` with the commit just before the
-item's work landed (after a squash or rebase merge, the first parent of its first commit, never
-HEAD).
+the three held and name `mstack state set <slug> --base <commit> --closed-by "<why>"` (R26) with
+the commit just before the item's work landed (after a squash or rebase merge, the first parent of
+its first commit, never HEAD).
 
 #### Scenario: A squash merge with no run
 - **WHEN** `feat/greet`, whose base is a commit on that branch, is squash-merged into `main`, the
@@ -113,14 +127,13 @@ HEAD).
 
 #### Scenario: No code of its own, after a squash
 - **WHEN** an item that changed only `docs/notes.md` is squash-merged as commit Q, and `mstack
-  state set notes --base Q^` runs
+  state set notes --base Q^ --closed-by "squash-merged as Q"` runs
 - **THEN** `mstack gate` prints no line containing `mutation`
 
 ### Requirement: R4 Which row answers the check
 The system MUST answer the check with the newest row by `ts` among the decisive rows of the stores
-read whose `command` is the joined command and that hold, reporting nothing when it is
-`mutation-killed` and that the last mutation run survived, naming its commit, when it is
-`mutation-survived`.
+read whose `command` is the joined command and that hold, the check being met when that row is
+`mutation-killed`.
 
 #### Scenario: A killed run answers it
 - **WHEN** `mstack verify --mutation` ended `mutation-killed` and nothing changed since
@@ -128,28 +141,31 @@ read whose `command` is the joined command and that hold, reporting nothing when
 
 #### Scenario: The newest decides
 - **WHEN** a `mutation-killed` row is followed, at the same commit, by a `mutation-survived` row
-- **THEN** the gate's line says the last mutation run of `greet` survived and names its commit
+- **THEN** `state set greet --status done` exits 2 and `greet` is still `verifying`
 
 #### Scenario: A blocked row decides nothing
 - **WHEN** a `mutation-killed` row is followed by a `mutation-blocked` row
 - **THEN** nothing is reported
 
-### Requirement: R5 What the problem says without a holding decisive row
-WHEN no holding decisive row of the joined command exists, the system MUST report the first that
-is true of: decisive rows of the joined command exist and none holds (naming the newest one's
-commit and why it does not hold: up to ten of the paths that voided it; the flagged files, each
-with its flag and the `git update-index --no-skip-worktree` or `--no-assume-unchanged` command
-that clears it; that its commit cannot be found; or that no commit on HEAD's first-parent history
-holds its content of the item's paths); only blocked rows of the joined command
-exist; rows exist only for another command (naming the newest one's command); no row exists.
+### Requirement: R5 What the problem says when the check is not met
+WHEN the check is not met, the system MUST report the first that is true of: the row of R4 is
+`mutation-survived` (saying the last mutation run survived and naming its commit); decisive rows
+of the joined command exist and none holds (naming the newest one's commit and why it does not
+hold: up to ten of the paths that voided it; the flagged files, each with its flag and the `git
+update-index --no-skip-worktree` or `--no-assume-unchanged` command that clears it; that its
+commit cannot be found; or that no commit on HEAD's first-parent history holds its content of the
+item's paths); only blocked rows of the joined command exist; rows exist only for another command
+(naming the newest one's command); no row exists.
 
-#### Scenario: Void, blocked, another command, none
-- **WHEN** the only killed row is voided by a commit to `tests/helpers.test.mjs`; or the only row
-  is `mutation-blocked`; or the killed run ran `sh tests/check.sh` and then `state set greet
-  --verification "sh tests/check.sh && true"` ran; or no row exists
-- **THEN** the gate's line names the row's commit and `tests/helpers.test.mjs`; says the mutation
-  runs were blocked; names `sh tests/check.sh` as the command the last run ran; says there is no
-  mutation run
+#### Scenario: Survived, void, blocked, another command, none
+- **WHEN** a `mutation-killed` row is followed, at the same commit, by a `mutation-survived` row;
+  or the only killed row is voided by a commit to `tests/helpers.test.mjs`; or the only row is
+  `mutation-blocked`; or the killed run ran `sh tests/check.sh` and then `state set greet
+  --verification "sh tests/check.sh && true" --closed-by "a stricter command"` ran; or no row
+  exists
+- **THEN** the gate's line says the last mutation run of `greet` survived and names its commit;
+  names the row's commit and `tests/helpers.test.mjs`; says the mutation runs were blocked; names
+  `sh tests/check.sh` as the command the last run ran; says there is no mutation run
 
 ### Requirement: R6 What every problem's fix names
 The system MUST name in the fix of every problem of this check `mstack verify --mutation`, the
@@ -164,14 +180,18 @@ store's root is an mstack checkout (`isMstackCheckout`, `src/paths.ts:122`), the
   `git worktree add --detach`
 
 ### Requirement: R7 A row's commit
-IF S is not 40 lowercase hexadecimal digits that name a commit (`git cat-file -e <S>^{commit}`),
-THEN the system MUST NOT count the row as holding, deciding so before S reaches any other git
-command.
+IF S is not lowercase hexadecimal of the length the repository's object format gives (40 for
+`sha1`, 64 for `sha256`, as `git rev-parse --show-object-format` prints) that names a commit (`git
+cat-file -e <S>^{commit}`), THEN the system MUST NOT count the row as holding, deciding the length
+and the digits before S reaches any other git command.
 
-#### Scenario: A sha that is a ref, and one that is no commit
-- **WHEN** a row's `sha` is `HEAD`; or is 40 hex digits that name no commit here
-- **THEN** the row does not hold, and the gate's line, when it is the newest decisive row, says its
-  commit cannot be found
+#### Scenario: A sha that is a ref, one that is no commit, and SHA-256
+- **WHEN** a row's `sha` is `HEAD`; or is 40 hex digits that name no commit here; or is the
+  64-digit sha of a killed run in a repository made with `git init --object-format=sha256`, with
+  nothing changed since
+- **THEN** in the first two the row does not hold, and the gate's line, when it is the newest
+  decisive row, says its commit cannot be found; in the third the gate prints no line containing
+  `mutation`
 
 ### Requirement: R8 A row whose commit is on HEAD's first-parent history
 IF S is on HEAD's first-parent history and a path differs between S and the working tree, THEN
@@ -185,10 +205,11 @@ the system MUST NOT count the row as holding.
 
 #### Scenario: What voids it
 - **WHEN** after the killed run `tests/helpers.test.mjs` is committed; or `src/greet.js` is edited
-  and not committed; or `main` is fast-forwarded to the branch and another item's commit changing
+  and not committed; or an edit to `src/greet.js` is staged and the working tree file put back as
+  S has it; or `main` is fast-forwarded to the branch and another item's commit changing
   `src/other.js` lands on `main` before the close
 - **THEN** the row does not hold, and the gate's line names `tests/helpers.test.mjs`,
-  `src/greet.js` or `src/other.js`
+  `src/greet.js`, `src/greet.js` or `src/other.js`
 
 ### Requirement: R9 The item's paths of a row off the first-parent history
 IF S is not on HEAD's first-parent history, and the start at S is lost or P is empty, THEN the
@@ -236,8 +257,9 @@ change holds a path that is not in P, THEN the system MUST NOT count the row as 
 - **WHEN** after a killed run on `feat/greet` the branch reaches `main` by a squash merge or a
   rebase merge (its commits cherry-picked onto `main` with a later committer date), each once with
   `main` unchanged since the fork and once with `main` holding another item's `src/other.js` and
-  `tests/other.test.mjs`; or the branch is rebased onto a moved `main` after the run and stays a
-  branch
+  `tests/other.test.mjs`; or the same with the item's base a commit of `main`, as `mstack worktree
+  new` gives; or the branch is rebased onto a moved `main` after the run and stays a branch; or
+  the item only deletes `src/legacy.js`, which `main` added before the item started
 - **THEN** in each the row holds, and `state set greet --status done` prints no line containing
   `mutation`
 
@@ -261,6 +283,25 @@ between Q and the working tree, THEN the system MUST NOT count the row as holdin
   test committed; or the item is squash-merged and another item's `src/other.js` lands on `main`
   before the close
 - **THEN** the row does not hold, and the line names `tests/helpers.test.mjs` or `src/other.js`
+
+### Requirement: R25 With no merge commit, on the branch, what came in before Q
+IF no merge brought S in, S is not on HEAD's first-parent history, Q exists, HEAD is ahead of the
+default branch, and a path differs between S and Q but not between the start at S and the start
+at HEAD (every such path, when the start at HEAD is lost), THEN the system MUST NOT count the row
+as holding.
+
+#### Scenario: A test moved ahead of the code with `rebase -i`
+- **WHEN** after the killed run `tests/helpers.test.mjs` is committed on `feat/greet` and `git
+  rebase -i` moves that commit before the one that changed `src/greet.js`, or folds it into an
+  earlier commit
+- **THEN** on the branch the row does not hold, and the line names `tests/helpers.test.mjs`
+
+#### Scenario: What it does not void
+- **WHEN** after the killed run the branch is rebased onto a `main` that gained another item's
+  `src/other.js` and `tests/other.test.mjs`, once as it is and once with `src/prep.js` committed on
+  the branch before the item's base; or, with the item's base a commit of `main`, `main` moves and
+  the branch is squash-merged
+- **THEN** the row holds
 
 ### Requirement: R14 Files git does not show
 IF a tracked in-scope `code` or `test` file is flagged `skip-worktree` or `assume-unchanged`, THEN
@@ -295,13 +336,13 @@ be read adds no rows and no failure.
 IF an untracked, not ignored, in-scope file that the classifier calls a test exists when `mstack
 verify --mutation` runs, THEN it MUST exit 2 before the baseline, name up to ten such files, say
 that a kill earned by a test that is not committed would answer the closing check without that
-test, say to commit each one or add it to `.gitignore`, and write no lock, no run directory and no
-row.
+test, say to commit each one or move it out of the store's root, and write no lock, no run
+directory and no row.
 
 #### Scenario: An untracked test
 - **WHEN** `tests/new.test.mjs` is untracked and not ignored
-- **THEN** `verify --mutation` exits 2 naming `tests/new.test.mjs` and `.gitignore`;
-  `verification.tsv` is unchanged and no lock exists
+- **THEN** `verify --mutation` exits 2 naming `tests/new.test.mjs` and `move it out of the store's
+  root`, and not naming `.gitignore`; `verification.tsv` is unchanged and no lock exists
 
 #### Scenario: What this rule does not refuse
 - **WHEN** the only untracked files are `tests/out.log`, ignored by `.gitignore`, and `notes.txt`
@@ -410,3 +451,43 @@ fix of the gate's lock line.
 - **WHEN** `state set greet --status in_progress` runs under the lock; or the only lock is in a
   linked worktree's git directory and `done` runs in the main checkout
 - **THEN** neither is refused by this requirement
+
+### Requirement: R26 An edit at verifying that could take the item out of the check
+IF `state set <slug>` leaves at `verifying` an item that R1 holds as the command found it, and
+would change that item's `size`, `base` or `verification` (a value or a `--clear`), and has no
+`--closed-by "<why>"`, THEN the system MUST exit 2 with `state.json` unchanged and a fix that
+names `--closed-by "<why>"`.
+
+#### Scenario: Refused without a reason
+- **WHEN** `greet`, held at `verifying` with no row, gets `state set greet --size s`; or `--base
+  HEAD`; or `--verification "true"`; or `--clear verification`
+- **THEN** each exits 2, its stderr names `--closed-by`, and `state.json` is unchanged
+
+#### Scenario: What it does not refuse
+- **WHEN** the same item gets `state set greet --title "Greet"`; or `--status in_progress --base
+  HEAD`; or `--status done --closed-by "PR #1" --size s` after a killed run; or an item of size `s`
+  at `verifying` gets `--size m`; or the rule is `false`
+- **THEN** none is refused by this requirement
+
+### Requirement: R27 That edit is on the record
+WHEN `state set` makes an edit of R26 with `--closed-by "<why>"`, the system MUST record `<why>`,
+after `state.json` is saved, in one `decisions.tsv` row whose `phase` is `mutation-scope`, whose
+`item` is the slug and whose `why` names each changed field with its old and new value, in place
+of writing `closed_by`.
+
+#### Scenario: A size change at verifying
+- **WHEN** `state set greet --size s --closed-by "a rename, behaviour unchanged"` runs with `greet`
+  held at `verifying`
+- **THEN** it exits 0, `size` is `s`, `closed_by` is as it was, and the last row of
+  `decisions.tsv` has phase `mutation-scope`, decision `a rename, behaviour unchanged`, item
+  `greet` and a `why` containing `size` and `"s"`
+
+### Requirement: R28 `done` judges the item as the command found it
+WHEN `state set <slug> --status done` runs, the system MUST run the closing checks on the item as
+it was before that command's `--clear`s.
+
+#### Scenario: A clear in the closing command
+- **WHEN** in a store whose `verify` is `""`, `state set greet --status done --clear verification`
+  runs for `greet` held at `verifying` with no row
+- **THEN** it exits 2, stderr contains `has no mutation run`, and `greet` is still `verifying` with
+  its `verification`
