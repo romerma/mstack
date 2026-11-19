@@ -185,7 +185,7 @@ test("R1 an existing lock is refused naming its pid", () => {
     assert.ok(lock !== null);
     assert.equal(lock, join(git(box.store.root, "rev-parse", "--absolute-git-dir"), "mstack-mutation.lock"));
     const pid = spawnSync("true").pid; // a process that has exited: the run that wrote the lock is not alive (R23)
-    writeFileSync(lock, JSON.stringify({ v: 1, pid, host: hostname(), boot: bootTime(), pidns: pidNamespace(), startedAt: "2026-11-19T09:02:11Z", cli: "/opt/mstack/bin/mstack" }));
+    writeFileSync(lock, JSON.stringify({ v: 1, run: "20261119T090211Z-1-abcd", pid, host: hostname(), boot: bootTime(), pidns: pidNamespace(), startedAt: "2026-11-19T09:02:11Z", cli: "/opt/mstack/bin/mstack", root: box.store.root, rootFromTop: ".", head: git(box.store.root, "rev-parse", "HEAD"), start, branch: null, entries: [], createdDirs: [], removedDirs: [] }));
     const { st, it } = active(start);
     const r = refused(refuse(box, st, it), new RegExp(`pid ${pid}\\b`));
     assert.match(`${r.message}\n${r.fix}`, /2026-11-19T09:02:11Z[\s\S]*not running/);
