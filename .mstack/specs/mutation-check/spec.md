@@ -66,7 +66,8 @@ run directory and no row.
 #### Scenario: A lock exists
 - **WHEN** the lock exists
 - **THEN** it exits 2, names the lock's pid, its start time and whether that run is alive (R23),
-  and, when it is not, `<CLI that wrote the lock> verify --restore`; no file changes; for a lock
+  and, when it is not, `<CLI that wrote the lock> verify --restore` (R25's command, the running
+  CLI's when that file is gone); no file changes; for a lock
   that fails R24's check it says what the gate says of it instead: it cannot be read as a run's
   record, and the by-hand recovery, with no restore line (item 101)
 
@@ -444,7 +445,8 @@ IF writing, moving or proving fails for a path (a permission, a full disk, a sta
 missing or does not match its identity, a parent that is not a directory), THEN the system MUST
 keep the lock (writing it again from its record if it is gone), continue with the other paths,
 name each failed path with the operating system's error and what to do, name `<CLI that wrote
-the lock> verify --restore` for after, record no row, and exit 3, whatever other code applied.
+the lock> verify --restore` for after (R25's command, the running CLI's when that file is gone),
+record no row, and exit 3, whatever other code applied.
 Where a parent is a directory under a name other than git's, what to do is `mv <its name on disk>
 <git's name>`, and the output says that `git stash` does not clear it; for a missing staged copy,
 it also says that if the restore still fails after the stash, the lock may be deleted by hand, p
