@@ -6,10 +6,10 @@
 > On close: append the summary to `history.md` and reset this file to the
 > empty template below.
 
-- **Item:** 104 mutation-run-test-dash (CI red on Linux at 0dd6b2d, one test)
-- **Status:** reviewing; fix is test-only, loop at scratchpad/item104/dash-loop.sh (red before, green after, with dash as sh)
-- **Branch:** fix/mutation-run-test-dash
-- **Base:** 0dd6b2dc5d2f34a5958643b07ca849b698c84387
+- **Item:** none active (42 and 104 closed 2026-11-19; next is 100 mutation-closing-check)
+- **Status:** -
+- **Branch:** main
+- **Base:** -
 - **Worktree:** none
 
 ## Plan
@@ -32,7 +32,7 @@ watch is review rounds per item: if they do not drop after phase 1, intake is ce
 
 - Easy tier: `impl_benchmark-harness_baseline.md`.
 - Hard tier: `impl_benchmark-hard-tier_baseline.md`.
-- 2026-11-16 and 17: items 52 to 99 filed; 52, 53, 54, 47, 46, 70, 55, 56, 73, 74, 57, 58, 59, 67, 61, 62, 64, 39, 40, 41, 43, 82, 96, 95 and 49 closed; item 42 answered A on 2026-11-19 (in place, split: 42 the mechanism, 100 the closing check) and closed the same day after three review rounds, with 101, 102 and 103 filed; 60 and 99 still wait on the user; see `history.md`. Item 60 needs the user's yes to open a real PR.
+- 2026-11-16 and 17: items 52 to 99 filed; 52, 53, 54, 47, 46, 70, 55, 56, 73, 74, 57, 58, 59, 67, 61, 62, 64, 39, 40, 41, 43, 82, 96, 95 and 49 closed; item 42 answered A on 2026-11-19 (in place, split: 42 the mechanism, 100 the closing check) and closed the same day after three review rounds, with 101, 102 and 103 filed; 104 (the one test CI failed on Linux after 42) closed the same day; 60 and 99 still wait on the user; see `history.md`. Item 60 needs the user's yes to open a real PR.
 - Sessions launched as plain `claude` have no mstack plugin: no `mstack:*` agents, no hooks, no
   cost rows. On 2026-11-16 the user chose to continue anyway, with general-purpose agents
   briefed from `agents/*.md` (Sonnet implements, Opus reviews).

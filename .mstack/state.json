@@ -1598,12 +1598,13 @@
         "the R12 blocked test passes under a /bin/sh that is dash and under one that is bash: its obligation is a command both shells answer with 127 when the revert removed it",
         "CI is green on both jobs at the commit that carries the fix"
       ],
-      "status": "verifying",
+      "status": "done",
       "description": "tests/mutation-run.test.ts 'R12 a script removed by the revert is blocked' sets the obligation to sh scripts/check.sh. With the script gone, bash (macOS /bin/sh) exits 127 and dash (ubuntu /bin/sh) exits 2 with 'cannot open', so on Linux the run is mutation-killed, as R12 says for exit 2. The code follows the spec; the test's fixture is not portable.",
       "size": "s",
       "base": "0dd6b2dc5d2f34a5958643b07ca849b698c84387",
       "source": "CI run 44574734393 at 0dd6b2d, both jobs, 2026-11-19",
-      "verification": "bun test tests/mutation-run.test.ts && node --test tests/mutation-run.test.ts"
+      "verification": "bun test tests/mutation-run.test.ts && node --test tests/mutation-run.test.ts",
+      "closed_by": "one round; review_mutation-run-test-dash.md APPROVED at 145b4d6; gate --full green on the first run; CI run 44580297607 green on both jobs at 9751b07"
     }
   ]
 }

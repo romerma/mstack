@@ -1610,3 +1610,24 @@ Not run before the close: Linux and a case-sensitive disk beyond one APFS volume
 
 **Filed.** Items 101 `mutation-printed-exits`, 102 `mutation-test-pins`, 103
 `mutation-restore-scaling`.
+
+## 2026-11-19 - item 104 mutation-run-test-dash closed (1 round)
+
+**What happened.** The first CI run with item 42 (`0dd6b2d`) was red on both jobs for one test,
+`R12 a script removed by the revert is blocked`. Its obligation was `sh scripts/check.sh`; with
+the script gone bash exits 127 and dash, ubuntu's `/bin/sh`, exits 2, which R12 records as killed.
+The code followed the spec and the fixture assumed bash. The test now runs the script by name,
+which is 127 under both. No source change.
+
+**Evidence.** A copy whose runner spawns `/bin/dash` and whose `PATH` starts with an `sh` linked
+to dash: red at `0dd6b2d` with CI's own line, green at the fix, on bun and node, by the author
+and again by the reviewer; a mutant that reads 127 as killed turns the test red. CI run
+44580297607 at `9751b07`: both jobs green.
+
+**What it taught.** Three review rounds on macOS did not see it, and each report said Linux was
+not run. A repro that only swapped the runner's shell stayed green, because the `sh` inside the
+obligation was still bash. What stays true on a dash system: `sh <script>` whose script the
+revert removed is recorded as killed. Item 101 carries the sentence for the docs.
+
+**Closing.** `gate --full` green on the first run. Nothing was taken after the verdict; the
+review's non-blocking 1 went to item 102.
