@@ -1559,7 +1559,7 @@
         "CHANGELOG.md names the refusal of verify --restore under the lock of another store of the worktree",
         "the docs say that an obligation written as <interpreter> <script> whose script the revert removed is recorded as killed, not blocked, wherever the interpreter does not exit 126 or 127 for a missing file (dash exits 2 for sh missing.sh, bash 127; found by CI on ubuntu, run 44574734393)"
       ],
-      "status": "in_progress",
+      "status": "reviewing",
       "description": "The round 3 review approved item 42 with no loss path left and listed places where a printed way out does not work as printed, all without writing anything. They were not taken after the verdict.",
       "size": "m",
       "base": "7e9637372d38b5fac650653c9df8c289d2e9a417",

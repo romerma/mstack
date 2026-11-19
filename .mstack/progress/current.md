@@ -7,7 +7,7 @@
 > empty template below.
 
 - **Item:** 101 mutation-printed-exits (follow-ups of item 42; item 100 is parked on two forks for the user)
-- **Status:** in_progress, fixing the round 1 review (2 blocking: the gone-CLI line from another store; a symlink at the lock name read by the hook), then review round 2
+- **Status:** reviewing, round 2 (scoped to the round 1 fixes)
 - **Branch:** fix/mutation-printed-exits
 - **Base:** 7e9637372d38b5fac650653c9df8c289d2e9a417
 - **Worktree:** none
