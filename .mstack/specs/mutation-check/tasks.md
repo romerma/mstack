@@ -83,9 +83,11 @@ requirements it covers (`agents/implementer.md`, "Your report").
   is not, a process at the pid that started later is not`, `R23 liveness: another boot of this
   host is not running, another host is unknown at any boot`, `R23 liveness: a live pid that
   started before the lock is running at another boot time, a ps that fails is running, and a null
-  pid namespace against a non-null one is unknown` (`ps` made to fail through `PATH`). Done when
-  `bun test tests/mutation-lock.test.ts` ends ` 12 pass` and ` 0 fail`, and the node command prints
-  `# fail 0`. (covers R1, R8, R9, R23, R24)
+  pid namespace against a non-null one is unknown` (`ps` made to fail through `PATH`), `R24 a lock
+  entry whose temp prefix is not the one its run derives is refused` and `R23 liveness: a live
+  process this user may not signal (EPERM) is running` (both added in round 1, for mutants no
+  named test killed). Done when `bun test tests/mutation-lock.test.ts` ends ` 14 pass` and ` 0
+  fail`, and the node command prints `# fail 0`. (covers R1, R8, R9, R23, R24)
 
 - [x] 2.2 Create `src/mutation-tree.ts` with `entryAt(root, path)` (design.md "Exact names") and
   `applyRevert(store, lock, step?)` (design.md "Revert"), returning `{ ok: true }` or `{ ok: false,
@@ -103,9 +105,11 @@ requirements it covers (`agents/implementer.md`, "Your report").
   `revert-written:0`), `R11 an added file edited since the lock is not removed` (added by stage 2,
   for a mutant no named test killed), `R8 a run whose staging another run swept before it linked
   its lock writes nothing` and `R11 a staged copy changed, or the run directory deleted, between
-  the lock and the revert: the revert writes nothing` (both added in round 1, for B1). Done when
-  `bun test tests/mutation-revert.test.ts` ends ` 13 pass` and ` 0 fail`, and the node command
-  prints `# fail 0`. (covers R8, R9, R10, R11)
+  the lock and the revert: the revert writes nothing` (both added in round 1, for B1), `R10 an
+  untracked file in a directory the revert removes when empty is kept` and `R9 a start file of mode
+  100755 is put back with its executable bits` (both added in round 1, for mutants no named test
+  killed). Done when `bun test tests/mutation-revert.test.ts` ends ` 15 pass` and ` 0 fail`, and
+  the node command prints `# fail 0`. (covers R8, R9, R10, R11)
 
 - [x] 2.3 In `src/mutation-tree.ts`, add `restoreFromLock(store, lock, options?)` with `options` `{
   step?; rename?; entries? }` (`rename` defaults to `renameSync`; a test passes one that throws an `EXDEV`
@@ -130,10 +134,13 @@ requirements it covers (`agents/implementer.md`, "Your report").
   killed with the lock written and nothing reverted`, `R22 killed half reverted`, `R22 killed fully
   reverted`, `R22 killed half restored, then restored twice` (each SIGKILLs the holder at its step,
   then calls `restoreFromLock` on `readLock`), `R13 a path changed after its own restore fails the
-  proof and keeps the lock` (added by stage 2, for two mutants no named test killed). Done when `bun
-  test tests/mutation-restore.test.ts` ends ` 20 pass` (or fewer passes plus two skips, on a
-  case-sensitive filesystem) and ` 0 fail`,
-  and the node command prints `# fail 0`. (covers R13, R14, R15, R17, R22)
+  proof and keeps the lock` (added by stage 2, for two mutants no named test killed), `R10 a file
+  written into a directory the revert made survives the restore`, `R15 a staged copy of H that does
+  not hold what the lock recorded is not written, and the lock stays` and `R13 a path HEAD lacks
+  that holds the start's content at the proof keeps the lock` (the three added in round 1, for
+  mutants no named test killed). Done when `bun test tests/mutation-restore.test.ts` ends ` 23
+  pass` (or fewer passes plus two skips, on a case-sensitive filesystem) and ` 0 fail`,
+  and the node command prints `# fail 0`. (covers R10, R13, R14, R15, R17, R22)
 
 - [x] 2.4 In `src/run.ts`, add `runCommandAsync(cmd, { cwd, timeoutMs, tailLines? })` returning `{
   result: Promise<RunResult>; stop(): void }`, and in `src/run-helper.mjs` the fifth argument

@@ -311,3 +311,33 @@ test("R11 a staged copy changed, or the run directory deleted, between the lock 
     },
   );
 });
+
+test("R10 an untracked file in a directory the revert removes when empty is kept", () => {
+  withRepo(
+    (root) => put(root, "src/keep.ts", "k\n"),
+    (root) => put(root, "src/feature/x.ts", "x\n"),
+    (r) => {
+      const lock = locked(r);
+      assert.deepEqual(lock.removedDirs, ["src/feature"]);
+      put(r.root, "src/feature/notes.md", "untracked notes\n");
+      assert.deepEqual(applyRevert(r.store, lock), { ok: true });
+      assert.equal(present(r.root, "src/feature/x.ts"), false);
+      assert.equal(read(r.root, "src/feature/notes.md"), "untracked notes\n");
+    },
+  );
+});
+
+test("R9 a start file of mode 100755 is put back with its executable bits", () => {
+  withRepo(
+    (root) => put(root, "src/run.sh", "#!/bin/sh\necho start\n", 0o755),
+    (root) => {
+      put(root, "src/run.sh", "#!/bin/sh\necho head\n");
+      chmodSync(join(root, "src/run.sh"), 0o644);
+    },
+    (r) => {
+      assert.deepEqual(applyRevert(r.store, locked(r)), { ok: true });
+      assert.equal(read(r.root, "src/run.sh"), "#!/bin/sh\necho start\n");
+      assert.equal(bits(r.root, "src/run.sh").toString(8), (0o777 & ~umask).toString(8));
+    },
+  );
+});

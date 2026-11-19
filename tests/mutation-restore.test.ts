@@ -474,3 +474,64 @@ test("R13 a path changed after its own restore fails the proof and keeps the loc
     assert.equal(existsSync(lockFileOf(r)), false);
   });
 });
+
+test("R10 a file written into a directory the revert made survives the restore", () => {
+  withRepo(
+    (root) => {
+      put(root, "src/keep.ts", "k\n");
+      put(root, "src/gone/y.ts", "y\n");
+    },
+    (root) => rmSync(join(root, "src/gone"), { recursive: true }),
+    (r) => {
+      const lock = reverted(r);
+      assert.deepEqual(lock.createdDirs, ["src/gone"]);
+      put(r.root, "src/gone/out.log", "written during the run\n");
+      const result = restoreFromLock(r.store, lock);
+      clean(result);
+      assert.deepEqual(result.left, ["src/gone"]);
+      assert.equal(present(r.root, "src/gone/y.ts"), false);
+      assert.equal(read(r.root, "src/gone/out.log"), "written during the run\n");
+    },
+  );
+});
+
+test("R15 a staged copy of H that does not hold what the lock recorded is not written, and the lock stays", () => {
+  withRepo(twoFiles, editBoth, (r) => {
+    const lock = reverted(r);
+    writeFileSync(join(runDirOf(r, lock), "head", String(nOf(lock, "src/a.ts"))), "not HEAD's content\n");
+    const result = restoreFromLock(r.store, lock);
+    assert.deepEqual(result.failed.map((f) => f.path), ["src/a.ts"]);
+    assert.match(result.failed[0]?.fix ?? "", /git stash push -- src\/a\.ts/);
+    assert.equal(read(r.root, "src/a.ts"), "a\n", "the restore wrote a staged copy that is not H");
+    assert.deepEqual(temps(join(r.root, "src")), []);
+    assert.ok(existsSync(lockFileOf(r)), "the lock went with a path not restored");
+    assert.equal(read(r.root, "src/b.ts"), "b2\n");
+  });
+});
+
+test("R13 a path HEAD lacks that holds the start's content at the proof keeps the lock", () => {
+  withRepo(
+    (root) => {
+      put(root, "src/a.ts", "a\n");
+      put(root, "src/old.ts", "old\n");
+    },
+    (root) => {
+      put(root, "src/a.ts", "a2\n");
+      rmSync(join(root, "src/old.ts"));
+    },
+    (r) => {
+      const lock = reverted(r);
+      const at = `restored:${nOf(lock, "src/old.ts")}`;
+      const result = restoreFromLock(r.store, lock, {
+        step: (name) => {
+          if (name === at) put(r.root, "src/old.ts", "old\n", 0o666 & ~umask);
+        },
+      });
+      assert.deepEqual(result.failed.map((f) => f.path), ["src/old.ts"], "the proof passed over a path that holds S");
+      assert.ok(existsSync(lockFileOf(r)), "the lock went before the proof held");
+      clean(restoreFromLock(r.store, lock));
+      assert.equal(present(r.root, "src/old.ts"), false);
+      assert.equal(existsSync(lockFileOf(r)), false);
+    },
+  );
+});

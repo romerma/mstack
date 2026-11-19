@@ -264,3 +264,20 @@ test("R23 liveness: a live pid that started before the lock is running at anothe
   const other = pidNamespace() === null ? "pid:[4026531836]" : null;
   assert.equal(liveness({ ...here(), pidns: other, pid: process.pid, startedAt: now }).state, "unknown");
 });
+
+test("R24 a lock entry whose temp prefix is not the one its run derives is refused", () => {
+  withRepo(threeFiles, editDeleteAdd, (r) => {
+    const lock = staged(r);
+    const other = lock.run.replace(/[0-9a-f]{4}$/, (hex) => (hex === "0000" ? "ffff" : "0000"));
+    for (const tmp of ["", `.mstack-mutation-${other}-0.`, `.mstack-mutation-${lock.run}-1.`]) {
+      const problems = validateLock({ ...lock, entries: lock.entries.map((e, i) => (i === 0 ? { ...e, tmp } : e)) });
+      assert.ok(problems.some((p) => /temp prefix/.test(p)), `${JSON.stringify(tmp)} was not refused: ${JSON.stringify(problems)}`);
+    }
+  });
+});
+
+test("R23 liveness: a live process this user may not signal (EPERM) is running", { skip: process.getuid?.() === 0 ? "root may signal pid 1" : false }, () => {
+  assert.throws(() => process.kill(1, 0), (error: NodeJS.ErrnoException) => error.code === "EPERM");
+  const verdict = liveness({ ...here(), pid: 1, startedAt: new Date().toISOString() });
+  assert.equal(verdict.state, "running", JSON.stringify(verdict));
+});
