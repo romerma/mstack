@@ -27,7 +27,7 @@ requirements it covers (`agents/implementer.md`, "Your report").
   tests/gate.test.ts` ends ` 0 fail` (the size check is unchanged), and the node command for
   `tests/mutation-set.test.ts` prints `# fail 0`. (covers R9, R10, R21)
 
-- [ ] 1.2 In `src/mutation.ts`, add `lockPath(store)` and `refusals(store, state, item, running)`
+- [x] 1.2 In `src/mutation.ts`, add `lockPath(store)` and `refusals(store, state, item, running)`
   (`running` defaults to `runningCliRoot()`, `src/paths.ts:99`) with the checks of R1 that need no
   staging, R2's checks before the baseline, and R5, in design.md "Refusals" order, each returning
   `{ message, fix }`. Tests in a new `tests/mutation-refusals.test.ts`; each asserts the message and
