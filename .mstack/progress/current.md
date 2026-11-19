@@ -7,7 +7,7 @@
 > empty template below.
 
 - **Item:** 100 mutation-closing-check (the closing check on item 42's receipt)
-- **Status:** specifying, round 2: spec review round 1 asked for changes (5 blocking); a second author is revising with rule Qab. Two forks for the user: (1) asked 2026-11-19, how an absent require_mutation_to_close is read (A true / B false); (2) not yet asked, one at a time: accept that Qab misses one shape (a rebase merge reordering an after-run commit before the item's code), which narrows acceptance 2
+- **Status:** specifying, round 2: spec revised (24 requirements, commit bbb1a1f), spec review round 2 running. Two forks for the user, on the item's decision_required: (1) asked 2026-11-19, A true / B false for an absent require_mutation_to_close; (2) to ask after (1): acceptance 2 stands except for a hand-reordered rebase merge, yes or no
 - **Branch:** feat/mutation-closing-check
 - **Base:** -
 - **Worktree:** none
