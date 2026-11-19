@@ -223,8 +223,8 @@ requirements it covers (`agents/implementer.md`, "Your report").
   tests/mutation-changed.test.ts` ends ` 12 pass` and ` 0 fail`, and the node command prints
   `# fail 0`. (covers R15, R18, R19)
 
-- [ ] 3.3 In `src/mutation-run.ts`, add the signal handling of design.md "The run" steps 1, 3, 6, 8
-  and 10 (handlers before anything is written, `stop()` of the running obligation, one yield before
+- [x] 3.3 In `src/mutation-run.ts`, add the signal handling of design.md "The run" steps 1, 3, 6, 8
+  and 10 (handlers before anything is written, `stop()` of the running obligation, a yield before
   each signal check and each spawn, acting only after the restore). Create
   `tests/mutation-run-holder.ts`, a child process that runs `runMutation` on the sandbox given in
   argv with a `step` that journals and, at the step named in argv, blocks synchronously

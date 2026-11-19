@@ -283,7 +283,14 @@ the entry at p by exact name:
 ### The run (`runMutation`, `src/mutation-run.ts`)
 
 1. Install SIGINT/SIGTERM/SIGHUP handlers that record the first signal and call `stop()` on a
-   running obligation; they never exit the process. Removed in `finally`.
+   running obligation; they never exit the process. Removed in `finally`. A *yield* below is two
+   `setImmediate`s, not one: under node, a synchronous section that began in the poll phase (the
+   continuation of a child's close event, as the restore after an obligation is) gets its first
+   immediate in the same turn of the loop, before the next poll reads the signal, so one immediate
+   misses it; the second comes after that poll (`impl42s4/probe-tick`: after a child's close, node
+   saw the flag after two immediates and not after one, 3 of 3; after an immediate or a timer, one
+   was enough; bun saw it after one in every case). A refusal, too, is printed only after a yield
+   with no signal, since a Ctrl-C to the group kills the git child a check waits on.
 2. `refusals`; sample HEAD and the key K0 (`mutationKey`, which also returns its line per path,
    so that a change can be named by path). A null K0 is refused here, before the baseline: no row
    could be written, so nothing is reverted for it (R21).
@@ -293,18 +300,18 @@ the entry at p by exact name:
    nothing recorded. Else the receipts, at one `treeId` taken after the last (as
    `src/gate.ts:794`). A recorded green ran nothing, so it has nothing to check here.
 5. The list of untracked entries.
-6. `prepareRun` (git children). Then `await` one `setImmediate` and check the signal: a Ctrl-C that
+6. `prepareRun` (git children). Then a yield and the signal check: a Ctrl-C that
    killed a `cat-file` child is seen here, so it exits 128+n rather than reporting an unreadable
    blob (`spec42r3/yield-exp` prepare: on both runtimes the flag is null right after the
    synchronous section and set after one yield). `prepareRun` reads HEAD itself, after the set was
    computed: a `lock.head` other than the sample is refused, and `discard` removes the staging
    (round 1 review, NB14).
 7. `acquireLock`; print the lock line and R25's command; `sweepStale`.
-8. One yield, then the signal check: if set, restore (nothing to do), exit 128+n with nothing
+8. A yield, then the signal check: if set, restore (nothing to do), exit 128+n with nothing
    written and nothing spawned (`yield-exp` revert).
 9. `applyRevert`; a failure ends the run as blocked (R11), and step 11 restores only its
    `written` entries.
-10. Obligations in order through `runCommandAsync`, with one yield and a signal check before each
+10. Obligations in order through `runCommandAsync`, with a yield and a signal check before each
     spawn. When they end: which paths do not hold S(p) (R18 a; only after a revert that
     completed, since a stopped one leaves paths at H by design), whether the lock is this run's
     (R18 c; after a stopped revert too).
@@ -314,8 +321,9 @@ the entry at p by exact name:
     `branch` (R19), `git status --porcelain=v1 -z --untracked-files=no` outside the store
     directory (R18 d), K1 against K0 (R18 e), untracked entries against step 5 (R19). Print the
     report.
-13. A signal: exit 128+n. Changed: the final `mutation-blocked: the tree changed under the run`
-    line, exit 2. Else `recordMutation` with K1, the final line, the exit of the outcome.
+13. A signal (checked after a yield, so one during the report's git calls counts): exit 128+n.
+    Changed: the final `mutation-blocked: the tree changed under the run` line, exit 2. Else
+    `recordMutation` with K1, the final line, the exit of the outcome.
 
 Output goes through `out`, which swallows write errors (EPIPE, EIO), so a closed terminal cannot
 throw out of a restore.
@@ -456,7 +464,7 @@ review, NB9); `F_FULLFSYNC` on macOS is not established (walk).
 | Two `verify --restore` on a dead lock | each writes through its own temp name; one may unlink the other's temp and report a failure (exit 3) | n/a | a third run says nothing to restore |
 | A full disk | prepare: refused, nothing written; revert: blocked (R11); restore: kept (R15) | no | free space, verify --restore |
 | A read-only directory | revert: blocked; restore: kept, EACCES (`ro-exp`) | no | `chmod u+w`, verify --restore |
-| Ctrl-C to the group | before the revert: seen after one yield; during revert or restore: acted on after; during obligations: group killed, restored | no | exit 130 |
+| Ctrl-C to the group | before the revert: seen after a yield (two `setImmediate`s); during revert or restore: acted on after; during obligations: group killed, restored | no | exit 130 |
 | A lock from another host, or another pid namespace | `unknown`: verify --restore refuses | n/a | run verify --restore there, or by hand (3), which discards nothing |
 
 **What cannot be made safe inside this design**

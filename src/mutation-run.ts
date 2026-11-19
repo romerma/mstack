@@ -6,7 +6,7 @@ import { mutationKey, refusals, revertSet, trackedChanges, type MutationKey } fr
 import { acquireLock, discard, errorText, lockPath, prepareRun, readLock, restoreCommand, sweepStale, type Lock } from "./mutation-lock.ts";
 import { applyRevert, entryAt, holds, restoreFromLock, shellWord, type Restored } from "./mutation-tree.ts";
 import { runningCliRoot, type Store } from "./paths.ts";
-import { runCommandAsync, type RunResult } from "./run.ts";
+import { runCommandAsync, type Running, type RunResult } from "./run.ts";
 import { measureStart, resolveCommit } from "./size.ts";
 import { parseState, type Item, type State } from "./state.ts";
 import { obligations, record, recordMutation, status, treeId, UNKNOWN_TREE, type MutationOutcome, type Obligation } from "./verification.ts";
@@ -164,7 +164,53 @@ function restore(store: Store, lock: Lock, entries: readonly number[] | undefine
   }
 }
 
+const SIGNALS = { SIGINT: 2, SIGTERM: 15, SIGHUP: 1 } as const;
+type Caught = keyof typeof SIGNALS;
+
+/** The first signal that reached the run, and the command running on its behalf. */
+interface Control {
+  caught: Caught | null;
+  current: Running | null;
+}
+
+const immediate = (): Promise<void> => new Promise((res) => setImmediate(res));
+
+/**
+ * A signal that arrived during a synchronous section has run its handler
+ * after this. Two `setImmediate`s, not one: under node, a section that began
+ * in the poll phase (the continuation of a child's close event) gets its first
+ * immediate in the same turn of the loop, before the next poll reads the
+ * signal; the second comes after that poll. Bun needs one.
+ */
+const tick = async (): Promise<void> => {
+  await immediate();
+  await immediate();
+};
+
+/**
+ * The run. SIGINT, SIGTERM and SIGHUP never end the process while it runs:
+ * the handlers record the first and stop the command that is running, and
+ * the run acts on it at its next check, after the restore and its proof when
+ * the lock is held (R16, R17). Returns the exit code.
+ */
 export async function runMutation(store: Store, options: MutationOptions): Promise<number> {
+  const ctl: Control = { caught: null, current: null };
+  const handlers = (Object.keys(SIGNALS) as Caught[]).map((name) => {
+    const handler = (): void => {
+      if (ctl.caught === null) ctl.caught = name;
+      ctl.current?.stop();
+    };
+    process.on(name, handler);
+    return [name, handler] as const;
+  });
+  try {
+    return await run(store, options, ctl);
+  } finally {
+    for (const [name, handler] of handlers) process.off(name, handler);
+  }
+}
+
+async function run(store: Store, options: MutationOptions, ctl: Control): Promise<number> {
   const out = (line: string): void => {
     try {
       options.out(line);
@@ -175,25 +221,35 @@ export async function runMutation(store: Store, options: MutationOptions): Promi
   const step = options.step ?? ((): void => {});
   const running = options.running ?? runningCliRoot();
   const { timeoutMs } = options;
+  const stopped = (): number => {
+    const name = ctl.caught as Caught;
+    out(`mutation: stopped by ${name}, so nothing was recorded`);
+    return 128 + SIGNALS[name];
+  };
+  // A Ctrl-C to the group also kills the git child a check was waiting on, which reads as git failing: the signal comes first.
+  const refused = async (message: string, fix: string): Promise<number> => {
+    await tick();
+    return ctl.caught !== null ? stopped() : refuse(out, message, fix);
+  };
 
   let state: State;
   try {
     state = parseState(store.state);
   } catch (error) {
-    return refuse(out, `the store's state cannot be read: ${errorText(error)}`, "'mstack gate' says what is wrong with it");
+    return refused(`the store's state cannot be read: ${errorText(error)}`, "'mstack gate' says what is wrong with it");
   }
   const found = state.items.find((i) => isActive(i.status));
-  const refused = refusals(store, state, found, running);
-  if (refused !== null) return refuse(out, refused.message, refused.fix);
+  const why = refusals(store, state, found, running);
+  if (why !== null) return refused(why.message, why.fix);
   // The refusals passed, so the item, its base and its start resolve.
   const item = found as Item;
   const start = measureStart(store, resolveCommit(store, item.base as string) as string);
   const from = start.from as string;
   const set = revertSet(store, from);
   const head0 = headSha(store);
-  if (set === null || head0 === null) return refuse(out, `git could not list the code changed since ${short(from)}`, "run it again; if it persists, check 'git status'");
+  if (set === null || head0 === null) return refused(`git could not list the code changed since ${short(from)}`, "run it again; if it persists, check 'git status'");
   const k0 = mutationKey(store, from);
-  if (k0.key === null) return refuse(out, `no receipt could be keyed: ${k0.reason}`, "nothing was changed; the receipt is keyed by the code and test files, so such a name cannot be checked");
+  if (k0.key === null) return refused(`no receipt could be keyed: ${k0.reason}`, "nothing was changed; the receipt is keyed by the code and test files, so such a name cannot be checked");
   const commands = obligations(state, item);
   const joined = commands.map((c) => c.command).join(" && ");
   out(`mutation: ${item.slug} (${item.id}), start ${short(from)} (${start.why}), ${set.entries.length} code file(s) to revert`);
@@ -207,9 +263,15 @@ export async function runMutation(store: Store, options: MutationOptions): Promi
     const ran: { readonly command: Obligation; readonly outcome: "passed" | "failed" }[] = [];
     let red: { readonly command: string; readonly result: RunResult } | null = null;
     for (const c of commands) {
+      await tick();
+      if (ctl.caught !== null) return stopped();
       out(`mutation: baseline: running \`${c.command}\``);
       const t0 = Date.now();
-      const result = await runCommandAsync(c.command, { cwd: store.root, timeoutMs, tailLines: TAIL }).result;
+      ctl.current = runCommandAsync(c.command, { cwd: store.root, timeoutMs, tailLines: TAIL });
+      const result = await ctl.current.result;
+      ctl.current = null;
+      // Stopped by the handler, or ended while a signal was in: no receipt for it, nor for the others.
+      if (ctl.caught !== null) return stopped();
       if (classify(result) === "passed") {
         out(`mutation: baseline: \`${c.command}\` passed after ${seconds(Date.now() - t0)}`);
         ran.push({ command: c, outcome: "passed" });
@@ -223,21 +285,22 @@ export async function runMutation(store: Store, options: MutationOptions): Promi
     // R2 again: what the baseline saw must be what the revert starts from.
     const head1 = headSha(store);
     if (head1 !== head0) {
-      return refuse(out, `HEAD moved during the baseline, from ${short(head0)} to ${head1 === null ? "nothing git can read" : short(head1)}`, "run it again once nothing else commits; no receipt was recorded and nothing was changed");
+      return refused(`HEAD moved during the baseline, from ${short(head0)} to ${head1 === null ? "nothing git can read" : short(head1)}`, "run it again once nothing else commits; no receipt was recorded and nothing was changed");
     }
     const again = refusals(store, state, item, running);
-    if (again !== null) return refuse(out, `after the baseline: ${again.message}`, `${again.fix}; no receipt was recorded`);
+    if (again !== null) return refused(`after the baseline: ${again.message}`, `${again.fix}; no receipt was recorded`);
     const k1 = mutationKey(store, from);
     if (k1.key !== k0.key) {
       const changed = keyChanges(k0, k1);
-      return refuse(
-        out,
+      return refused(
         `the code and test files changed during the baseline${changed.length > 0 ? `: ${some(changed)}` : k1.key === null ? `: ${k1.reason}` : ""}`,
         "run it again once nothing else writes to them; a file the commands generate belongs in .gitignore; no receipt was recorded and nothing was changed",
       );
     }
     // One fingerprint, taken after the last command, as `gate --full` does.
     const tree = treeId(store);
+    await tick();
+    if (ctl.caught !== null) return stopped();
     for (const { command, outcome } of ran) record(store, { target: command.target, sha: head0, command: command.command, outcome, tree });
     if (red !== null) {
       recordMutation(store, { target: item.slug, sha: head0, command: joined, outcome: "mutation-blocked", tree: `mutation:${k0.key}` });
@@ -254,6 +317,12 @@ export async function runMutation(store: Store, options: MutationOptions): Promi
   // What is untracked now: an entry that is new after the run is reported as left in place (R19).
   const untracked0 = untrackedNow(store) ?? new Set<string>();
   const prepared = prepareRun(store, from, set);
+  // A Ctrl-C that killed a `git cat-file` child is seen here, after one turn, and is not reported as an unreadable blob.
+  await tick();
+  if (ctl.caught !== null) {
+    if (prepared.ok) discard(store, prepared.lock.run);
+    return stopped();
+  }
   if (!prepared.ok) {
     return refuse(out, prepared.reason, prepared.path === null ? "nothing was changed; clear the cause and run it again" : "make that content readable (the filter runnable, the object fetched) and run it again; nothing was changed");
   }
@@ -279,29 +348,44 @@ export async function runMutation(store: Store, options: MutationOptions): Promi
   let entries: readonly number[] | undefined;
   let revertDone = false;
   try {
-    out(`mutation: reverting ${lock.entries.length} file(s)`);
-    const reverted = applyRevert(store, lock, step);
-    if (!reverted.ok) {
-      entries = reverted.written;
-      ending = { kind: "blocked", reason: `the revert stopped at ${reverted.path}: ${reverted.reason}; no command ran` };
+    // A signal that came with the lock, or before it, is acted on before any path is written (R17).
+    await tick();
+    if (ctl.caught !== null) {
+      entries = [];
+      ending = { kind: "blocked", reason: "stopped before the revert" };
     } else {
-      revertDone = true;
-      ending = { kind: "survived" };
-      for (const c of commands) {
-        out(`mutation: running \`${c.command}\` on the reverted tree`);
-        const t0 = Date.now();
-        const handle = runCommandAsync(c.command, { cwd: store.root, timeoutMs, tailLines: TAIL });
-        step("obligations-running");
-        const result = await handle.result;
-        out(`mutation: \`${c.command}\` ${said(result, timeoutMs)} after ${seconds(Date.now() - t0)}`);
-        const verdict = classify(result);
-        if (verdict === "passed") continue;
-        ending = { kind: verdict === "failed" ? "killed" : "blocked", command: c.command, result };
-        break;
+      out(`mutation: reverting ${lock.entries.length} file(s)`);
+      const reverted = applyRevert(store, lock, step);
+      if (!reverted.ok) {
+        entries = reverted.written;
+        ending = { kind: "blocked", reason: `the revert stopped at ${reverted.path}: ${reverted.reason}; no command ran` };
+      } else {
+        revertDone = true;
+        ending = await reversedRun();
       }
     }
   } catch (error) {
     ending = { kind: "blocked", reason: `the run stopped: ${errorText(error)}` };
+  }
+
+  /** Each command on the reverted tree, a signal checked after one turn before each spawn; the first that does not pass ends it. */
+  async function reversedRun(): Promise<Ending> {
+    for (const c of commands) {
+      await tick();
+      if (ctl.caught !== null) break;
+      out(`mutation: running \`${c.command}\` on the reverted tree`);
+      const t0 = Date.now();
+      ctl.current = runCommandAsync(c.command, { cwd: store.root, timeoutMs, tailLines: TAIL });
+      step("obligations-running");
+      const result = await ctl.current.result;
+      ctl.current = null;
+      if (ctl.caught !== null) break;
+      out(`mutation: \`${c.command}\` ${said(result, timeoutMs)} after ${seconds(Date.now() - t0)}`);
+      const verdict = classify(result);
+      if (verdict === "passed") continue;
+      return { kind: verdict === "failed" ? "killed" : "blocked", command: c.command, result };
+    }
+    return ctl.caught !== null ? { kind: "blocked", reason: "stopped by a signal" } : { kind: "survived" };
   }
 
   // R18 (a) and (c), read before the restore and with no child process: what the reverted tree holds now, and whose lock is at the name.
@@ -355,6 +439,9 @@ export async function runMutation(store: Store, options: MutationOptions): Promi
   for (const p of [...(untrackedNow(store) ?? [])].filter((x) => !untracked0.has(x)).sort()) {
     out(`mutation: left in place: ${p} (git status --short -- ${shellWord(p)})`);
   }
+  // A signal at any point of the run, this report's git calls included: the tree is back, and nothing is recorded (R16).
+  await tick();
+  if (ctl.caught !== null) return stopped();
   if (held.length > 0) {
     out(changedLine(held));
     return 2;
