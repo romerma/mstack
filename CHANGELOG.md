@@ -17,7 +17,9 @@
   the tree during the run, or a failed restore (exit 3, the lock kept), writes no row. While the
   lock exists the gate fails, `gate --full` runs nothing, and the PreToolUse hook denies the git
   commands that would keep or lose the reverted state. `--restore` refuses while the run may be
-  alive and has no `--force`; whatever it finds at a reverted path that the run did not write is
+  alive, and under the lock of another store of the same worktree, which shares its git directory
+  and so its lock: it writes nothing and names the directory to run it from, or the by-hand
+  recovery when no store's restore takes the lock; it has no `--force`. Whatever it finds at a reverted path that the run did not write is
   moved into `<git dir>/mstack-mutation/<run>/rescue/` before HEAD's content is written (at a
   path HEAD lacks, it is left in place), and the gate warns until a rescue is removed. No reader of receipts counts a mutation row, and no closing check reads one yet. The
   wiki's [The-CLI](docs/wiki/The-CLI.md#verify) says what it cannot make safe and the ways to

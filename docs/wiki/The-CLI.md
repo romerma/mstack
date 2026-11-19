@@ -771,7 +771,13 @@ satisfies a verification. *Killed* does not mean the tests assert the behaviour:
 an import of a removed file or a crash kills too, and a pure refactor survives by construction.
 *Blocked* is everything that says nothing about the change: a red or timed-out baseline, a
 command that timed out on the reverted tree, exited 126 or 127, or was ended by a signal
-mstack did not send, and a revert that could not complete. Here is a survived run, from an
+mstack did not send, and a revert that could not complete. A command written as
+`<interpreter> <script>` whose script the revert removed exits with the interpreter's code for a
+missing file, and that is killed wherever it is not 126 or 127: `bash missing.sh` exits 127,
+blocked, but dash, `/bin/sh` on Debian and Ubuntu, exits 2 for `sh missing.sh`, python3 and
+perl exit 2, and node, bun and ruby exit 1, each recorded as killed. Run such a script by name
+(`scripts/check.sh`, executable with its `#!` line): a command that is not there exits 127 under
+bash and dash alike. Here is a survived run, from an
 item that adds `src/farewell.js` and no test of it:
 
 ```console
@@ -876,7 +882,9 @@ prove a path keeps the lock (a run whose lock was deleted under it writes it aga
 path, the error and what to do, and exits 3, whatever else happened. `verify --restore` refuses, exit 2 and nothing
 written, a lock that is not one document a run wrote (naming what is wrong); the lock of another
 store of the same worktree, which shares its git directory and so its lock (naming the
-directory to run it from, as the gate, the hook and a refused `verify --mutation` do); and a run
+directory to run it from, as the gate, the hook and a refused `verify --mutation` do; when the
+restore run there would refuse the lock too, as for a lock that names its store in another case
+or Unicode form than git does, all four give the by-hand recovery instead); and a run
 that may be alive: its pid is a live process that started no later than the lock, or the lock is
 from another host or another pid namespace, where it cannot tell. There is no `--force`.
 

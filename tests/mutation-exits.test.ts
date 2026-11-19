@@ -412,3 +412,23 @@ test("A4 under a lock the hook denies git's options given with a space and the p
     for (const command of allowed) assert.equal(hookReason(command, r.root), null, `denied under a lock: ${command}`);
   });
 });
+
+test("A6 an obligation that runs a script the revert removed through an interpreter is killed wherever the interpreter does not exit 126 or 127", SPAWN_TEST, async () => {
+  // What docs/wiki/The-CLI.md says of it: node exits 1 for a script that is not there, and dash 2.
+  const interpreters: [string, string, string, string][] = [["node", "scripts/check.js", "process.exit(0);\n", "exit 1"]];
+  if (existsSync("/bin/dash")) interpreters.push(["/bin/dash", "scripts/check.sh", "exit 0\n", "exit 2"]);
+  for (const [interpreter, script, body, exit] of interpreters) {
+    const addScript = (root: string): void => {
+      editA(root);
+      put(root, script, body);
+    };
+    await withRunRepo('echo run >> "$1"\n', startA, addScript, async (r) => {
+      r.box.writeState({ ...(parseState(r.store.state) as object), verify: `${interpreter} ${script}` });
+      const { code, text, last } = await mutate(r);
+      assert.equal(code, 0, text);
+      assert.match(last, /^mutation-killed: /, text);
+      assert.ok(text.includes(`\`${interpreter} ${script}\` ${exit} after`), `${interpreter}: ${text}`);
+      assert.equal(readFileSync(join(r.root, script), "utf8"), body);
+    });
+  }
+});

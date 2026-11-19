@@ -78,7 +78,7 @@
             "command": "${CLAUDE_PLUGIN_ROOT}/bin/mstack",
             "args": ["hook", "pre-tool-use"],
             "timeout": 5,
-            "description": "Deny the handful of commands that are hard or impossible to walk back and an rm of a mutation run's lock, and, while that lock exists in the git directory, git add, am, apply, checkout, cherry-pick, clean, commit, merge, mv, pull, rebase, reset, restore, revert, rm, stash and switch. Hooks are evaluated before the permission mode is consulted, so this holds even under bypassPermissions."
+            "description": "Deny the handful of commands that are hard or impossible to walk back and an rm of a mutation run's lock, and, while that lock exists in the git directory, git add, am, apply, checkout, cherry-pick, clean, commit, merge, mv, pull, rebase, reset, restore, revert, rm, stash and switch, and the plumbing update-index, read-tree, checkout-index, write-tree, mktree, commit-tree and update-ref. Hooks are evaluated before the permission mode is consulted, so this holds even under bypassPermissions."
           }
         ]
       }

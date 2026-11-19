@@ -93,7 +93,7 @@ The guard list, from `src/hooks.ts:230-271`:
 | `gh pr merge --admin` | merges past a check `gh` would otherwise refuse; fix the check instead |
 | `rm -r` on `.mstack` | deletes the durable state this workflow runs on |
 | `rm` of a path that ends in `mstack-mutation.lock`, with or without a lock | the lock is what keeps a run's reverted code from being forgotten; `mstack gate` names the restore command |
-| while `<git dir>/mstack-mutation.lock` exists: `git add`, `am`, `apply`, `checkout`, `cherry-pick`, `clean`, `commit`, `merge`, `mv`, `pull`, `rebase`, `reset`, `restore`, `revert`, `rm`, `stash`, `switch` | a `mstack verify --mutation` run has the item's code reverted in this working tree; a commit or an add would keep that state and a stash or a checkout would lose it. The reason names the lock, its pid and the absolute path of the CLI that wrote it followed by `verify --restore`, run from the store that wrote the lock (`cd <its directory> &&`) |
+| while `<git dir>/mstack-mutation.lock` exists: `git add`, `am`, `apply`, `checkout`, `cherry-pick`, `clean`, `commit`, `merge`, `mv`, `pull`, `rebase`, `reset`, `restore`, `revert`, `rm`, `stash`, `switch`, and the plumbing `update-index`, `read-tree`, `checkout-index`, `write-tree`, `mktree`, `commit-tree`, `update-ref` | a `mstack verify --mutation` run has the item's code reverted in this working tree; a commit or an add would keep that state and a stash or a checkout would lose it, and the plumbing is the same writes spelled low. The reason names the lock, its pid and the absolute path of the CLI that wrote it followed by `verify --restore`, run from the store that wrote the lock (`cd <its directory> &&`); for a lock the restore would refuse, the by-hand recovery instead, as the gate gives it |
 
 The lock rows are the one place the hook reads anything but the command. When a segment of the
 command runs one of the listed git commands (with git's global options, in a compound command),
@@ -105,7 +105,11 @@ with space" commit`, an interpreter one-liner that builds the call from parts
 (`execFileSync('git', ['commit'])`; one whose text spells `git commit` out is denied, since
 the text is what the hook reads), `npm version`, a `git -C <repo>` from a `cwd`
 outside that repository, and the Edit and Write tools, which change the tree without git. The
-gate and the rescue are what hold there.
+gate and the rescue are what hold there. Of git's plumbing, what is not listed is not covered:
+`hash-object -w` (the reverted content is the start's blob, which exists already), `symbolic-ref`,
+`branch -f` and `tag` (each points a ref at a commit that exists, and the reverted tree is in
+none unless a denied command made one), `sparse-checkout` (it leaves a modified file in place),
+and every other command git has. None of these can save the reverted tree.
 
 Two sentences in Claude Code's permissions documentation carry this table's weight: "PreToolUse
 hooks run before the permission prompt, for every tool except EndConversation", and "A hook
@@ -268,7 +272,11 @@ Walking the lines that carry the weight:
   *Not running*: the fix is the absolute path of the CLI that wrote the lock followed by
   `verify --restore` (and the running CLI's as well, when that file is gone), preceded by
   `cd <its directory> &&` when another store of the same worktree wrote the lock: two stores
-  share a worktree's git directory, and so its lock. *Cannot be told*
+  share a worktree's git directory, and so its lock. A path with a character the shell reads (a
+  space, a quote) is single-quoted, so the line runs as printed. The `cd` is printed only when
+  the restore run there takes the lock; a lock that names its store in another case or Unicode
+  form than git does gets the by-hand recovery instead, since on a disk that folds names that
+  directory is this store, whose restore refuses the lock again. *Cannot be told*
   (another host, or another pid namespace): run the restore where the run started, or by hand
   with `git stash push --include-untracked`, which saves every change and discards nothing.
   A lock that cannot be read as a run's record fails the same way and names the by-hand
