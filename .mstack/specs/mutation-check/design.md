@@ -392,7 +392,9 @@ else. `receipts()` and `status()` do not change.
   the restore leaves it clean, `git worktree remove` without `--force` deletes the rescue
   (`specreview42r3/wt`).
 - `preToolUse` keeps `GUARDS` and adds, after them, a test of each segment against `GIT` followed
-  by `(?:add|am|apply|checkout|cherry-pick|clean|commit|merge|mv|pull|rebase|reset|restore|revert|rm|stash|switch)(?![-\w])`.
+  by `(?:add|am|apply|checkout|cherry-pick|clean|commit|merge|mv|pull|rebase|reset|restore|revert|rm|stash|switch)(?![-\w])`;
+  `GIT` takes `--git-dir` and `--work-tree` with their value after `=` or after a space (round 2
+  review, non-blocking 5).
   Only on a match does it run `git rev-parse --absolute-git-dir` in `input.cwd` and `lstat` the
   lock; present denies, with the pid and R25's command when the lock holds an integer pid, an
   absolute `cli` and a string `rootFromTop` (the hook checks no more of it, since the lock's

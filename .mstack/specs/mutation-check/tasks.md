@@ -337,8 +337,10 @@ requirements it covers (`agents/implementer.md`, "Your report").
   file, which must not exist), `R26 no lock, or git cannot answer, allows`, `R26 an unparseable lock
   still denies`, `R26 rm of the lock is denied, with a lock or without one` (no git process starts),
   `R25 the deny reason names the lock's CLI`, `R26 the reason for a lock that cannot be read says
-  the way out is a person at a terminal` (added in review round 2, for non-blocking 2). Done when `bun test
-  tests/mutation-hook.test.ts` ends ` 9 pass` and ` 0 fail`, `bun test tests/hooks.test.ts` ends
+  the way out is a person at a terminal` (added in review round 2, for non-blocking 2), `R26 git's
+  --git-dir and --work-tree given with a space do not hide the verb` (added in review round 2, for
+  non-blocking 5). Done when `bun test
+  tests/mutation-hook.test.ts` ends ` 10 pass` and ` 0 fail`, `bun test tests/hooks.test.ts` ends
   ` 0 fail`, `./bin/mstack lint-plugin .` exits 0, and the node command for both test files prints
   `# fail 0`. (covers R25, R26)
 

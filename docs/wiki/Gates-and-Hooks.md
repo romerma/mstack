@@ -101,7 +101,9 @@ the hook asks git for the git directory of the hook input's `cwd` and looks for 
 name alone, so a lock that cannot be parsed denies too. A command with no such segment starts no
 git process at all, and no lock, or a `cwd` outside a repository, allows. What it does **not**
 see, because it only ever sees the string: an alias (`git ci`), `"git" commit`, `git -C "dir
-with space" commit`, an interpreter one-liner, `npm version`, a `git -C <repo>` from a `cwd`
+with space" commit`, an interpreter one-liner that builds the call from parts
+(`execFileSync('git', ['commit'])`; one whose text spells `git commit` out is denied, since
+the text is what the hook reads), `npm version`, a `git -C <repo>` from a `cwd`
 outside that repository, and the Edit and Write tools, which change the tree without git. The
 gate and the rescue are what hold there.
 
@@ -142,8 +144,10 @@ top of `shellSegments` is one-directional: a construct it cannot model must leav
 too long, never too short.
 
 None of this makes the array a sandbox, and the source says so rather than implying otherwise:
-an interpreter one-liner, `find -delete`, `fd -X rm`, a path arriving through a variable, or
-`mv` followed by a deletion all pass, because a `PreToolUse` hook only ever sees the string.
+an interpreter one-liner that deletes without spelling the command (`fs.rmSync`; one whose text
+holds `rm -rf .mstack` is denied like the command itself), `find -delete`, `fd -X rm`, a path
+arriving through a variable, or `mv` followed by a deletion all pass, because a `PreToolUse`
+hook only ever sees the string.
 
 ## What `mstack gate` checks
 

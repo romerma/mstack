@@ -356,9 +356,10 @@ interface Guard {
  * `git` accepts global options before the subcommand, so `git push` is not
  * adjacent in `git -C /repo push`, `git -c k=v push`, `git --git-dir=... push`.
  * Every one of those slipped straight past a `\bgit\s+push\b`. This eats the
- * options rather than trying to enumerate them.
+ * options rather than trying to enumerate them. `--git-dir` and `--work-tree`
+ * also take their value after a space, as `-C` and `-c` do.
  */
-const GIT = String.raw`\bgit\s+(?:-[cC]\s+\S+\s+|--(?:git-dir|work-tree|namespace|exec-path|config-env)(?:=\S+)?\s+|-{1,2}[a-zA-Z-]+\s+)*`;
+const GIT = String.raw`\bgit\s+(?:-[cC]\s+\S+\s+|--(?:git-dir|work-tree)\s+\S+\s+|--(?:git-dir|work-tree|namespace|exec-path|config-env)(?:=\S+)?\s+|-{1,2}[a-zA-Z-]+\s+)*`;
 
 export const GUARDS: readonly Guard[] = [
   {

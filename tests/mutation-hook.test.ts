@@ -180,3 +180,14 @@ test("R26 the reason for a lock that cannot be read says the way out is a person
     assert.match(d.reason, /git stash push --include-untracked/);
   });
 });
+
+test("R26 git's --git-dir and --work-tree given with a space do not hide the verb", () => {
+  // Round 2 review, non-blocking 5: the prefix took only the --git-dir=<dir> form.
+  withBox((box) => {
+    writeFileSync(box.lockFile, lockText("/x/bin/mstack"));
+    for (const command of ["git --git-dir .git --work-tree . commit -m x", "git --git-dir .git add .", "git --work-tree . stash", "git --git-dir=.git --work-tree . reset HEAD~1"]) {
+      assert.ok(decide(command, box.root).denied, `not denied under a lock: ${command}`);
+    }
+    assert.ok(!decide("git --git-dir .git --work-tree . status", box.root).denied, "the control: a verb that is not listed is allowed after the options");
+  });
+});
