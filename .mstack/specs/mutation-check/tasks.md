@@ -93,8 +93,10 @@ requirements it covers (`agents/implementer.md`, "Your report").
   process this user may not signal (EPERM) is running` (both added in round 1, for mutants no
   named test killed), `R24 two lock paths that differ only by case or Unicode normalisation are
   refused` (added in round 1, for NB3), `R24 a lock that is a symlink or a FIFO is damaged, read
-  without following the link or blocking` (added in round 1, for NB7). Done when `bun test
-  tests/mutation-lock.test.ts` ends ` 16 pass` and ` 0 fail`, and the node command prints `# fail
+  without following the link or blocking` (added in round 1, for NB7), `R8 a run directory the
+  sweep cannot remove is left, and the sweep does not throw` and `R8 a run refused the lock can
+  remove its own staging` (added in round 1, for NB11 and NB12). Done when `bun test
+  tests/mutation-lock.test.ts` ends ` 18 pass` and ` 0 fail`, and the node command prints `# fail
   0`. (covers R1, R8, R9, R23, R24)
 
 - [x] 2.2 Create `src/mutation-tree.ts` with `entryAt(root, path)` (design.md "Exact names") and

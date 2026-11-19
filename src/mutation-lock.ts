@@ -196,7 +196,7 @@ export function prepareRun(store: Store, start: string, set: RevertSet): Prepare
       if (e.startMode !== ABSENT) {
         const file = join(dir, "start", String(n));
         if (!stageStart(store, start, e.path, file)) {
-          discard(dir, base);
+          discard(store, run);
           return {
             ok: false,
             path: e.path,
@@ -234,7 +234,7 @@ export function prepareRun(store: Store, start: string, set: RevertSet): Prepare
       },
     };
   } catch (error) {
-    discard(dir, base);
+    discard(store, run);
     return { ok: false, path: current, reason: `${current === null ? "" : `${current}: `}${errorText(error)}` };
   }
 }
@@ -259,10 +259,17 @@ function makeRunDirectory(base: string): { run: string; dir: string; at: Date } 
   return { reason: `could not make a run directory in ${base}: every name drawn exists` };
 }
 
-function discard(dir: string, base: string): void {
-  rmSync(dir, { recursive: true, force: true });
+/**
+ * Remove a run's directory, and `mstack-mutation/` when no other run's is in
+ * it: what a run leaves when its staging fails or it is refused the lock. For
+ * a run that holds no lock.
+ */
+export function discard(store: Store, run: string): void {
+  const gitDir = gitDirOf(store);
+  if (gitDir === null) return;
+  rmSync(join(gitDir, RUNS, run), { recursive: true, force: true });
   try {
-    rmdirSync(base);
+    rmdirSync(join(gitDir, RUNS));
   } catch {
     // Other runs' directories are in it.
   }
@@ -535,7 +542,12 @@ export function sweepStale(store: Store, lock: Lock): void {
       // No rescue directory: nothing saved. Anything else (a file there, no permission): keep.
       keep = codeOf(error) !== "ENOENT";
     }
-    if (!keep) rmSync(dir, { recursive: true, force: true });
+    if (keep) continue;
+    try {
+      rmSync(dir, { recursive: true, force: true });
+    } catch {
+      // Left as it is for a later sweep: the run that holds the lock goes on.
+    }
   }
 }
 

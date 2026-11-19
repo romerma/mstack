@@ -2,12 +2,12 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync, spawn, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { hostname, tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { lockPath, refusals, revertSet } from "../src/mutation.ts";
-import { acquireLock, bootTime, liveness, pidNamespace, prepareRun, readLock, sweepStale, validateLock, type Lock } from "../src/mutation-lock.ts";
+import { acquireLock, bootTime, discard, liveness, pidNamespace, prepareRun, readLock, sweepStale, validateLock, type Lock } from "../src/mutation-lock.ts";
 import { storeAt } from "../src/paths.ts";
 import { parseState } from "../src/state.ts";
 import {
@@ -314,5 +314,35 @@ test("R24 a lock that is a symlink or a FIFO is damaged, read without following 
     } finally {
       writer.kill("SIGKILL");
     }
+  });
+});
+
+test("R8 a run directory the sweep cannot remove is left, and the sweep does not throw", { skip: process.getuid?.() === 0 }, () => {
+  withRepo(threeFiles, editDeleteAdd, (r) => {
+    const stuck = join(gitDirOf(r), "mstack-mutation", "20260101T000000Z-4-dddd", "head");
+    mkdirSync(stuck, { recursive: true });
+    writeFileSync(join(stuck, "0"), "a staged copy in a directory this user cannot write\n");
+    chmodSync(stuck, 0o555);
+    try {
+      const lock = locked(r);
+      sweepStale(r.store, lock);
+      assert.ok(existsSync(join(stuck, "0")));
+      assert.ok(existsSync(runDirOf(r, lock)));
+    } finally {
+      chmodSync(stuck, 0o755);
+    }
+  });
+});
+
+test("R8 a run refused the lock can remove its own staging", () => {
+  withRepo(threeFiles, editDeleteAdd, (r) => {
+    const loser = staged(r);
+    const winner = locked(r);
+    assert.equal(acquireLock(r.store, loser).ok, false);
+    discard(r.store, loser.run);
+    assert.equal(existsSync(runDirOf(r, loser)), false, "the refused run's staging is still there");
+    assert.ok(existsSync(join(runDirOf(r, winner), "head")), "the winner's staging went too");
+    const read = readLock(r.store);
+    assert.ok(read !== null && "lock" in read && read.lock.run === winner.run);
   });
 });

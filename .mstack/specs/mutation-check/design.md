@@ -159,14 +159,16 @@ interface Lock {
   over the network, bounded by the 60 s; one that is missing, or a required filter that cannot
   run, exits 128 and becomes R1's refusal (`specreview42r2/filter-exp`).
 - `acquireLock` writes `mstack-mutation.lock.<run>.tmp`, fsyncs it, `linkSync`s it to the lock
-  name (EEXIST: refuse), fsyncs the directory, unlinks the temp. A reader sees no lock or a whole
+  name (EEXIST: refuse), fsyncs the directory, unlinks the temp. A run refused the lock removes its
+  own staging with `discard(store, run)` (round 1 review, NB12). A reader sees no lock or a whole
   one. `readLock` returns `null`, `{ lock }` or `{ damaged }`; whatever is at the name is a lock,
   opened `O_NOFOLLOW | O_NONBLOCK`, so a symlink there is not followed and a FIFO does not block,
   and one that is not a regular file is `damaged` (round 1 review, NB7).
 - `validateLock` is R24; it finds a path that appears twice by R3's `fold`, so two spellings of one
   path are refused (round 1 review, NB3). `sweepStale` runs once the run holds the lock: it removes
   `mstack-mutation.lock.*.tmp` other than its own and every run directory the lock does not name
-  whose `rescue/` is empty or absent. That includes the staging of a live run that has prepared and
+  whose `rescue/` is empty or absent; one it cannot remove is left for a later sweep, and the run
+  goes on (round 1 review, NB11). That includes the staging of a live run that has prepared and
   not yet linked its lock: one `setImmediate` (The run, step 6), or as long as that run is stopped.
   If that run links after the sweeper has ended, its lock names staging that is gone, and the
   revert's check of every staged copy (Revert, step 0) finds it before the first write and writes
