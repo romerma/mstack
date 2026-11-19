@@ -1537,7 +1537,7 @@
         "An item already in flight when the check lands has a stated way to close, and a forced close past the check is on the record",
         "state set --status done is refused while a mutation lock exists"
       ],
-      "status": "pending",
+      "status": "specifying",
       "description": "Second half of the mutation check. Depends on item 42 (the mechanism). The round 2 spec review of item 42 worked out the rule for a receipt after a merge (its B3, rule C-prime with two companions) and measured five merge shapes; start from that table. R23 to R25 and R41 of the round 2 spec are the draft requirements.",
       "sdd": true,
       "source": "item 42 split, user decision of 2026-11-19 (A); spec_review_mutation-check_r2.md B3",

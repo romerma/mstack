@@ -6,9 +6,9 @@
 > On close: append the summary to `history.md` and reset this file to the
 > empty template below.
 
-- **Item:** none active (42 and 104 closed 2026-11-19; next is 100 mutation-closing-check)
-- **Status:** -
-- **Branch:** main
+- **Item:** 100 mutation-closing-check (the closing check on item 42's receipt)
+- **Status:** specifying, round 1 (spec author at work)
+- **Branch:** feat/mutation-closing-check
 - **Base:** -
 - **Worktree:** none
 
