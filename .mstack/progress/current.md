@@ -7,7 +7,7 @@
 > empty template below.
 
 - **Item:** 100 mutation-closing-check (the closing check on item 42's receipt)
-- **Status:** specifying, round 2: spec revised (24 requirements, commit bbb1a1f), spec review round 2 running. Two forks for the user, on the item's decision_required: (1) asked 2026-11-19, A true / B false for an absent require_mutation_to_close; (2) to ask after (1): acceptance 2 stands except for a hand-reordered rebase merge, yes or no
+- **Status:** specifying, round 3: spec review round 2 asked for changes (2 blocking: four more shapes the rule misses, so fork 2 as worded to the user on 2026-11-19 was false; R16's fix text). A third author is revising. Forks for the user: (1) A true / B false for an absent require_mutation_to_close, asked 2026-11-19; (2) acceptance 2 with an exception, to be re-asked with the true class of misses
 - **Branch:** feat/mutation-closing-check
 - **Base:** -
 - **Worktree:** none
