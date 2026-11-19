@@ -157,7 +157,7 @@ export function inLockStore(command: string, top: string, rootFromTop: string): 
   if (there === null || there.top !== top) return { none: `${lead} there is no store of this worktree at ${dir}` };
   if (there.rel === rootFromTop) return { line: `cd ${shellWord(dir)} && ${command}` };
   if (fold(there.rel) === fold(rootFromTop)) {
-    return { none: `${lead} git names the store at ${dir} ${storeName(there.rel)}, which differs from it only in case or Unicode form, so the restore there refuses the lock too` };
+    return { none: `${lead} ${dir} is the store git spells ${storeName(there.rel)}, which differs only in case or Unicode form, so its restore refuses the lock too` };
   }
   return { none: `${lead} a restore run from ${dir} finds the store at ${storeName(there.rel)}, which refuses the lock too` };
 }
