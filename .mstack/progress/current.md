@@ -83,6 +83,27 @@ passes bypassPermissions. Do not run `check.mjs` or `verify.mjs` while a batch i
 - Next: the review of the primitives by a pass that did not write them (plan row 264); read the
   report's "What I could not make safe" (the sweep of a stopped run's staging) first.
 
+## Item 42 round 1 fixes in flight (implementer, 2026-11-19)
+
+- Brief: B1, B2 and non-blocking 1 to 12 of `review_mutation-check.md`, by decision row 275.
+  One commit per finding or group, tests at the ends of their files, then
+  `chore: report the item 42 round 1 fixes` with `.mstack/progress/impl_mutation-check_r3.md`.
+- Scratch: `/private/tmp/claude-501/-Users-romerma-Code-mstack/4aadee9d-d352-4d5b-825b-4d11a47e2193/scratchpad/impl42r3/`
+  (`pristine/` is HEAD at 1b38994; `out/*.before.*.out` are the reviewer's attacks rerun there:
+  every one reproduces).
+- Done: B1 `7aa8142`, B2 `2793e1f`, NB1 tests `8457f2a`, NB2 tests `d1f319c` (the reviewer's 11
+  mutants killed, `out/mutants-review.txt`). Red outputs in `red/`. NB3 `e88bf55` (+ `436c551`
+  escapes), NB4 `fa25ca5`, NB5 `065d049`, NB6 `5be2084`, NB7 `8e73e01`.
+- One uncaptured bun fail in tests/mutation-restore.test.ts right after NB6; 5 reruns clean.
+  NB8 `e837c01`, NB9 `f197bab`, NB10 `5b293cf`, NB11+12 `3204a2a`: every code fix is in.
+- Found, not in the review: bun 1.3.11 ignores node:test's `skip` option (probe-skip/), so the
+  four CASE tests would run under bun on CI's case-sensitive ubuntu disk. Reported, not changed.
+- Mutants: 21 of 21 of the fixes killed, the reviewer's 11 killed again at `3204a2a`
+  (`out/mutants-*.txt`). Attacks rerun: `out/*.after.*.out`. 8 decision rows recorded.
+- Report: `.mstack/progress/impl_mutation-check_r3.md`. Next: round 2 is not next. By row 275,
+  stages 3 and 4 follow, then round 2 reviews the fixes and the whole. Read the report's last
+  section first, and its note on bun ignoring `skip` (the four CASE tests on CI).
+
 ## Next step
 
 Phases 0 and 1 are closed, except item 50 (waits for the user). Phase 2 has 57 and 58 closed.
