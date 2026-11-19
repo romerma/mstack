@@ -426,15 +426,22 @@ function flaggedTracked(store: Store): { path: string; flag: string }[] | null {
   return found;
 }
 
+/** A tracked path that differs from HEAD: in the index (`staged`), in the working tree (`changed`), or both. */
+export interface TrackedChange {
+  readonly path: string;
+  readonly staged: boolean;
+  readonly changed: boolean;
+}
+
 /**
  * Tracked paths outside the store directory with a change, staged or not,
  * relative to the repository's top. Null when git cannot answer.
  */
-function dirtyTracked(store: Store): string[] | null {
+export function trackedChanges(store: Store): TrackedChange[] | null {
   const storeDir = storeDirFromTop(store);
   const out = git(store, ["status", "--porcelain=v1", "-z", "--untracked-files=no"], { raw: true });
   if (storeDir === null || out === null) return null;
-  const paths: string[] = [];
+  const changes: TrackedChange[] = [];
   const fields = out.split("\0");
   for (let i = 0; i < fields.length; i++) {
     const field = fields[i] as string;
@@ -443,9 +450,13 @@ function dirtyTracked(store: Store): string[] | null {
     // A staged rename or copy carries its original path in the next field.
     if (field[0] === "R" || field[0] === "C") i += 1;
     if (path === storeDir || path.startsWith(`${storeDir}/`)) continue;
-    paths.push(path);
+    changes.push({ path, staged: field[0] !== " ", changed: field[1] !== " " });
   }
-  return paths;
+  return changes;
+}
+
+function dirtyTracked(store: Store): string[] | null {
+  return trackedChanges(store)?.map((c) => c.path) ?? null;
 }
 
 /**

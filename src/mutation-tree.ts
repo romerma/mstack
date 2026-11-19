@@ -339,7 +339,7 @@ export interface RestoreOptions {
 }
 
 /** A path as a shell word: bare when it is plain, else single-quoted. */
-const shellWord = (p: string): string => (/^[\w./@%+=:,-]+$/.test(p) ? p : `'${p.replace(/'/g, "'\\''")}'`);
+export const shellWord = (p: string): string => (/^[\w./@%+=:,-]+$/.test(p) ? p : `'${p.replace(/'/g, "'\\''")}'`);
 
 /** What to do about an error the operating system gave for `path`. */
 function fixFor(error: unknown, path: string): string {

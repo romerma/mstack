@@ -209,7 +209,7 @@ requirements it covers (`agents/implementer.md`, "Your report").
   ` 0 fail`, and the node command for `tests/mutation-run.test.ts` prints `# fail 0`. (covers R2,
   R6, R7, R11, R12, R20, R21)
 
-- [ ] 3.2 In `src/mutation-run.ts`, add R18's checks (a) to (e), the re-written lock of R15 when the
+- [x] 3.2 In `src/mutation-run.ts`, add R18's checks (a) to (e), the re-written lock of R15 when the
   lock file vanished and the restore failed, and R19's report (design.md "The run" steps 10 to 13).
   Tests in a new `tests/mutation-changed.test.ts`, each making its change from the `step` callback
   at `obligations-running`: `R18 an edit to a reverted file during the run`, `R18 a commit during

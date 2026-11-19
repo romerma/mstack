@@ -305,9 +305,11 @@ the entry at p by exact name:
 9. `applyRevert`; a failure ends the run as blocked (R11), and step 11 restores only its
    `written` entries.
 10. Obligations in order through `runCommandAsync`, with one yield and a signal check before each
-    spawn. When they end: which paths do not hold S(p) (R18 a), whether the lock is this run's
-    (R18 c).
-11. `finally`: `restoreFromLock` from the in-memory record; failed: exit 3.
+    spawn. When they end: which paths do not hold S(p) (R18 a; only after a revert that
+    completed, since a stopped one leaves paths at H by design), whether the lock is this run's
+    (R18 c; after a stopped revert too).
+11. `finally`: `restoreFromLock` from the in-memory record; failed: exit 3, the lock written again
+    when it is gone, and R18's line with (a) and (c) only, since no git runs while the lock is held.
 12. After the lock is gone (git again): HEAD (R18 b) and the branch it is on against the lock's
     `branch` (R19), `git status --porcelain=v1 -z --untracked-files=no` outside the store
     directory (R18 d), K1 against K0 (R18 e), untracked entries against step 5 (R19). Print the

@@ -1,13 +1,14 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { execFileSync, spawn, type ChildProcess } from "node:child_process";
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { dirname, join, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { revertSet, type RevertSet } from "../src/mutation.ts";
 import { acquireLock, prepareRun, type Lock } from "../src/mutation-lock.ts";
+import { runMutation } from "../src/mutation-run.ts";
 import type { Store } from "../src/paths.ts";
 import { item, sandbox, state, type Sandbox } from "./helpers.ts";
 
@@ -254,3 +255,41 @@ export async function withRunRepo(
 
 /** How many times the check script ran. */
 export const runs = (r: RunRepo): number => (existsSync(r.log) ? readFileSync(r.log, "utf8").split("\n").filter((l) => l !== "").length : 0);
+
+const CHECKOUT = realpathSync(join(dirname(fileURLToPath(import.meta.url)), ".."));
+
+/** A run's store is a sandbox, never this checkout or anything under it. */
+export function outsideCheckout(root: string): void {
+  const real = realpathSync(root);
+  assert.ok(real !== CHECKOUT && !real.startsWith(`${CHECKOUT}${sep}`), `the sandbox ${real} is inside the checkout`);
+}
+
+export interface Mutated {
+  readonly code: number;
+  readonly lines: readonly string[];
+  readonly text: string;
+  /** The final line. */
+  readonly last: string;
+}
+
+/** `runMutation` in this process on the sandbox, its lines collected. */
+export async function mutate(r: RunRepo, options: { timeoutMs?: number; step?: (name: string) => void } = {}): Promise<Mutated> {
+  outsideCheckout(r.root);
+  const lines: string[] = [];
+  const code = await runMutation(r.store, {
+    timeoutMs: options.timeoutMs ?? 60_000,
+    out: (line) => lines.push(line),
+    ...(options.step === undefined ? {} : { step: options.step }),
+  });
+  return { code, lines, text: lines.join("\n"), last: lines[lines.length - 1] ?? "" };
+}
+
+/** A step callback that runs `act` once, at the first step named `at`. */
+export function once(at: string, act: () => void): (name: string) => void {
+  let done = false;
+  return (name) => {
+    if (done || name !== at) return;
+    done = true;
+    act();
+  };
+}

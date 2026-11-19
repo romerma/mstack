@@ -1,10 +1,10 @@
 import { constants } from "node:os";
 
-import { headSha } from "./git.ts";
+import { git, headSha } from "./git.ts";
 import { isActive } from "./lifecycle.ts";
-import { mutationKey, refusals, revertSet, type MutationKey } from "./mutation.ts";
-import { acquireLock, discard, errorText, lockPath, prepareRun, restoreCommand, sweepStale, type Lock } from "./mutation-lock.ts";
-import { applyRevert, restoreFromLock, type Restored } from "./mutation-tree.ts";
+import { mutationKey, refusals, revertSet, trackedChanges, type MutationKey } from "./mutation.ts";
+import { acquireLock, discard, errorText, lockPath, prepareRun, readLock, restoreCommand, sweepStale, type Lock } from "./mutation-lock.ts";
+import { applyRevert, entryAt, holds, restoreFromLock, shellWord, type Restored } from "./mutation-tree.ts";
 import { runningCliRoot, type Store } from "./paths.ts";
 import { runCommandAsync, type RunResult } from "./run.ts";
 import { measureStart, resolveCommit } from "./size.ts";
@@ -101,6 +101,53 @@ export function reportRestore(out: (line: string) => void, restored: Restored): 
   if (restored.failed.some((f) => /\bgit (stash|restore)\b/.test(f.fix))) {
     out("mutation: the git commands above are for a person at a terminal: while the lock exists, the hook denies them to an agent");
   }
+}
+
+/** R18 (a): the lock's paths that do not hold the start's content by exact name (where the start lacks one, something resolves there). */
+function pathsNotAtStart(root: string, lock: Lock): string[] {
+  const listings = new Map<string, string[]>();
+  return lock.entries
+    .filter((e) => {
+      try {
+        const at = entryAt(root, e.path, listings);
+        return e.start === null ? !(at.kind === "absent" && at.variant === null) : !holds(at, e.start);
+      } catch {
+        return true;
+      }
+    })
+    .map((e) => e.path);
+}
+
+/** R18 (c): what is at the lock's name, when it is not this run's lock. */
+function lockNotOurs(store: Store, lock: Lock): string | null {
+  const held = readLock(store);
+  if (held === null) return "the lock file was gone";
+  if ("damaged" in held) return "the lock file was replaced by one that cannot be read";
+  return held.lock.run === lock.run ? null : `the lock file names another run, ${String(held.lock.run)}`;
+}
+
+const changedLine = (held: readonly string[]): string => `mutation-blocked: the tree changed under the run, so no row was written: ${held.join("; ")}`;
+
+/** R19: HEAD moved during the run; how to put it back, as the user's option, with the working tree kept. */
+function headMoved(store: Store, lock: Lock, now: string): string[] {
+  const lines = [`mutation: HEAD moved during the run, from ${short(lock.head)} to ${short(now)}`];
+  const branch = git(store, ["symbolic-ref", "--quiet", "--short", "HEAD"]);
+  const reset = `git reset ${lock.head} moves ${lock.branch ?? "it"} back and keeps the working tree (the commit stays in the reflog)`;
+  if (lock.branch === null) {
+    lines.push(`mutation: to put HEAD back where the run found it: git switch --detach ${lock.head}`);
+  } else if (branch === lock.branch) {
+    lines.push(`mutation: if you want it: ${reset}`);
+  } else {
+    const tip = git(store, ["rev-parse", "--verify", "--quiet", `refs/heads/${lock.branch}`]);
+    lines.push(`mutation: HEAD is ${branch === null ? "detached" : `on ${branch}`}, not on ${lock.branch}: git switch ${lock.branch} first${tip === lock.head ? "" : `, then, if you want it: ${reset}`}`);
+  }
+  return lines;
+}
+
+/** The untracked entries that are not ignored, outside every store directory, relative to the top; null when git cannot answer. */
+function untrackedNow(store: Store): Set<string> | null {
+  const out = git(store, ["ls-files", "--others", "--exclude-standard", "-z", "--full-name", "--", ":(top)", ":(exclude,top,glob)**/.mstack/**"], { raw: true });
+  return out === null ? null : new Set(out.split("\0").filter((p) => p !== ""));
 }
 
 type Ending =
@@ -204,6 +251,8 @@ export async function runMutation(store: Store, options: MutationOptions): Promi
     }
   }
 
+  // What is untracked now: an entry that is new after the run is reported as left in place (R19).
+  const untracked0 = untrackedNow(store) ?? new Set<string>();
   const prepared = prepareRun(store, from, set);
   if (!prepared.ok) {
     return refuse(out, prepared.reason, prepared.path === null ? "nothing was changed; clear the cause and run it again" : "make that content readable (the filter runnable, the object fetched) and run it again; nothing was changed");
@@ -228,6 +277,7 @@ export async function runMutation(store: Store, options: MutationOptions): Promi
 
   let ending: Ending;
   let entries: readonly number[] | undefined;
+  let revertDone = false;
   try {
     out(`mutation: reverting ${lock.entries.length} file(s)`);
     const reverted = applyRevert(store, lock, step);
@@ -235,6 +285,7 @@ export async function runMutation(store: Store, options: MutationOptions): Promi
       entries = reverted.written;
       ending = { kind: "blocked", reason: `the revert stopped at ${reverted.path}: ${reverted.reason}; no command ran` };
     } else {
+      revertDone = true;
       ending = { kind: "survived" };
       for (const c of commands) {
         out(`mutation: running \`${c.command}\` on the reverted tree`);
@@ -253,21 +304,64 @@ export async function runMutation(store: Store, options: MutationOptions): Promi
     ending = { kind: "blocked", reason: `the run stopped: ${errorText(error)}` };
   }
 
+  // R18 (a) and (c), read before the restore and with no child process: what the reverted tree holds now, and whose lock is at the name.
+  const held: string[] = [];
+  const notAtStart = revertDone ? pathsNotAtStart(store.root, lock) : [];
+  if (notAtStart.length > 0) held.push(`(a) not at the start's content when the commands ended: ${some(notAtStart)}`);
+  const lockSaid = lockNotOurs(store, lock);
+  if (lockSaid !== null) held.push(`(c) ${lockSaid}`);
+
   const restored = restore(store, lock, entries, step);
   reportRestore(out, restored);
   if (restored.failed.length > 0) {
+    // R15: the lock is what keeps the tree from being taken for the item's code; a vanished one is written again.
+    if (readLock(store) === null) {
+      const again = acquireLock(store, lock);
+      out(again.ok ? "mutation: the lock file was gone, so it was written again from the run's record" : `mutation: the lock file was gone and could not be written again: ${again.reason}`);
+    }
     out(`mutation: the lock stays; once each path above is cleared: ${restoreCommand(lock.cli)}`);
+    if (held.length > 0) out(changedLine(held));
     return 3;
   }
   out(`mutation: restored ${restored.restored}, tree verified, lock removed`);
 
-  const k1 = mutationKey(store, from);
-  const outcome: MutationOutcome = ending.kind === "killed" ? "mutation-killed" : ending.kind === "survived" ? "mutation-survived" : "mutation-blocked";
-  if (k1.key === null) {
-    out(`mutation: no row was written: ${k1.reason}`);
-  } else {
-    recordMutation(store, { target: item.slug, sha: lock.head, command: joined, outcome, tree: `mutation:${k1.key}` });
+  // The lock is gone, so git may run again: R18 (b), (d) and (e), and the report of R19, which names no cause.
+  const head1 = headSha(store);
+  if (head1 === null) held.push("(b) git could not read HEAD after the run");
+  else if (head1 !== lock.head) {
+    held.push(`(b) HEAD is ${short(head1)}, not the lock's ${short(lock.head)}`);
+    for (const line of headMoved(store, lock, head1)) out(line);
   }
+  const changes = trackedChanges(store);
+  if (changes === null) held.push("(d) git could not say whether tracked files changed");
+  else if (changes.length > 0) {
+    held.push(`(d) differs from HEAD after the restore: ${some(changes.map((c) => (c.staged ? `${c.path} (staged)` : c.path)))}`);
+    for (const c of changes) {
+      const p = shellWord(c.path);
+      out(
+        c.staged
+          ? `mutation: staged during the run: ${c.path}: git diff --cached -- ${p} shows it, and git restore --staged -- ${p} discards that staged version`
+          : `mutation: changed during the run: ${c.path}: git diff -- ${p}`,
+      );
+    }
+  }
+  const k1 = mutationKey(store, from);
+  if (k1.key === null) held.push(`(e) the key could not be computed after the run: ${k1.reason}`);
+  else if (k1.key !== k0.key) {
+    const changed = keyChanges(k0, k1);
+    const untracked = changed.some((p) => (k1.lines.get(p) ?? k0.lines.get(p) ?? "").split("\0")[1] === "untracked");
+    held.push(`(e) the code and test files differ from before the run: ${some(changed)}${untracked ? "; a file that is generated belongs in .gitignore" : ""}`);
+  }
+  for (const p of [...(untrackedNow(store) ?? [])].filter((x) => !untracked0.has(x)).sort()) {
+    out(`mutation: left in place: ${p} (git status --short -- ${shellWord(p)})`);
+  }
+  if (held.length > 0) {
+    out(changedLine(held));
+    return 2;
+  }
+
+  const outcome: MutationOutcome = ending.kind === "killed" ? "mutation-killed" : ending.kind === "survived" ? "mutation-survived" : "mutation-blocked";
+  recordMutation(store, { target: item.slug, sha: lock.head, command: joined, outcome, tree: `mutation:${k1.key as string}` });
   switch (ending.kind) {
     case "killed":
       printTail(out, ending.command, ending.result.tail);
