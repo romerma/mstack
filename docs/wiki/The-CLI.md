@@ -713,8 +713,9 @@ the full behaviour are in [Status-Line](Status-Line.md).
 `verify --mutation` asks whether the item's tests notice its code. It reverts the code part of
 the item's diff in your working tree, in place: every tracked code path whose content or mode
 differs between the item's start (its base, or the fork point from the default branch) and
-HEAD. Tests, docs, the store and untracked files are never touched. It then runs the item's
-verification on that tree, puts the tree back, proves it path by path, and appends one row to
+HEAD. Tests, docs, the store and untracked files are never touched. It then runs what `gate
+--full` runs (the project's `verify` and the item's `verification`) on that tree, puts the tree
+back, proves it path by path, and appends one row to
 `.mstack/verification.tsv`. `verify --restore` puts back the tree of a run that died.
 
 ```
