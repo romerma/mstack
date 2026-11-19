@@ -22,8 +22,10 @@ requirements it covers (`agents/implementer.md`, "Your report").
   not`, `R21 a new code or test file changes the key`, `R21 committing an untracked test file
   changes the key`, `R21 an executable bit changes the key`, `R21 a docs or store commit does not
   change the key`, `R21 a rebase that changes no code or test path keeps the key`, `R21 a store in
-  a subdirectory has a key that a test edit changes`. Done when `bun test
-  tests/mutation-set.test.ts` ends ` 11 pass` and ` 0 fail`, `bun test tests/item-size-base.test.ts
+  a subdirectory has a key that a test edit changes`, `R21 a key path that holds a newline makes the
+  key null, with its reason` and `R21 the key is null, with its reason, when git cannot list the
+  changed or the untracked files` (both added in round 1, for mutants no named test killed). Done
+  when `bun test tests/mutation-set.test.ts` ends ` 13 pass` and ` 0 fail`, `bun test tests/item-size-base.test.ts
   tests/gate.test.ts` ends ` 0 fail` (the size check is unchanged), and the node command for
   `tests/mutation-set.test.ts` prints `# fail 0`. (covers R9, R10, R21)
 
@@ -43,8 +45,10 @@ requirements it covers (`agents/implementer.md`, "Your report").
   root as `running`, then a directory outside it), `R2 a skip-worktree file is refused, naming the
   flag and the command that clears it`, `R2 an assume-unchanged file is refused, naming the flag
   and the command that clears it` and `R2 a flagged file under the store directory is not refused`
-  (the three added in round 1, for B2). Done when `bun test
-  tests/mutation-refusals.test.ts` ends ` 19 pass` (or fewer passes plus skips, on a case-sensitive
+  (the three added in round 1, for B2), `R2 at most ten paths are named, then how many more` and
+  `R1 an operation in progress in a linked worktree refuses there and not in the main worktree`
+  (both added in round 1, for mutants no named test killed). Done when `bun test
+  tests/mutation-refusals.test.ts` ends ` 21 pass` (or fewer passes plus skips, on a case-sensitive
   filesystem) and ` 0 fail`, and the node command prints `# fail 0`. (covers R1, R2, R5)
 
 - [x] 1.3 In `src/mutation.ts`, add to `refusals` the shapes of R3 (modes, the file/directory

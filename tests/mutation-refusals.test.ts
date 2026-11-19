@@ -353,3 +353,44 @@ test("R2 a flagged file under the store directory is not refused", () => {
     assert.equal(refuse(box, st, it), null);
   });
 });
+
+// Here and not at the top, so that the lines of the tests above stay where the reports cite them.
+import { storeAt } from "../src/paths.ts";
+
+test("R2 at most ten paths are named, then how many more", () => {
+  withBox((box) => {
+    const root = box.store.root;
+    const names = Array.from({ length: 12 }, (_, i) => `src/f${String(i).padStart(2, "0")}.ts`);
+    for (const n of names) put(root, n, "start\n");
+    const start = started(box);
+    for (const n of names) put(root, n, "head\n");
+    commitAll(root, "the item");
+    for (const n of names) put(root, n, "an uncommitted edit\n");
+    const { st, it } = active(start);
+    const r = refused(refuse(box, st, it), /uncommitted changes/);
+    assert.match(r.message, /src\/f09\.ts and 2 more$/);
+    assert.doesNotMatch(r.message, /src\/f1[01]\.ts/);
+  });
+});
+
+test("R1 an operation in progress in a linked worktree refuses there and not in the main worktree", () => {
+  withBox((box) => {
+    const root = box.store.root;
+    const start = started(box);
+    put(root, "src/a.ts", "a2\n");
+    commitAll(root, "the item");
+    const wt = mkdtempSync(join(tmpdir(), "mstack-wt-"));
+    try {
+      git(root, "worktree", "add", "-q", "-b", "wt", wt);
+      const rebase = git(wt, "rev-parse", "--path-format=absolute", "--git-path", "rebase-merge");
+      assert.match(rebase, /\/worktrees\/[^/]+\/rebase-merge$/);
+      mkdirSync(rebase);
+      const { st, it } = active(start);
+      refused(refusals(storeAt(wt), st, it, "/nonexistent-mstack-copy"), /a rebase is in progress/);
+      assert.equal(refuse(box, st, it, "/nonexistent-mstack-copy"), null, "the main worktree is refused by the linked one's rebase");
+    } finally {
+      execFileSync("git", ["worktree", "remove", "--force", wt], { cwd: root, stdio: "ignore" });
+      rmSync(wt, { recursive: true, force: true });
+    }
+  });
+});

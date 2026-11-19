@@ -291,3 +291,44 @@ test("R21 a store in a subdirectory has a key that a test edit changes", () => {
     assert.notEqual(keyOf(store, start), k);
   });
 });
+
+test("R21 a key path that holds a newline makes the key null, with its reason", () => {
+  withBox((box) => {
+    const root = box.store.root;
+    put(root, "src/a.ts", "a\n");
+    const start = commitAll(root, "start");
+    put(root, "tests/odd\nname.test.ts", "t\n");
+    const k = mutationKey(box.store, start);
+    assert.equal(k.key, null);
+    assert.match("reason" in k ? k.reason : "", /tests\/odd\\nname\.test\.ts.*newline/);
+  });
+});
+
+test("R21 the key is null, with its reason, when git cannot list the changed or the untracked files", () => {
+  withBox((box) => {
+    const root = box.store.root;
+    put(root, "src/a.ts", "a\n");
+    const start = commitAll(root, "start");
+    put(root, "src/a.ts", "a2\n");
+    put(root, "tests/new.test.ts", "t\n");
+    keyOf(box.store, start);
+    // A git on PATH that fails one subcommand and runs the real git for every other.
+    const real = execFileSync("sh", ["-c", "command -v git"], { encoding: "utf8" }).trim();
+    const bin = join(root, ".git", "mstack-fake-bin");
+    mkdirSync(bin);
+    const saved = process.env["PATH"];
+    try {
+      for (const failing of ["diff", "ls-files"]) {
+        writeFileSync(join(bin, "git"), `#!/bin/sh\nif [ "$1" = ${failing} ]; then exit 1; fi\nexec '${real}' "$@"\n`);
+        chmodSync(join(bin, "git"), 0o755);
+        process.env["PATH"] = `${bin}:${saved ?? ""}`;
+        const k = mutationKey(box.store, start);
+        process.env["PATH"] = saved;
+        assert.equal(k.key, null, `git ${failing} failed and the key is ${JSON.stringify(k)}`);
+        assert.match("reason" in k ? k.reason : "", /git could not list/);
+      }
+    } finally {
+      process.env["PATH"] = saved;
+    }
+  });
+});
