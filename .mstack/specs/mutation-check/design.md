@@ -509,6 +509,11 @@ review, NB9); `F_FULLFSYNC` on macOS is not established (walk).
 Neither keeps the lock, and neither is reached without another process writing the same path at
 the same instant.
 
+A signal that arrives during the final row write, after the last check, is not acted on: the row
+is written and the exit is the outcome's (round 2 review, non-blocking 4, both runtimes), and the
+row is still earned, because by then the restore is proved, R18 (a) to (e) have been read and
+nothing of the run is left reverted.
+
 ## What item 100 needs from this spec
 
 - The row carries what B3's rule C' reads: the item's slug, `sha` (the commit the obligations ran
