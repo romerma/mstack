@@ -195,6 +195,14 @@ test("A1 every printed restore line runs as printed when the CLI's path and the 
     const again = captureOf(await killedRun(o), /^mutation: if this process dies: (.+)$/m, "the second run");
     assert.equal(again, fromRun);
     repairs(o, again, o.a);
+
+    // Third run, its CLI gone since: the gate names the running CLI as well, and that line runs.
+    await killedRun(o);
+    const lock = JSON.parse(readFileSync(o.lockFile, "utf8")) as Record<string, unknown>;
+    writeFileSync(o.lockFile, `${JSON.stringify({ ...lock, cli: join(o.base, `gone ${ODD}`, "bin", "mstack") }, null, 2)}\n`);
+    const gone = captureOf(run(o.cli, o.a, ["gate", "--quiet"]).all, /mstack-mutation\.lock[^\n]* -> run [^\n]* \(that file is gone\), or (.+)$/m, "A's gate, the CLI gone");
+    assert.equal(gone, fromRun);
+    repairs(o, gone, o.a);
   } finally {
     killAll(o.marker);
     rmSync(o.base, { recursive: true, force: true });
