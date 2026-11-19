@@ -116,7 +116,11 @@ path under `realpath(running)`).
 dropped after every write the pass makes) must list the component exactly, and each non-last
 component must `lstat` as a directory. It returns `absent`, `file` (SHA-256 and `st_mode &
 0o7777`), `dir`, `symlink` or `other`; for `absent` it also returns the name on disk of a variant,
-found by matching `lstat(p).ino` among the parent's entries. `spec42r3/name-exp`, node and bun: a
+found by matching `lstat(p).ino` among the parent's entries; and `parent` when a parent is a
+symlink, not a directory, or a directory under another name (with that name on disk, for R2's
+message and R15's `mv`). A `file` is hashed through one descriptor opened `O_NOFOLLOW |
+O_NONBLOCK`, and its stat is that descriptor's `fstat`, taken before the bytes are read: the
+revert's and the restore's re-check compare against what was judged. `spec42r3/name-exp`, node and bun: a
 user's `Foo.ts` where the lock says `foo.ts` is absent by exact name though `lstat` resolves it,
 `rename(tmp, "foo.ts")` then destroys its content (b), and moving it by its name on disk into a
 rescue directory first keeps both (c); an NFD name on disk is absent under its NFC spelling (d).

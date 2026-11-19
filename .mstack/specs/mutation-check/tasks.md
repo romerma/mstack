@@ -84,7 +84,7 @@ requirements it covers (`agents/implementer.md`, "Your report").
   `bun test tests/mutation-lock.test.ts` ends ` 12 pass` and ` 0 fail`, and the node command prints
   `# fail 0`. (covers R1, R8, R9, R23, R24)
 
-- [ ] 2.2 Create `src/mutation-tree.ts` with `entryAt(root, path)` (design.md "Exact names") and
+- [x] 2.2 Create `src/mutation-tree.ts` with `entryAt(root, path)` (design.md "Exact names") and
   `applyRevert(store, lock, step?)` (design.md "Revert"), returning `{ ok: true }` or `{ ok: false,
   path, reason, written }`. Tests in a new `tests/mutation-revert.test.ts`, each reading the tree right after
   `applyRevert` returns: `R9 added, deleted, modified and renamed`, `R9 binary bytes and the

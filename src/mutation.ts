@@ -1,9 +1,10 @@
 import { createHash } from "node:crypto";
-import { existsSync, lstatSync, readdirSync, readlinkSync, realpathSync } from "node:fs";
+import { existsSync, lstatSync, readlinkSync, realpathSync } from "node:fs";
 import { basename, dirname, join, resolve, sep } from "node:path";
 
 import { git, gitBytes } from "./git.ts";
 import { liveness, lockPath, readLock } from "./mutation-lock.ts";
+import { entryAt, type Entry } from "./mutation-tree.ts";
 import { runningCliRoot, STORE_DIR, type Store } from "./paths.ts";
 import { measureStart, resolveCommit, scopeClass } from "./size.ts";
 import type { Item, State } from "./state.ts";
@@ -398,81 +399,34 @@ function dirtyTracked(store: Store): string[] | null {
   return paths;
 }
 
-/** The name on disk of the entry at `absolute`, found by inode among its directory's entries; null when there is none. */
-function nameOnDisk(absolute: string): string | null {
-  try {
-    const ino = lstatSync(absolute).ino;
-    const dir = dirname(absolute);
-    return readdirSync(dir).find((name) => lstatSync(join(dir, name)).ino === ino) ?? null;
-  } catch {
-    return null;
-  }
-}
-
-/** True when the directory `dir` lists `name` under exactly that name. */
-function listsExactly(dir: string, name: string): boolean {
-  try {
-    return readdirSync(dir).includes(name);
-  } catch {
-    return false;
-  }
-}
-
 /**
  * Entries of the working tree that the revert would have to write through or
- * over, by exact name (no case folding, no Unicode normalisation): a parent
- * directory that is a symlink, not a directory, or there under another name;
- * anything at a path the start has and HEAD lacks; a path HEAD has that is not
- * there under git's name.
+ * over, by exact name (`entryAt`: no case folding, no Unicode normalisation):
+ * a parent directory that is a symlink, not a directory, or there under
+ * another name; anything at a path the start has and HEAD lacks; a path HEAD
+ * has that is not there under git's name.
  */
 function inTheWay(root: string, entries: readonly RevertEntry[]): { path: string; why: string }[] {
   const found = new Map<string, string>();
-  const parentOk = new Map<string, boolean>();
+  // One pass, no writes: each directory is listed once.
+  const listings = new Map<string, string[]>();
   for (const entry of entries) {
-    const parts = entry.path.split("/");
-    let ok = true;
-    for (let i = 1; i < parts.length && ok; i++) {
-      const dir = parts.slice(0, i).join("/");
-      const known = parentOk.get(dir);
-      if (known !== undefined) {
-        ok = known;
-        continue;
-      }
-      const absolute = join(root, dir);
-      let stat;
-      try {
-        stat = lstatSync(absolute);
-      } catch {
-        // Absent with nothing resolving there: the revert makes it, and every deeper one.
-        parentOk.set(dir, true);
-        break;
-      }
-      let why: string | null = null;
-      if (stat.isSymbolicLink()) why = "a symlink where a parent directory goes";
-      else if (!stat.isDirectory()) why = "not a directory, where a parent directory goes";
-      else if (!listsExactly(dirname(absolute), basename(absolute))) why = `on disk as ${join(dirname(dir), nameOnDisk(absolute) ?? "?")}`;
-      parentOk.set(dir, why === null);
-      if (why !== null) {
-        found.set(dir, why);
-        ok = false;
-      }
+    let at: Entry;
+    try {
+      at = entryAt(root, entry.path, listings);
+    } catch (error) {
+      found.set(entry.path, (error as NodeJS.ErrnoException).code ?? "cannot be read");
+      continue;
     }
-    if (!ok) continue;
-    const absolute = join(root, entry.path);
-    if (entry.headMode === "000000") {
-      try {
-        lstatSync(absolute);
-      } catch (error) {
-        if ((error as NodeJS.ErrnoException).code === "ENOENT") continue;
-        found.set(entry.path, (error as NodeJS.ErrnoException).code ?? "cannot be read");
-        continue;
-      }
-      const name = nameOnDisk(absolute);
-      const there = name === null || name === basename(entry.path) ? "something is there" : `${join(dirname(entry.path), name)} is there`;
+    if (at.kind === "parent") {
+      const why = { symlink: "a symlink where a parent directory goes", "not a directory": "not a directory, where a parent directory goes", "another name": `on disk as ${at.onDisk ?? "?"}` }[at.why];
+      found.set(at.parent, why);
+    } else if (entry.headMode === "000000") {
+      if (at.kind === "absent" && at.variant === null) continue;
+      const there = at.kind === "absent" && at.variant !== entry.path ? `${at.variant} is there` : "something is there";
       found.set(entry.path, `${there}, where the revert puts the start's file back`);
-    } else if (!listsExactly(dirname(absolute), basename(absolute))) {
-      const name = nameOnDisk(absolute);
-      found.set(entry.path, name === null ? "not on disk" : `on disk as ${join(dirname(entry.path), name)}`);
+    } else if (at.kind === "absent") {
+      found.set(entry.path, at.variant === null ? "not on disk" : `on disk as ${at.variant}`);
     }
   }
   return [...found].map(([path, why]) => ({ path, why }));
