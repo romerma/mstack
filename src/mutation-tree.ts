@@ -397,8 +397,10 @@ export function restoreFromLock(store: Store, lock: Lock, options: RestoreOption
   const only = options.entries === undefined ? null : new Set(options.entries);
   const chosen = lock.entries.filter((e) => only === null || only.has(e.n));
 
+  // The directories the restore renamed into, moved from or unlinked from: fsynced before the lock goes.
+  const wrote = new Set<string>();
   for (const e of chosen.filter((x) => x.head === null).sort(deepestFirst)) {
-    removeStart(root, e, out, fail);
+    removeStart(root, e, out, fail, wrote);
     step(`restored:${e.n}`);
   }
   for (const d of [...lock.createdDirs].reverse()) {
@@ -415,7 +417,7 @@ export function restoreFromLock(store: Store, lock: Lock, options: RestoreOption
       if (codeOf(error) !== "ENOENT") out.left.push(d);
     }
   }
-  const ctx: PutBack = { root, run, rename, step, out, fail };
+  const ctx: PutBack = { root, run, rename, step, out, fail, wrote };
   for (const e of chosen.filter((x) => x.head !== null).sort(shallowestFirst)) {
     putBack(ctx, e);
     step(`restored:${e.n}`);
@@ -435,6 +437,13 @@ export function restoreFromLock(store: Store, lock: Lock, options: RestoreOption
   }
   if (out.failed.length > 0) return out;
 
+  for (const d of wrote) {
+    try {
+      fsyncDirectory(d);
+    } catch {
+      // Best effort, as the fsync after the unlink below: every path has been proved already.
+    }
+  }
   // Only this run's lock goes: one that another run took after this one's was deleted stays, and so does one that cannot be read.
   const onDisk = readLock(store);
   if (onDisk !== null && "lock" in onDisk && onDisk.lock.run === lock.run) {
@@ -500,7 +509,7 @@ function sweepTemps(root: string, e: LockEntry, fail: (path: string, reason: str
 }
 
 /** An entry HEAD lacks: unlink it where it holds S; leave and report anything else. */
-function removeStart(root: string, e: LockEntry, out: Restored, fail: (path: string, reason: string, fix: string) => void): void {
+function removeStart(root: string, e: LockEntry, out: Restored, fail: (path: string, reason: string, fix: string) => void, wrote: Set<string>): void {
   let at: Entry;
   try {
     at = entryAt(root, e.path);
@@ -511,6 +520,7 @@ function removeStart(root: string, e: LockEntry, out: Restored, fail: (path: str
   if (holds(at, e.start)) {
     try {
       unlinkSync(join(root, e.path));
+      wrote.add(dirname(join(root, e.path)));
       out.restored += 1;
     } catch (error) {
       fail(e.path, errorText(error), fixFor(error, e.path));
@@ -528,6 +538,8 @@ interface PutBack {
   readonly step: (name: string) => void;
   readonly out: Restored;
   readonly fail: (path: string, reason: string, fix: string) => void;
+  /** The directories renamed into, moved from or unlinked from. */
+  readonly wrote: Set<string>;
 }
 
 function parentFix(at: Extract<Entry, { kind: "parent" }>): string {
@@ -585,6 +597,7 @@ function putBack(ctx: PutBack, e: LockEntry): void {
     }
     try {
       ctx.rename(tmp, absolute);
+      ctx.wrote.add(dirname(absolute));
       out.restored += 1;
     } catch (error) {
       rmSync(tmp, { force: true });
@@ -615,13 +628,15 @@ function rescue(ctx: PutBack, e: LockEntry, source: string): void {
       ctx.rename(join(ctx.root, source), target);
     } catch (error) {
       if (codeOf(error) !== "EXDEV") throw error;
-      copyAcross(join(ctx.root, source), target);
+      copyAcross(join(ctx.root, source), target, ctx.run);
     }
   } catch (error) {
     // Nothing of the entry is in it: the move failed, or the copy was not complete when the source was kept.
     rmSync(dir, { recursive: true, force: true });
     throw error;
   }
+  ctx.wrote.add(dirname(join(ctx.root, source)));
+  ctx.wrote.add(dirname(target));
   ctx.out.rescued.push({ path: source, to: target });
   ctx.step(`rescued:${e.n}`);
 }
@@ -643,10 +658,11 @@ function digest(file: string): string {
  * unlinked; a symlink is made again from its target and unlinked; anything
  * else is left where it is, and the rescue fails.
  */
-function copyAcross(from: string, to: string): void {
+function copyAcross(from: string, to: string, top: string): void {
   const st = lstatSync(from);
   if (st.isSymbolicLink()) {
     symlinkSync(readlinkSync(from), to);
+    fsyncUp(dirname(to), top);
     unlinkSync(from);
     return;
   }
@@ -666,5 +682,14 @@ function copyAcross(from: string, to: string): void {
     closeSync(src);
   }
   if (digest(from) !== digest(to)) throw new Error(`the copy of ${from} differs from it, so it was left where it is`);
+  fsyncUp(dirname(to), top);
   unlinkSync(from);
+}
+
+/** fsync `dir` and each parent up to `top`: the copy's name, and every directory made for it, are on disk before the source goes. */
+function fsyncUp(dir: string, top: string): void {
+  for (let d = dir; ; d = dirname(d)) {
+    fsyncDirectory(d);
+    if (d === top || dirname(d) === d) return;
+  }
 }

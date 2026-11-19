@@ -410,8 +410,11 @@ experiment named is the one the row rests on.
 | Lock removed, before the row | as before the run | none | none; no row |
 
 A power cut adds only ordering: every staged copy and the lock are fsynced, with their directory,
-before the first tree write, and each temp file before its rename; `F_FULLFSYNC` on macOS is not
-established (walk).
+before the first tree write, and each temp file before its rename; an EXDEV rescue fsyncs its
+copy's directory, and each directory made for it up to the run directory, before it unlinks the
+source; the restore fsyncs every directory it renamed into, moved from or unlinked from before it
+unlinks the lock (best effort, as the fsync after the unlink: every path is proved by then; round 1
+review, NB9); `F_FULLFSYNC` on macOS is not established (walk).
 
 **Someone else during the run**
 

@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { chmodSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
-import { join, sep } from "node:path";
+import { dirname, join, sep } from "node:path";
 
 import { readLock, type Lock } from "../src/mutation-lock.ts";
 import { applyRevert, restoreFromLock, type Restored } from "../src/mutation-tree.ts";
@@ -597,4 +597,77 @@ test("R10 the restore lists and removes nothing through a symlinked parent", () 
       assert.ok(existsSync(lockFileOf(r)), "the lock went with a path not restored");
     },
   );
+});
+
+// Node only: bun does not rebind node:fs's named exports. Bun also ignores the `skip` option of
+// node:test, so the function is chosen, as tests/walkthrough.test.ts does.
+const nodeOnly = typeof (globalThis as { Bun?: unknown }).Bun === "undefined" ? test : test.skip;
+
+/**
+ * The fsyncs and unlinks `body` makes, in order: `fsync <path>` and `unlink <path>`. Node's
+ * `syncBuiltinESMExports` rebinds the named `node:fs` imports of every module, so the code under
+ * test calls the recording functions.
+ */
+async function fsyncsAndUnlinks(body: () => void): Promise<string[]> {
+  const { createRequire, syncBuiltinESMExports } = await import("node:module");
+  const fs = createRequire(import.meta.url)("node:fs") as typeof import("node:fs");
+  const saved = { openSync: fs.openSync, fsyncSync: fs.fsyncSync, unlinkSync: fs.unlinkSync };
+  const opened = new Map<number, string>();
+  const events: string[] = [];
+  Object.assign(fs, {
+    openSync: (path: string, ...rest: unknown[]): number => {
+      const fd = (saved.openSync as (...a: unknown[]) => number)(path, ...rest);
+      opened.set(fd, String(path));
+      return fd;
+    },
+    fsyncSync: (fd: number): void => {
+      events.push(`fsync ${opened.get(fd) ?? fd}`);
+      saved.fsyncSync(fd);
+    },
+    unlinkSync: (path: string): void => {
+      events.push(`unlink ${path}`);
+      saved.unlinkSync(path);
+    },
+  });
+  syncBuiltinESMExports();
+  try {
+    body();
+  } finally {
+    Object.assign(fs, saved);
+    syncBuiltinESMExports();
+  }
+  return events;
+}
+
+nodeOnly("R14 the copy fallback fsyncs its copy's directory before it unlinks the source", async () => {
+  await withRepoAsync(twoFiles, editBoth, async (r) => {
+    const lock = reverted(r);
+    writeFileSync(join(r.root, "src/a.ts"), "an edit on its way to another filesystem\n");
+    const crossDevice = (from: string, to: string): void => {
+      if (to.includes(`${sep}rescue${sep}`)) throw Object.assign(new Error("EXDEV: cross-device link not permitted"), { code: "EXDEV" });
+      renameSync(from, to);
+    };
+    let result: Restored | undefined;
+    const events = await fsyncsAndUnlinks(() => {
+      result = restoreFromLock(r.store, lock, { rename: crossDevice });
+    });
+    assert.ok(result !== undefined);
+    clean(result);
+    const to = result.rescued[0]?.to as string;
+    const unlinked = events.indexOf(`unlink ${join(r.root, "src/a.ts")}`);
+    const synced = events.indexOf(`fsync ${dirname(to)}`);
+    assert.ok(unlinked >= 0, JSON.stringify(events));
+    assert.ok(synced >= 0 && synced < unlinked, `the copy's directory was not fsynced before the source was unlinked: ${JSON.stringify(events)}`);
+  });
+});
+
+nodeOnly("R13 the restore fsyncs the directories it wrote before it unlinks the lock", async () => {
+  await withRepoAsync(twoFiles, editBoth, async (r) => {
+    const lock = reverted(r);
+    const events = await fsyncsAndUnlinks(() => clean(restoreFromLock(r.store, lock)));
+    const unlocked = events.findIndex((e) => e.startsWith("unlink ") && e.endsWith(`${sep}mstack-mutation.lock`));
+    const synced = events.indexOf(`fsync ${join(r.root, "src")}`);
+    assert.ok(unlocked >= 0, JSON.stringify(events));
+    assert.ok(synced >= 0 && synced < unlocked, `src/ was not fsynced before the lock was unlinked: ${JSON.stringify(events)}`);
+  });
 });

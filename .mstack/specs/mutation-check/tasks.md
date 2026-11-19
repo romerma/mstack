@@ -150,10 +150,13 @@ requirements it covers (`agents/implementer.md`, "Your report").
   mutants no named test killed), `R24 the restore checks the lock itself, and writes nothing for one
   that fails the check` (added in round 1, for NB4), `R13 the restore leaves a lock that another
   run wrote` (added in round 1, for NB6), `R10 the restore lists and removes nothing through a
-  symlinked parent` (added in round 1, for NB8). Done when `bun test
-  tests/mutation-restore.test.ts` ends ` 26 pass` (or fewer passes plus two skips, on a
-  case-sensitive filesystem) and ` 0 fail`,
-  and the node command prints `# fail 0`. (covers R10, R13, R14, R15, R17, R22, R24)
+  symlinked parent` (added in round 1, for NB8), `R14 the copy fallback fsyncs its copy's
+  directory before it unlinks the source` and `R13 the restore fsyncs the directories it wrote
+  before it unlinks the lock` (both added in round 1, for NB9; node only, through
+  `syncBuiltinESMExports`, and skipped under bun). Done when `bun test
+  tests/mutation-restore.test.ts` ends ` 26 pass`, ` 2 skip` (or fewer passes plus two more skips,
+  on a case-sensitive filesystem) and ` 0 fail`,
+  and the node command prints `# fail 0` with 28 passing. (covers R10, R13, R14, R15, R17, R22, R24)
 
 - [x] 2.4 In `src/run.ts`, add `runCommandAsync(cmd, { cwd, timeoutMs, tailLines? })` returning `{
   result: Promise<RunResult>; stop(): void }`, and in `src/run-helper.mjs` the fifth argument
