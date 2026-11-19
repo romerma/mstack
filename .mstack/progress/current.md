@@ -39,10 +39,9 @@ watch is review rounds per item: if they do not drop after phase 1, intake is ce
 - Item 53 repro, 2026-11-16, throwaway store: 12 parallel `state add`, 12 exit 0, 8 items on
   disk. `saveState` is one `writeFileSync` (`src/state.ts:208-210`).
 
-- 2026-11-19 item 101 implementer: A1 (quoted restore line), A2 (R1 and hook use validateLock),
-  A3 (cd only where git names the lock's store) committed with tests in
-  `tests/mutation-exits.test.ts`; next A4 (hook options and plumbing), then docs (A5, A6, hook
-  table), mutants, real-surface run, suites, report `impl_mutation-printed-exits.md`. Scratch:
+- 2026-11-19 item 101 implementer: A1 to A6 committed with tests in
+  `tests/mutation-exits.test.ts` and reported in `impl_mutation-printed-exits.md` (21 of 21
+  mutants killed, both suites green); next: a review pass that did not write the code. Scratch:
   `/private/tmp/claude-501/-Users-romerma-Code-mstack/4aadee9d-d352-4d5b-825b-4d11a47e2193/scratchpad/impl101/`.
 
 Headless runs: `run.mjs` builds a clean `env -i` env, uses the claude.ai login, and never
