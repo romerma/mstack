@@ -7,9 +7,9 @@
 > empty template below.
 
 - **Item:** 42 mutation-check (the mechanism; item 100 is the closing check)
-- **Status:** specifying, spec round 3
+- **Status:** in_progress, implementation stage 1 of 4 (spec round 3 approved)
 - **Branch:** feat/mutation-check
-- **Base:** -
+- **Base:** a9b2a56b62c3f9a5640a27f9df7931d064bb56d4
 - **Worktree:** none
 
 ## Plan

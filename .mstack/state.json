@@ -614,7 +614,7 @@
         "A lock under the git dir holds the restore list; restore runs in finally and on SIGINT/SIGTERM, the tree is as it was afterwards, verify --restore repairs a SIGKILLed run, PreToolUse denies git commit/add/stash while the lock exists, and the gate fails on a lock",
         "No path through the run, the restore or a recovery the tool prints removes or overwrites content the run did not write without first saving it, and no state keeps the lock with deleting work as the only way out"
       ],
-      "status": "specifying",
+      "status": "in_progress",
       "sdd": true,
       "size": "l",
       "decision_required": "How the mutation check touches the user's tree. Two spec reviews each found ways the in-place design loses work or leaves a lock for good (spec_review_mutation-check.md, _r2.md). (A) Keep reverting in place, behind a lock and a restore, and split the item: the command, lock, restore, receipt and hook first; the closing check second, with a rule that lets a receipt proven on the branch survive the merge. (B) Run the mutation in a copy of the tree (a git worktree): no lock, no restore, nothing of the user's is touched; the store then needs a way to give the copy the ignored files the obligations use (installed dependencies, env files). (C) Leave the mutation check out of the program. Each changes the item's acceptance.",
@@ -623,7 +623,8 @@
         "CLI: mstack verify --mutation and verify --restore in a throwaway git repository with a store: exit code, output, the receipt row, and the working tree before, during and after",
         "CLI: mstack gate with a lock present",
         "the PreToolUse hook answer to git commit, git add and git stash while the lock exists"
-      ]
+      ],
+      "base": "a9b2a56b62c3f9a5640a27f9df7931d064bb56d4"
     },
     {
       "id": 43,
