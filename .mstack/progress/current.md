@@ -129,6 +129,15 @@ passes bypassPermissions. Do not run `check.mjs` or `verify.mjs` while a batch i
 - Next: task group 5 (5.1 the seams by hand, then 5.2 the review of the whole by a pass that did
   not write it). Read the report's last section first; 5.3 runs from a copy of the CLI, never here.
 
+## Item 42 round 2 fixes done (implementer, 2026-11-19)
+
+- Answers `review_mutation-check_r2.md` as the design row of 15:19:44Z takes it: B3 (the lock's
+  `rootFromTop`; a restore from another store refuses), non-blocking 1, 2, 3 (l, g, j), 4, 5 (part),
+  7, 8, 9. Commits `52e7f87` to `453f33d`; report `.mstack/progress/impl_mutation-check_r6.md`.
+- Scratch: `/private/tmp/claude-501/-Users-romerma-Code-mstack/4aadee9d-d352-4d5b-825b-4d11a47e2193/scratchpad/impl42r6/`.
+- Follow-ups the row left: non-blocking 6, the other six mutants of 3, the plumbing commands of 5.
+- Next: review round 3 by a pass that did not write the code; then task group 5.
+
 ## Next step
 
 Phases 0 and 1 are closed, except item 50 (waits for the user). Phase 2 has 57 and 58 closed.
