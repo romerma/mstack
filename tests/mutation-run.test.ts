@@ -406,3 +406,21 @@ test("R12 classify: 0 passes; 126, 127, a timeout, an error and a signal are blo
   assert.equal(classify({ ...base, code: null, error: "spawn ENOENT" }), "blocked");
   assert.equal(classify({ ...base, code: null, signal: "SIGSEGV" }), "blocked");
 });
+
+test("R13 an error right after the lock is taken ends in the restore, and the lock goes", SPAWN_TEST, async () => {
+  await withRunRepo(CHECK, startA, editA, async (r) => {
+    green(r);
+    const before = tree(r);
+    const { code, text, last } = await go(r, {
+      step: (name) => {
+        if (name === "lock-written") throw new Error("a fault after the lock");
+      },
+    });
+    assert.equal(code, 2, text);
+    assert.match(last, /^mutation-blocked: .*a fault after the lock/);
+    assert.equal(read(r, "src/a.ts"), "new\n");
+    assert.equal(runs(r), 0);
+    assert.equal(tree(r), before);
+    nothingLeft(r);
+  });
+});

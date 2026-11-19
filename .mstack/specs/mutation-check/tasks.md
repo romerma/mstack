@@ -204,8 +204,9 @@ requirements it covers (`agents/implementer.md`, "Your report").
   lock taken by another run after the staging is refused naming its pid, and the staging is
   removed` (added by stage 4, for review round 1 non-blocking 12) and `R12 classify: 0 passes; 126,
   127, a timeout, an error and a signal are blocked; any other code is a kill` (added by stage 4: no
-  named test has an exit 126). Done when `bun test tests/mutation-run.test.ts`
-  ends ` 21 pass` and ` 0 fail`, `bun test tests/verification.test.ts tests/gate.test.ts` ends
+  named test has an exit 126) and `R13 an error right after the lock is taken ends in the restore,
+  and the lock goes` (added by stage 4, for an exception between the lock and the revert). Done
+  when `bun test tests/mutation-run.test.ts` ends ` 22 pass` and ` 0 fail`, `bun test tests/verification.test.ts tests/gate.test.ts` ends
   ` 0 fail`, and the node command for `tests/mutation-run.test.ts` prints `# fail 0`. (covers R2,
   R6, R7, R11, R12, R20, R21)
 

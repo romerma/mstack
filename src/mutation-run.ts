@@ -339,23 +339,23 @@ async function run(store: Store, options: MutationOptions, ctl: Control): Promis
     discard(store, lock.run);
     return refuse(out, got.reason, "nothing was changed; 'mstack gate' says whether that run is running");
   }
-  out(`mutation: lock ${lockPath(store) ?? ""}, run ${lock.run}`);
-  out(`mutation: if this process dies: ${restoreCommand(lock.cli)}`);
-  out("mutation: until the run ends, save nothing to the files it reverts: a save in the moment one is put back is lost");
-  step("lock-written");
-  sweepStale(store, lock);
-
   let ending: Ending;
-  let entries: readonly number[] | undefined;
+  // What the restore takes: nothing until the revert has begun, then every entry, or after a stopped revert the ones it wrote.
+  let entries: readonly number[] | undefined = [];
   let revertDone = false;
   try {
+    out(`mutation: lock ${lockPath(store) ?? ""}, run ${lock.run}`);
+    out(`mutation: if this process dies: ${restoreCommand(lock.cli)}`);
+    out("mutation: until the run ends, save nothing to the files it reverts: a save in the moment one is put back is lost");
+    step("lock-written");
+    sweepStale(store, lock);
     // A signal that came with the lock, or before it, is acted on before any path is written (R17).
     await tick();
     if (ctl.caught !== null) {
-      entries = [];
       ending = { kind: "blocked", reason: "stopped before the revert" };
     } else {
       out(`mutation: reverting ${lock.entries.length} file(s)`);
+      entries = undefined;
       const reverted = applyRevert(store, lock, step);
       if (!reverted.ok) {
         entries = reverted.written;
