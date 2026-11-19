@@ -26,7 +26,7 @@ const caseInsensitive = ((): boolean => {
     rmSync(dir, { recursive: true, force: true });
   }
 })();
-const CASE = { skip: caseInsensitive ? false : "needs a case-insensitive filesystem" };
+const caseTest = caseInsensitive ? test : test.skip; // bun ignores the skip option of node:test
 
 const git = (root: string, ...args: string[]): string =>
   execFileSync("git", args, { cwd: root, encoding: "utf8" }).trim();
@@ -248,7 +248,7 @@ test("R2 an untracked file where the revert puts one back", () => {
   });
 });
 
-test("R2 a case variant where the revert puts a file back", CASE, () => {
+caseTest("R2 a case variant where the revert puts a file back", () => {
   withBox((box) => {
     const root = box.store.root;
     put(root, "src/old.ts", "old\n");
@@ -262,7 +262,7 @@ test("R2 a case variant where the revert puts a file back", CASE, () => {
   });
 });
 
-test("R2 a path of the set on disk under another case", CASE, () => {
+caseTest("R2 a path of the set on disk under another case", () => {
   withBox((box) => {
     const root = box.store.root;
     put(root, "src/foo.ts", "foo\n");

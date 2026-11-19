@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { test } from "node:test";
 import { execFileSync, spawn, type ChildProcess } from "node:child_process";
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -35,7 +36,8 @@ export const caseInsensitive = ((): boolean => {
     rmSync(dir, { recursive: true, force: true });
   }
 })();
-export const CASE = { skip: caseInsensitive ? false : "needs a case-insensitive filesystem" };
+// bun ignores the `skip` option of node:test, so choose the function at definition time
+export const caseTest = caseInsensitive ? test : test.skip;
 
 /** git with no optional locks, so a status taken to compare does not rewrite the index. */
 const gitEnv = (): NodeJS.ProcessEnv => ({ ...process.env, GIT_OPTIONAL_LOCKS: "0" });

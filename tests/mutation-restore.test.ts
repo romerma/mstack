@@ -7,7 +7,7 @@ import { dirname, join, sep } from "node:path";
 import { readLock, type Lock } from "../src/mutation-lock.ts";
 import { applyRevert, restoreFromLock, type Restored } from "../src/mutation-tree.ts";
 import {
-  CASE, git, hold, indexEntries, locked, lockFileOf, put, runDirOf, SIGNAL_MS, SPAWN_TEST, status, until, withRepo, withRepoAsync,
+  caseTest, git, hold, indexEntries, locked, lockFileOf, put, runDirOf, SIGNAL_MS, SPAWN_TEST, status, until, withRepo, withRepoAsync,
   type Repo,
 } from "./mutation-fixture.ts";
 
@@ -211,7 +211,7 @@ test("R14 a directory where HEAD has a file is moved whole into rescue", () => {
   );
 });
 
-test("R14 a case variant where HEAD has a file is rescued under its own name", CASE, () => {
+caseTest("R14 a case variant where HEAD has a file is rescued under its own name", () => {
   withRepo(twoFiles, editBoth, (r) => {
     const lock = reverted(r);
     renameSync(join(r.root, "src/a.ts"), join(r.root, "src/A.ts"));
@@ -356,7 +356,7 @@ test("R15 a missing staged copy keeps the lock after rescuing what is there", ()
   });
 });
 
-test("R15 a parent renamed by case fails with the mv back as its fix", CASE, () => {
+caseTest("R15 a parent renamed by case fails with the mv back as its fix", () => {
   withRepo(
     (root) => {
       put(root, "src/lib/a.ts", "a\n");
