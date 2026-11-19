@@ -6,9 +6,9 @@
 > On close: append the summary to `history.md` and reset this file to the
 > empty template below.
 
-- **Item:** 100 mutation-closing-check (the closing check on item 42's receipt)
-- **Status:** specifying, round 3: spec revised (28 requirements, commit d9f6342), spec review round 3 running. Two forks for the user, worded on the item's decision_required: (1) asked 2026-11-19, on or off for an absent require_mutation_to_close; (2) acceptance 2 with a known gap (a class of 12 measured shapes), to ask once round 3 confirms the wording is true
-- **Branch:** feat/mutation-closing-check
+- **Item:** none active (42 and 104 closed 2026-11-19; 100 parked on two forks for the user after three spec rounds)
+- **Status:** -
+- **Branch:** main
 - **Base:** -
 - **Worktree:** none
 
@@ -56,6 +56,13 @@ Waiting on the user, each asked on 2026-11-17 with a recommendation of yes:
 - Item 60 `ship-pr-body`: may a real PR be opened on GitHub for its third criterion?
 - Item 99 `bench-trace-and-durability`: where the benchmark harness and its baseline live; today
   `sandbox/bench/` is under no version control.
+- Item 100 `mutation-closing-check` (asked 2026-11-19; spec at round 3, 28 requirements, in
+  `.mstack/specs/mutation-closing-check/`; three spec reviews, the last with one blocking finding
+  and a measured fix): (1) is the check on (A) or off (B) for a store with no
+  `require_mutation_to_close` key; (2) keep the full receipt rule with a named class of gaps and a
+  fourth review (X), or narrow acceptance 2 (Y). Both are worded on the item's `decision_required`.
+  When answered: `state set 100 --status specifying`, then a fourth author from
+  `spec_review_mutation-closing-check_r3.md`.
 Record each answer with `mstack decide --resolves <slug>`.
 
 Standing: push `main` after closing work and check CI (user, 2026-11-17).
@@ -64,10 +71,8 @@ Also for the user: ADR 0001 states their decision of 2026-10-31 and gives no rea
 record has none; the reason is theirs to add (item 58, round 2 review, non-blocking 10).
 
 Next, not blocked:
-0. Phase 3: 100 `mutation-closing-check` (sdd). Before specifying it, count how many closed items
-   here `verify --mutation` would have refused; receipts are machine-local (`verification.tsv` is
-   ignored), so one written in a linked worktree's store is not in the main checkout's after a
-   merge. Then 44, 63, 65. Follow-ups of 42: 101, 102, 103.
+0. Phase 3: 44, then 63 (needs 44) and 65. Item 100 waits for the user. Follow-ups of 42: 101,
+   102, 103.
 1. Phase 2: 59 (in flight) diagnosis-loop-in-bug-fix, then 60, 61, 62, 64. Follow-up of 58: item 83.
 2. Architecture candidates filed by the deepen playbook: 76 to 80, and 81.
 3. Durability follow-ups: 67 first (its budget test made the closing gate of 58 red three runs
