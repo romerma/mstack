@@ -100,7 +100,7 @@ requirements it covers (`agents/implementer.md`, "Your report").
   `revert-written:0`). Done when `bun test tests/mutation-revert.test.ts` ends ` 10 pass` and ` 0
   fail`, and the node command prints `# fail 0`. (covers R9, R10, R11)
 
-- [ ] 2.3 In `src/mutation-tree.ts`, add `restoreFromLock(store, lock, options?)` with `options` `{
+- [x] 2.3 In `src/mutation-tree.ts`, add `restoreFromLock(store, lock, options?)` with `options` `{
   step?; rename?; entries? }` (`rename` defaults to `renameSync`; a test passes one that throws an `EXDEV`
   error for a target under `rescue/`), as design.md "Restore" defines it: the temp sweep, its order,
   its table, the rescue, the proof, then the lock and the staging. Extend `tests/mutation-holder.ts`

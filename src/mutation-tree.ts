@@ -1,8 +1,11 @@
 import { createHash } from "node:crypto";
-import { closeSync, fchmodSync, fstatSync, fsyncSync, lstatSync, mkdirSync, openSync, readdirSync, renameSync, rmdirSync, rmSync, unlinkSync, type BigIntStats } from "node:fs";
+import {
+  closeSync, fchmodSync, fstatSync, fsyncSync, lstatSync, mkdirSync, openSync, readdirSync, readlinkSync, renameSync, rmdirSync, rmSync,
+  symlinkSync, unlinkSync, type BigIntStats,
+} from "node:fs";
 import { dirname, join } from "node:path";
 
-import { errorText, pump, READ_FLAGS, runDirectory, type Identity, type Lock, type LockEntry } from "./mutation-lock.ts";
+import { errorText, fsyncDirectory, lockPath, pump, READ_FLAGS, runDirectory, type Identity, type Lock, type LockEntry } from "./mutation-lock.ts";
 import type { Store } from "./paths.ts";
 
 /**
@@ -176,13 +179,18 @@ function makeParents(root: string, path: string): void {
  * hash to it, or the temp file is removed and an error thrown.
  */
 function writeTemp(tmp: string, source: string, bits: number, expect?: string): void {
-  const from = openSync(source, READ_FLAGS);
+  let from: number;
+  try {
+    from = openSync(source, READ_FLAGS);
+  } catch (error) {
+    throw stagedError(`the staged copy ${source} cannot be read: ${errorText(error)}`);
+  }
   try {
     const to = openSync(tmp, "wx", 0o600);
     try {
       const hash = createHash("sha256");
       pump(from, to, hash);
-      if (expect !== undefined && hash.digest("hex") !== expect) throw Object.assign(new Error(`the staged copy ${source} does not hold what the lock recorded`), { code: "ESTAGED" });
+      if (expect !== undefined && hash.digest("hex") !== expect) throw stagedError(`the staged copy ${source} does not hold what the lock recorded`);
       fchmodSync(to, bits);
       fsyncSync(to);
     } finally {
@@ -195,6 +203,9 @@ function writeTemp(tmp: string, source: string, bits: number, expect?: string): 
     closeSync(from);
   }
 }
+
+/** A staged copy that is missing or does not match its identity: the fix is git's copy of HEAD, not a retry. */
+const stagedError = (message: string): Error => Object.assign(new Error(message), { code: "ESTAGED" });
 
 const tempName = (root: string, e: LockEntry): string => join(root, dirname(e.path), `${e.tmp}${process.pid}.tmp`);
 
@@ -276,4 +287,335 @@ export function applyRevert(store: Store, lock: Lock, step: (name: string) => vo
     step(`reverted:${e.n}`);
   }
   return { ok: true };
+}
+
+export interface Restored {
+  /** Entries the restore wrote H to, or unlinked S from. */
+  restored: number;
+  /** Entries moved into `rescue/<k>/` before H was written: the name they had on disk, and where they are now. */
+  readonly rescued: { readonly path: string; readonly to: string }[];
+  /** Entries left where they are, and reported: something other than S where HEAD lacks the path, a directory not empty. */
+  readonly left: string[];
+  /** Paths the restore could not write, move or prove, with the operating system's error and what to do; the lock stays. */
+  readonly failed: { readonly path: string; readonly reason: string; readonly fix: string }[];
+}
+
+export interface RestoreOptions {
+  /** The test seam: `rescued:<n>`, `restore-written:<n>`, `restored:<n>`, `lock-removed`. */
+  readonly step?: (name: string) => void;
+  /** Every rename of the restore; a test passes one that fails with EXDEV. */
+  readonly rename?: (from: string, to: string) => void;
+  /** Only these entries are restored and proved (the run's own restore after R11); the temp sweep and the directories are as always. */
+  readonly entries?: readonly number[];
+}
+
+/** A path as a shell word: bare when it is plain, else single-quoted. */
+const shellWord = (p: string): string => (/^[\w./@%+=:,-]+$/.test(p) ? p : `'${p.replace(/'/g, "'\\''")}'`);
+
+/** What to do about an error the operating system gave for `path`. */
+function fixFor(error: unknown, path: string): string {
+  const code = codeOf(error);
+  const dir = dirname(path);
+  if (code === "EACCES" || code === "EPERM") return `make ${dir} writable: chmod u+w ${shellWord(dir)}`;
+  if (code === "ENOSPC") return "free space on the disk";
+  return `clear the cause of ${code ?? "the error"}`;
+}
+
+/** R15's fix for a staged copy that is missing or wrong. */
+const stashFix = (path: string): string =>
+  `git stash push -- ${shellWord(path)} writes HEAD's content there and saves whatever is there first; ` +
+  `if the restore still fails after it, the lock may be deleted by hand, ${path} may then be absent, and git restore -- ${shellWord(path)} puts HEAD's content back`;
+
+const AGAIN = "run the restore again once nothing else writes to it";
+
+/**
+ * Put every path of the lock back to H(p), proved path by path, and only then
+ * remove the lock and the staging (R13, R14). First the run's temp names that
+ * are regular files are unlinked; then the paths HEAD lacks, deepest first
+ * (unlinked only where they hold S); then the directories the revert made,
+ * when empty; then the paths HEAD has, shallowest first. Where p holds S, or
+ * nothing resolves there, H is written by a temp name and a rename, checked
+ * again just before the rename; anything else there (an edit, a directory, a
+ * symlink, a case variant) is first moved into a fresh `rescue/<k>/` under the
+ * name it has on disk. A path that cannot be written, moved or proved is
+ * named in `failed` with what to do, and the lock stays (R15). Synchronous,
+ * no child process, and from the lock's record alone: the lock file is not
+ * read.
+ */
+export function restoreFromLock(store: Store, lock: Lock, options: RestoreOptions = {}): Restored {
+  const step = options.step ?? ((): void => {});
+  const rename = options.rename ?? renameSync;
+  const root = store.root;
+  const out: Restored = { restored: 0, rescued: [], left: [], failed: [] };
+  const fail = (path: string, reason: string, fix: string): void => {
+    if (!out.failed.some((f) => f.path === path)) out.failed.push({ path, reason, fix });
+  };
+  const run = runDirectory(store, lock.run);
+  const lockFile = lockPath(store);
+  if (run === null || lockFile === null) {
+    fail(".", "the store is not in a git repository", "run the restore from the repository the lock is in");
+    return out;
+  }
+
+  for (const e of lock.entries) sweepTemps(root, e, fail);
+  const only = options.entries === undefined ? null : new Set(options.entries);
+  const chosen = lock.entries.filter((e) => only === null || only.has(e.n));
+
+  for (const e of chosen.filter((x) => x.head === null).sort(deepestFirst)) {
+    removeStart(root, e, out, fail);
+    step(`restored:${e.n}`);
+  }
+  for (const d of [...lock.createdDirs].reverse()) {
+    try {
+      rmdirSync(join(root, d));
+    } catch (error) {
+      if (codeOf(error) !== "ENOENT") out.left.push(d);
+    }
+  }
+  const ctx: PutBack = { root, run, rename, step, out, fail };
+  for (const e of chosen.filter((x) => x.head !== null).sort(shallowestFirst)) {
+    putBack(ctx, e);
+    step(`restored:${e.n}`);
+  }
+
+  // The proof: what decides whether the lock goes. Not HEAD, not the index, not other files.
+  for (const e of chosen) {
+    let at: Entry;
+    try {
+      at = entryAt(root, e.path);
+    } catch (error) {
+      fail(e.path, errorText(error), fixFor(error, e.path));
+      continue;
+    }
+    if (e.head !== null && !holds(at, e.head)) fail(e.path, `after the restore it does not hold HEAD's content: ${describe(at)} is there`, AGAIN);
+    if (e.head === null && holds(at, e.start)) fail(e.path, "after the restore it still holds the start's content", AGAIN);
+  }
+  if (out.failed.length > 0) return out;
+
+  try {
+    unlinkSync(lockFile);
+  } catch (error) {
+    if (codeOf(error) !== "ENOENT") {
+      fail(lockFile, errorText(error), fixFor(error, lockFile));
+      return out;
+    }
+  }
+  try {
+    fsyncDirectory(dirname(lockFile));
+  } catch {
+    // The lock is unlinked; the fsync only orders it before what follows.
+  }
+  rmSync(join(run, "start"), { recursive: true, force: true });
+  rmSync(join(run, "head"), { recursive: true, force: true });
+  if (listOrEmpty(join(run, "rescue")).length === 0) {
+    rmSync(join(run, "rescue"), { recursive: true, force: true });
+    try {
+      rmdirSync(run);
+    } catch {
+      // Left for the next run's sweep.
+    }
+  }
+  step("lock-removed");
+  return out;
+}
+
+function listOrEmpty(dir: string): string[] {
+  try {
+    return readdirSync(dir);
+  } catch {
+    return [];
+  }
+}
+
+/** Unlink every temp name of the entry that is a regular file; anything else with such a name is left. */
+function sweepTemps(root: string, e: LockEntry, fail: (path: string, reason: string, fix: string) => void): void {
+  const rel = dirname(e.path);
+  const dir = join(root, rel);
+  let names: string[];
+  try {
+    names = readdirSync(dir);
+  } catch (error) {
+    const code = codeOf(error);
+    if (code !== "ENOENT" && code !== "ENOTDIR") fail(e.path, `its directory cannot be listed for the run's temp files: ${errorText(error)}`, fixFor(error, e.path));
+    return;
+  }
+  for (const name of names) {
+    if (!name.startsWith(e.tmp) || !name.endsWith(".tmp")) continue;
+    const temp = rel === "." ? name : `${rel}/${name}`;
+    try {
+      if (lstatSync(join(dir, name)).isFile()) unlinkSync(join(dir, name));
+    } catch (error) {
+      if (codeOf(error) !== "ENOENT") fail(temp, errorText(error), fixFor(error, temp));
+    }
+  }
+}
+
+/** An entry HEAD lacks: unlink it where it holds S; leave and report anything else. */
+function removeStart(root: string, e: LockEntry, out: Restored, fail: (path: string, reason: string, fix: string) => void): void {
+  let at: Entry;
+  try {
+    at = entryAt(root, e.path);
+  } catch (error) {
+    fail(e.path, errorText(error), fixFor(error, e.path));
+    return;
+  }
+  if (holds(at, e.start)) {
+    try {
+      unlinkSync(join(root, e.path));
+      out.restored += 1;
+    } catch (error) {
+      fail(e.path, errorText(error), fixFor(error, e.path));
+    }
+    return;
+  }
+  if (empty(at)) return;
+  out.left.push(at.kind === "absent" && at.variant !== null ? at.variant : e.path);
+}
+
+interface PutBack {
+  readonly root: string;
+  readonly run: string;
+  readonly rename: (from: string, to: string) => void;
+  readonly step: (name: string) => void;
+  readonly out: Restored;
+  readonly fail: (path: string, reason: string, fix: string) => void;
+}
+
+function parentFix(at: Extract<Entry, { kind: "parent" }>): string {
+  if (at.why === "another name") {
+    return `mv ${shellWord(at.onDisk ?? "?")} ${shellWord(at.parent)}: git stash does not clear this, since it writes through the directory under its other name`;
+  }
+  return `move ${shellWord(at.parent)} aside, so that a directory can be there again`;
+}
+
+/** An entry HEAD has: write H where p holds S or nothing; rescue anything else first. Decided again once on a change. */
+function putBack(ctx: PutBack, e: LockEntry): void {
+  const { root, run, out, fail } = ctx;
+  const head = e.head as NonNullable<Identity>;
+  const absolute = join(root, e.path);
+  for (let attempt = 0; ; attempt++) {
+    let at: Entry;
+    try {
+      at = entryAt(root, e.path);
+    } catch (error) {
+      fail(e.path, errorText(error), fixFor(error, e.path));
+      return;
+    }
+    if (at.kind === "parent") {
+      fail(e.path, describe(at), parentFix(at));
+      return;
+    }
+    if (holds(at, head)) return;
+    let expect: Entry = at;
+    if (!holds(at, e.start) && !empty(at)) {
+      const source = at.kind === "absent" && at.variant !== null ? at.variant : e.path;
+      try {
+        rescue(ctx, e, source);
+      } catch (error) {
+        fail(e.path, `${source} could not be moved into ${join(run, "rescue")}: ${errorText(error)}`, fixFor(error, source));
+        return;
+      }
+      expect = { kind: "absent", variant: null };
+    }
+    const tmp = tempName(root, e);
+    try {
+      makeParents(root, e.path);
+      writeTemp(tmp, join(run, "head", String(e.n)), head.bits, head.sha256);
+    } catch (error) {
+      fail(e.path, errorText(error), codeOf(error) === "ESTAGED" ? stashFix(e.path) : fixFor(error, e.path));
+      return;
+    }
+    ctx.step(`restore-written:${e.n}`);
+    if (changed(absolute, expect)) {
+      rmSync(tmp, { force: true });
+      if (attempt >= 1) {
+        fail(e.path, "it changed while its restore was being written, twice", AGAIN);
+        return;
+      }
+      continue;
+    }
+    try {
+      ctx.rename(tmp, absolute);
+      out.restored += 1;
+    } catch (error) {
+      rmSync(tmp, { force: true });
+      fail(e.path, errorText(error), fixFor(error, e.path));
+    }
+    return;
+  }
+}
+
+/** Move the entry at `source` (its name on disk) into a fresh `rescue/<k>/`, keeping its path; never over anything. */
+function rescue(ctx: PutBack, e: LockEntry, source: string): void {
+  const base = join(ctx.run, "rescue");
+  mkdirSync(base, { recursive: true });
+  let dir = "";
+  for (let k = 1; ; k++) {
+    dir = join(base, String(k));
+    try {
+      mkdirSync(dir);
+      break;
+    } catch (error) {
+      if (codeOf(error) !== "EEXIST") throw error;
+    }
+  }
+  const target = join(dir, source);
+  try {
+    mkdirSync(dirname(target), { recursive: true });
+    try {
+      ctx.rename(join(ctx.root, source), target);
+    } catch (error) {
+      if (codeOf(error) !== "EXDEV") throw error;
+      copyAcross(join(ctx.root, source), target);
+    }
+  } catch (error) {
+    // Nothing of the entry is in it: the move failed, or the copy was not complete when the source was kept.
+    rmSync(dir, { recursive: true, force: true });
+    throw error;
+  }
+  ctx.out.rescued.push({ path: source, to: target });
+  ctx.step(`rescued:${e.n}`);
+}
+
+function digest(file: string): string {
+  const fd = openSync(file, READ_FLAGS);
+  try {
+    const hash = createHash("sha256");
+    pump(fd, null, hash);
+    return hash.digest("hex");
+  } finally {
+    closeSync(fd);
+  }
+}
+
+/**
+ * The rescue when `rename` cannot cross filesystems: a regular file is copied
+ * with its permission bits, fsynced, compared byte for byte and only then
+ * unlinked; a symlink is made again from its target and unlinked; anything
+ * else is left where it is, and the rescue fails.
+ */
+function copyAcross(from: string, to: string): void {
+  const st = lstatSync(from);
+  if (st.isSymbolicLink()) {
+    symlinkSync(readlinkSync(from), to);
+    unlinkSync(from);
+    return;
+  }
+  if (!st.isFile()) throw Object.assign(new Error(`${from} is not a regular file or a symlink, and cannot be copied to another filesystem`), { code: "EXDEV" });
+  const src = openSync(from, READ_FLAGS);
+  try {
+    const mode = fstatSync(src).mode & 0o7777;
+    const dst = openSync(to, "wx", 0o600);
+    try {
+      pump(src, dst);
+      fchmodSync(dst, mode);
+      fsyncSync(dst);
+    } finally {
+      closeSync(dst);
+    }
+  } finally {
+    closeSync(src);
+  }
+  if (digest(from) !== digest(to)) throw new Error(`the copy of ${from} differs from it, so it was left where it is`);
+  unlinkSync(from);
 }

@@ -243,8 +243,9 @@ the entry at p by exact name:
   1).
 - *Rescue*: a fresh `rescue/<k>/` made with a non-recursive `mkdir` (EEXIST takes k+1), so nothing
   at the target can exist; the entry keeps its path inside it; `rename`; step `rescued:<n>`. On
-  EXDEV, a regular file is copied with `COPYFILE_EXCL`, fsynced, compared byte for byte and then
-  unlinked; a symlink is re-made from `readlink` and unlinked; anything else is a failure
+  EXDEV, a regular file is copied to a target opened `wx` (what `COPYFILE_EXCL` gives), its bits set
+  with `fchmod` from the source's `fstat` (not left to `copyFileSync`, whose keeping of the mode is
+  the runtime's), fsynced, compared byte for byte and then unlinked; a symlink is re-made from `readlink` and unlinked; anything else is a failure
   (`mode-exp`: a directory moves whole, a second rescue of the same path gets `2/`, the copy keeps
   mode 0750).
 - *Proof*: every entry with H a file holds H(p); every entry with H absent does not hold S(p).
