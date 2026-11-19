@@ -220,3 +220,17 @@ test("R28 a linked worktree's rescue warns from the main checkout, and prune off
     }
   });
 });
+
+test("R27 the line for a lock that cannot be read says the way out is a person at a terminal", () => {
+  // Round 2 review, non-blocking 2: the hook denies an agent both steps of the by-hand way.
+  withRepo(twoFiles, edit, (r) => {
+    r.box.writeState(state([]));
+    for (const text of ["garbage", JSON.stringify({ v: 1 })]) {
+      writeFileSync(join(gitDirOf(r), "mstack-mutation.lock"), text);
+      const line = lineWith(quiet(r).failures, /mstack-mutation\.lock/);
+      assert.match(line, /cannot be read/, text);
+      assert.match(line, /for a person at a terminal/, text);
+      assert.match(line, /git stash push --include-untracked/, text);
+    }
+  });
+});

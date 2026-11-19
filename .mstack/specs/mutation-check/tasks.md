@@ -307,8 +307,10 @@ requirements it covers (`agents/implementer.md`, "Your report").
   carries the line`, `R27 gate --full runs nothing under a lock`, `R25 the gate line names the
   lock's CLI, and the running CLI when that path is gone`, `R28 a rescue directory that holds
   anything is a warning`, `R28 a linked worktree's rescue warns from the main checkout, and prune
-  offers no worktree holding a lock or a rescue` (its tree clean, its branch merged). Done when
-  `bun test tests/mutation-gate.test.ts` ends ` 8 pass` and ` 0
+  offers no worktree holding a lock or a rescue` (its tree clean, its branch merged), `R27 the line
+  for a lock that cannot be read says the way out is a person at a terminal` (added in review round
+  2, for non-blocking 2). Done when
+  `bun test tests/mutation-gate.test.ts` ends ` 9 pass` and ` 0
   fail`, `bun test tests/gate.test.ts` ends ` 0 fail`, and the node command for both files prints
   `# fail 0`. (covers R25, R27, R28)
 
@@ -327,8 +329,9 @@ requirements it covers (`agents/implementer.md`, "Your report").
   an unrelated command spawns no git` (`PATH` points at a directory whose `git` writes a marker
   file, which must not exist), `R26 no lock, or git cannot answer, allows`, `R26 an unparseable lock
   still denies`, `R26 rm of the lock is denied, with a lock or without one` (no git process starts),
-  `R25 the deny reason names the lock's CLI`. Done when `bun test
-  tests/mutation-hook.test.ts` ends ` 8 pass` and ` 0 fail`, `bun test tests/hooks.test.ts` ends
+  `R25 the deny reason names the lock's CLI`, `R26 the reason for a lock that cannot be read says
+  the way out is a person at a terminal` (added in review round 2, for non-blocking 2). Done when `bun test
+  tests/mutation-hook.test.ts` ends ` 9 pass` and ` 0 fail`, `bun test tests/hooks.test.ts` ends
   ` 0 fail`, `./bin/mstack lint-plugin .` exits 0, and the node command for both test files prints
   `# fail 0`. (covers R25, R26)
 

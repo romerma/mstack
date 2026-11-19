@@ -6,7 +6,7 @@ import * as costs from "./costs.ts";
 import { runGate } from "./gate.ts";
 import { isActive } from "./lifecycle.ts";
 import * as hooklog from "./hooklog.ts";
-import { LOCK_NAME, lockStoreDir, restoreCommand, shellWord } from "./mutation-lock.ts";
+import { BY_HAND, FOR_A_PERSON, LOCK_NAME, lockStoreDir, restoreCommand, shellWord } from "./mutation-lock.ts";
 import { findStore, type Store } from "./paths.ts";
 import { reportFiles, reportKind, roleOf, substantialReports } from "./roles.ts";
 import { parseState, type Item } from "./state.ts";
@@ -439,7 +439,7 @@ function lockReason(cwd: string): string | null {
   }
   const lead = `mstack: ${file} exists, so a mutation run has this tree's code reverted and a git command that writes would keep or lose that`;
   const parsed = readLockRecord(file);
-  if (parsed === null) return `${lead}. The lock cannot be read as a run's record; 'mstack gate' says what to do`;
+  if (parsed === null) return `${lead}. The lock cannot be read as a run's record, so the way out is ${FOR_A_PERSON}: ${BY_HAND}; 'mstack gate' says the same`;
   // The restore runs from the lock's own store: two stores of one worktree share its lock.
   const top = gitAnswer(cwd, ["rev-parse", "--show-toplevel"]);
   const where = top === null ? `from ${parsed.rootFromTop} under this worktree's top level: ` : `cd ${shellWord(lockStoreDir(top, parsed.rootFromTop))} && `;

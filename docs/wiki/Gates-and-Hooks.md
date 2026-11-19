@@ -268,7 +268,9 @@ Walking the lines that carry the weight:
   (another host, or another pid namespace): run the restore where the run started, or by hand
   with `git stash push --include-untracked`, which saves every change and discards nothing.
   A lock that cannot be read as a run's record fails the same way and names the by-hand
-  recovery. The `Stop` hook lists the line as a failure.
+  recovery as one for a person at a terminal: while the lock exists, the hook denies an agent
+  both its steps, the stash and the `rm` of the lock, and its reason says the same. The `Stop`
+  hook lists the line as a failure.
 
   A restore that moved a file aside keeps it in `<git dir>/mstack-mutation/<run>/rescue/`.
   While that directory holds anything, the gate in **any** worktree of the repository warns,

@@ -169,3 +169,14 @@ test("R25 the deny reason names the lock's CLI", () => {
     assert.ok(there.includes(`${running} verify --restore`), there);
   });
 });
+
+test("R26 the reason for a lock that cannot be read says the way out is a person at a terminal", () => {
+  // Round 2 review, non-blocking 2: the hook denies an agent both steps of the by-hand way.
+  withBox((box) => {
+    writeFileSync(box.lockFile, "garbage");
+    const d = decide("git commit -m x", box.root);
+    assert.ok(d.denied, "a lock that does not parse allowed git commit");
+    assert.match(d.reason, /for a person at a terminal/);
+    assert.match(d.reason, /git stash push --include-untracked/);
+  });
+});

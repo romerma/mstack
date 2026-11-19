@@ -676,6 +676,9 @@ export function restoreCommand(cli: string, running: string = join(runningCliRoo
 /** The by-hand recovery for a lock that cannot be read as a run's record (R24), in the gate's words and in `verify --restore`'s. */
 export const BY_HAND = "'git stash push --include-untracked' saves every change and discards nothing; then delete the lock";
 
+/** Who takes `BY_HAND`: while the lock exists the hook denies an agent both of its steps (round 2 review, non-blocking 2). */
+export const FOR_A_PERSON = "by hand, for a person at a terminal (while the lock exists the hook denies an agent git stash and an rm of the lock)";
+
 /** Is there anything at the lock's name in this git directory? Only the name counts, not what it holds. */
 export function lockExistsIn(gitDir: string): boolean {
   try {

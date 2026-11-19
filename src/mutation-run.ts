@@ -4,7 +4,7 @@ import { git, headSha } from "./git.ts";
 import { isActive } from "./lifecycle.ts";
 import { mutationKey, refusals, revertSet, trackedChanges, type MutationKey } from "./mutation.ts";
 import {
-  acquireLock, BY_HAND, discard, errorText, liveness, lockPath, lockStoreDir, placeOf, prepareRun, readLock, restoreCommand, shellWord, sweepStale, validateLock, type Lock,
+  acquireLock, BY_HAND, discard, FOR_A_PERSON, errorText, liveness, lockPath, lockStoreDir, placeOf, prepareRun, readLock, restoreCommand, shellWord, sweepStale, validateLock, type Lock,
 } from "./mutation-lock.ts";
 import { applyRevert, entryAt, holds, restoreFromLock, type Entry, type Restored } from "./mutation-tree.ts";
 import { runningCliRoot, type Store } from "./paths.ts";
@@ -498,7 +498,7 @@ export function restoreRun(store: Store, options: { readonly out: (line: string)
     out(`mutation: nothing to restore: no lock at ${file}`);
     return 0;
   }
-  const byHand = (): void => out(`mutation: by hand, for a person at a terminal (while the lock exists the hook denies git stash to an agent): ${BY_HAND}`);
+  const byHand = (): void => out(`mutation: ${FOR_A_PERSON}: ${BY_HAND}`);
   if ("damaged" in held) {
     out(`mutation: refused: ${held.damaged}; nothing was written, and the lock stays`);
     byHand();

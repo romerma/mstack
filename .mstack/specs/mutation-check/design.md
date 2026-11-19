@@ -393,7 +393,9 @@ else. `receipts()` and `status()` do not change.
   absolute `cli` and a string `rootFromTop` (the hook checks no more of it, since the lock's
   existence decides), the command preceded by `cd <the lock's store> &&`, its top level from a
   second `git rev-parse --show-toplevel` that runs only on a deny, and
-  otherwise with a reason that points at `mstack gate`. A lock name that cannot be `lstat`ed for a
+  otherwise with a reason that gives the by-hand recovery as one for a person at a terminal, since
+  the hook denies an agent both its steps, and points at `mstack gate`, whose line says the same
+  (round 2 review, non-blocking 2). A lock name that cannot be `lstat`ed for a
   reason other than ENOENT or ENOTDIR counts as present.
 - `GUARDS` gets one more entry, `rm` on a path ending in `mstack-mutation.lock`, which needs no
   git and no lock: an agent told that the gate is red may delete the lock. It reads no lock, so its
