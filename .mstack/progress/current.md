@@ -7,7 +7,7 @@
 > empty template below.
 
 - **Item:** 100 mutation-closing-check (the closing check on item 42's receipt)
-- **Status:** specifying, round 1 (spec author at work)
+- **Status:** specifying, round 1: spec written (11 requirements, commit 9652a42), spec review running; one fork asked of the user on 2026-11-19 (how an absent require_mutation_to_close is read, A true / B false; only R10 depends on it)
 - **Branch:** feat/mutation-closing-check
 - **Base:** -
 - **Worktree:** none

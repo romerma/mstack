@@ -1543,7 +1543,8 @@
       "source": "item 42 split, user decision of 2026-11-19 (A); spec_review_mutation-check_r2.md B3",
       "seams": [
         "CLI: mstack gate and state set --status done on an item at verifying with and without a killed receipt, on the branch and on the default branch after each merge shape"
-      ]
+      ],
+      "decision_required": "How is a state.json whose rules has no require_mutation_to_close read? A: as true, like every other rule (an upgraded store's items at verifying with code turn red until verify --mutation kills or a forced close records why). B: as false, with setup writing true for new stores (upgraded stores see nothing until they add the key). The spec author recommends A; only R10 depends on the answer. See .mstack/progress/spec_mutation-closing-check.md, 'Fork for the user'."
     },
     {
       "id": 101,
