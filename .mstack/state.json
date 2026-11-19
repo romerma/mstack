@@ -1569,7 +1569,8 @@
       "acceptance": [
         "a test fails for each of round 2's mutants i, k, m, a, b and n, or the report says why one is equivalent",
         "a test fails for each of round 3's three mutants of the B3 path; first D, under which the hook allows git commit under a lock with no rootFromTop (join(top, undefined) throws and the hook fails open)",
-        "the helper's check at start is pinned: given a pid that is already dead and the command sleep 0.15 then write a file, the file is never written; the decision row that says it cannot be tested is answered"
+        "the helper's check at start is pinned: given a pid that is already dead and the command sleep 0.15 then write a file, the file is never written; the decision row that says it cannot be tested is answered",
+        "the R12 blocked test matches the whole phrase 'exit 127 (the command was not found)', not a bare 127 that a short sha could carry (item 104 review, non-blocking 1)"
       ],
       "status": "pending",
       "description": "The behaviour is right in each case; no test fails when it is removed. Round 2 listed ten surviving mutants and four (l, d, g, j) got a test in the round 2 fixes. Round 3 added three on the B3 path and showed the helper's check at start can be pinned without a timing bound.",
@@ -1597,7 +1598,7 @@
         "the R12 blocked test passes under a /bin/sh that is dash and under one that is bash: its obligation is a command both shells answer with 127 when the revert removed it",
         "CI is green on both jobs at the commit that carries the fix"
       ],
-      "status": "reviewing",
+      "status": "verifying",
       "description": "tests/mutation-run.test.ts 'R12 a script removed by the revert is blocked' sets the obligation to sh scripts/check.sh. With the script gone, bash (macOS /bin/sh) exits 127 and dash (ubuntu /bin/sh) exits 2 with 'cannot open', so on Linux the run is mutation-killed, as R12 says for exit 2. The code follows the spec; the test's fixture is not portable.",
       "size": "s",
       "base": "0dd6b2dc5d2f34a5958643b07ca849b698c84387",
