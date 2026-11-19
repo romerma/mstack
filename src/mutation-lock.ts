@@ -116,7 +116,12 @@ export function placeOf(store: Store): Place | null {
   return { top, rel: rel === "" ? "." : rel };
 }
 
-/** A path as a shell word: bare when it is plain, else single-quoted. */
+/**
+ * A path as a shell word: bare when it is plain, else single-quoted. The one
+ * quoting rule for every path a printed recovery line carries, the CLI's and
+ * the `cd`'s included, so a line runs as printed (item 101); a plain path stays
+ * bare, so a transcript of one does not change.
+ */
 export const shellWord = (p: string): string => (/^[\w./@%+=:,-]+$/.test(p) ? p : `'${p.replace(/'/g, "'\\''")}'`);
 
 /** The directory of the store a lock names, in the worktree whose top level is `top`. */
@@ -666,11 +671,13 @@ function processAge(pid: number): number | null {
 /**
  * R25: how a message names the restore. The CLI that wrote the lock, since a
  * restore run by another copy may not know the lock's format; and, when that
- * file is gone, the CLI that is running as well.
+ * file is gone, the CLI that is running as well. Each path is one shell word
+ * (`shellWord`), so the line runs as printed from a home directory with a
+ * space in it (item 101).
  */
 export function restoreCommand(cli: string, running: string = join(runningCliRoot(), "bin", "mstack")): string {
-  if (existsSync(cli)) return `${cli} verify --restore`;
-  return `${cli} verify --restore (that file is gone), or ${running} verify --restore`;
+  if (existsSync(cli)) return `${shellWord(cli)} verify --restore`;
+  return `${shellWord(cli)} verify --restore (that file is gone), or ${shellWord(running)} verify --restore`;
 }
 
 /** The by-hand recovery for a lock that cannot be read as a run's record (R24), in the gate's words and in `verify --restore`'s. */

@@ -707,7 +707,9 @@ checkout or not.
 ### Requirement: R25 Every message that names the restore names the CLI that wrote the lock
 WHEN a run, a refusal, a failed restore, the gate or the hook names `verify --restore`, the system
 MUST give it as the absolute path of the CLI that wrote the lock followed by `verify --restore`,
-and, when no file exists at that path, also the absolute path of the CLI that is running; it
+and, when no file exists at that path, also the absolute path of the CLI that is running, each
+path one shell word (single-quoted when it holds a character the shell reads, item 101) and the
+directory of a `cd` in front of it the same, so the line runs as printed; it
 MUST NOT name `sh` together with the lock in any output; and the lines a run prints when it
 takes the lock MUST also say that a file saved at a reverted path in the moment the run puts it
 back is lost.
