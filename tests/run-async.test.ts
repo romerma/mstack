@@ -247,3 +247,31 @@ test("R16 async: when the caller's whole group is SIGKILLed the command's group 
     }
   });
 });
+
+test("R16 async: a caller SIGKILLed in the first milliseconds after the spawn leaves no command 3 s later", SPAWN_TEST, async () => {
+  // Round 2 review, non-blocking 1: dead before the helper ran, the caller read as alive and the command ran to its timeout.
+  for (const delay of [0, 3, 10]) {
+    const mark = marker();
+    await inDir(async (dir) => {
+      const script = join(dir, "early.mts");
+      const kill = 'process.kill(process.pid, "SIGKILL")';
+      writeFileSync(
+        script,
+        `import { runCommandAsync } from ${JSON.stringify(RUN)};
+runCommandAsync(${JSON.stringify(mark)}, { cwd: ${JSON.stringify(dir)}, timeoutMs: 60000 });
+${delay === 0 ? `${kill};` : `setTimeout(() => ${kill}, ${delay});`}
+`,
+      );
+      const victim = spawn(process.execPath, [...RUNTIME_FLAGS, script], { detached: true, stdio: "ignore" });
+      const exited = new Promise<number | string | null>((res) => victim.on("close", (code, signal) => res(code ?? signal)));
+      try {
+        assert.equal(await exited, "SIGKILL");
+        await sleep(3_000);
+        assert.deepEqual(survivors(mark), [], `the caller was SIGKILLed ${delay} ms after the spawn, and the helper and its command are alive 3 s later`);
+      } finally {
+        killGroup(victim);
+        killAll(mark);
+      }
+    });
+  }
+});

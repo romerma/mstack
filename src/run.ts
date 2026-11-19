@@ -133,8 +133,9 @@ export interface Running {
  * (`spawnSync` runs none while it blocks).
  *
  * The helper is spawned detached, in a process group of its own, with a fifth
- * argument, `watch-parent`: it polls this process and kills the command's
- * group when this process is gone. Detached, a SIGKILL of the caller's whole
+ * argument, `watch-parent`, and this process's pid: it checks this process when
+ * it starts and every 250 ms after, and kills the command's group when this
+ * process is gone. Detached, a SIGKILL of the caller's whole
  * group does not reach the helper, so its watch still runs; a terminal Ctrl-C
  * reaches the caller and not the helper, and the caller's handler is what
  * calls `stop()` (a caller with no handler dies, which the watch sees).
@@ -150,7 +151,7 @@ export function runCommandAsync(cmd: string, options: AsyncOptions): Running {
   let child: ChildProcess;
   try {
     // Not the target directory, as in runCommand: bun loads its bunfig.toml and .env.
-    child = spawn(process.execPath, [HELPER, join(dir, "result.json"), String(limit), options.cwd, cmd, "watch-parent"], {
+    child = spawn(process.execPath, [HELPER, join(dir, "result.json"), String(limit), options.cwd, cmd, "watch-parent", String(process.pid)], {
       cwd: dir,
       stdio: ["ignore", fd, fd],
       detached: true,

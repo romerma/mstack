@@ -7,9 +7,9 @@
 // `spawn({detached: true})` does, on both runtimes: the child leads its own group,
 // so its pid is the pgid with nothing to read back.
 //
-// argv: <result file> <timeout ms> <cwd> <command> [watch-parent]. The
-// command's stdout and stderr are this process's own, which the caller pointed
-// at the capture file.
+// argv: <result file> <timeout ms> <cwd> <command> [watch-parent <caller pid>].
+// The command's stdout and stderr are this process's own, which the caller
+// pointed at the capture file.
 //
 // `watch-parent` is passed by `runCommandAsync`, which spawns this helper
 // detached, in a group of its own: a SIGKILL of the caller, alone or with its
@@ -19,7 +19,7 @@
 import { spawn } from "node:child_process";
 import { writeFileSync } from "node:fs";
 
-const [resultFile, timeoutMs, cwd, cmd, mode] = process.argv.slice(2);
+const [resultFile, timeoutMs, cwd, cmd, mode, callerPid] = process.argv.slice(2);
 let timedOut = false;
 const child = spawn("/bin/sh", ["-c", cmd], { cwd, detached: true, stdio: ["ignore", "inherit", "inherit"] });
 
@@ -56,12 +56,14 @@ for (const [name, number] of [["SIGINT", 2], ["SIGTERM", 15], ["SIGHUP", 1]]) {
   });
 }
 
-// The caller's pid, read once: bun's process.ppid keeps the dead parent's pid,
-// so the poll asks whether that process exists rather than re-reading ppid.
+// The caller's pid, from argv. Not process.ppid: a caller that died before this
+// line ran has left this process to pid 1 already, whose kill(1, 0) is EPERM and
+// reads as alive; and bun's process.ppid keeps a dead parent's pid. The first
+// check runs at once, so a caller that is gone when this starts is gone.
 let orphaned = false;
 if (mode === "watch-parent") {
-  const parent = process.ppid;
-  setInterval(() => {
+  const parent = Number(callerPid);
+  const watch = () => {
     try {
       process.kill(parent, 0);
     } catch (error) {
@@ -72,7 +74,9 @@ if (mode === "watch-parent") {
       killGroup();
       setTimeout(() => process.exit(0), 2000).unref();
     }
-  }, 250).unref();
+  };
+  watch();
+  setInterval(watch, 250).unref();
 }
 
 child.on("error", (error) => {

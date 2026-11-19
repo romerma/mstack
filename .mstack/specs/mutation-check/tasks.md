@@ -163,7 +163,7 @@ requirements it covers (`agents/implementer.md`, "Your report").
 
 - [x] 2.4 In `src/run.ts`, add `runCommandAsync(cmd, { cwd, timeoutMs, tailLines? })` returning `{
   result: Promise<RunResult>; stop(): void }`, and in `src/run-helper.mjs` the fifth argument
-  `watch-parent` (design.md "The async runner": with it, the helper is spawned detached);
+  `watch-parent` and the sixth, the caller's pid (design.md "The async runner": with it, the helper is spawned detached);
   `runCommand` passes no fifth argument. Tests in a
   new `tests/run-async.test.ts`: `R12 async: exit code, signal and tail match runCommand`, `R12
   async: a timeout reports timedOut, code null and SIGKILL, and the group is gone`, `R12 async: a
@@ -176,8 +176,10 @@ requirements it covers (`agents/implementer.md`, "Your report").
   caller that starts the command, then `kill -9` of that caller, then `pgrep -f` of a marker in
   the command, as `tests/run.test.ts:158-161` does), `R16 async: when the caller's whole group is
   SIGKILLed the command's group is gone within 2 s` (the child caller leads its own group, and the
-  test sends `kill -9` to that group). Done when `bun test tests/run-async.test.ts`
-  ends ` 10 pass` and ` 0 fail`, `bun test tests/run.test.ts` ends ` 0 fail`, and the node command
+  test sends `kill -9` to that group), `R16 async: a caller SIGKILLed in the first milliseconds
+  after the spawn leaves no command 3 s later` (added in review round 2, for non-blocking 1: the
+  child caller kills itself 0, 3 and 10 ms after `runCommandAsync` returns). Done when `bun test tests/run-async.test.ts`
+  ends ` 11 pass` and ` 0 fail`, `bun test tests/run.test.ts` ends ` 0 fail`, and the node command
   for both files prints `# fail 0`. (covers R12, R16)
 
 ## 3. The run and the command

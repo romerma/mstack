@@ -344,16 +344,19 @@ throw out of a restore.
 
 `runCommandAsync(cmd, { cwd, timeoutMs, tailLines? })` returns `{ result: Promise<RunResult>;
 stop(): void }`. It `spawn`s `process.execPath` with `run-helper.mjs`, the four arguments
-`runCommand` passes (`src/run.ts:93`) and a fifth, `watch-parent`, with `cwd` a fresh temp
+`runCommand` passes (`src/run.ts:93`), a fifth, `watch-parent`, and a sixth, its own pid, with `cwd` a fresh temp
 directory and output to a temp file, detached, in a process group of its own: a SIGKILL of the
 caller's group then leaves the helper and its watch alive (`specreview42r3/groupkill`: with the
 helper in the caller's group, the obligation outlived a SIGKILL of that group, on both runtimes).
 A terminal Ctrl-C reaches the caller and not the helper; the caller's handler calls `stop()` (The
 run, step 1), and a caller with no handler dies, which the watch sees. `stop()` sends SIGTERM to the helper.
-With `watch-parent` the helper calls `process.kill(<its parent>, 0)` every 250 ms and on ESRCH
-kills the command's group and exits: `spec42r3/orphan-exp` shows the obligation gone 2 s after a
-SIGKILL of the parent with the watch, and alive without it, on both runtimes; bun's
-`process.ppid` keeps the dead parent's pid, so the poll cannot read `ppid`. `runCommand` passes no
+With `watch-parent` the helper calls `process.kill(<the pid it was given>, 0)` once when it starts
+and every 250 ms after, and on ESRCH kills the command's group and exits: `spec42r3/orphan-exp`
+shows the obligation gone 2 s after a SIGKILL of the parent with the watch, and alive without it,
+on both runtimes. The pid comes in argv and not from `process.ppid`: a caller that died before the
+helper's first line had left it to pid 1, whose `kill(1, 0)` is EPERM and reads as alive, and the
+command ran to `--timeout` (round 2 review, non-blocking 1: a SIGKILL 3 or 10 ms after the spawn,
+both runtimes); and bun's `process.ppid` keeps a dead parent's pid. `runCommand` passes no
 fifth argument and does not change.
 
 `classify(result)`: `timedOut`, `error` or a non-null `signal` is blocked; 126 or 127 blocked; 0
