@@ -5,7 +5,7 @@ import { all as decisionsFor } from "./decisions.ts";
 import { FORGED_IMPL_FIX, FORGED_SPEC_FIX, gateProblems, NO_VERDICT_FIX, NO_VERDICT_WORDS, ONLY_FAILED_FIX, ONLY_FAILED_WORDS, SELF_CLOSED_FIX, VERIFICATION_CHECK } from "./closing.ts";
 import { defaultBranch, git, headSha } from "./git.ts";
 import { readGlossary } from "./glossary.ts";
-import { gitDirOf, lockExistsIn, liveness, LOCK_NAME, readLock, rescueDirectories, restoreCommand, validateLock, type Lock } from "./mutation-lock.ts";
+import { BY_HAND, gitDirOf, lockExistsIn, liveness, LOCK_NAME, readLock, rescueDirectories, restoreCommand, validateLock, type Lock } from "./mutation-lock.ts";
 import { runCommand } from "./run.ts";
 import { measureDiff, measureStart, resolveCommit, SMALL_MAX_FILES, SMALL_MAX_LINES } from "./size.ts";
 import { describeRow, entries as ledgerEntries, readVerdict } from "./ledger.ts";
@@ -672,8 +672,6 @@ function checkWorkspace(store: Store, report: Report): void {
     report.ok("working tree is clean");
   }
 }
-
-const BY_HAND = "'git stash push --include-untracked' saves every change and discards nothing; then delete the lock";
 
 /**
  * Item 42, R27 and R28. A lock means a run has reverted the item's code, or has

@@ -2,6 +2,28 @@
 
 ## Unreleased
 
+- **`mstack verify --mutation` checks that the item's tests notice its code, and `verify
+  --restore` puts the tree back after a run that died.** `--mutation` reverts, in the working
+  tree, every tracked code path that differs between the active item's start and HEAD (tests,
+  docs, the store and untracked files are not touched), behind `<git dir>/mstack-mutation.lock`
+  and after a green baseline (a `gate --full` green recorded at the same commit and tree, or the
+  verification run first); runs the verification on that tree; restores and proves every path;
+  and appends one row to `verification.tsv`: `mutation-killed` (exit 0), `mutation-survived`
+  (exit 1) or `mutation-blocked` (exit 2), with `mutation:` and a key over the code and test files
+  in the `tree` column. It refuses, exit 2 and nothing written, a dirty tracked file, the source
+  of the CLI that is running, and the shapes it does not handle (symlinks, submodules, a file
+  that became a directory, case-only renames, names that are not UTF-8, merges of other work). A
+  Ctrl-C, SIGTERM or SIGHUP is acted on after the tree is restored (130, 143, 129); a change to
+  the tree during the run, or a failed restore (exit 3, the lock kept), writes no row. While the
+  lock exists the gate fails, `gate --full` runs nothing, and the PreToolUse hook denies the git
+  commands that would keep or lose the reverted state. `--restore` refuses while the run may be
+  alive and has no `--force`; whatever it finds at a reverted path that the run did not write is
+  moved into `<git dir>/mstack-mutation/<run>/rescue/` first, and the gate warns until that is
+  removed. No reader of receipts counts a mutation row, and no closing check reads one yet. The
+  wiki's [The-CLI](docs/wiki/The-CLI.md#verify) says what it cannot make safe and the ways to
+  recover by hand. **Upgrading:** nothing changes for a store that does not run it; `mstack help`
+  gains the command and an exit code 3.
+
 - **`state set --status done` refuses an item with no ledger row, and the closing-role rule
   reads names the way the evidence check reads filenames.** Before, an item with no row at all
   closed and the gate went red afterwards (`items marked done with no ledger verdict at all`).

@@ -1,10 +1,11 @@
+import { realpathSync } from "node:fs";
 import { constants } from "node:os";
 
 import { git, headSha } from "./git.ts";
 import { isActive } from "./lifecycle.ts";
 import { mutationKey, refusals, revertSet, trackedChanges, type MutationKey } from "./mutation.ts";
-import { acquireLock, discard, errorText, lockPath, prepareRun, readLock, restoreCommand, sweepStale, type Lock } from "./mutation-lock.ts";
-import { applyRevert, entryAt, holds, restoreFromLock, shellWord, type Restored } from "./mutation-tree.ts";
+import { acquireLock, BY_HAND, discard, errorText, liveness, lockPath, prepareRun, readLock, restoreCommand, sweepStale, validateLock, type Lock } from "./mutation-lock.ts";
+import { applyRevert, entryAt, holds, restoreFromLock, shellWord, type Entry, type Restored } from "./mutation-tree.ts";
 import { runningCliRoot, type Store } from "./paths.ts";
 import { runCommandAsync, type Running, type RunResult } from "./run.ts";
 import { measureStart, resolveCommit } from "./size.ts";
@@ -466,4 +467,90 @@ async function run(store: Store, options: MutationOptions, ctl: Control): Promis
       }
       return 2;
   }
+}
+
+const realOr = (p: string): string => {
+  try {
+    return realpathSync(p);
+  } catch {
+    return p;
+  }
+};
+
+const nothingThere = (entry: Entry): boolean => entry.kind === "absent" && entry.variant === null;
+
+/**
+ * `mstack verify --restore` (R22 to R24): the tree of a run that is not alive
+ * put back from its lock, proved, and the lock removed. Nothing is written for
+ * no lock, a lock that is not a run's record, or a run that may be alive.
+ * Returns 0 (restored, or nothing to do), 2 (refused) or 3 (not restored).
+ */
+export function restoreRun(store: Store, options: { readonly out: (line: string) => void }): number {
+  const out = (line: string): void => {
+    try {
+      options.out(line);
+    } catch {
+      // A closed terminal: the restore goes on.
+    }
+  };
+  // Asked first: the restore runs no child process and reads the git directory this leaves cached.
+  const file = lockPath(store);
+  if (file === null) {
+    out("mutation: nothing to restore: the store is not in a git repository");
+    return 0;
+  }
+  const held = readLock(store);
+  if (held === null) {
+    out(`mutation: nothing to restore: no lock at ${file}`);
+    return 0;
+  }
+  const byHand = (): void => out(`mutation: by hand, for a person at a terminal (while the lock exists the hook denies git stash to an agent): ${BY_HAND}`);
+  if ("damaged" in held) {
+    out(`mutation: refused: ${held.damaged}; nothing was written, and the lock stays`);
+    byHand();
+    return 2;
+  }
+  // R24 before anything trusts a field: liveness reads the pid, the host and the boot time.
+  const problems = validateLock(held.lock);
+  if (problems.length > 0) {
+    out(`mutation: refused: the lock ${file} is not one a run wrote: ${problems.join("; ")}; nothing was written, and the lock stays`);
+    byHand();
+    return 2;
+  }
+  const lock = held.lock;
+  const alive = liveness(lock);
+  const said = { running: "running", "not-running": "not running", unknown: "cannot tell whether it is running" }[alive.state];
+  out(`mutation: lock from pid ${lock.pid} (${said}: ${alive.reason}), run ${lock.run}, ${lock.entries.length} path(s)`);
+  if (alive.state === "running") {
+    return refuse(out, `the run that wrote the lock may be alive: pid ${lock.pid} on ${lock.host}, ${alive.reason}`, "wait for it to end: it restores the tree itself; nothing was written");
+  }
+  if (alive.state === "unknown") {
+    refuse(out, `whether the run that wrote the lock is alive cannot be told: pid ${lock.pid} on ${lock.host}, ${alive.reason}`, `run ${restoreCommand(lock.cli)} where it ran, on ${lock.host}; nothing was written`);
+    byHand();
+    return 2;
+  }
+  if (realOr(lock.root) !== realOr(store.root)) {
+    out(`mutation: the lock names the root ${lock.root}; its paths are resolved against this store's root, ${store.root}`);
+  }
+  let atHead = 0;
+  let atStart = 0;
+  for (const e of lock.entries) {
+    let at: Entry | null;
+    try {
+      at = entryAt(store.root, e.path);
+    } catch {
+      at = null;
+    }
+    if (at !== null && (e.head === null ? nothingThere(at) : holds(at, e.head))) atHead += 1;
+    else if (at !== null && (e.start === null ? nothingThere(at) : holds(at, e.start))) atStart += 1;
+  }
+  out(`mutation: ${atHead} at HEAD, ${atStart} as the revert wrote them, ${lock.entries.length - atHead - atStart} other`);
+  const restored = restore(store, lock, undefined, () => {});
+  reportRestore(out, restored);
+  if (restored.failed.length > 0) {
+    out(`mutation: the lock stays; once each path above is cleared: ${restoreCommand(lock.cli)}`);
+    return 3;
+  }
+  out(`mutation: restored ${restored.restored}, tree verified, lock removed`);
+  return 0;
 }

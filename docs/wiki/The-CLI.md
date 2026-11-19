@@ -17,12 +17,13 @@ are the example's `cli-search` and `export-json`, so the fork item here is the s
 id, same question you will meet in the shipped example.
 
 ```
-Exit codes: 0 pass, 1 gate failure or wait, 2 usage error or stop.
+Exit codes: 0 pass, 1 gate failure or wait, 2 usage error or stop, 3 a tree verify did not restore.
 ```
 
 That line is from `mstack help`, and it is exact: 1 means "this told you something is wrong"
 (a red gate, a stale verdict, a merge gate saying wait), 2 means "this command did not run"
-(bad arguments, an illegal transition, an unanswered fork). The one deliberate exception is
+(bad arguments, an illegal transition, an unanswered fork), and 3 is [verify](#verify) only: a
+mutation run whose working tree is not back yet, with the lock kept. The one deliberate exception is
 `mstack statusline`, which parses leniently and exits 0 on anything, because a typo in your
 settings must not turn the status bar into an error message.
 
@@ -706,6 +707,210 @@ Opus · feat/greet-flag · #3 export-json · spec_ready · unverified · ctx 31%
 Reads Claude Code's status-line JSON on stdin, prints one line (with ANSI colour, stripped
 here), exits 0 no matter what. `--subagent` renders the agent-panel rows instead. Wiring and
 the full behaviour are in [Status-Line](Status-Line.md).
+
+## verify
+
+`verify --mutation` asks whether the item's tests notice its code. It reverts the code part of
+the item's diff in your working tree, in place: every tracked code path whose content or mode
+differs between the item's start (its base, or the fork point from the default branch) and
+HEAD. Tests, docs, the store and untracked files are never touched. It then runs the item's
+verification on that tree, puts the tree back, proves it path by path, and appends one row to
+`.mstack/verification.tsv`. `verify --restore` puts back the tree of a run that died.
+
+```
+verify --mutation [--timeout S]   0 killed, 1 survived, 2 blocked or refused, 3 not restored
+verify --restore                  0 restored or nothing to restore, 2 refused, 3 not restored
+```
+
+`--timeout` bounds each command, and kills its whole process group: an integer from 1 to
+2147483 seconds, 900 when absent. The transcripts below are from a throwaway repository with
+one item (`node --test tests/` is its verification). The repository's path is shortened to
+`/repo`, the CLI's to `/.../mstack/bin/mstack`, and seven stack frames of node's test runner
+are left out of the first block.
+
+```console
+$ mstack verify --mutation
+mutation: greet-flag (1), start a040bfe8 (base), 1 code file(s) to revert
+mutation: baseline: running `node --test tests/`
+mutation: baseline: `node --test tests/` passed after 0.1s
+mutation: lock /repo/.git/mstack-mutation.lock, run 20261119T133438Z-47994-cc20
+mutation: if this process dies: /.../mstack/bin/mstack verify --restore
+mutation: until the run ends, save nothing to the files it reverts: a save in the moment one is put back is lost
+mutation: reverting 1 file(s)
+mutation: running `node --test tests/` on the reverted tree
+mutation: `node --test tests/` exit 1 after 0.1s
+mutation: restored 1, tree verified, lock removed
+mutation: the last 20 lines of `node --test tests/`:
+  |   AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  |   + actual - expected
+  |   
+  |   + 'Hello, Ada'
+  |   - 'HELLO, ADA!'
+  |   
+  |       at TestContext.<anonymous> (file:///repo/tests/greet.test.mjs:6:45)
+  |     generatedMessage: true,
+  |     code: 'ERR_ASSERTION',
+  |     actual: 'Hello, Ada',
+  |     expected: 'HELLO, ADA!',
+  |     operator: 'strictEqual',
+  |     diff: 'simple'
+  |   }
+mutation-killed: `node --test tests/` failed without the change (exit 1; a build failure and an assertion failure look the same here)
+$ git status --short
+$ tail -1 .mstack/verification.tsv | cut -f4,6
+mutation-killed	mutation:708df9d8b0f7ac81
+```
+
+The row has the six columns every receipt has: the item's slug, the commit the commands ran
+at, the commands, the outcome, the time, and `mutation:` with a key over the code and test
+files that differ from the start (their paths, modes and content, untracked ones included). A
+docs or store commit, or a rebase that changes no code or test path, keeps the key; a code or
+test change gives a new one. No reader of receipts counts a mutation row, so it never
+satisfies a verification. *Killed* does not mean the tests assert the behaviour: a build failure,
+an import of a removed file or a crash kills too, and a pure refactor survives by construction.
+*Blocked* is everything that says nothing about the change: a red or timed-out baseline, a
+command that timed out on the reverted tree, exited 126 or 127, or was ended by a signal
+mstack did not send, and a revert that could not complete. Here is a survived run, from an
+item that adds `src/farewell.js` and no test of it:
+
+```console
+$ mstack verify --mutation
+mutation: farewell (1), start 97bcc2a4 (base), 1 code file(s) to revert
+mutation: baseline: running `node --test tests/`
+mutation: baseline: `node --test tests/` passed after 0.1s
+mutation: lock /repo/.git/mstack-mutation.lock, run 20261119T133447Z-48355-fd06
+mutation: if this process dies: /.../mstack/bin/mstack verify --restore
+mutation: until the run ends, save nothing to the files it reverts: a save in the moment one is put back is lost
+mutation: reverting 1 file(s)
+mutation: running `node --test tests/` on the reverted tree
+mutation: `node --test tests/` exit 0 after 0.1s
+mutation: restored 1, tree verified, lock removed
+mutation-survived: `node --test tests/` passed without the change; nothing noticed the revert of src/farewell.js
+$ tail -1 .mstack/verification.tsv | cut -f4,6
+mutation-survived	mutation:12b5aef8361b07f7
+```
+
+**The baseline comes first.** A green `gate --full` receipt at this commit and tree counts as
+the baseline (`recorded green at this tree, not re-run`); otherwise the commands run first,
+their output captured, and their receipts are written as `gate --full` writes them. A red or
+timed-out baseline is blocked, and nothing is reverted. A recorded green was run by `gate
+--full` on your terminal, while the reverted run captures its output, so a suite whose result
+depends on a terminal can pass there and fail here: a false kill.
+
+**What it refuses.** Each refusal exits 2, names the reason and the fix, and writes nothing: no
+active item, no git repository, no base or a start that is lost, no verification command, a
+rebase, merge, cherry-pick, revert or bisect in progress, a lock already there, nothing to
+revert (only tests and docs changed, or only untracked code), a start blob that cannot be read
+(a smudge filter, a Git LFS object); an uncommitted change to a tracked file outside the store
+(the store's own files may be dirty), a file flagged `--skip-worktree` or `--assume-unchanged`,
+anything at a path the revert puts back, a path on disk under another case; and the shapes the
+revert does not handle: a symlink or a submodule, a path that is a file on one side and a
+directory on the other, two spellings that differ only by case or Unicode normalisation, a name
+with a newline or bytes that are not UTF-8, a merge in the item's history that brings in other
+work, and the source of the mstack copy that is running. Such an item gets no row.
+
+```console
+$ mstack verify --mutation
+mutation: refused: uncommitted changes to tracked files: src/greet.js
+mutation: commit them, or 'git stash' them, and run it again; the run restores only what it reverts
+```
+
+**While it runs.** From the lock to its removal, `mstack gate` is red and `gate --full` runs
+nothing, and the PreToolUse hook denies an agent `git commit`, `add`, `stash` and the other
+commands that would keep or lose the reverted state
+([Gates-and-Hooks](Gates-and-Hooks.md#what-pretooluse-denies)). If the tree changes under the
+run anyway (an edit to a reverted file, a commit, a `git add`, a lock deleted, a tracked or
+untracked code or test file rewritten), no row is written, and the last line is
+`mutation-blocked: the tree changed under the run` with which of these held and the paths. After
+the lock is gone it reports, without naming a cause and without touching them: a moved HEAD
+with both commits and `git reset <old HEAD>` (mixed: it moves the branch back and keeps the
+working tree), or `git switch <the branch>` first when HEAD is on another one; each staged path
+with `git diff --cached` and `git restore --staged`, which discards that staged version; each
+other changed path with `git diff`; and each new untracked file, left in place. A suite that
+writes a file that is not ignored gets no row until the file is in `.gitignore`.
+
+**Ctrl-C, SIGTERM, SIGHUP, and kill -9.** A signal while a command runs kills that command's
+process group; the tree is restored and proved, and the run exits 130, 143 or 129 with no row.
+Nothing interrupts a revert or a restore: a signal then is acted on after the proof. A `kill -9`
+of mstack, alone or with its group, cannot be caught: the command's group is gone within 2
+seconds (the runner watches its caller), the lock stays, and the gate names the restore. Here
+the run was killed from another terminal while the tests ran on the reverted tree (the host
+name is shortened to `devbox`):
+
+```console
+$ mstack verify --mutation
+mutation: greet-flag (1), start a040bfe8 (base), 1 code file(s) to revert
+mutation: baseline: running `node --test tests/`
+mutation: baseline: `node --test tests/` passed after 4.1s
+mutation: lock /repo/.git/mstack-mutation.lock, run 20261119T133443Z-48106-bd08
+mutation: if this process dies: /.../mstack/bin/mstack verify --restore
+mutation: until the run ends, save nothing to the files it reverts: a save in the moment one is put back is lost
+mutation: reverting 1 file(s)
+mutation: running `node --test tests/` on the reverted tree
+$ kill -9 48106
+$ git status --short
+ M src/greet.js
+$ mstack gate --quiet
+[fail]  the mutation lock /repo/.git/mstack-mutation.lock is held by pid 48106 on devbox, started 2026-11-19T13:34:43.466Z, 1 path(s): the run is not running (no such process) -> run /.../mstack/bin/mstack verify --restore
+$ mstack verify --restore
+mutation: lock from pid 48106 (not running: no such process), run 20261119T133443Z-48106-bd08, 1 path(s)
+mutation: 0 at HEAD, 1 as the revert wrote them, 0 other
+mutation: restored 1, tree verified, lock removed
+$ git status --short
+$ mstack verify --restore
+mutation: nothing to restore: no lock at /repo/.git/mstack-mutation.lock
+```
+
+**What `--restore` writes.** Where a reverted path holds what the revert wrote, or nothing,
+HEAD's content goes back by a temp name and a rename. Anything else there (an edit, a
+directory, another spelling of the name) is first moved into
+`<git dir>/mstack-mutation/<run>/rescue/<k>/` and named; a path HEAD lacks is removed only
+when it holds the start's content. The gate warns, in every worktree, while a rescue holds
+anything; compare it with the tree and delete it by hand. A restore that cannot write, move or
+prove a path keeps the lock (a run whose lock was deleted under it writes it again), names the
+path, the error and what to do, and exits 3, whatever else happened. `verify --restore` refuses, exit 2 and nothing
+written, a lock that is not one document a run wrote (naming what is wrong), and a run that may
+be alive: its pid is a live process that started no later than the lock, or the lock is from
+another host or another pid namespace, where it cannot tell. There is no `--force`.
+
+**What it cannot tell, and cannot make safe.**
+
+- A save to a reverted file in the moment the run puts it back, between its last check and the
+  rename, a few system calls, is lost, and so is a later write through a descriptor opened on
+  the file it replaced. That is the line printed at the lock. An orphaned command can also
+  write for up to 250 ms after mstack dies.
+- A lock from another host or pid namespace cannot be told running or not; the common way to
+  one is a restarted container. Run `verify --restore` where the run ran, or recover by hand.
+- On Linux, `ps` counts a process's age on the boot clock, so a forward step of the wall clock
+  of more than about a second after the lock makes a live run read as a reused pid, and
+  `verify --restore` would restore under it: HEAD's content goes back, and that run then
+  writes no row.
+
+**How to run it.** Alone and last: a flaky test can kill or survive by chance, and a later code
+or test commit gives a new key, so the row no longer matches. An agent runs it with the Bash
+tool's `run_in_background: true` and waits for the notice: two runs of a suite pass the tool's
+120-second default, and the 900-second `--timeout` passes its 600-second ceiling. In a checkout
+of mstack itself the run refuses to revert its own source; run it from a copy, with the checkout
+as the working directory: `git worktree add --detach "${TMPDIR:-/tmp}/mstack-cli" HEAD`, then
+`"${TMPDIR:-/tmp}/mstack-cli/bin/mstack" verify --mutation`, then `git worktree remove
+"${TMPDIR:-/tmp}/mstack-cli"`. The hooks of a session started with `--plugin-dir .` run the
+checkout's `src/`, reverted, so run it from a session that is not.
+
+**By hand.** These are for a person at a terminal: while the lock exists, the hook denies an
+agent `git stash` and `git restore`. The tool prints the first two, where they apply.
+
+1. One path the restore could not write: `git stash push -- <path>` writes HEAD's content there
+   and saves whatever was there first; then `verify --restore`. If it still fails on that path,
+   delete the lock by hand; the path may then be absent, and `git restore -- <path>` puts HEAD's
+   content back. Nothing is discarded: the stash holds what was there.
+2. A lock that cannot be read: `git stash push --include-untracked` saves every change and
+   untracked file, the reverted code included, and discards nothing; it also stashes the
+   store's own files until `git stash pop`. Then delete the lock.
+3. Without mstack: `GIT_LITERAL_PATHSPECS=1 git stash push --include-untracked -- <each path of
+   the lock>`, then delete the lock and the run directory's `start/` and `head/`, keeping its
+   `rescue/`. Nothing is discarded: the stash holds the reverted content and every edit made
+   during the run, and paths outside the lock stay. Not `git restore --source=HEAD --worktree`:
+   it discards every edit made to those paths during the run.
 
 ## version
 

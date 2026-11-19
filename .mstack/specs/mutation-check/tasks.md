@@ -244,7 +244,7 @@ requirements it covers (`agents/implementer.md`, "Your report").
   marker in the obligation). Done when `bun test tests/mutation-signals.test.ts` ends ` 9 pass` and
   ` 0 fail`, and the node command prints `# fail 0`. (covers R16, R17)
 
-- [ ] 3.4 In `src/cli.ts`, add `case "verify"` to `main` (`src/cli.ts:72-111`) and `cmdVerify`:
+- [x] 3.4 In `src/cli.ts`, add `case "verify"` to `main` (`src/cli.ts:72-111`) and `cmdVerify`:
   `--mutation [--timeout <seconds>]` calls `runMutation`; `--restore` calls `readLock`,
   `validateLock`, `liveness`, then `restoreFromLock`; any other flag, `--force` included, is a usage
   error; the exit codes and lines of R12, R15, R22-R25. Add `verify --mutation [--timeout S] |

@@ -21,6 +21,7 @@ import {
   STATUSES,
 } from "./lifecycle.ts";
 import { lintPlugin } from "./lint.ts";
+import { restoreRun, runMutation } from "./mutation-run.ts";
 import { cliProvenance, describeSrcComparison, findStore, requireStore, runningCliRoot, UserError, type Store } from "./paths.ts";
 import { DECIDE, helpText, parseFlags, STATE_ADD, STATE_SET, STATE_SHOW, wantsHelp } from "./cliopts.ts";
 import { specRequirementIds } from "./rcheck.ts";
@@ -63,9 +64,13 @@ const USAGE = `mstack - durable state and gates for the mstack Claude Code plugi
   fanout check --kind K --worker W... name the workers that did not report back
   statusline [--subagent]             render status rows from the JSON on stdin
   version                             which copy is running: manifest version and resolved root
+  verify --mutation [--timeout S] | --restore
+                                      revert the item's code, run its verification and put the tree
+                                      back: 0 killed, 1 survived, 2 blocked or refused, 3 not restored;
+                                      --restore puts back the tree of a run that is not alive
   lint-plugin [dir]
 
-Exit codes: 0 pass, 1 gate failure or wait, 2 usage error or stop.
+Exit codes: 0 pass, 1 gate failure or wait, 2 usage error or stop, 3 a tree verify did not restore.
 Verdicts: ${ledger.VERDICTS.join(" | ")}
 Statuses: ${STATUSES.join(" | ")}`;
 
@@ -105,6 +110,8 @@ async function main(argv: readonly string[]): Promise<number> {
       return cmdCost(rest);
     case "lint-plugin":
       return cmdLint(rest);
+    case "verify":
+      return await cmdVerify(rest);
     default:
       throw new UserError(`unknown command '${command}'`, "run 'mstack help'");
   }
@@ -205,6 +212,43 @@ function cmdStatusline(argv: readonly string[]): number {
 function cmdSetup(argv: readonly string[]): number {
   const { values } = parseArgs({ args: [...argv], options: { force: { type: "boolean" } }, strict: true });
   return setup(process.cwd(), { force: values.force === true }).failed ? 1 : 0;
+}
+
+/** `--timeout`'s ceiling in seconds: in milliseconds it is still a timer both runtimes accept (2^31 - 1). */
+const MAX_TIMEOUT_S = 2147483;
+const DEFAULT_TIMEOUT_S = 900;
+
+/**
+ * `verify --mutation` and `verify --restore` (item 42). Every line goes to
+ * stdout, and a write error on it is swallowed: a terminal closed during a run
+ * must not end the process with the item's code still reverted.
+ */
+async function cmdVerify(argv: readonly string[]): Promise<number> {
+  const { values } = parseArgs({
+    args: [...argv],
+    options: { mutation: { type: "boolean" }, restore: { type: "boolean" }, timeout: { type: "string" } },
+    strict: true,
+  });
+  if ((values.mutation === true) === (values.restore === true)) {
+    throw new UserError(
+      "verify takes one of --mutation and --restore",
+      "--mutation reverts the item's code and runs its verification on that tree; --restore puts back the tree of a mutation run that is not alive",
+    );
+  }
+  if (values.restore === true && values.timeout !== undefined) {
+    throw new UserError("--timeout belongs to --mutation", "a restore runs no command, so it has nothing to bound");
+  }
+  const seconds = values.timeout ?? String(DEFAULT_TIMEOUT_S);
+  if (!/^\d+$/.test(seconds) || Number(seconds) < 1 || Number(seconds) > MAX_TIMEOUT_S) {
+    throw new UserError(`--timeout must be an integer from 1 to ${MAX_TIMEOUT_S}, in seconds, not '${seconds}'`);
+  }
+  for (const stream of [process.stdout, process.stderr]) stream.on("error", () => {});
+  const out = (line: string): void => {
+    process.stdout.write(`${line}\n`);
+  };
+  const store = requireStore();
+  if (values.restore === true) return restoreRun(store, { out });
+  return runMutation(store, { timeoutMs: Number(seconds) * 1000, out });
 }
 
 function cmdGate(argv: readonly string[]): number {
