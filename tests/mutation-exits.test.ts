@@ -870,15 +870,18 @@ test("B1 (item 105, round 2) a checkout copied into the directory that holds it 
     // lock's root. git asked with the caller's variables places that root in the copy, at `top dir's "q" x/pkg/a`;
     // asked from the root alone, in the original.
     const a = join(o.base, "pkg", "a");
-    const variants: [string, Record<string, string>][] = [
-      ["GIT_DIR and GIT_WORK_TREE", { GIT_DIR: join(o.base, ".git"), GIT_WORK_TREE: o.base }],
-      ["GIT_WORK_TREE alone", { GIT_WORK_TREE: o.base }],
-      ["neither", {}],
+    // The last but one: GIT_DIR alone, the copy's config naming its worktree (core.worktree), which git then reads.
+    const variants: [string, Record<string, string>, boolean][] = [
+      ["GIT_DIR and GIT_WORK_TREE", { GIT_DIR: join(o.base, ".git"), GIT_WORK_TREE: o.base }, false],
+      ["GIT_WORK_TREE alone", { GIT_WORK_TREE: o.base }, false],
+      ["GIT_DIR alone, with core.worktree", { GIT_DIR: join(o.base, ".git") }, true],
+      ["neither", {}, false],
     ];
-    for (const [label, vars] of variants) {
+    for (const [label, vars, coreWorktree] of variants) {
       rmSync(join(o.base, ".git"), { recursive: true, force: true });
       rmSync(join(o.base, "pkg"), { recursive: true, force: true });
       cpSync(top, o.base, { recursive: true, verbatimSymlinks: true });
+      if (coreWorktree) git(o.base, "config", "core.worktree", o.base);
       assert.equal(readFileSync(join(a, "src", "x.js"), "utf8"), "OLD\n", `${label}: the copy is not of the reverted tree`);
       const ran = runWith(o.cli, a, ["verify", "--restore"], vars);
       assert.equal(ran.code, 0, `${label}: ${ran.all}`);
