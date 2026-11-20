@@ -73,6 +73,13 @@ watch is review rounds per item: if they do not drop after phase 1, intake is ce
   Report `impl_mutation-exits-followups_r2.md`, the whole round. Next: a review round 2 by a pass
   that did not write the code.
 
+- 2026-11-20 item 102 implementer (scratch `.../scratchpad/impl102/`): every mutant rebuilt on
+  the base first (`impl102/scripts/survey-base.sh`, driver `impl102/scripts/mutant.sh`); 11 got a
+  test, C was already killed, D and Q no longer apply (rebuilt as D2 and Q2, killed by existing
+  tests), none equivalent; commits d8dfedd to 031db3b (tests by criterion, three text fixes);
+  rows 08:04:58Z; both suites green. Report `impl_mutation-test-pins.md`. Next: a review by a
+  pass that did not write the code.
+
 Headless runs: `run.mjs` builds a clean `env -i` env, uses the claude.ai login, and never
 passes bypassPermissions. Do not run `check.mjs` or `verify.mjs` while a batch is running
 (item 49).
