@@ -7,7 +7,7 @@
 > empty template below.
 
 - **Item:** 102 mutation-test-pins (item 100 is parked on two forks for the user)
-- **Status:** reviewing, round 2 (scoped to the round 1 fixes and the timeout sweep of 142 tests)
+- **Status:** verifying; round 2 APPROVED (0 blocking, 3 non-blocking to a follow-up); gate --full, then the first CI run on ubuntu for the ps-based test before the close
 - **Branch:** test/mutation-test-pins
 - **Base:** 113e7842ade6b4482967fb12f7c42f25fb690bf2
 - **Worktree:** none
