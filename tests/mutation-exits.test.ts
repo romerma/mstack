@@ -906,10 +906,11 @@ test("B1 (item 105, round 2) rootDisagrees asks only about a root under this wor
     const old = join(o.base, `old path ${ODD}`);
     symlinkSync(o.b, old);
     assert.equal(rootDisagrees({ root: old, rootFromTop: "pkg/a" }, o.a, top), null);
-    // Under the top level: another store, and a directory whose name starts with two dots, which is not the parent.
+    // Under the top level: another store, and a store whose name starts with two dots, which is not the parent.
     assert.equal(rootDisagrees({ root: o.b, rootFromTop: "pkg/a" }, o.a, top), `its root ${o.b} is the store at pkg/b in this worktree, so the lock was edited and whose it is cannot be told`);
     const dots = join(top, "..b");
     mkdirSync(dots);
+    captured(() => setup(dots));
     assert.match(rootDisagrees({ root: dots, rootFromTop: "pkg/a" }, o.a, top) ?? "agrees", /its root .+ is the store at \.\.b in this worktree/);
     // This store's own root, and a root under the top level that names no directory, say nothing.
     assert.equal(rootDisagrees({ root: o.a, rootFromTop: "pkg/a" }, o.a, top), null);
