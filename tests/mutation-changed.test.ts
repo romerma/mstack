@@ -250,3 +250,23 @@ test("R13 the restore's line says lock removed only when it removed the run's lo
     assert.ok(m.lines.includes("mutation: restored 1, tree verified, lock removed"), `the control: ${m.text}`);
   });
 });
+
+test("R19 HEAD on another branch and the lock's branch moved too: git switch to it first, then the reset", SPAWN_TEST, async () => {
+  // Item 42, round 2 review, non-blocking 3: mutant m (never the reset after the switch) survived; the test above has a branch that did not move.
+  await withRunRepo(CHECK, startA, editA, async (r) => {
+    const branch = git(r.root, "symbolic-ref", "--short", "HEAD");
+    const old = git(r.root, "rev-parse", "HEAD");
+    const m = await mutate(r, during(() => {
+      git(r.root, "commit", "-q", "--allow-empty", "-m", "on the lock's branch");
+      git(r.root, "switch", "-q", "-c", "other");
+    }));
+    assert.equal(m.code, 2, m.text);
+    assert.notEqual(git(r.root, "rev-parse", branch), old, "the lock's branch did not move");
+    const line = m.lines.find((l) => l.startsWith("mutation: HEAD is on other, "));
+    assert.equal(
+      line,
+      `mutation: HEAD is on other, not on ${branch}: git switch ${branch} first, then, if you want it: git reset ${old} moves ${branch} back and keeps the working tree (the commit stays in the reflog)`,
+      m.text,
+    );
+  });
+});

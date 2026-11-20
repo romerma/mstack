@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
-import { chmodSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -291,5 +291,45 @@ userTest("R15 a signal and a restore that fails: exit 3, and the lock stays", SP
     assert.deepEqual(restoreFromLock(r.store, held.lock).failed, []);
     assert.equal(tree(r), before);
     assert.deepEqual(rows(r).filter((x) => (x["outcome"] ?? "").startsWith("mutation-")), []);
+  });
+});
+
+test("R16 a signal that comes while git answers a check is acted on before the refusal the failed git leads to: exit 130, not 2", SPAWN_TEST, async () => {
+  // Item 42, round 2 review, non-blocking 3: mutant k (the refusal printed before the signal check) survived. The git
+  // on PATH, asked R1's question of an operation in progress, sends SIGINT to the run and fails, as a git child does
+  // when a Ctrl-C to the group kills it; the run is in a synchronous call then, so its handler runs only after.
+  await withRunRepo(onReverted("exit 1"), startA, editA, async (r) => {
+    const before = tree(r);
+    const real = spawnSync("sh", ["-c", "command -v git"], { encoding: "utf8" }).stdout.trim();
+    const bin = join(r.scratch, "bin");
+    mkdirSync(bin);
+    const flag = join(r.scratch, "signalled");
+    writeFileSync(join(bin, "git"), `#!/bin/sh\nif [ "$1 $2" = "rev-parse --git-path" ] && [ ! -e '${flag}' ]; then : > '${flag}'; kill -INT "$PPID"; exit 1; fi\nexec '${real}' "$@"\n`);
+    chmodSync(join(bin, "git"), 0o755);
+    outsideCheckout(r.root);
+    const dir = mkdtempSync(join(tmpdir(), "mstack-run-holder-"));
+    const journal = join(dir, "journal");
+    writeFileSync(journal, "");
+    const env = { ...process.env, PATH: `${bin}:${process.env["PATH"] ?? ""}` };
+    const child = spawn(process.execPath, [...RUNTIME_FLAGS, HOLDER, r.root, journal, "none", join(dir, "release"), "60000"], { cwd: r.root, detached: true, stdio: "ignore", env });
+    const exited = new Promise<number | string | null>((res) => child.on("close", (code, signal) => res(code ?? signal)));
+    try {
+      const code = await exited;
+      const text = readFileSync(journal, "utf8");
+      assert.ok(existsSync(flag), `the run never asked git for the files of an operation in progress:\n${text}`);
+      assert.equal(code, 130, text);
+      assert.match(text, /^out mutation: stopped by SIGINT, so nothing was recorded$/m);
+      assert.doesNotMatch(text, /refused/);
+      assert.equal(tree(r), before);
+      assert.equal(existsSync(lockFileOf(r)), false, "a lock was left");
+      assert.deepEqual(rows(r), [], "a receipt or a row was written");
+    } finally {
+      try {
+        process.kill(-(child.pid as number), "SIGKILL");
+      } catch {
+        // The group is gone.
+      }
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });

@@ -10,7 +10,7 @@ import { fileURLToPath } from "node:url";
 import { bootTime, pidNamespace, shellWord } from "../src/mutation-lock.ts";
 import { setup } from "../src/setup.ts";
 import { readRecords } from "../src/tsv.ts";
-import { captured, item, sandbox, state } from "./helpers.ts";
+import { captured, item, recordReceipt, sandbox, state } from "./helpers.ts";
 import { commitAll, git, gitDirOf, lockFileOf, outsideCheckout, put, SIGNAL_MS, SPAWN_TEST, status, until, withRunRepo, type RunRepo } from "./mutation-fixture.ts";
 
 /**
@@ -335,5 +335,39 @@ test("R23 restore refuses a lock from another host, naming it and the by-hand re
     assert.match(ran.all, /git stash push --include-untracked/);
     assert.equal(readFileSync(file, "utf8"), lock);
     assert.equal(status(r.root), before);
+  });
+});
+
+test("R13 a stdout closed before the run's first line does not end the run: the tree is put back and the row written", SPAWN_TEST, async () => {
+  // Item 42, round 2 review, non-blocking 3: mutant i (no error handler on stdout) survived; without it every line
+  // after the close is an EPIPE the process dies of, node with no row, bun after it.
+  await withRunRepo(CHECK, startA, editA, async (r) => {
+    outsideCheckout(r.root);
+    const before = tree(r);
+    const child = spawn(CLI, ["verify", "--mutation"], { cwd: r.root, stdio: ["ignore", "pipe", "pipe"], env: { ...process.env, NO_COLOR: "1" } });
+    // Closed at once: whatever the run writes to stdout from here on has no reader.
+    child.stdout.destroy();
+    let err = "";
+    child.stderr.on("data", (d: Buffer) => (err += d.toString("utf8")));
+    const code = await new Promise<number | string | null>((res) => child.on("close", (c, signal) => res(c ?? signal)));
+    assert.equal(code, 0, `the run ended with ${String(code)}: ${err}`);
+    assert.deepEqual(mutationRows(r).map((x) => x["outcome"]), ["mutation-killed"]);
+    assert.equal(readFileSync(join(r.root, "src", "a.ts"), "utf8"), "new\n");
+    assert.equal(tree(r), before);
+    assert.equal(existsSync(lockFileOf(r)), false, "the lock is still there");
+  });
+});
+
+test("R12 with no --timeout a command may run 10 s: the default bound is 900 s", SPAWN_TEST, async () => {
+  // Item 42, round 2 review, non-blocking 3: mutant n (a default of 9 s) survived. A green recorded at this tree is
+  // the baseline, so only the run on the reverted tree sleeps, 10 s, against a bound of 900.
+  await withRunRepo(onReverted("sleep 10; exit 1"), startA, editA, async (r) => {
+    recordReceipt(r.box, { target: "(project)", sha: git(r.root, "rev-parse", "HEAD"), command: r.command, outcome: "passed" });
+    const ran = cli(r.root, ["verify", "--mutation"]);
+    assert.equal(ran.code, 0, ran.all);
+    assert.match(ran.out, /recorded green at this tree, not re-run/);
+    assert.match(ran.out, /^mutation-killed: /m);
+    assert.doesNotMatch(ran.all, /timed out/);
+    assert.deepEqual(mutationRows(r).map((x) => x["outcome"]), ["mutation-killed"]);
   });
 });

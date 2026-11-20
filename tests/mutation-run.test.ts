@@ -451,3 +451,17 @@ test("R2 a tracked doc edited during the baseline is refused, and no receipt is 
     nothingLeft(r);
   });
 });
+
+test("R12 a kill prints the last 20 lines of what the command printed, and only those", SPAWN_TEST, async () => {
+  // Item 42, round 2 review, non-blocking 3: mutants a (no tail printed on a kill) and b (a tail of 3) survived.
+  const printed = Array.from({ length: 25 }, (_, i) => `line ${i + 1}`);
+  const script = `echo run >> "$1"\ngrep -q new src/a.ts || { printf '%s\\n' ${printed.map((l) => `'${l}'`).join(" ")}; exit 1; }\n`;
+  await withRunRepo(script, startA, editA, async (r) => {
+    const { code, lines, text } = await go(r);
+    assert.equal(code, 0, text);
+    const at = lines.indexOf(`mutation: the last 20 lines of \`${r.command}\`:`);
+    assert.ok(at >= 0, `no tail before the kill:\n${text}`);
+    assert.deepEqual(lines.slice(at + 1, at + 21), printed.slice(5).map((l) => `  | ${l}`), text);
+    assert.match(lines[at + 21] ?? "", /^mutation-killed: /, text);
+  });
+});
