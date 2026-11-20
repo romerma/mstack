@@ -50,6 +50,12 @@ watch is review rounds per item: if they do not drop after phase 1, intake is ce
   files (e8699cc), the lint check (b135331), docs (a7f1b72); 18 of 18 mutants killed; both
   suites green. Report `impl_size-tiers.md`. Next: a review by a pass that did not write the code.
 
+- 2026-11-20 item 105 implementer (scratch `.../scratchpad/impl105/`): design row for A2 (the
+  lock's root must not name another store of the worktree), implement rows for the gate test's
+  fixture, A3, A1's "can run" test and A4; commits 0b39697 to 9f39f15 (tests, three fixes, docs);
+  both suites green here. Report `impl_mutation-exits-followups.md`. Next: a review by a pass that
+  did not write the code.
+
 Headless runs: `run.mjs` builds a clean `env -i` env, uses the claude.ai login, and never
 passes bypassPermissions. Do not run `check.mjs` or `verify.mjs` while a batch is running
 (item 49).
