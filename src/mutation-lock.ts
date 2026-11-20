@@ -172,7 +172,7 @@ export function rootDisagrees(lock: Pick<Lock, "root" | "rootFromTop">, dir: str
   if (!existsSync(join(lock.root, STORE_DIR))) return null;
   const there = placeOfDir(lock.root);
   if (there === null || there.top !== top || there.rel === lock.rootFromTop) return null;
-  return `its root ${lock.root} is the store at ${storeName(there.rel)} in this worktree, so the lock was edited and whose it is cannot be told`;
+  return `its root ${lock.root} is the store at ${storeName(there.rel)} in this worktree, so either the lock was edited or the checkout was moved and its old root is now that store, and whose the lock is cannot be told`;
 }
 
 /**
