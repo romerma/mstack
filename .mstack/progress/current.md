@@ -7,7 +7,7 @@
 > empty template below.
 
 - **Item:** 102 mutation-test-pins (item 100 is parked on two forks for the user)
-- **Status:** in_progress, fixing the round 1 review (2 blocking: a test named for 900 s that holds 10 s; a test with no timeout option that fails under load on bun), then review round 2
+- **Status:** reviewing, round 2 (scoped to the round 1 fixes and the timeout sweep of 142 tests)
 - **Branch:** test/mutation-test-pins
 - **Base:** 113e7842ade6b4482967fb12f7c42f25fb690bf2
 - **Worktree:** none

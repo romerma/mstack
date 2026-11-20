@@ -1581,7 +1581,7 @@
         "a test covers the two lines that name a gone CLI and have none: R15's line (src/mutation-run.ts:88) and the hook's line from inside .git (src/hooks.ts:468) (item 101 review round 2, non-blocking 4); and a test fails for that review's mutants X2 and X3",
         "from the item 105 review round 2: a test fails for its mutants V1 (there.top !== top dropped) and V2 (a silent git refuses, which turns away the legitimate restore N10b with the suite green): two assertions in the root-check test of tests/mutation-exits.test.ts; the message at src/mutation-lock.ts:175 does not say 'the lock was edited' for a moved checkout nobody edited; design.md's not-caught list gains the edit under GIT_CEILING_DIRECTORIES between the root and the top; the test comment near tests/mutation-exits.test.ts:924 states the rule in the code"
       ],
-      "status": "in_progress",
+      "status": "reviewing",
       "description": "The behaviour is right in each case; no test fails when it is removed. Round 2 listed ten surviving mutants and four (l, d, g, j) got a test in the round 2 fixes. Round 3 added three on the B3 path and showed the helper's check at start can be pinned without a timing bound.",
       "size": "m",
       "base": "113e7842ade6b4482967fb12f7c42f25fb690bf2",
