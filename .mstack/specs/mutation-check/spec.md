@@ -67,7 +67,7 @@ run directory and no row.
 - **WHEN** the lock exists
 - **THEN** it exits 2, names the lock's pid, its start time and whether that run is alive (R23),
   and, when it is not, `<CLI that wrote the lock> verify --restore` (R25's command, the running
-  CLI's when that file is gone); no file changes; for a lock
+  CLI's when that file is gone or cannot run, item 105); no file changes; for a lock
   that fails R24's check it says what the gate says of it instead: it cannot be read as a run's
   record, and the by-hand recovery, with no restore line (item 101)
 
@@ -445,7 +445,7 @@ IF writing, moving or proving fails for a path (a permission, a full disk, a sta
 missing or does not match its identity, a parent that is not a directory), THEN the system MUST
 keep the lock (writing it again from its record if it is gone), continue with the other paths,
 name each failed path with the operating system's error and what to do, name `<CLI that wrote
-the lock> verify --restore` for after (R25's command, the running CLI's when that file is gone),
+the lock> verify --restore` for after (R25's command, the running CLI's when that file is gone or cannot run),
 record no row, and exit 3, whatever other code applied.
 Where a parent is a directory under a name other than git's, what to do is `mv <its name on disk>
 <git's name>`, and the output says that `git stash` does not clear it; for a missing staged copy,
@@ -692,7 +692,11 @@ named only when the restore run there takes the lock as its store's, and when no
 `rootFromTop` that differs from git's spelling only in case or Unicode form, which on a disk that
 folds them names this same store), each MUST say so and name the by-hand recovery (item 101); a lock's paths
 are resolved against the root of the store it names, never against another store's, in a moved
-checkout or not.
+checkout or not. IF the lock's `root` is a directory git places in this worktree at another place
+than its `rootFromTop` names, THEN the lock was edited, and `verify --restore` MUST exit 2 from
+either store, write nothing to the tree, the lock or the run directory, and name the by-hand
+recovery, and the gate's line, the hook's reason and R1's refusal MUST give the by-hand recovery
+and no directory (item 105).
 
 #### Scenario: A path outside the root
 - **WHEN** the lock was edited to name `../outside.txt`
@@ -711,12 +715,20 @@ checkout or not.
   hook's reason in B name that directory; and `verify --restore` from `pkg/a` exits 0, with the
   tree as it was before the run and no lock
 
+#### Scenario: A lock edited to name another store
+- **WHEN** after a run in `pkg/a` died, its lock is edited so that `rootFromTop` names `pkg/b`
+- **THEN** `verify --restore` from `pkg/b` and from `pkg/a` exits 2, nothing of A's is written
+  into B and the lock and the run directory are unchanged; each store's gate line, R1 refusal and
+  hook reason give the by-hand recovery and no `cd`; the same lock with its `root` spelled
+  through a symlink to `pkg/a`, or naming a store of another worktree, restores from `pkg/a`
+
 ### Requirement: R25 Every message that names the restore names the CLI that wrote the lock
 WHEN a run, a refusal, a failed restore, the gate or the hook names `verify --restore`, the system
 MUST give it as the absolute path of the CLI that wrote the lock followed by `verify --restore`,
-and, when no file exists at that path, the absolute path of the CLI that is running followed by
-`verify --restore` instead, with the path that is gone named in front of the way out and not
-offered as a command, since it cannot run (item 101); each path one shell word (single-quoted
+and, when what is at that path cannot run (nothing, item 101; a directory, a file without the
+execute bit, or one without `src/cli.ts` beside it, item 105), the absolute path of the CLI that
+is running followed by `verify --restore` instead, with that path named in front of the way out,
+gone or why it cannot run, and not offered as a command; each path one shell word (single-quoted
 when it holds a character the shell reads, item 101) and the directory of a `cd` in front of the
 command the same, so every command a line offers runs as printed; it
 MUST NOT name `sh` together with the lock in any output; and the lines a run prints when it
@@ -735,6 +747,13 @@ back is lost.
   with `verify --restore`, preceded by `cd <the lock's store> &&` when another store of the
   worktree wrote the lock; the gone path is not followed by `verify --restore` (item 101)
 
+#### Scenario: The writing CLI cannot run
+- **WHEN** a lock's CLI path holds a directory, a file without the execute bit, or a copy whose
+  `src/` is gone
+- **THEN** the gate, R1, the hook and `verify --restore` from another store each name that path
+  and why it cannot run, and the one command each offers is the running CLI's, which run as
+  printed, from the lock's store and from another, exits 0 and removes the lock (item 105)
+
 ### Requirement: R26 The PreToolUse hook denies git writes under a lock
 WHILE the lock exists in the git directory of the hook input's `cwd`, the system MUST deny any
 Bash command with a segment running git `add`, `am`, `apply`, `checkout`, `cherry-pick`, `clean`,
@@ -746,7 +765,8 @@ restore command of R25; it MUST decide by the lock's existence alone, so a lock 
 parsed denies too; it MUST start no git process for a command with no such segment; it MUST
 allow when no lock exists or git cannot name the git directory; and, with or without a lock, it
 MUST deny a segment running `rm` on a path that ends in `mstack-mutation.lock`, as it denies an
-`rm -r` of the store.
+`rm -r` of the store, each in any case, rm's name and the path alike, since a disk that folds
+case runs rm for `RM` and finds the lock under `MSTACK-MUTATION.LOCK` (item 105).
 
 #### Scenario: Shapes caught
 - **WHEN** the lock exists and the command is `git commit -m x`, `git -C sub commit -am x`, `git

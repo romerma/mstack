@@ -892,7 +892,10 @@ written, a lock that is not one document a run wrote (naming what is wrong); the
 store of the same worktree, which shares its git directory and so its lock (naming the
 directory to run it from, as the gate, the hook and a refused `verify --mutation` do; when the
 restore run there would refuse the lock too, as for a lock that names its store in another case
-or Unicode form than git does, all four give the by-hand recovery instead); and a run
+or Unicode form than git does, all four give the by-hand recovery instead); a lock whose `root`
+is a store of the worktree other than the one its `rootFromTop` names, which only an edit makes,
+from either store (all four give the by-hand recovery; a `root` that is gone, as after a move, or
+in another worktree, as in a copy, is not held against it); and a run
 that may be alive: its pid is a live process that started no later than the lock, or the lock is
 from another host or another pid namespace, where it cannot tell. There is no `--force`.
 

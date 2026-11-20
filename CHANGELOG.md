@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+- **A dead mutation run's way out holds in three more cases, and the hook matches `rm` and `gh`
+  in any case.** When the path of the CLI that wrote the lock holds a directory, a file without
+  the execute bit or a copy whose `src/cli.ts` is missing, the gate, a refused `verify
+  --mutation`, the hook and `verify --restore` name it and why it cannot run, and offer the
+  running CLI's `verify --restore`, as they already did for a path that is gone; before, they
+  offered the writer's path, which exited 126 or 127. A lock edited so that its `rootFromTop`
+  names another store of the worktree, its `root` left on the run's, is refused by `verify
+  --restore` from either store, exit 2 and nothing written, with the by-hand recovery; before,
+  the restore from the store it named wrote the run's files there and removed the lock, leaving
+  the run's own store reverted. A lock no one edited reads as before, an old one included, and
+  so does one after the checkout is moved. The PreToolUse hook denies `RM -rf .mstack`, `rm -rf
+  .MSTACK`, `RM .git/mstack-mutation.lock` and `GH pr merge --admin`, each of which runs on a disk
+  that folds case. The suite passes from a checkout whose path holds a space.
+
 - **The ceremony scales with the item's size, from one matrix, and the gate holds a size `l` item
   to a review panel.** `skills/router/references/size-matrix.md` is the one table of which steps
   each size gets: `s` skips understand, design and the review panel (one lone reviewer); `m`

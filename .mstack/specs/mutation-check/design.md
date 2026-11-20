@@ -176,10 +176,18 @@ interface Lock {
   directory is the one git names `rootFromTop` in the same worktree (`inLockStore`, one more
   `git rev-parse` there): a spelling that differs only in case or Unicode form names this same
   store on a disk that folds them, and the `cd` looped; when no directory qualifies they say
-  why and give the by-hand recovery, and nothing folds a name (item 101). `root`, absolute, is kept for a reader and nothing is resolved against it: in a
-  moved checkout it names a directory that is gone, and a comparison of absolute roots would then
-  fall back to this store's root, which for the other store is the loss again. A lock without
-  `rootFromTop` fails `validateLock`, so it is one that cannot be read.
+  why and give the by-hand recovery, and nothing folds a name (item 101). `root`, absolute, is
+  never resolved against: in a moved checkout it names a directory that is gone, and a comparison
+  of absolute roots would then fall back to this store's root, which for the other store is the
+  loss again. It is checked against `rootFromTop` instead (`rootDisagrees`, item 105): the run
+  writes both in one record, so they disagree only after an edit, and a lock whose `root` git
+  places in this worktree elsewhere than `rootFromTop` is taken by no restore. `verify --restore`
+  refuses it from either store, exit 2 and nothing written, with the by-hand recovery, and the
+  gate, R1 and the hook give the by-hand recovery and no `cd`. A `root` that is this store's
+  directory (by name, or by device and inode), names no directory, or is placed by git outside
+  this worktree (a moved or copied checkout) says nothing, so no dead run restores differently;
+  an edit of both fields to agree, and an edit of `rootFromTop` after the checkout moved, are not
+  caught. A lock without `rootFromTop` fails `validateLock`, so it is one that cannot be read.
 - `validateLock` is R24; it finds a path that appears twice by R3's `fold`, so two spellings of one
   path are refused (round 1 review, NB3). `sweepStale` runs once the run holds the lock: it removes
   `mstack-mutation.lock.*.tmp` other than its own and every run directory the lock does not name
@@ -389,7 +397,11 @@ else. `receipts()` and `status()` do not change.
   run's record, with its first problem and the by-hand recovery, because `liveness` trusts
   fields that R24 checks; R1's refusal says the same words (`checkLock`, item 101), since
   `verify --restore` refuses such a lock. The restore command is `restoreCommand(lock.cli)`
-  (`src/mutation-lock.ts`), shared with the hook and with the messages of task 3.4.
+  (`src/mutation-lock.ts`), shared with the hook and with the messages of task 3.4. It offers the
+  lock's CLI when it can run (`cannotRun`: `stat` follows it to a regular file, `access(X_OK)`
+  passes, and `src/cli.ts` is a regular file beside it once the file's own links are followed, as
+  `bin/mstack` finds its root; no child process), and otherwise names it, gone or why it cannot
+  run, and offers the running CLI (item 105).
   `runVerification` fails and runs nothing under a lock: it asks for the lock's name first,
   before it reads the item's obligations.
 - `prunable` (`src/worktree.ts:131`) leaves out a worktree whose git directory holds the lock or a
@@ -424,7 +436,11 @@ else. `receipts()` and `status()` do not change.
   reason other than ENOENT or ENOTDIR counts as present.
 - `GUARDS` gets one more entry, `rm` on a path ending in `mstack-mutation.lock`, which needs no
   git and no lock: an agent told that the gate is red may delete the lock. It reads no lock, so its
-  reason points at `mstack gate` for the restore command rather than naming one (R25).
+  reason points at `mstack gate` for the restore command rather than naming one (R25). It and the
+  `rm -r` of the store match in any case, rm's name and the path alike, since on a disk that
+  folds case `RM .git/MSTACK-MUTATION.LOCK` deletes the lock; the `gh pr merge --admin` entry
+  matches gh's name in any case and its subcommand and flag as gh spells them, since gh does not
+  fold those (item 105).
 
 ### By hand
 
@@ -506,6 +522,7 @@ review, NB9); `F_FULLFSYNC` on macOS is not established (walk).
 | A second `verify --mutation` | refused: the lock exists, or the link fails | n/a | none |
 | `verify --restore` while the run is alive | refused (R23) | n/a | wait |
 | `verify --restore` from another store of the worktree, in place or after a move | refused, nothing written (R24, B3) | n/a | `cd <the lock's store> && verify --restore` |
+| The lock edited so its `rootFromTop` names another store, its `root` left on the run's | refused from either store, nothing written (R24, item 105) | n/a | by hand (3) |
 | Two `verify --restore` on a dead lock | each writes through its own temp name; one may unlink the other's temp and report a failure (exit 3) | n/a | a third run says nothing to restore |
 | A full disk | prepare: refused, nothing written; revert: blocked (R11); restore: kept (R15) | no | free space, verify --restore |
 | A read-only directory | revert: blocked; restore: kept, EACCES (`ro-exp`) | no | `chmod u+w`, verify --restore |

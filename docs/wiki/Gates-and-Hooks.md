@@ -90,10 +90,10 @@ The guard list, from `src/hooks.ts:230-271`:
 | `git push` with a `+refspec` | a leading `+` is a force push spelled differently, and it is the spelling that reads as harmless |
 | `git reset --hard` | discards uncommitted work with no undo |
 | `git branch -D` (and the `--delete --force` spellings) | deleting an unmerged branch loses the work on it; `-d` refuses when that would happen |
-| `gh pr merge --admin` | merges past a check `gh` would otherwise refuse; fix the check instead |
-| `rm -r` on `.mstack` | deletes the durable state this workflow runs on |
-| `rm` of a path that ends in `mstack-mutation.lock`, with or without a lock | the lock is what keeps a run's reverted code from being forgotten; `mstack gate` names the restore command |
-| while `<git dir>/mstack-mutation.lock` exists: `git add`, `am`, `apply`, `checkout`, `cherry-pick`, `clean`, `commit`, `merge`, `mv`, `pull`, `rebase`, `reset`, `restore`, `revert`, `rm`, `stash`, `switch`, and the plumbing `update-index`, `read-tree`, `checkout-index`, `write-tree`, `mktree`, `commit-tree`, `update-ref` | a `mstack verify --mutation` run has the item's code reverted in this working tree; a commit or an add would keep that state and a stash or a checkout would lose it, and the plumbing is the same writes spelled low. The reason names the lock, its pid and the absolute path of the CLI that wrote it followed by `verify --restore` (the running CLI's instead when that file is gone, which it names), run from the store that wrote the lock (`cd <its directory> &&`); for a lock the restore would refuse, the by-hand recovery instead, as the gate gives it. It reads the lock as the gate does, so a symlink at the lock's name is not followed and a FIFO there does not block: either is a lock that cannot be read |
+| `gh pr merge --admin` (`gh` in any case) | merges past a check `gh` would otherwise refuse; fix the check instead |
+| `rm -r` on `.mstack` (in any case) | deletes the durable state this workflow runs on |
+| `rm` of a path that ends in `mstack-mutation.lock`, with or without a lock (in any case) | the lock is what keeps a run's reverted code from being forgotten; `mstack gate` names the restore command |
+| while `<git dir>/mstack-mutation.lock` exists: `git add`, `am`, `apply`, `checkout`, `cherry-pick`, `clean`, `commit`, `merge`, `mv`, `pull`, `rebase`, `reset`, `restore`, `revert`, `rm`, `stash`, `switch`, and the plumbing `update-index`, `read-tree`, `checkout-index`, `write-tree`, `mktree`, `commit-tree`, `update-ref` | a `mstack verify --mutation` run has the item's code reverted in this working tree; a commit or an add would keep that state and a stash or a checkout would lose it, and the plumbing is the same writes spelled low. The reason names the lock, its pid and the absolute path of the CLI that wrote it followed by `verify --restore` (the running CLI's instead when that file is gone or cannot run, which it names), run from the store that wrote the lock (`cd <its directory> &&`); for a lock the restore would refuse, the by-hand recovery instead, as the gate gives it. It reads the lock as the gate does, so a symlink at the lock's name is not followed and a FIFO there does not block: either is a lock that cannot be read |
 
 The lock rows are the one place the hook reads anything but the command. When a segment of the
 command runs one of the listed git commands (with git's global options, in a compound command),
@@ -114,6 +114,12 @@ that only reads is denied with the rest: `git read-tree -n` is a dry run. The lo
 commit, add or stash a session makes out of habit while the tree is reverted; they do not stop
 one built on purpose. `git fast-import`, fed a stream written for it, commits the reverted
 content, and no listed command takes part.
+
+Each command's own name is matched in any case: on a disk that folds case, as macOS's does by
+default, `GIT`, `RM` and `GH` run git, rm and gh. rm's path is matched in any case too, since
+such a disk finds `.mstack` under `.MSTACK` and the lock under `MSTACK-MUTATION.LOCK`. What
+follows git's and gh's names stays as each spells it, since neither folds it: `git COMMIT` exits
+128, `gh PR merge` is an unknown command and `--ADMIN` an unknown flag.
 
 Two sentences in Claude Code's permissions documentation carry this table's weight: "PreToolUse
 hooks run before the permission prompt, for every tool except EndConversation", and "A hook
@@ -276,13 +282,16 @@ Walking the lines that carry the weight:
   *Not running*: the fix is the absolute path of the CLI that wrote the lock followed by
   `verify --restore`, preceded by `cd <its directory> &&` when another store of the same
   worktree wrote the lock: two stores share a worktree's git directory, and so its lock. When
-  that file is gone (a plugin update moves the versioned cache path), the line says so, naming
-  it, and the command it offers is the running CLI's instead: a path that is gone is never
-  offered as a command, since it cannot run. A path with a character the shell reads (a space, a
+  that file is gone (a plugin update moves the versioned cache path) or cannot run (a directory,
+  a file without the execute bit, a copy whose `src/cli.ts` is missing), the line says so,
+  naming it, and the command it offers is the running CLI's instead: a path that cannot run is
+  never offered as a command. A path with a character the shell reads (a space, a
   quote) is single-quoted, so the line runs as printed. The `cd` is printed only when
   the restore run there takes the lock; a lock that names its store in another case or Unicode
   form than git does gets the by-hand recovery instead, since on a disk that folds names that
-  directory is this store, whose restore refuses the lock again. *Cannot be told*
+  directory is this store, whose restore refuses the lock again, and so does a lock whose `root`
+  is another store of the worktree than the one its `rootFromTop` names, which only an edit
+  makes, since no restore can tell whose it is. *Cannot be told*
   (another host, or another pid namespace): run the restore where the run started, or by hand
   with `git stash push --include-untracked`, which saves every change and discards nothing; when
   no restore takes the lock, wait for the run to end, then by hand, as a refused
