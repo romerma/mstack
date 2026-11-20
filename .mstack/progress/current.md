@@ -56,6 +56,15 @@ watch is review rounds per item: if they do not drop after phase 1, intake is ce
   both suites green here. Report `impl_mutation-exits-followups.md`. Next: a review by a pass that
   did not write the code.
 
+- 2026-11-20 item 105 round 2 implementer (scratch `.../scratchpad/impl105r2/`), in progress:
+  B1 reproduced at 410debf (L10c and L10e 0/7, base 7/7); the review's fix alone leaves a copy
+  that holds the original (L13a, L13b) refused 0/7, so the root's git call also runs without git's
+  local env vars. Commits 912f34f, f05d272, 1da388b, 15364a4 (code and tests), b5e7164 (docs);
+  layouts 203/203 per runtime; mutants 8 of 10 killed, 2 equivalent. One legitimate layout stays
+  refused, a checkout moved up into its parent's place (row 04:59:47Z, for the coordinator).
+  Report `impl_mutation-exits-followups_r2.md`. Next: a review round 2 by a pass that did not
+  write the code.
+
 Headless runs: `run.mjs` builds a clean `env -i` env, uses the claude.ai login, and never
 passes bypassPermissions. Do not run `check.mjs` or `verify.mjs` while a batch is running
 (item 49).
