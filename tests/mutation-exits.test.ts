@@ -265,7 +265,7 @@ function gateLine(store: Store): string {
 
 const BY_HAND = /for a person at a terminal[^\n]*git stash push --include-untracked/;
 
-test("A2 the hook and R1 name the restore only for a lock validateLock accepts, and otherwise say what the gate says", () => {
+test("A2 the hook and R1 name the restore only for a lock validateLock accepts, and otherwise say what the gate says", SPAWN_TEST, () => {
   withRepo(startA, editA, (r) => {
     locked(r);
     const file = lockFileOf(r);
