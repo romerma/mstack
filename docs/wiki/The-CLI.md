@@ -892,12 +892,13 @@ written, a lock that is not one document a run wrote (naming what is wrong); the
 store of the same worktree, which shares its git directory and so its lock (naming the
 directory to run it from, as the gate, the hook and a refused `verify --mutation` do; when the
 restore run there would refuse the lock too, as for a lock that names its store in another case
-or Unicode form than git does, all four give the by-hand recovery instead); a lock whose `root`,
-under this worktree's top level, git places elsewhere in the worktree than its `rootFromTop`
-names, which an edit makes, or a checkout moved up so that its old root is a directory under its
-new top level, from either store (all four give the by-hand recovery; a `root` outside the top
-level, as after a move or a copy, or one git places in another repository, is not held against
-it, whatever `GIT_DIR` and `GIT_WORK_TREE` say); and a run
+or Unicode form than git does, all four give the by-hand recovery instead); a lock whose `root` is
+another store's own directory in this worktree, which git places elsewhere than its
+`rootFromTop` names (an edit of `rootFromTop` makes that, or a move that leaves the old root on
+another store's directory), from either store (all four give the by-hand recovery; any other
+`root`, outside the top level as after a move or a copy, under it but no store's own directory,
+or a store git places in another repository, is not held against it, whatever `GIT_DIR` and
+`GIT_WORK_TREE` say); and a run
 that may be alive: its pid is a live process that started no later than the lock, or the lock is
 from another host or another pid namespace, where it cannot tell. There is no `--force`.
 

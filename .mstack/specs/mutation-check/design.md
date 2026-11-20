@@ -180,27 +180,37 @@ interface Lock {
   never resolved against: in a moved checkout it names a directory that is gone, and a comparison
   of absolute roots would then fall back to this store's root, which for the other store is the
   loss again. It is checked against `rootFromTop` instead (`rootDisagrees`, item 105): the run
-  writes both in one record, so in place they disagree only after an edit. A `root` that is not
-  this store's directory and lies under this worktree's top level, as spelled, is asked of git
-  run from it alone (`GitOptions.fromCwd`, without the variables `git rev-parse --local-env-vars`
-  lists: a caller's `GIT_DIR` and `GIT_WORK_TREE` name the caller's worktree, and git asked from
-  a directory outside it answers that worktree, or from a repository nested in it, that
-  worktree with the nested path; item 105, round 1 review, B1), and a lock whose `root` git
-  places in this worktree elsewhere than `rootFromTop` is taken by no restore. `verify --restore`
-  refuses it from either store, exit 2 and nothing written, with the by-hand recovery, and the
-  gate, R1 and the hook give the by-hand recovery and no `cd`. A `root` outside the top level (a
-  moved or copied checkout, whatever that path holds now), one git cannot run in (nothing
-  there, a file), and one git places in another repository say nothing. A lock no one edited
-  restored in every layout the round 2 report measured but two: `GIT_DIR` set alone below the
-  top level, refused as at the base (git takes the cwd as the top level), and a checkout moved up
-  into its parent's place whose repository holds a directory at the old root's path, which this
-  check cannot tell from an edit, refused with the by-hand recovery. Not caught, each measured
-  in round 2 (the store `rootFromTop` names takes the run's files, its own content goes to the
-  run's `rescue/`, and the run's store is left reverted with the lock gone, its content in the
-  item's commit): an edit of both fields to agree; an edit of `rootFromTop` after the checkout
-  moved; an edit of `rootFromTop` with `root` naming nothing, a file, a directory outside the
-  worktree, or a link from outside it into it; `root` edited to `.`, read as the directory the
-  restore runs in, when that is the named store's root (from a directory under it, refused); and
+  writes both in one record, so in place they disagree only after an edit. The one shape refused
+  is the edit the item was filed for, `rootFromTop` changed to a second store while `root` still
+  names the first: a `root` that is not this store's directory, lies under this worktree's top
+  level as spelled, and is a store's own directory (a `.mstack` in it, the test `findStore` makes
+  first) is asked of git run from it alone (`GitOptions.fromCwd`, without the variables `git
+  rev-parse --local-env-vars` lists: a caller's `GIT_DIR` and `GIT_WORK_TREE` name the caller's
+  worktree, and git asked from a directory outside it answers that worktree, or from a
+  repository nested in it, that worktree with the nested path; round 1 review, B1), and a lock
+  whose `root` git places in this worktree elsewhere than `rootFromTop` is taken by no restore.
+  `verify --restore` refuses it from either store, exit 2 and nothing written, with the by-hand
+  recovery, and the gate, R1 and the hook give the by-hand recovery and no `cd`. A `root`
+  anywhere else says nothing, as at the base: outside the top level (a moved or copied checkout,
+  whatever that path holds now); under it, a directory, a file, a dangling link or a FIFO inside
+  a store or in none; and a store git places in another repository. Two wider rules were tried
+  in round 2 and dropped, each for refusing a restore the base performs: every directory git
+  places elsewhere in the worktree (a checkout moved up into its parent's place whose repository
+  tracks a directory at the old root's path), then the store `findStore` gives from `root` (the
+  same move in a repository with a store at its top). A lock no one edited restored in every
+  layout the round 2 report measured but three: `GIT_DIR` set alone below the top level, refused
+  as at the base (git takes the cwd as the top level), and two moves that leave the old root on
+  another store's own directory (moved up, the repository holding a store at the old root's
+  path; moved down into a new directory named like its own `pkg/`, the repository holding a
+  store at `a/`), refused with the by-hand recovery since nothing in the lock tells them from the
+  edit; that would take a record of the store's identity at the run, such as its directory's
+  device and inode, in a new lock field. Not caught, each measured in round 2 (the store
+  `rootFromTop` names takes the run's files, its own content goes to the run's `rescue/`, and
+  the run's store is left reverted with the lock gone, its content in the item's commit): an edit
+  of both fields to agree; an edit of `rootFromTop` after the checkout moved; an edit of
+  `rootFromTop` with `root` naming nothing, a file, a directory outside the worktree, a link
+  from outside it into it, a directory inside another store or inside the named one, or `.`
+  (read as the directory the restore runs in) when that is no other store's own directory; and
   an edit in a worktree git finds only through `GIT_DIR` (no `.git` in it). A lock without
   `rootFromTop` fails `validateLock`, so it is one that cannot be read.
 - `validateLock` is R24; it finds a path that appears twice by R3's `fold`, so two spellings of one
@@ -539,7 +549,8 @@ review, NB9); `F_FULLFSYNC` on macOS is not established (walk).
 | `verify --restore` from another store of the worktree, in place or after a move | refused, nothing written (R24, B3) | n/a | `cd <the lock's store> && verify --restore` |
 | The lock edited so its `rootFromTop` names another store, its `root` left on the run's | refused from either store, nothing written (R24, item 105) | n/a | by hand (3) |
 | The checkout copied, and the restore run in the copy with `GIT_DIR` and `GIT_WORK_TREE` naming it, or `GIT_WORK_TREE` alone | restores the copy; the original keeps its own lock (item 105, round 2) | no | none |
-| The checkout moved up into its parent's place, its repository holding a directory at the old root's path | refused, nothing written: nothing tells it from an edit (item 105, round 2) | n/a | by hand (3) |
+| The checkout moved up into its parent's place, its repository holding a directory at the old root's path, with or without a store at its top | restores: the old root is no store's own directory (item 105, round 2) | no | none |
+| The checkout moved so that its old root is another store's own directory | refused, nothing written: nothing in the lock tells it from an edit (item 105, round 2) | n/a | by hand (3) |
 | Two `verify --restore` on a dead lock | each writes through its own temp name; one may unlink the other's temp and report a failure (exit 3) | n/a | a third run says nothing to restore |
 | A full disk | prepare: refused, nothing written; revert: blocked (R11); restore: kept (R15) | no | free space, verify --restore |
 | A read-only directory | revert: blocked; restore: kept, EACCES (`ro-exp`) | no | `chmod u+w`, verify --restore |

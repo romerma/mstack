@@ -13,9 +13,9 @@
   the restore from the store it named wrote the run's files there and removed the lock, leaving
   the run's own store reverted. A lock no one edited reads as before, an old one included, and
   so does one after the checkout is moved or copied, with or without `GIT_DIR` and
-  `GIT_WORK_TREE` set; the one exception measured is a checkout moved up into its parent's place
-  whose repository holds a directory at the old root's path, which is refused with the by-hand
-  recovery. The PreToolUse hook denies `RM -rf .mstack`, `rm -rf
+  `GIT_WORK_TREE` set, and after it is moved up into its parent's place; the exceptions measured
+  are moves that leave the old root exactly on another store's own directory, which are refused
+  with the by-hand recovery. The PreToolUse hook denies `RM -rf .mstack`, `rm -rf
   .MSTACK`, `RM .git/mstack-mutation.lock` and `GH pr merge --admin`, each of which runs on a disk
   that folds case. The suite passes from a checkout whose path holds a space.
 
