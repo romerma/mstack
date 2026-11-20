@@ -191,9 +191,10 @@ interface Lock {
   gate, R1 and the hook give the by-hand recovery and no `cd`. A `root` outside the top level (a
   moved or copied checkout, whatever that path holds now), one git cannot run in (nothing
   there, a file), and one git places in another repository say nothing. A lock no one edited
-  restored as at the base in every layout the round 2 report measured but one, which this check
-  cannot tell from an edit: a checkout moved up into its parent's place whose repository holds a
-  directory at the old root's path, refused with the by-hand recovery. Not caught, each measured
+  restored in every layout the round 2 report measured but two: `GIT_DIR` set alone below the
+  top level, refused as at the base (git takes the cwd as the top level), and a checkout moved up
+  into its parent's place whose repository holds a directory at the old root's path, which this
+  check cannot tell from an edit, refused with the by-hand recovery. Not caught, each measured
   in round 2 (the store `rootFromTop` names takes the run's files, its own content goes to the
   run's `rescue/`, and the run's store is left reverted with the lock gone, its content in the
   item's commit): an edit of both fields to agree; an edit of `rootFromTop` after the checkout
