@@ -229,3 +229,4 @@ mutation-exits-followups	a5beaf083e69230c954b32bd8d3ec6e6418bf2d7	test-verified	
 mutation-exits-followups	778a509f6fb258c948769f9f641258a888d8c11d	test-verified	.mstack/progress/impl_mutation-exits-followups_r2.md	implementer	2026-11-20T06:18:23.215Z
 mutation-exits-followups	a83a77d6954a14875cdd13824ddfbb97273e93a5	live-verified	.mstack/progress/review_mutation-exits-followups_r2.md	reviewer	2026-11-20T06:57:32.888Z
 mutation-test-pins	031db3b1e26217e4189046a4dd4097d8eadc4a29	test-verified	.mstack/progress/impl_mutation-test-pins.md	implementer	2026-11-20T08:58:50.563Z
+mutation-test-pins	69e6c045f4168a6fd885d5c604c02f9673645c64	verifier-failed	.mstack/progress/review_mutation-test-pins.md	reviewer	2026-11-20T09:54:39.583Z
