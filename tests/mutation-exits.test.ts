@@ -921,10 +921,10 @@ test("B1 (item 105, round 2) rootDisagrees asks only about a root under this wor
 });
 
 /**
- * Item 105, round 2, the moved-up checkout (decision row 05:23:35Z): a lock's
- * root under this worktree's top level disagrees only when the store a restore
- * would find from it is another store of the worktree than the one the restore
- * runs in.
+ * Item 105, round 2, the moved-up checkout (decision row 05:43:49Z): a lock's
+ * root under this worktree's top level disagrees only when it is a store's own
+ * directory (a .mstack in it) that git, run from it alone, places in this
+ * worktree elsewhere than rootFromTop; a directory that is no store's is not.
  */
 
 const NAME = `proj ${ODD}`;
