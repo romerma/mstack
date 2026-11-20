@@ -5,7 +5,7 @@ import {
   readlinkSync, readSync, rmdirSync, rmSync, statSync, unlinkSync, writeSync,
 } from "node:fs";
 import { hostname, uptime } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { dirname, join, relative, resolve } from "node:path";
 
 import { git, gitToFile } from "./git.ts";
 import type { RevertSet } from "./mutation.ts";
@@ -107,9 +107,9 @@ export interface Place {
   readonly rel: string;
 }
 
-/** Where the store's root is in its worktree; null when git cannot say. */
-export function placeOf(store: Store): Place | null {
-  const out = git(store, ["rev-parse", "--show-toplevel", "--show-prefix"], { raw: true });
+/** Where the store's root is in its worktree; null when git cannot say. `fromCwd`: as git finds it from there alone. */
+export function placeOf(store: Store, fromCwd = false): Place | null {
+  const out = git(store, ["rev-parse", "--show-toplevel", "--show-prefix"], { raw: true, fromCwd });
   const [top, prefix] = out === null ? [] : out.split("\n");
   if (top === undefined || top === "" || prefix === undefined) return null;
   const rel = prefix.replace(/\/$/, "");
@@ -135,9 +135,13 @@ export type RestoreLine = { readonly line: string; readonly lead: string } | { r
 
 const storeName = (rel: string): string => (rel === "." ? "the worktree's top level" : rel);
 
-/** Where a directory is in its worktree, as git says from inside it; null when git cannot say. */
+/**
+ * Where a directory is in its worktree, as git finds it from inside it alone
+ * (`fromCwd`): the caller's `GIT_DIR` and `GIT_WORK_TREE` say where this store
+ * is, not where another directory is. Null when git cannot say.
+ */
 function placeOfDir(dir: string): Place | null {
-  return placeOf({ root: dir } as Store);
+  return placeOf({ root: dir } as Store, true);
 }
 
 /**
@@ -145,15 +149,20 @@ function placeOfDir(dir: string): Place | null {
  * `rootFromTop` names in the worktree whose top level is `top`; null when it
  * does not. The run writes both fields in one record, so they disagree only
  * after an edit, and the restore cannot tell which one is the run's (item 105,
- * A2). `root` agrees when it is `dir`, or the same directory (device and
- * inode), and says nothing when no directory is there, or git places it
- * outside this worktree: a checkout moved or copied, whose paths are this
- * store's (R24). Only a `root` that git places in this worktree, elsewhere than
- * `rootFromTop`, disagrees: one `git rev-parse`, and none while `root` is
- * `dir`, as it is for every lock no one edited.
+ * A2). Only a `root` under `top`, as spelled, is asked about: one outside it,
+ * as after the checkout was moved or copied, says nothing whatever that path
+ * holds now, as before item 105 (R24; round 1 review, B1). `root` agrees when it
+ * is `dir`, or the same directory (device and inode), and says nothing when no
+ * directory is there, or when git, run from it alone (`placeOfDir`), places it
+ * in another worktree, a repository nested in this one included. Only a `root`
+ * that git places in this worktree, elsewhere than `rootFromTop`, disagrees:
+ * one `git rev-parse`, and none while `root` is `dir`, as it is for every lock
+ * no one edited.
  */
 export function rootDisagrees(lock: Pick<Lock, "root" | "rootFromTop">, dir: string, top: string): string | null {
   if (lock.root === dir) return null;
+  const inside = relative(top, lock.root);
+  if (inside === ".." || inside.startsWith("../")) return null;
   try {
     const at = statSync(lock.root, { bigint: true });
     if (!at.isDirectory()) return null;

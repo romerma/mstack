@@ -56,10 +56,31 @@ export interface GitOptions {
    * test and fails on somebody's machine.
    */
   readonly stdin?: string;
+  /**
+   * Find the repository from the cwd alone, without the variables that point
+   * git at one: `LOCAL_REPO_ENV`, the list git itself clears when it moves into
+   * a submodule. A caller's `GIT_DIR` or `GIT_WORK_TREE` names the caller's
+   * worktree, and git asked about a directory outside it answers that worktree
+   * with an empty prefix, or, from a repository nested in it, that worktree with
+   * the nested path. One caller: the check of a mutation lock's `root`, which
+   * asks about a directory that is not the store's (item 105, round 1 review, B1).
+   */
+  readonly fromCwd?: boolean;
 }
 
+/** `git rev-parse --local-env-vars`, git 2.54: the variables that name a repository, its index or its objects. */
+const LOCAL_REPO_ENV = [
+  "GIT_ALTERNATE_OBJECT_DIRECTORIES", "GIT_CONFIG", "GIT_CONFIG_PARAMETERS", "GIT_CONFIG_COUNT", "GIT_OBJECT_DIRECTORY", "GIT_DIR",
+  "GIT_WORK_TREE", "GIT_IMPLICIT_WORK_TREE", "GIT_GRAFT_FILE", "GIT_INDEX_FILE", "GIT_NO_REPLACE_OBJECTS", "GIT_REPLACE_REF_BASE",
+  "GIT_PREFIX", "GIT_SHALLOW_FILE", "GIT_COMMON_DIR",
+];
+
 // A git that stops to ask for credentials never returns on its own.
-const gitEnv = (): NodeJS.ProcessEnv => ({ ...process.env, GIT_TERMINAL_PROMPT: "0", GIT_OPTIONAL_LOCKS: "0" });
+function gitEnv(fromCwd = false): NodeJS.ProcessEnv {
+  const env: NodeJS.ProcessEnv = { ...process.env, GIT_TERMINAL_PROMPT: "0", GIT_OPTIONAL_LOCKS: "0" };
+  if (fromCwd) for (const name of LOCAL_REPO_ENV) delete env[name];
+  return env;
+}
 
 export function git(store: Store, args: readonly string[], options: GitOptions = {}): string | null {
   try {
@@ -69,7 +90,7 @@ export function git(store: Store, args: readonly string[], options: GitOptions =
       stdio: [options.stdin === undefined ? "ignore" : "pipe", "pipe", "ignore"],
       ...(options.stdin === undefined ? {} : { input: options.stdin }),
       timeout: GIT_TIMEOUT_MS,
-      env: gitEnv(),
+      env: gitEnv(options.fromCwd === true),
     });
     return options.raw === true ? out : out.trim();
   } catch {

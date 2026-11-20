@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 import { runGate } from "../src/gate.ts";
 import { preToolUse } from "../src/hooks.ts";
 import { refusals, revertSet } from "../src/mutation.ts";
-import { acquireLock, prepareRun, restoreCommand, shellWord } from "../src/mutation-lock.ts";
+import { acquireLock, prepareRun, restoreCommand, rootDisagrees, shellWord } from "../src/mutation-lock.ts";
 import { restoreRun } from "../src/mutation-run.ts";
 import { applyRevert } from "../src/mutation-tree.ts";
 import { runningCliRoot, storeAt, type Store } from "../src/paths.ts";
@@ -794,6 +794,123 @@ test("A2 (item 105) a lock edited so its rootFromTop names another real store re
       assert.equal(existsSync(join(top, "src", "x.js")), false, `${where}: A's file was written into the top store`);
       assert.equal(readFileSync(join(o.a, "src", "x.js"), "utf8"), "OLD\n", where);
     }
+  } finally {
+    rmSync(o.base, { recursive: true, force: true });
+  }
+});
+
+/**
+ * Item 105, round 2 (the round 1 review, B1): the check of a lock's `root` asks
+ * git only about a root under this worktree's top level, and asks it from that
+ * root alone, so a caller's GIT_DIR or GIT_WORK_TREE, which name the caller's
+ * worktree, cannot place a copied checkout's original in the copy.
+ */
+
+/** `cli args` from `cwd` with the caller's git variables dropped and `vars` set. */
+function runWith(cli: string, cwd: string, args: readonly string[], vars: Readonly<Record<string, string>>): Ran {
+  outsideCheckout(cwd);
+  const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith("GIT_")));
+  const p = spawnSync(cli, [...args], { cwd, encoding: "utf8", env: { ...env, NO_COLOR: "1", ...vars }, timeout: 120_000 });
+  return { code: p.status, out: p.stdout, all: `${p.stdout}${p.stderr}` };
+}
+
+test("B1 (item 105, round 2) a checkout copied after its run died restores from the copy with GIT_DIR and GIT_WORK_TREE naming the copy, with GIT_WORK_TREE alone, and with neither", SPAWN_TEST, () => {
+  const o = oddWorld();
+  try {
+    deadRunIn(o, o.cli);
+    const top = dirname(dirname(o.a));
+    const variants: [string, (copy: string) => Record<string, string>][] = [
+      ["GIT_DIR and GIT_WORK_TREE", (copy) => ({ GIT_DIR: join(copy, ".git"), GIT_WORK_TREE: copy })],
+      ["GIT_WORK_TREE alone", (copy) => ({ GIT_WORK_TREE: copy })],
+      ["neither", () => ({})],
+    ];
+    for (const [n, [label, vars]] of variants.entries()) {
+      const copy = join(o.base, `copy ${n} ${ODD}`);
+      cpSync(top, copy, { recursive: true, verbatimSymlinks: true });
+      const a = join(copy, "pkg", "a");
+      // The gate's line in the copy, run as printed with the same variables, is the restore.
+      const line = captureOf(runWith(o.cli, a, ["gate", "--quiet"], vars(copy)).all, /mstack-mutation\.lock[^\n]* -> run (.+)$/m, `the gate, ${label}`);
+      assert.equal(line, `${shellWord(o.cli)} verify --restore`, label);
+      const ran = runWith("/bin/sh", a, ["-c", line], vars(copy));
+      assert.equal(ran.code, 0, `${label}: ${ran.all}`);
+      assert.match(ran.out, /restored 1, tree verified, lock removed/, label);
+      assert.equal(readFileSync(join(a, "src", "x.js"), "utf8"), "NEW\n", label);
+      assert.equal(existsSync(join(copy, ".git", "mstack-mutation.lock")), false, `${label}: the copy's lock stays`);
+      assert.equal(readFileSync(join(o.a, "src", "x.js"), "utf8"), "OLD\n", `${label}: the original changed`);
+    }
+
+    // GIT_DIR alone makes the cwd the worktree's top level (git's rule), so the copy's pkg/a is its top: refused
+    // as before item 105, as another store's lock and not as an edited one, and nothing written.
+    const copy = join(o.base, `copy git dir ${ODD}`);
+    cpSync(top, copy, { recursive: true, verbatimSymlinks: true });
+    const lock = join(copy, ".git", "mstack-mutation.lock");
+    const held = readFileSync(lock, "utf8");
+    const alone = runWith(o.cli, join(copy, "pkg", "a"), ["verify", "--restore"], { GIT_DIR: join(copy, ".git") });
+    assert.equal(alone.code, 2, alone.all);
+    assert.match(alone.out, /the lock is the run's of the store at pkg\/a in this worktree, and this store is at the worktree's top level/);
+    assert.doesNotMatch(alone.all, /the lock was edited/);
+    assert.equal(readFileSync(lock, "utf8"), held, "GIT_DIR alone: the lock changed");
+    assert.equal(readFileSync(join(copy, "pkg", "a", "src", "x.js"), "utf8"), "OLD\n");
+
+    // The original, after the copies, from its own store.
+    const back = runWith(o.cli, o.a, ["verify", "--restore"], {});
+    assert.equal(back.code, 0, back.all);
+    assert.equal(readFileSync(join(o.a, "src", "x.js"), "utf8"), "NEW\n");
+  } finally {
+    rmSync(o.base, { recursive: true, force: true });
+  }
+});
+
+test("B1 (item 105, round 2) a checkout copied into the directory that holds it restores from the copy with the variables naming the copy: the original is a repository of its own, not a store of the copy", SPAWN_TEST, () => {
+  const o = oddWorld();
+  try {
+    deadRunIn(o, o.cli);
+    const top = dirname(dirname(o.a));
+    // `cp -R <top>/. <its parent>/`: the copy's worktree is o.base, and it holds the original, whose pkg/a is the
+    // lock's root. git asked with the caller's variables places that root in the copy, at `top dir's "q" x/pkg/a`;
+    // asked from the root alone, in the original.
+    const a = join(o.base, "pkg", "a");
+    const variants: [string, Record<string, string>][] = [
+      ["GIT_DIR and GIT_WORK_TREE", { GIT_DIR: join(o.base, ".git"), GIT_WORK_TREE: o.base }],
+      ["GIT_WORK_TREE alone", { GIT_WORK_TREE: o.base }],
+      ["neither", {}],
+    ];
+    for (const [label, vars] of variants) {
+      rmSync(join(o.base, ".git"), { recursive: true, force: true });
+      rmSync(join(o.base, "pkg"), { recursive: true, force: true });
+      cpSync(top, o.base, { recursive: true, verbatimSymlinks: true });
+      assert.equal(readFileSync(join(a, "src", "x.js"), "utf8"), "OLD\n", `${label}: the copy is not of the reverted tree`);
+      const ran = runWith(o.cli, a, ["verify", "--restore"], vars);
+      assert.equal(ran.code, 0, `${label}: ${ran.all}`);
+      assert.match(ran.out, /restored 1, tree verified, lock removed/, label);
+      assert.equal(readFileSync(join(a, "src", "x.js"), "utf8"), "NEW\n", label);
+      assert.equal(existsSync(join(o.base, ".git", "mstack-mutation.lock")), false, `${label}: the copy's lock stays`);
+      assert.equal(readFileSync(join(o.a, "src", "x.js"), "utf8"), "OLD\n", `${label}: the original changed`);
+    }
+    const back = runWith(o.cli, o.a, ["verify", "--restore"], {});
+    assert.equal(back.code, 0, back.all);
+    assert.equal(readFileSync(join(o.a, "src", "x.js"), "utf8"), "NEW\n");
+  } finally {
+    rmSync(o.base, { recursive: true, force: true });
+  }
+});
+
+test("B1 (item 105, round 2) rootDisagrees asks only about a root under this worktree's top level: one outside says nothing whatever that path holds now, and one under it is held to rootFromTop", () => {
+  const o = oddWorld();
+  try {
+    const top = dirname(dirname(o.a));
+    // After a move, the old path may hold anything, even a link into another store of this worktree.
+    const old = join(o.base, `old path ${ODD}`);
+    symlinkSync(o.b, old);
+    assert.equal(rootDisagrees({ root: old, rootFromTop: "pkg/a" }, o.a, top), null);
+    // Under the top level: another store, and a directory whose name starts with two dots, which is not the parent.
+    assert.equal(rootDisagrees({ root: o.b, rootFromTop: "pkg/a" }, o.a, top), `its root ${o.b} is the store at pkg/b in this worktree, so the lock was edited and whose it is cannot be told`);
+    const dots = join(top, "..b");
+    mkdirSync(dots);
+    assert.match(rootDisagrees({ root: dots, rootFromTop: "pkg/a" }, o.a, top) ?? "agrees", /its root .+ is the store at \.\.b in this worktree/);
+    // This store's own root, and a root under the top level that names no directory, say nothing.
+    assert.equal(rootDisagrees({ root: o.a, rootFromTop: "pkg/a" }, o.a, top), null);
+    assert.equal(rootDisagrees({ root: join(top, "pkg", "gone"), rootFromTop: "pkg/a" }, o.a, top), null);
   } finally {
     rmSync(o.base, { recursive: true, force: true });
   }
