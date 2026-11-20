@@ -7,7 +7,7 @@
 > empty template below.
 
 - **Item:** 44 size-tiers (item 100 is parked on two forks for the user)
-- **Status:** in_progress, implementer at work
+- **Status:** reviewing, round 1
 - **Branch:** feat/size-tiers
 - **Base:** e28c452a78af64317c04347b4569b11e36071b31
 - **Worktree:** none
