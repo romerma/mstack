@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
-import { chmodSync, cpSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, cpSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -915,6 +915,94 @@ test("B1 (item 105, round 2) rootDisagrees asks only about a root under this wor
     // This store's own root, and a root under the top level that names no directory, say nothing.
     assert.equal(rootDisagrees({ root: o.a, rootFromTop: "pkg/a" }, o.a, top), null);
     assert.equal(rootDisagrees({ root: join(top, "pkg", "gone"), rootFromTop: "pkg/a" }, o.a, top), null);
+  } finally {
+    rmSync(o.base, { recursive: true, force: true });
+  }
+});
+
+/**
+ * Item 105, round 2, the moved-up checkout (decision row 05:23:35Z): a lock's
+ * root under this worktree's top level disagrees only when the store a restore
+ * would find from it is another store of the worktree than the one the restore
+ * runs in.
+ */
+
+const NAME = `proj ${ODD}`;
+
+/**
+ * A checkout nested `levels` directories too deep, `<base>/outer/[x/]NAME/`,
+ * whose repository tracks `[x/]NAME/pkg/a/keep.txt`, with a store at each of
+ * `stores` and A's item turning `src/x.js` from OLD into NEW; A's run left dead
+ * on the reverted tree; then the checkout moved up into `<base>/outer`. The
+ * lock's root, `outer/[x/]NAME/pkg/a`, is then that tracked directory.
+ */
+function movedUp(base: string, levels: 1 | 2, stores: readonly string[]): { a: string; lockFile: string } {
+  const nested = levels === 1 ? [NAME] : ["x", NAME];
+  const outer = join(base, "outer");
+  const top = join(outer, ...nested);
+  repoWithStores(top, stores);
+  put(top, join(...nested, "pkg", "a", "keep.txt"), "a directory the repository tracks\n");
+  const a = join(top, "pkg", "a");
+  put(a, "src/x.js", "OLD\n");
+  const start = commitAll(top, "start");
+  writeState(a, state([item({ slug: "a", status: "in_progress", base: start })], { verify: "true" }));
+  put(a, "src/x.js", "NEW\n");
+  commitAll(top, "item a");
+  deadRunIn({ base, cli: CLI, a, b: a, lockFile: join(top, ".git", "mstack-mutation.lock"), marker: "" }, CLI);
+  renameSync(top, join(base, "moving"));
+  rmSync(outer, { recursive: true, force: true });
+  renameSync(join(base, "moving"), outer);
+  assert.ok(lstatSync(join(outer, ...nested, "pkg", "a")).isDirectory(), "the old root is not a directory of the moved checkout");
+  return { a: join(outer, "pkg", "a"), lockFile: join(outer, ".git", "mstack-mutation.lock") };
+}
+
+test("L14 (item 105, round 2) a checkout moved up into its parent's place, whose repository holds a directory at the old root's path, restores: the old root lies in no other store", () => {
+  const layouts: [string, 1 | 2, readonly string[]][] = [
+    ["moved up one level", 1, ["pkg/a"]],
+    ["moved up two levels", 2, ["pkg/a"]],
+    ["moved up, a second store at pkg/b", 1, ["pkg/a", "pkg/b"]],
+  ];
+  for (const [label, levels, stores] of layouts) {
+    const base = realpathSync(mkdtempSync(join(tmpdir(), "mstack-moved-up-")));
+    try {
+      const m = movedUp(base, levels, stores);
+      const store = storeAt(m.a);
+      const gate = gateLine(store);
+      assert.doesNotMatch(gate, BY_HAND, `${label}: ${gate}`);
+      assert.match(gate, / -> run .+ verify --restore$/, `${label}: ${gate}`);
+      const lines: string[] = [];
+      assert.equal(restoreRun(store, { out: (l) => lines.push(l) }), 0, `${label}: ${lines.join("\n")}`);
+      assert.match(lines.join("\n"), /restored 1, tree verified, lock removed/, label);
+      assert.equal(readFileSync(join(m.a, "src", "x.js"), "utf8"), "NEW\n", label);
+      assert.equal(existsSync(m.lockFile), false, `${label}: the lock stays`);
+    } finally {
+      rmSync(base, { recursive: true, force: true });
+    }
+  }
+});
+
+test("L14 (item 105, round 2) rootDisagrees compares stores: a root in another store of the worktree disagrees, one in this store or in none does not, and a file, a dangling link or a FIFO is read by the store around it", () => {
+  const o = oddWorld();
+  try {
+    const top = dirname(dirname(o.a));
+    const says = (root: string, rootFromTop: string, dir: string): string | null => rootDisagrees({ root, rootFromTop }, dir, top);
+    // In another store: its root, or a directory under it.
+    assert.match(says(o.a, "pkg/b", o.b) ?? "agrees", /its root .+ is the store at pkg\/a in this worktree/);
+    assert.match(says(join(o.a, "src"), "pkg/b", o.b) ?? "agrees", /its root .+ is in the store at pkg\/a in this worktree/);
+    // In this store, or under the top level in no store: as before item 105.
+    assert.equal(says(join(o.b, "src"), "pkg/b", o.b), null);
+    mkdirSync(join(top, "docs"));
+    assert.equal(says(join(top, "docs"), "pkg/b", o.b), null);
+    // Not a directory, in A and in no store: a file, a dangling link, a FIFO. None throws or blocks.
+    for (const dir of [o.a, join(top, "docs")]) {
+      put(dir, "file.txt", "a file\n");
+      symlinkSync(join(dir, "gone"), join(dir, "dangling"));
+      assert.equal(spawnSync("mkfifo", [join(dir, "fifo")]).status, 0);
+    }
+    for (const name of ["file.txt", "dangling", "fifo"]) {
+      assert.match(says(join(o.a, name), "pkg/b", o.b) ?? "agrees", /is in the store at pkg\/a in this worktree/, name);
+      assert.equal(says(join(top, "docs", name), "pkg/b", o.b), null, name);
+    }
   } finally {
     rmSync(o.base, { recursive: true, force: true });
   }
