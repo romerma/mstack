@@ -10,7 +10,7 @@ import { fileURLToPath } from "node:url";
 import { bootTime, pidNamespace, shellWord } from "../src/mutation-lock.ts";
 import { setup } from "../src/setup.ts";
 import { readRecords } from "../src/tsv.ts";
-import { captured, item, recordReceipt, sandbox, state } from "./helpers.ts";
+import { captured, item, sandbox, state } from "./helpers.ts";
 import { commitAll, git, gitDirOf, lockFileOf, outsideCheckout, put, SIGNAL_MS, SPAWN_TEST, status, until, withRunRepo, type RunRepo } from "./mutation-fixture.ts";
 
 /**
@@ -358,16 +358,19 @@ test("R13 a stdout closed before the run's first line does not end the run: the 
   });
 });
 
-test("R12 with no --timeout a command may run 10 s: the default bound is 900 s", SPAWN_TEST, async () => {
-  // Item 42, round 2 review, non-blocking 3: mutant n (a default of 9 s) survived. A green recorded at this tree is
-  // the baseline, so only the run on the reverted tree sleeps, 10 s, against a bound of 900.
-  await withRunRepo(onReverted("sleep 10; exit 1"), startA, editA, async (r) => {
-    recordReceipt(r.box, { target: "(project)", sha: git(r.root, "rev-parse", "HEAD"), command: r.command, outcome: "passed" });
+test("R12 with no --timeout each command's helper is given the default bound, 900 s", SPAWN_TEST, async () => {
+  // Item 42, round 2 review, non-blocking 3: mutant n (a default of 9 s) survived; item 102's first test, a 10 s
+  // command, held only a bound above 10 s (round 1 review, blocking 1). The obligation's `-c` shell has the helper
+  // for its parent, and the helper's argv holds the bound in milliseconds after its result file; ps reads it while
+  // the helper waits on that shell, so no timing is involved.
+  await withRunRepo(CHECK, startA, editA, async (r) => {
+    const given = join(r.scratch, "helper-args");
+    r.box.writeState(state([item({ status: "in_progress", base: r.start })], { verify: `ps -ww -o args= -p "$PPID" >> '${given}'; ${r.command}` }));
     const ran = cli(r.root, ["verify", "--mutation"]);
     assert.equal(ran.code, 0, ran.all);
-    assert.match(ran.out, /recorded green at this tree, not re-run/);
     assert.match(ran.out, /^mutation-killed: /m);
-    assert.doesNotMatch(ran.all, /timed out/);
-    assert.deepEqual(mutationRows(r).map((x) => x["outcome"]), ["mutation-killed"]);
+    const lines = readFileSync(given, "utf8").split("\n").filter((l) => l !== "");
+    assert.equal(lines.length, 2, `the baseline and the reverted run, each read once:\n${lines.join("\n")}`);
+    for (const line of lines) assert.match(line, /run-helper\.mjs .*\/result\.json 900000 /, line);
   });
 });
