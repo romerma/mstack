@@ -11,7 +11,10 @@ import type { Item } from "./state.ts";
  * `review_<slug>_<lens>.md` is round 1, `review_<slug>_r<N>-<lens>.md` round N.
  * One under the stub floor is not a report. Any round counts, so the lone review
  * the review skill sends a later round to does not undo the panel before it.
- * Closed and cancelled items are not read.
+ *
+ * No status is exempt here. The gate asks only of the active item, so a closed
+ * item is never read, and `state set --status done` asks before the move, so a
+ * cancelled item forced to `done` is held like any other.
  */
 
 /** How many lens reports one round needs. */
@@ -24,7 +27,7 @@ export interface PanelProblem {
 }
 
 export function panelProblems(store: Store, item: Item): PanelProblem[] {
-  if (item.size !== "l" || item.status === "done" || item.status === "cancelled") return [];
+  if (item.size !== "l") return [];
 
   const lenses = new Map<number, string[]>();
   const lone = new Set<number>();

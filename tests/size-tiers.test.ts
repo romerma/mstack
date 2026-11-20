@@ -166,3 +166,30 @@ test("a forced close from reviewing, past verifying, is refused by the same chec
     assert.match(forced.stderr, /bud cannot close: it is size l, and no review round of it has 2 or more lens reports: round 1 has a lone review\n/);
   });
 });
+
+// ----------------------------------------------------------------- added with the mutants
+
+test("a lone review and one lens report in the same round are not a panel", SPAWNING, () => {
+  at({ size: "l", reports: reports("review_bud.md", "review_bud_correctness.md") }, (box) => {
+    const gate = cli(box, "gate");
+    assert.equal(gate.code, 1, gate.stdout);
+    assert.match(gate.stdout, /lens reports: round 1 has a lone review and 1 lens report \(correctness\)\n/);
+  });
+});
+
+test("after two lone rounds the fix names round 3 and the decision row it needs", SPAWNING, () => {
+  at({ size: "l", reports: reports("review_bud.md", "review_bud_r2.md") }, (box) => {
+    const gate = cli(box, "gate");
+    assert.equal(gate.code, 1, gate.stdout);
+    assert.match(gate.stdout, /lens reports: round 1 has a lone review; round 2 has a lone review\n/);
+    assert.match(gate.stdout, /'mstack fanout plan --kind review --round 3 --worker correctness --worker tests' allocates 2 lens reports for round 3; launch one reviewer per path, and record its review-r3 decision row \('mstack decide --phase review-r3 --item bud \.\.\.'\)\n/);
+  });
+});
+
+test("a cancelled l item forced to done is held to the panel too", SPAWNING, () => {
+  at({ size: "l", status: "cancelled", reports: reports("review_bud.md") }, (box) => {
+    const forced = cli(box, "state", "set", "bud", "--status", "done", "--force", "--closed-by", "it was done after all");
+    assert.equal(forced.code, 2, forced.stdout);
+    assert.match(forced.stderr, /bud cannot close: it is size l, and no review round of it has 2 or more lens reports: round 1 has a lone review\n/);
+  });
+});
