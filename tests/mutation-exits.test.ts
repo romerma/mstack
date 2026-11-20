@@ -11,7 +11,7 @@ import { preToolUse } from "../src/hooks.ts";
 import { refusals, revertSet } from "../src/mutation.ts";
 import { acquireLock, prepareRun, shellWord } from "../src/mutation-lock.ts";
 import { restoreRun } from "../src/mutation-run.ts";
-import { storeAt, type Store } from "../src/paths.ts";
+import { runningCliRoot, storeAt, type Store } from "../src/paths.ts";
 import { setup } from "../src/setup.ts";
 import { parseState, type Item, type State } from "../src/state.ts";
 import { captured, item, state } from "./helpers.ts";
@@ -566,12 +566,14 @@ test("A2 from inside the git directory, where git names no top level, the hook s
     locked(r);
     const file = lockFileOf(r);
     const gitDir = dirname(file);
+    // The CLI that wrote the lock is this one, as one shell word: quoted when the checkout's path holds a space (item 105, A3).
+    const restore = `${shellWord(join(runningCliRoot(), "bin", "mstack"))} verify --restore`;
     const asWritten = hookReason("git -C .. commit -am x", gitDir);
-    assert.match(asWritten ?? "allowed", /run from \. under this worktree's top level: \S+ verify --restore$/);
+    assert.ok((asWritten ?? "allowed").endsWith(`run from . under this worktree's top level: ${restore}`), asWritten ?? "allowed");
     const written = JSON.parse(readFileSync(file, "utf8")) as Record<string, unknown>;
     writeFileSync(file, `${JSON.stringify({ ...written, rootFromTop: "pkg/a" }, null, 2)}\n`);
     const another = hookReason("git -C .. commit -am x", gitDir);
-    assert.match(another ?? "allowed", /run from pkg\/a under this worktree's top level: \S+ verify --restore$/);
+    assert.ok((another ?? "allowed").endsWith(`run from pkg/a under this worktree's top level: ${restore}`), another ?? "allowed");
   });
 });
 

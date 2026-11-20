@@ -6,7 +6,7 @@ import { hostname, tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 
 import { lockPath, refusals, type Refusal } from "../src/mutation.ts";
-import { bootTime, pidNamespace } from "../src/mutation-lock.ts";
+import { bootTime, pidNamespace, shellWord } from "../src/mutation-lock.ts";
 import type { Item, State } from "../src/state.ts";
 import { item, sandbox, state, type Sandbox } from "./helpers.ts";
 
@@ -189,8 +189,10 @@ test("R1 an existing lock is refused naming its pid", () => {
     const { st, it } = active(start);
     const r = refused(refuse(box, st, it), new RegExp(`pid ${pid}\\b`));
     assert.match(`${r.message}\n${r.fix}`, /2026-11-19T09:02:11Z[\s\S]*not running/);
-    // No file is at /opt/mstack/bin/mstack, so it is named and the running CLI's command offered (item 101, round 1 review B1).
-    assert.match(r.fix, /^the CLI that wrote the lock, \/opt\/mstack\/bin\/mstack, is gone; \S+\/bin\/mstack verify --restore puts the tree back/);
+    // No file is at /opt/mstack/bin/mstack, so it is named and the running CLI's command offered (item 101, round 1 review B1),
+    // its path one shell word: quoted when the checkout's path holds a space (item 105, A3).
+    const running = shellWord(join(runningCliRoot(), "bin", "mstack"));
+    assert.ok(r.fix.startsWith(`the CLI that wrote the lock, /opt/mstack/bin/mstack, is gone; ${running} verify --restore puts the tree back`), r.fix);
     assert.doesNotMatch(r.fix, /\/opt\/mstack\/bin\/mstack verify --restore/);
   });
 });
@@ -357,7 +359,7 @@ test("R2 a flagged file under the store directory is not refused", () => {
 });
 
 // Here and not at the top, so that the lines of the tests above stay where the reports cite them.
-import { storeAt } from "../src/paths.ts";
+import { runningCliRoot, storeAt } from "../src/paths.ts";
 
 test("R2 at most ten paths are named, then how many more", () => {
   withBox((box) => {

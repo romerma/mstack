@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { preToolUse } from "../src/hooks.ts";
+import { shellWord } from "../src/mutation-lock.ts";
 import { runningCliRoot } from "../src/paths.ts";
 import { sandbox } from "./helpers.ts";
 
@@ -162,13 +163,14 @@ test("R25 the deny reason names the lock's CLI", () => {
     writeFileSync(box.lockFile, lockText(gone));
     const d = decide("git commit -m x", box.root);
     // Item 101, round 1 review B1: a CLI that is gone cannot run, so it is named and not offered as a command.
-    assert.ok(d.reason.includes(`the CLI that wrote the lock, ${gone}, is gone; `) && d.reason.endsWith(` && ${running} verify --restore`), d.reason);
-    assert.ok(!d.reason.includes(`${gone} verify --restore`), d.reason);
+    // Each path as one shell word: quoted when the checkout's path holds a space (item 105, A3).
+    assert.ok(d.reason.includes(`the CLI that wrote the lock, ${shellWord(gone)}, is gone; `) && d.reason.endsWith(` && ${shellWord(running)} verify --restore`), d.reason);
+    assert.ok(!d.reason.includes(`${shellWord(gone)} verify --restore`), d.reason);
     assert.ok(d.reason.includes(box.lockFile) && d.reason.includes("4242"), d.reason);
     assert.doesNotMatch(d.reason, /\bsh [^\n]*mstack-mutation\.lock/);
     writeFileSync(box.lockFile, lockText(running));
     const there = decide("git commit -m x", box.root).reason;
-    assert.ok(there.includes(`${running} verify --restore`), there);
+    assert.ok(there.includes(`${shellWord(running)} verify --restore`), there);
   });
 });
 

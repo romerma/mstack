@@ -6,6 +6,7 @@ import { hostname, tmpdir } from "node:os";
 import { basename, join } from "node:path";
 
 import { runGate } from "../src/gate.ts";
+import { shellWord } from "../src/mutation-lock.ts";
 import { runningCliRoot } from "../src/paths.ts";
 import { stop } from "../src/hooks.ts";
 import { prunable } from "../src/worktree.ts";
@@ -156,14 +157,15 @@ test("R25 the gate line names the lock's CLI, and the running CLI when that path
       writeFileSync(join(base, "src", "cli.ts"), "");
       editLock(r, { cli: there });
       const found = lineWith(quiet(r).failures, /mstack-mutation\.lock/);
-      assert.ok(found.includes(`${there} verify --restore`), found);
+      assert.ok(found.includes(`${shellWord(there)} verify --restore`), found);
       assert.ok(!found.includes(running), "the running CLI is named although the lock's CLI exists");
 
       rmSync(there);
       const gone = lineWith(quiet(r).failures, /mstack-mutation\.lock/);
       // Item 101, round 1 review B1: a CLI that is gone cannot run, so it is named and not offered as a command.
-      assert.ok(gone.endsWith(` -> the CLI that wrote the lock, ${there}, is gone; run ${running} verify --restore`), gone);
-      assert.ok(!gone.includes(`${there} verify --restore`), gone);
+      // Each path as one shell word: quoted when the checkout's path holds a space (item 105, A3).
+      assert.ok(gone.endsWith(` -> the CLI that wrote the lock, ${shellWord(there)}, is gone; run ${shellWord(running)} verify --restore`), gone);
+      assert.ok(!gone.includes(`${shellWord(there)} verify --restore`), gone);
       assert.doesNotMatch(gone, /\bsh [^\n]*mstack-mutation\.lock/);
     } finally {
       rmSync(base, { recursive: true, force: true });

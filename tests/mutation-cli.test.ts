@@ -7,7 +7,7 @@ import { hostname } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { bootTime, pidNamespace } from "../src/mutation-lock.ts";
+import { bootTime, pidNamespace, shellWord } from "../src/mutation-lock.ts";
 import { setup } from "../src/setup.ts";
 import { readRecords } from "../src/tsv.ts";
 import { captured, item, sandbox, state } from "./helpers.ts";
@@ -148,7 +148,7 @@ test("R25 the run prints the lock and the absolute restore command before revert
     assert.ok(at(new RegExp(`^mutation: lock ${gitDirOf(r).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}/mstack-mutation\\.lock, run `)) < reverting, ran.out);
     const restore = at(/verify --restore/);
     assert.ok(restore < reverting, ran.out);
-    assert.ok(lines[restore]?.includes(`${CLI} verify --restore`), lines[restore]);
+    assert.ok(lines[restore]?.includes(`${shellWord(CLI)} verify --restore`), lines[restore]);
     assert.ok(CLI.startsWith("/"));
     assert.ok(at(/a save in the moment one is put back is lost/) < reverting, ran.out);
     assert.equal(lines.filter((l) => SH_LOCK.test(l)).length, 0, ran.out);
@@ -287,7 +287,7 @@ userTest("R15 exit 3 when the restore fails, over every other code", SPAWN_TEST,
       assert.equal(ran.code, 3, ran.all);
       assert.match(ran.out, /src\/a\.ts/);
       assert.match(ran.out, /EACCES/);
-      assert.ok(ran.out.includes(`${CLI} verify --restore`), ran.out);
+      assert.ok(ran.out.includes(`${shellWord(CLI)} verify --restore`), ran.out);
       assert.equal(existsSync(lockFileOf(r)), true);
       assert.deepEqual(mutationRows(r), []);
     } finally {
