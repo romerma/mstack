@@ -66,7 +66,7 @@ const fiveChanged = (root: string): void => {
   rmSync(join(root, "src/e.ts"));
 };
 
-test("R13 clean afterwards: status as before, index untouched, lock and staging gone", () => {
+test("R13 clean afterwards: status as before, index untouched, lock and staging gone", SPAWN_TEST, () => {
   withRepo(
     (root) => {
       fiveAtStart(root);
@@ -93,7 +93,7 @@ test("R13 clean afterwards: status as before, index untouched, lock and staging 
   );
 });
 
-test("R13 the whole permission bits come back", () => {
+test("R13 the whole permission bits come back", SPAWN_TEST, () => {
   withRepo(
     (root) => {
       put(root, "src/private.ts", "p\n");
@@ -117,7 +117,7 @@ test("R13 the whole permission bits come back", () => {
   );
 });
 
-test("R13 a changed tracked file outside the set does not keep the lock", () => {
+test("R13 a changed tracked file outside the set does not keep the lock", SPAWN_TEST, () => {
   withRepo(
     (root) => {
       put(root, "src/a.ts", "a\n");
@@ -157,7 +157,7 @@ test("R13 a SIGKILL between a temp write and its rename leaves nothing after the
   });
 });
 
-test("R14 an edit to a reverted file is rescued byte for byte", () => {
+test("R14 an edit to a reverted file is rescued byte for byte", SPAWN_TEST, () => {
   withRepo(twoFiles, editBoth, (r) => {
     const lock = reverted(r);
     const edit = Buffer.from([0x65, 0x64, 0x69, 0x74, 0, 0xff, 0x0a]);
@@ -172,7 +172,7 @@ test("R14 an edit to a reverted file is rescued byte for byte", () => {
   });
 });
 
-test("R14 an edit after H's temp file is written and before its rename is rescued", () => {
+test("R14 an edit after H's temp file is written and before its rename is rescued", SPAWN_TEST, () => {
   withRepo(twoFiles, editBoth, (r) => {
     const lock = reverted(r);
     const at = `restore-written:${nOf(lock, "src/a.ts")}`;
@@ -192,7 +192,7 @@ test("R14 an edit after H's temp file is written and before its rename is rescue
   });
 });
 
-test("R14 a directory where HEAD has a file is moved whole into rescue", () => {
+test("R14 a directory where HEAD has a file is moved whole into rescue", SPAWN_TEST, () => {
   withRepo(
     (root) => put(root, "src/keep.ts", "k\n"),
     (root) => put(root, "src/new.ts", "new\n"),
@@ -211,7 +211,7 @@ test("R14 a directory where HEAD has a file is moved whole into rescue", () => {
   );
 });
 
-caseTest("R14 a case variant where HEAD has a file is rescued under its own name", () => {
+caseTest("R14 a case variant where HEAD has a file is rescued under its own name", SPAWN_TEST, () => {
   withRepo(twoFiles, editBoth, (r) => {
     const lock = reverted(r);
     renameSync(join(r.root, "src/a.ts"), join(r.root, "src/A.ts"));
@@ -228,7 +228,7 @@ caseTest("R14 a case variant where HEAD has a file is rescued under its own name
   });
 });
 
-test("R14 a file left at a path HEAD lacks is left in place", () => {
+test("R14 a file left at a path HEAD lacks is left in place", SPAWN_TEST, () => {
   withRepo(
     (root) => {
       put(root, "src/a.ts", "a\n");
@@ -251,7 +251,7 @@ test("R14 a file left at a path HEAD lacks is left in place", () => {
   );
 });
 
-test("R14 a second incident gets its own rescue directory", () => {
+test("R14 a second incident gets its own rescue directory", SPAWN_TEST, () => {
   withRepo(
     (root) => {
       put(root, "src/a.ts", "a\n");
@@ -283,7 +283,7 @@ test("R14 a second incident gets its own rescue directory", () => {
   );
 });
 
-test("R14 the copy fallback keeps the bytes and the mode", () => {
+test("R14 the copy fallback keeps the bytes and the mode", SPAWN_TEST, () => {
   withRepo(twoFiles, editBoth, (r) => {
     const lock = reverted(r);
     writeFileSync(join(r.root, "src/a.ts"), "an edit on its way to another filesystem\n");
@@ -302,7 +302,7 @@ test("R14 the copy fallback keeps the bytes and the mode", () => {
   });
 });
 
-test("R15 a read-only directory keeps the lock and the other paths are restored", () => {
+test("R15 a read-only directory keeps the lock and the other paths are restored", SPAWN_TEST, () => {
   withRepo(
     (root) => {
       put(root, "src/a.ts", "a\n");
@@ -336,7 +336,7 @@ test("R15 a read-only directory keeps the lock and the other paths are restored"
   );
 });
 
-test("R15 a missing staged copy keeps the lock after rescuing what is there", () => {
+test("R15 a missing staged copy keeps the lock after rescuing what is there", SPAWN_TEST, () => {
   withRepo(twoFiles, editBoth, (r) => {
     const lock = reverted(r);
     rmSync(join(runDirOf(r, lock), "head", String(nOf(lock, "src/a.ts"))));
@@ -356,7 +356,7 @@ test("R15 a missing staged copy keeps the lock after rescuing what is there", ()
   });
 });
 
-caseTest("R15 a parent renamed by case fails with the mv back as its fix", () => {
+caseTest("R15 a parent renamed by case fails with the mv back as its fix", SPAWN_TEST, () => {
   withRepo(
     (root) => {
       put(root, "src/lib/a.ts", "a\n");
@@ -455,7 +455,7 @@ test("R22 killed half restored, then restored twice", SPAWN_TEST, async () => {
   });
 });
 
-test("R13 a path changed after its own restore fails the proof and keeps the lock", () => {
+test("R13 a path changed after its own restore fails the proof and keeps the lock", SPAWN_TEST, () => {
   withRepo(twoFiles, editBoth, (r) => {
     const lock = reverted(r);
     const at = `restored:${nOf(lock, "src/a.ts")}`;
@@ -475,7 +475,7 @@ test("R13 a path changed after its own restore fails the proof and keeps the loc
   });
 });
 
-test("R10 a file written into a directory the revert made survives the restore", () => {
+test("R10 a file written into a directory the revert made survives the restore", SPAWN_TEST, () => {
   withRepo(
     (root) => {
       put(root, "src/keep.ts", "k\n");
@@ -495,7 +495,7 @@ test("R10 a file written into a directory the revert made survives the restore",
   );
 });
 
-test("R15 a staged copy of H that does not hold what the lock recorded is not written, and the lock stays", () => {
+test("R15 a staged copy of H that does not hold what the lock recorded is not written, and the lock stays", SPAWN_TEST, () => {
   withRepo(twoFiles, editBoth, (r) => {
     const lock = reverted(r);
     writeFileSync(join(runDirOf(r, lock), "head", String(nOf(lock, "src/a.ts"))), "not HEAD's content\n");
@@ -509,7 +509,7 @@ test("R15 a staged copy of H that does not hold what the lock recorded is not wr
   });
 });
 
-test("R13 a path HEAD lacks that holds the start's content at the proof keeps the lock", () => {
+test("R13 a path HEAD lacks that holds the start's content at the proof keeps the lock", SPAWN_TEST, () => {
   withRepo(
     (root) => {
       put(root, "src/a.ts", "a\n");
@@ -536,7 +536,7 @@ test("R13 a path HEAD lacks that holds the start's content at the proof keeps th
   );
 });
 
-test("R24 the restore checks the lock itself, and writes nothing for one that fails the check", () => {
+test("R24 the restore checks the lock itself, and writes nothing for one that fails the check", SPAWN_TEST, () => {
   withRepo(twoFiles, editBoth, (r) => {
     const lock = reverted(r);
     put(r.root, "src/notes.tmp", "the user's own notes, untracked\n");
@@ -553,7 +553,7 @@ test("R24 the restore checks the lock itself, and writes nothing for one that fa
   });
 });
 
-test("R13 the restore leaves a lock that another run wrote", () => {
+test("R13 the restore leaves a lock that another run wrote", SPAWN_TEST, () => {
   withRepo(twoFiles, editBoth, (r) => {
     const a = reverted(r);
     // The review's E4c: A's lock deleted by hand during its run, and B takes the lock.
@@ -567,7 +567,7 @@ test("R13 the restore leaves a lock that another run wrote", () => {
   });
 });
 
-test("R10 the restore lists and removes nothing through a symlinked parent", () => {
+test("R10 the restore lists and removes nothing through a symlinked parent", SPAWN_TEST, () => {
   withRepo(
     (root) => {
       put(root, "src/lib/a.ts", "a\n");
@@ -639,7 +639,7 @@ async function fsyncsAndUnlinks(body: () => void): Promise<string[]> {
   return events;
 }
 
-nodeOnly("R14 the copy fallback fsyncs its copy's directory before it unlinks the source", async () => {
+nodeOnly("R14 the copy fallback fsyncs its copy's directory before it unlinks the source", SPAWN_TEST, async () => {
   await withRepoAsync(twoFiles, editBoth, async (r) => {
     const lock = reverted(r);
     writeFileSync(join(r.root, "src/a.ts"), "an edit on its way to another filesystem\n");
@@ -661,7 +661,7 @@ nodeOnly("R14 the copy fallback fsyncs its copy's directory before it unlinks th
   });
 });
 
-nodeOnly("R13 the restore fsyncs the directories it wrote before it unlinks the lock", async () => {
+nodeOnly("R13 the restore fsyncs the directories it wrote before it unlinks the lock", SPAWN_TEST, async () => {
   await withRepoAsync(twoFiles, editBoth, async (r) => {
     const lock = reverted(r);
     const events = await fsyncsAndUnlinks(() => clean(restoreFromLock(r.store, lock)));
@@ -672,7 +672,7 @@ nodeOnly("R13 the restore fsyncs the directories it wrote before it unlinks the 
   });
 });
 
-test("R15 a rescue that cannot be made names moving the entry aside as the fix", () => {
+test("R15 a rescue that cannot be made names moving the entry aside as the fix", SPAWN_TEST, () => {
   withRepo(
     (root) => put(root, "src/a.ts", "a\n"),
     (root) => {

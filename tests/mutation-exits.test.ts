@@ -338,7 +338,7 @@ function cafeLock(rootFromTop: (written: string) => string, body: (s: { store: S
   }
 }
 
-test("A3 a rootFromTop that differs from this store's only in case or Unicode form prints no cd that loops but the by-hand way out, and writes nothing", () => {
+test("A3 a rootFromTop that differs from this store's only in case or Unicode form prints no cd that loops but the by-hand way out, and writes nothing", SPAWN_TEST, () => {
   // On a disk that folds them both spellings name this store, and on one that does not, no directory.
   const spellings: [string, (rel: string) => string][] = [
     ["in upper case", (rel) => rel.toUpperCase()],
@@ -417,7 +417,7 @@ caseSensitiveTest("A3 where the disk tells case apart, PKG/A and pkg/a are two s
   }
 });
 
-test("A4 under a lock the hook denies git's options given with a space and the plumbing that writes the index, a tree, a commit or a ref", () => {
+test("A4 under a lock the hook denies git's options given with a space and the plumbing that writes the index, a tree, a commit or a ref", SPAWN_TEST, () => {
   withRepo(startA, editA, (r) => {
     const denied = [
       "git --namespace foo commit -m x",
@@ -518,7 +518,7 @@ test("A2 a symlink or a FIFO at the lock's name: the hook reads it as readLock d
   });
 });
 
-test("A4 under a lock the hook denies git --shallow-file with its value after a space, and git's own name in any case", () => {
+test("A4 under a lock the hook denies git --shallow-file with its value after a space, and git's own name in any case", SPAWN_TEST, () => {
   // Round 1 review, non-blocking 1: `git --shallow-file x status` exits 0 (with `=` git exits 129), and on a disk
   // that folds case `GIT status` runs git. git's subcommand does not fold: `git COMMIT` exits 128, writing nothing.
   withRepo(startA, editA, (r) => {
@@ -541,7 +541,7 @@ test("A4 under a lock the hook denies git --shallow-file with its value after a 
   assert.match(hookReason("GIT push --force origin main", tmpdir()) ?? "allowed", /force-push rewrites history/);
 });
 
-test("A3 a run that cannot be told alive, under a lock whose store no restore takes: the gate says wait, as R1 does, then the by-hand way out", () => {
+test("A3 a run that cannot be told alive, under a lock whose store no restore takes: the gate says wait, as R1 does, then the by-hand way out", SPAWN_TEST, () => {
   // Round 1 review, non-blocking 5 and 6 (M2): the gate's line for this case said only the by-hand way, so a run
   // that may be alive on another host was told to stash and delete the lock, and no test reached the branch.
   withRepo(startA, editA, (r) => {
@@ -560,7 +560,7 @@ test("A3 a run that cannot be told alive, under a lock whose store no restore ta
   });
 });
 
-test("A2 from inside the git directory, where git names no top level, the hook still denies under a lock and names the store to run from", () => {
+test("A2 from inside the git directory, where git names no top level, the hook still denies under a lock and names the store to run from", SPAWN_TEST, () => {
   // Round 1 review, non-blocking 6 (M3): without the `top === null` guard the hook threw there, and the CLI's
   // hook command fails open on a throw.
   withRepo(startA, editA, (r) => {
@@ -578,7 +578,7 @@ test("A2 from inside the git directory, where git names no top level, the hook s
   });
 });
 
-test("A1 shellWord: a path run through the shell comes back as it was, whatever shell character it holds, and a plain path stays bare", () => {
+test("A1 shellWord: a path run through the shell comes back as it was, whatever shell character it holds, and a plain path stays bare", SPAWN_TEST, () => {
   // Round 1 review, non-blocking 6 (M1): no test called shellWord, and the odd paths of A1 hold only a space and quotes.
   const shells = ["/bin/sh", ...(existsSync("/bin/dash") ? ["/bin/dash"] : [])];
   const cwd = realpathSync(mkdtempSync(join(tmpdir(), "mstack-word-")));
@@ -649,7 +649,7 @@ function deadRunIn(o: Odd, cli: string): Record<string, unknown> {
   return lock;
 }
 
-test("A1 (item 105) restoreCommand offers the writer's CLI only when it can run, and otherwise names it and offers the running one", () => {
+test("A1 (item 105) restoreCommand offers the writer's CLI only when it can run, and otherwise names it and offers the running one", SPAWN_TEST, () => {
   const base = realpathSync(mkdtempSync(join(tmpdir(), "mstack-writer-")));
   try {
     const running = "/opt/running/bin/mstack";
@@ -717,7 +717,7 @@ for (const [kind, why] of CANNOT_RUN) {
   });
 }
 
-test("A2 (item 105) a lock edited so its rootFromTop names another real store restores into neither, says why, and writes nothing", () => {
+test("A2 (item 105) a lock edited so its rootFromTop names another real store restores into neither, says why, and writes nothing", SPAWN_TEST, () => {
   const o = oddWorld();
   try {
     const written = deadRunIn(o, o.cli);
@@ -898,7 +898,7 @@ test("B1 (item 105, round 2) a checkout copied into the directory that holds it 
   }
 });
 
-test("B1 (item 105, round 2) rootDisagrees asks only about a root under this worktree's top level: one outside says nothing whatever that path holds now, and one under it is held to rootFromTop", () => {
+test("B1 (item 105, round 2) rootDisagrees asks only about a root under this worktree's top level: one outside says nothing whatever that path holds now, and one under it is held to rootFromTop", SPAWN_TEST, () => {
   const o = oddWorld();
   try {
     const top = dirname(dirname(o.a));
@@ -956,7 +956,7 @@ function movedUp(base: string, levels: 1 | 2, stores: readonly string[]): { a: s
   return { a: join(outer, "pkg", "a"), lockFile: join(outer, ".git", "mstack-mutation.lock") };
 }
 
-test("L14 (item 105, round 2) a checkout moved up into its parent's place, whose repository holds a directory at the old root's path, restores: the old root lies in no other store", () => {
+test("L14 (item 105, round 2) a checkout moved up into its parent's place, whose repository holds a directory at the old root's path, restores: the old root lies in no other store", SPAWN_TEST, () => {
   const layouts: [string, 1 | 2, readonly string[]][] = [
     ["moved up one level", 1, ["pkg/a"]],
     ["moved up two levels", 2, ["pkg/a"]],
@@ -981,7 +981,7 @@ test("L14 (item 105, round 2) a checkout moved up into its parent's place, whose
   }
 });
 
-test("L14 (item 105, round 2) rootDisagrees under the narrower rule: only another store's own directory disagrees; a directory, a file, a dangling link or a FIFO inside a store or in none does not", () => {
+test("L14 (item 105, round 2) rootDisagrees under the narrower rule: only another store's own directory disagrees; a directory, a file, a dangling link or a FIFO inside a store or in none does not", SPAWN_TEST, () => {
   const o = oddWorld();
   try {
     const top = dirname(dirname(o.a));
@@ -1033,7 +1033,7 @@ test("L14 (item 105, round 2) rootDisagrees under the narrower rule: only anothe
  * store's own directory in this worktree; a root anywhere else is accepted.
  */
 
-test("L14e (item 105, round 2) a checkout moved up into its parent's place, in a repository with a store at its top, restores: the old root is in the top store but is no store's own directory", () => {
+test("L14e (item 105, round 2) a checkout moved up into its parent's place, in a repository with a store at its top, restores: the old root is in the top store but is no store's own directory", SPAWN_TEST, () => {
   const base = realpathSync(mkdtempSync(join(tmpdir(), "mstack-moved-up-")));
   try {
     const m = movedUp(base, 1, [".", "pkg/a"]);
@@ -1083,7 +1083,7 @@ userTest("A5 (item 102) R15's line after a failed restore names the CLI that wro
   }
 });
 
-test("A5 (item 102) from inside the git directory the hook names the CLI that wrote the lock when it is gone, and offers the running one", () => {
+test("A5 (item 102) from inside the git directory the hook names the CLI that wrote the lock when it is gone, and offers the running one", SPAWN_TEST, () => {
   withRepo(startA, editA, (r) => {
     const lock = locked(r);
     const file = lockFileOf(r);

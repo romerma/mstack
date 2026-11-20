@@ -5,7 +5,7 @@ import { join } from "node:path";
 
 import { acquireLock, sweepStale } from "../src/mutation-lock.ts";
 import { applyRevert, restoreFromLock } from "../src/mutation-tree.ts";
-import { git, gitDirOf, indexEntries, locked, put, runDirOf, staged, status, withRepo } from "./mutation-fixture.ts";
+import { git, gitDirOf, indexEntries, locked, put, runDirOf, SPAWN_TEST, staged, status, withRepo } from "./mutation-fixture.ts";
 
 /**
  * Item 42, task 2.2: what `applyRevert` leaves in the working tree, read right
@@ -37,7 +37,7 @@ const editBoth = (root: string): void => {
   put(root, "src/b.ts", "b2\n");
 };
 
-test("R9 added, deleted, modified and renamed", () => {
+test("R9 added, deleted, modified and renamed", SPAWN_TEST, () => {
   withRepo(
     (root) => {
       put(root, "src/old.ts", "old\n");
@@ -60,7 +60,7 @@ test("R9 added, deleted, modified and renamed", () => {
   );
 });
 
-test("R9 binary bytes and the executable bit", () => {
+test("R9 binary bytes and the executable bit", SPAWN_TEST, () => {
   const binary = Buffer.from([0, 255, 1, 254, 10, 13, 10, 0, 128]);
   const big = Buffer.alloc(3 << 20);
   for (let i = 0; i < big.length; i++) big[i] = (i * 31) % 256;
@@ -84,7 +84,7 @@ test("R9 binary bytes and the executable bit", () => {
   );
 });
 
-test("R9 line endings are the start's as checked out here", () => {
+test("R9 line endings are the start's as checked out here", SPAWN_TEST, () => {
   withRepo(
     (root) => {
       put(root, ".gitattributes", "*.txt text eol=crlf\n");
@@ -98,7 +98,7 @@ test("R9 line endings are the start's as checked out here", () => {
   );
 });
 
-test("R9 the index is not touched", () => {
+test("R9 the index is not touched", SPAWN_TEST, () => {
   withRepo(twoFiles, editBoth, (r) => {
     const index = join(gitDirOf(r), "index");
     const entries = indexEntries(r.root);
@@ -111,7 +111,7 @@ test("R9 the index is not touched", () => {
   });
 });
 
-test("R9 a directory left empty by an added file is removed, and a missing parent is made", () => {
+test("R9 a directory left empty by an added file is removed, and a missing parent is made", SPAWN_TEST, () => {
   withRepo(
     (root) => {
       put(root, "src/gone/y.ts", "y\n");
@@ -131,7 +131,7 @@ test("R9 a directory left empty by an added file is removed, and a missing paren
   );
 });
 
-test("R10 untracked, test and doc files are byte-identical after the revert", () => {
+test("R10 untracked, test and doc files are byte-identical after the revert", SPAWN_TEST, () => {
   withRepo(
     (root) => {
       put(root, "src/a.ts", "a\n");
@@ -158,7 +158,7 @@ test("R10 untracked, test and doc files are byte-identical after the revert", ()
   );
 });
 
-test("R11 a path that cannot be written stops the revert", () => {
+test("R11 a path that cannot be written stops the revert", SPAWN_TEST, () => {
   withRepo(
     (root) => {
       put(root, "src/a.ts", "a\n");
@@ -188,7 +188,7 @@ test("R11 a path that cannot be written stops the revert", () => {
   );
 });
 
-test("R11 a path that changed since the lock stops the revert before it is written", () => {
+test("R11 a path that changed since the lock stops the revert before it is written", SPAWN_TEST, () => {
   withRepo(twoFiles, editBoth, (r) => {
     const lock = locked(r);
     const result = applyRevert(r.store, lock, (step) => {
@@ -202,7 +202,7 @@ test("R11 a path that changed since the lock stops the revert before it is writt
   });
 });
 
-test("R11 an edit between the staged copy and the lock blocks the revert and keeps the edit", () => {
+test("R11 an edit between the staged copy and the lock blocks the revert and keeps the edit", SPAWN_TEST, () => {
   withRepo(twoFiles, editBoth, (r) => {
     const lock = staged(r);
     writeFileSync(join(r.root, "src/a.ts"), "saved after the copy, before the lock\n");
@@ -215,7 +215,7 @@ test("R11 an edit between the staged copy and the lock blocks the revert and kee
   });
 });
 
-test("R11 an edit after the temp file is written and before its rename stops the revert and keeps the edit", () => {
+test("R11 an edit after the temp file is written and before its rename stops the revert and keeps the edit", SPAWN_TEST, () => {
   withRepo(twoFiles, editBoth, (r) => {
     const lock = locked(r);
     const result = applyRevert(r.store, lock, (step) => {
@@ -228,7 +228,7 @@ test("R11 an edit after the temp file is written and before its rename stops the
   });
 });
 
-test("R11 an added file edited since the lock is not removed", () => {
+test("R11 an added file edited since the lock is not removed", SPAWN_TEST, () => {
   withRepo(
     (root) => put(root, "src/keep.ts", "k\n"),
     (root) => put(root, "src/new.ts", "new\n"),
@@ -243,7 +243,7 @@ test("R11 an added file edited since the lock is not removed", () => {
   );
 });
 
-test("R8 a run whose staging another run swept before it linked its lock writes nothing", () => {
+test("R8 a run whose staging another run swept before it linked its lock writes nothing", SPAWN_TEST, () => {
   withRepo(
     (root) => {
       put(root, "src/a.ts", "a\n");
@@ -274,7 +274,7 @@ test("R8 a run whose staging another run swept before it linked its lock writes 
   );
 });
 
-test("R11 a staged copy changed, or the run directory deleted, between the lock and the revert: the revert writes nothing", () => {
+test("R11 a staged copy changed, or the run directory deleted, between the lock and the revert: the revert writes nothing", SPAWN_TEST, () => {
   withRepo(
     (root) => {
       put(root, "src/a.ts", "a\n");
@@ -312,7 +312,7 @@ test("R11 a staged copy changed, or the run directory deleted, between the lock 
   );
 });
 
-test("R10 an untracked file in a directory the revert removes when empty is kept", () => {
+test("R10 an untracked file in a directory the revert removes when empty is kept", SPAWN_TEST, () => {
   withRepo(
     (root) => put(root, "src/keep.ts", "k\n"),
     (root) => put(root, "src/feature/x.ts", "x\n"),
@@ -327,7 +327,7 @@ test("R10 an untracked file in a directory the revert removes when empty is kept
   );
 });
 
-test("R9 a start file of mode 100755 is put back with its executable bits", () => {
+test("R9 a start file of mode 100755 is put back with its executable bits", SPAWN_TEST, () => {
   withRepo(
     (root) => put(root, "src/run.sh", "#!/bin/sh\necho start\n", 0o755),
     (root) => {
@@ -342,7 +342,7 @@ test("R9 a start file of mode 100755 is put back with its executable bits", () =
   );
 });
 
-test("R10 the revert removes no directory through a symlinked parent", () => {
+test("R10 the revert removes no directory through a symlinked parent", SPAWN_TEST, () => {
   withRepo(
     (root) => put(root, "src/keep.ts", "k\n"),
     (root) => put(root, "src/feature/sub/x.ts", "x\n"),

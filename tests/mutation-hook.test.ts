@@ -8,7 +8,7 @@ import { preToolUse } from "../src/hooks.ts";
 import { shellWord } from "../src/mutation-lock.ts";
 import { runningCliRoot } from "../src/paths.ts";
 import { sandbox } from "./helpers.ts";
-
+import { SPAWN_TEST } from "./mutation-fixture.ts";
 /**
  * Item 42, task 4.2: the PreToolUse hook under a mutation lock. Every lock is a
  * file in a throwaway repository's git directory; `cwd` is that repository, or
@@ -65,7 +65,7 @@ function fakeGit(body: (marker: string) => void): void {
   }
 }
 
-test("R26 shapes caught under a lock", () => {
+test("R26 shapes caught under a lock", SPAWN_TEST, () => {
   withBox((box) => {
     writeFileSync(box.lockFile, lockText("/x/bin/mstack"));
     for (const command of ["git commit -m x", "git -C sub commit -am x", "git -c user.name=a add .", "cd x && git stash", "echo ok; git add -A", "git checkout ."]) {
@@ -76,7 +76,7 @@ test("R26 shapes caught under a lock", () => {
   });
 });
 
-test("R26 every listed git command is denied under a lock", () => {
+test("R26 every listed git command is denied under a lock", SPAWN_TEST, () => {
   withBox((box) => {
     writeFileSync(box.lockFile, lockText("/x/bin/mstack"));
     for (const verb of LISTED) assert.ok(decide(`git ${verb} x`, box.root).denied, `git ${verb} was allowed under a lock`);
@@ -89,7 +89,7 @@ test("R26 every listed git command is denied under a lock", () => {
   });
 });
 
-test("R26 shapes not caught are allowed", () => {
+test("R26 shapes not caught are allowed", SPAWN_TEST, () => {
   withBox((box, outside) => {
     writeFileSync(box.lockFile, lockText("/x/bin/mstack"));
     for (const command of ['git ci -m x', '"git" commit -m x', 'git -C "dir with space" commit -m x', `node -e "require('child_process').execFileSync('git',['commit','-m','x'])"`, "npm version patch"]) {
@@ -99,7 +99,7 @@ test("R26 shapes not caught are allowed", () => {
   });
 });
 
-test("R26 an unrelated command spawns no git", () => {
+test("R26 an unrelated command spawns no git", SPAWN_TEST, () => {
   withBox((box) => {
     writeFileSync(box.lockFile, lockText("/x/bin/mstack"));
     fakeGit((marker) => {
@@ -111,7 +111,7 @@ test("R26 an unrelated command spawns no git", () => {
   });
 });
 
-test("R26 no lock, or git cannot answer, allows", () => {
+test("R26 no lock, or git cannot answer, allows", SPAWN_TEST, () => {
   withBox((box, outside) => {
     assert.ok(!decide("git commit -m x", box.root).denied, "denied with no lock");
     writeFileSync(box.lockFile, lockText("/x/bin/mstack"));
@@ -123,7 +123,7 @@ test("R26 no lock, or git cannot answer, allows", () => {
   });
 });
 
-test("R26 an unparseable lock still denies", () => {
+test("R26 an unparseable lock still denies", SPAWN_TEST, () => {
   withBox((box) => {
     writeFileSync(box.lockFile, "garbage");
     const d = decide("git commit -m x", box.root);
@@ -136,7 +136,7 @@ test("R26 an unparseable lock still denies", () => {
   });
 });
 
-test("R26 rm of the lock is denied, with a lock or without one", () => {
+test("R26 rm of the lock is denied, with a lock or without one", SPAWN_TEST, () => {
   withBox((box) => {
     const commands = [`rm .git/mstack-mutation.lock`, `rm -f ${box.lockFile}`, `rm -f "${box.lockFile}"`, `cd x && rm -rf .git/mstack-mutation.lock`];
     fakeGit((marker) => {
@@ -156,7 +156,7 @@ test("R26 rm of the lock is denied, with a lock or without one", () => {
   });
 });
 
-test("R25 the deny reason names the lock's CLI", () => {
+test("R25 the deny reason names the lock's CLI", SPAWN_TEST, () => {
   withBox((box) => {
     const running = join(runningCliRoot(), "bin", "mstack");
     const gone = join(tmpdir(), "mstack-no-such-copy", "bin", "mstack");
@@ -174,7 +174,7 @@ test("R25 the deny reason names the lock's CLI", () => {
   });
 });
 
-test("R26 the reason for a lock that cannot be read says the way out is a person at a terminal", () => {
+test("R26 the reason for a lock that cannot be read says the way out is a person at a terminal", SPAWN_TEST, () => {
   // Round 2 review, non-blocking 2: the hook denies an agent both steps of the by-hand way.
   withBox((box) => {
     writeFileSync(box.lockFile, "garbage");
@@ -185,7 +185,7 @@ test("R26 the reason for a lock that cannot be read says the way out is a person
   });
 });
 
-test("R26 git's --git-dir and --work-tree given with a space do not hide the verb", () => {
+test("R26 git's --git-dir and --work-tree given with a space do not hide the verb", SPAWN_TEST, () => {
   // Round 2 review, non-blocking 5: the prefix took only the --git-dir=<dir> form.
   withBox((box) => {
     writeFileSync(box.lockFile, lockText("/x/bin/mstack"));

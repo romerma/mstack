@@ -108,7 +108,7 @@ async function started(dir: string, mark: string): Promise<{ cmd: string; pid: (
   };
 }
 
-test("R12 async: exit code, signal and tail match runCommand", async () => {
+test("R12 async: exit code, signal and tail match runCommand", SPAWN_TEST, async () => {
   await inDir(async (dir) => {
     for (const cmd of ["exit 7", "kill -TERM $$", "printf 'one\\ntwo\\nthree\\n'; exit 1", "exec 2>/dev/null; sh -c 'kill -TERM $$'; exit $?", "echo out; echo err >&2; exit 0"]) {
       const sync = runCommand(cmd, { cwd: dir, output: "capture", timeoutMs: 10_000, tailLines: 2 });
@@ -118,7 +118,7 @@ test("R12 async: exit code, signal and tail match runCommand", async () => {
   });
 });
 
-test("R12 async: a timeout reports timedOut, code null and SIGKILL, and the group is gone", async () => {
+test("R12 async: a timeout reports timedOut, code null and SIGKILL, and the group is gone", SPAWN_TEST, async () => {
   const mark = marker();
   try {
     await inDir(async (dir) => {
@@ -133,14 +133,14 @@ test("R12 async: a timeout reports timedOut, code null and SIGKILL, and the grou
   }
 });
 
-test("R12 async: a command that cannot start gives code null and an error", async () => {
+test("R12 async: a command that cannot start gives code null and an error", SPAWN_TEST, async () => {
   const r = await runCommandAsync("true", { cwd: "/nonexistent-dir-for-mstack", timeoutMs: 1_000 }).result;
   assert.equal(r.code, null);
   assert.equal(r.timedOut, false);
   assert.equal(typeof r.error, "string");
 });
 
-test("R12 async: timeoutMs must be an integer from 1 to 2^31-1", async () => {
+test("R12 async: timeoutMs must be an integer from 1 to 2^31-1", SPAWN_TEST, async () => {
   await inDir(async (dir) => {
     for (const bad of [Number.NaN, Number.POSITIVE_INFINITY, -5, 0, 1.5, 2 ** 31, undefined]) {
       assert.throws(() => runCommandAsync("true", { cwd: dir, timeoutMs: bad as number }), TypeError, String(bad));
@@ -150,7 +150,7 @@ test("R12 async: timeoutMs must be an integer from 1 to 2^31-1", async () => {
   });
 });
 
-test("R12 async: does not load the target directory's bunfig.toml or .env", async () => {
+test("R12 async: does not load the target directory's bunfig.toml or .env", SPAWN_TEST, async () => {
   await inDir(async (dir) => {
     writeFileSync(join(dir, "pre.mjs"), 'console.log("PRELOAD RAN");\n');
     writeFileSync(join(dir, "bunfig.toml"), 'preload = ["./pre.mjs"]\n');

@@ -9,7 +9,7 @@ import { storeAt, type Store } from "../src/paths.ts";
 import { setup } from "../src/setup.ts";
 import { measureStart } from "../src/size.ts";
 import { captured, sandbox, type Sandbox } from "./helpers.ts";
-
+import { SPAWN_TEST } from "./mutation-fixture.ts";
 /**
  * Item 42, task 1.1: what the mutation check reverts (the revert set) and what
  * its receipt is keyed by (the key). Both read git and the working tree and
@@ -69,7 +69,7 @@ function keyOf(store: Store, start: string): string {
 
 const ZERO = "0".repeat(40);
 
-test("R10 tests, docs and the store are not in the revert set", () => {
+test("R10 tests, docs and the store are not in the revert set", SPAWN_TEST, () => {
   withBox((box) => {
     const root = box.store.root;
     put(root, "src/a.ts", "a\n");
@@ -88,7 +88,7 @@ test("R10 tests, docs and the store are not in the revert set", () => {
   });
 });
 
-test("R10 a store in a subdirectory reverts only under its root", () => {
+test("R10 a store in a subdirectory reverts only under its root", SPAWN_TEST, () => {
   withBox((box) => {
     const root = box.store.root;
     put(root, "pkg/app/src/x.ts", "x\n");
@@ -103,7 +103,7 @@ test("R10 a store in a subdirectory reverts only under its root", () => {
   });
 });
 
-test("R10 an untracked code file is not in the revert set", () => {
+test("R10 an untracked code file is not in the revert set", SPAWN_TEST, () => {
   withBox((box) => {
     const root = box.store.root;
     put(root, "src/a.ts", "a\n");
@@ -116,7 +116,7 @@ test("R10 an untracked code file is not in the revert set", () => {
   });
 });
 
-test("R9 the revert set records each path's start and HEAD mode and blob", () => {
+test("R9 the revert set records each path's start and HEAD mode and blob", SPAWN_TEST, () => {
   withBox((box) => {
     const root = box.store.root;
     put(root, "src/mod.ts", "m1\n");
@@ -164,7 +164,7 @@ test("R9 the revert set records each path's start and HEAD mode and blob", () =>
   });
 });
 
-test("R21 a code or test edit changes the key, committed or not", () => {
+test("R21 a code or test edit changes the key, committed or not", SPAWN_TEST, () => {
   withBox((box) => {
     const root = box.store.root;
     put(root, "src/a.ts", "a\n");
@@ -185,7 +185,7 @@ test("R21 a code or test edit changes the key, committed or not", () => {
   });
 });
 
-test("R21 a new code or test file changes the key", () => {
+test("R21 a new code or test file changes the key", SPAWN_TEST, () => {
   withBox((box) => {
     const root = box.store.root;
     put(root, "src/a.ts", "a\n");
@@ -203,7 +203,7 @@ test("R21 a new code or test file changes the key", () => {
   });
 });
 
-test("R21 committing an untracked test file changes the key", () => {
+test("R21 committing an untracked test file changes the key", SPAWN_TEST, () => {
   withBox((box) => {
     const root = box.store.root;
     put(root, "src/a.ts", "a\n");
@@ -215,7 +215,7 @@ test("R21 committing an untracked test file changes the key", () => {
   });
 });
 
-test("R21 an executable bit changes the key", () => {
+test("R21 an executable bit changes the key", SPAWN_TEST, () => {
   withBox((box) => {
     const root = box.store.root;
     put(root, "src/run.sh", "#!/bin/sh\n", 0o644);
@@ -231,7 +231,7 @@ test("R21 an executable bit changes the key", () => {
   });
 });
 
-test("R21 a docs or store commit does not change the key", () => {
+test("R21 a docs or store commit does not change the key", SPAWN_TEST, () => {
   withBox((box) => {
     const root = box.store.root;
     put(root, "src/a.ts", "a\n");
@@ -251,7 +251,7 @@ test("R21 a docs or store commit does not change the key", () => {
   });
 });
 
-test("R21 a rebase that changes no code or test path keeps the key", () => {
+test("R21 a rebase that changes no code or test path keeps the key", SPAWN_TEST, () => {
   withBox((box) => {
     const root = box.store.root;
     git(root, "branch", "-M", "main");
@@ -278,7 +278,7 @@ test("R21 a rebase that changes no code or test path keeps the key", () => {
   });
 });
 
-test("R21 a store in a subdirectory has a key that a test edit changes", () => {
+test("R21 a store in a subdirectory has a key that a test edit changes", SPAWN_TEST, () => {
   withBox((box) => {
     const root = box.store.root;
     put(root, "pkg/app/src/x.ts", "x\n");
@@ -292,7 +292,7 @@ test("R21 a store in a subdirectory has a key that a test edit changes", () => {
   });
 });
 
-test("R21 a key path that holds a newline makes the key null, with its reason", () => {
+test("R21 a key path that holds a newline makes the key null, with its reason", SPAWN_TEST, () => {
   withBox((box) => {
     const root = box.store.root;
     put(root, "src/a.ts", "a\n");
@@ -304,7 +304,7 @@ test("R21 a key path that holds a newline makes the key null, with its reason", 
   });
 });
 
-test("R21 the key is null, with its reason, when git cannot list the changed or the untracked files", () => {
+test("R21 the key is null, with its reason, when git cannot list the changed or the untracked files", SPAWN_TEST, () => {
   withBox((box) => {
     const root = box.store.root;
     put(root, "src/a.ts", "a\n");
@@ -333,7 +333,7 @@ test("R21 the key is null, with its reason, when git cannot list the changed or 
   });
 });
 
-test("R21 a key path whose name is not UTF-8 makes the key null, with its reason", () => {
+test("R21 a key path whose name is not UTF-8 makes the key null, with its reason", SPAWN_TEST, () => {
   withBox((box) => {
     const root = box.store.root;
     put(root, "src/a.ts", "a\n");

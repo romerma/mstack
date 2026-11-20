@@ -35,7 +35,7 @@ const editDeleteAdd = (root: string): void => {
   put(root, "src/new.ts", "new\n");
 };
 
-test("R8 the lock is one JSON document before the first write", () => {
+test("R8 the lock is one JSON document before the first write", SPAWN_TEST, () => {
   withRepo(threeFiles, editDeleteAdd, (r) => {
     const before = status(r.root);
     const lock = locked(r);
@@ -63,7 +63,7 @@ test("R8 the lock is one JSON document before the first write", () => {
   });
 });
 
-test("R8 a linked worktree has its own lock", () => {
+test("R8 a linked worktree has its own lock", SPAWN_TEST, () => {
   withRepo(threeFiles, editDeleteAdd, (r) => {
     const wt = mkdtempSync(join(tmpdir(), "mstack-wt-"));
     try {
@@ -139,7 +139,7 @@ test("R8 leftovers of a killed prepare are removed once the next run holds the l
   });
 });
 
-test("R8 a run directory whose rescue holds anything is kept", () => {
+test("R8 a run directory whose rescue holds anything is kept", SPAWN_TEST, () => {
   withRepo(threeFiles, editDeleteAdd, (r) => {
     const base = join(gitDirOf(r), "mstack-mutation");
     const rescued = join(base, "20260101T000000Z-1-aaaa", "rescue", "1", "src");
@@ -154,7 +154,7 @@ test("R8 a run directory whose rescue holds anything is kept", () => {
   });
 });
 
-test("R9 a 3 MiB start file is staged byte for byte", () => {
+test("R9 a 3 MiB start file is staged byte for byte", SPAWN_TEST, () => {
   const big = Buffer.alloc(3 << 20);
   for (let i = 0; i < big.length; i++) big[i] = (i * 7919) % 251;
   withRepo(
@@ -173,7 +173,7 @@ test("R9 a 3 MiB start file is staged byte for byte", () => {
   );
 });
 
-test("R1 a start blob that cannot be read leaves no run directory", () => {
+test("R1 a start blob that cannot be read leaves no run directory", SPAWN_TEST, () => {
   withRepo(
     (root) => put(root, "src/x.ts", "x\n"),
     (root) => put(root, "src/x.ts", "x2\n"),
@@ -192,7 +192,7 @@ test("R1 a start blob that cannot be read leaves no run directory", () => {
   );
 });
 
-test("R24 a lock path that is absolute, empty, or has a . .. or .git segment is refused", () => {
+test("R24 a lock path that is absolute, empty, or has a . .. or .git segment is refused", SPAWN_TEST, () => {
   withRepo(threeFiles, editDeleteAdd, (r) => {
     const lock = staged(r);
     assert.deepEqual(validateLock(lock), []);
@@ -207,7 +207,7 @@ test("R24 a lock path that is absolute, empty, or has a . .. or .git segment is 
   });
 });
 
-test("R24 an unparseable lock is reported as damaged", () => {
+test("R24 an unparseable lock is reported as damaged", SPAWN_TEST, () => {
   withRepo(threeFiles, editDeleteAdd, (r) => {
     assert.equal(readLock(r.store), null);
     for (const garbage of ["garbage", "[1, 2]", ""]) {
@@ -219,7 +219,7 @@ test("R24 an unparseable lock is reported as damaged", () => {
   });
 });
 
-test("R23 liveness: this process is running, an exited pid is not, a process at the pid that started later is not", async () => {
+test("R23 liveness: this process is running, an exited pid is not, a process at the pid that started later is not", SPAWN_TEST, async () => {
   assert.equal(liveness({ ...here(), pid: process.pid, startedAt: new Date().toISOString() }).state, "running");
   const exited = spawnSync("true").pid;
   assert.equal(liveness({ ...here(), pid: exited, startedAt: new Date().toISOString() }).state, "not-running");
@@ -233,7 +233,7 @@ test("R23 liveness: this process is running, an exited pid is not, a process at 
   }
 });
 
-test("R23 liveness: another boot of this host is not running, another host is unknown at any boot", () => {
+test("R23 liveness: another boot of this host is not running, another host is unknown at any boot", SPAWN_TEST, () => {
   const exited = spawnSync("true").pid;
   const now = new Date().toISOString();
   assert.equal(liveness({ ...here(), boot: bootTime() - 3600, pid: exited, startedAt: now }).state, "not-running");
@@ -246,7 +246,7 @@ test("R23 liveness: another boot of this host is not running, another host is un
   }
 });
 
-test("R23 liveness: a live pid that started before the lock is running at another boot time, a ps that fails is running, and a null pid namespace against a non-null one is unknown", () => {
+test("R23 liveness: a live pid that started before the lock is running at another boot time, a ps that fails is running, and a null pid namespace against a non-null one is unknown", SPAWN_TEST, () => {
   const now = new Date().toISOString();
   assert.equal(liveness({ ...here(), boot: bootTime() - 3600, pid: process.pid, startedAt: now }).state, "running", "a different boot time made a live run dead");
   const later = spawn("sleep", ["30"], { stdio: "ignore" });
@@ -265,7 +265,7 @@ test("R23 liveness: a live pid that started before the lock is running at anothe
   assert.equal(liveness({ ...here(), pidns: other, pid: process.pid, startedAt: now }).state, "unknown");
 });
 
-test("R24 a lock entry whose temp prefix is not the one its run derives is refused", () => {
+test("R24 a lock entry whose temp prefix is not the one its run derives is refused", SPAWN_TEST, () => {
   withRepo(threeFiles, editDeleteAdd, (r) => {
     const lock = staged(r);
     const other = lock.run.replace(/[0-9a-f]{4}$/, (hex) => (hex === "0000" ? "ffff" : "0000"));
@@ -276,13 +276,13 @@ test("R24 a lock entry whose temp prefix is not the one its run derives is refus
   });
 });
 
-test("R23 liveness: a live process this user may not signal (EPERM) is running", { skip: process.getuid?.() === 0 ? "root may signal pid 1" : false }, () => {
+test("R23 liveness: a live process this user may not signal (EPERM) is running", { ...SPAWN_TEST, skip: process.getuid?.() === 0 ? "root may signal pid 1" : false }, () => {
   assert.throws(() => process.kill(1, 0), (error: NodeJS.ErrnoException) => error.code === "EPERM");
   const verdict = liveness({ ...here(), pid: 1, startedAt: new Date().toISOString() });
   assert.equal(verdict.state, "running", JSON.stringify(verdict));
 });
 
-test("R24 two lock paths that differ only by case or Unicode normalisation are refused", () => {
+test("R24 two lock paths that differ only by case or Unicode normalisation are refused", SPAWN_TEST, () => {
   withRepo(threeFiles, editDeleteAdd, (r) => {
     const lock = staged(r);
     const withPaths = (first: string, second: string): Lock => ({ ...lock, entries: lock.entries.map((e, i) => (i === 0 ? { ...e, path: first } : i === 1 ? { ...e, path: second } : e)) });
@@ -293,7 +293,7 @@ test("R24 two lock paths that differ only by case or Unicode normalisation are r
   });
 });
 
-test("R24 a lock that is a symlink or a FIFO is damaged, read without following the link or blocking", () => {
+test("R24 a lock that is a symlink or a FIFO is damaged, read without following the link or blocking", SPAWN_TEST, () => {
   withRepo(threeFiles, editDeleteAdd, (r) => {
     const elsewhere = join(gitDirOf(r), "a-whole-lock-elsewhere.json");
     writeFileSync(elsewhere, JSON.stringify(staged(r)));
@@ -317,7 +317,7 @@ test("R24 a lock that is a symlink or a FIFO is damaged, read without following 
   });
 });
 
-test("R8 a run directory the sweep cannot remove is left, and the sweep does not throw", { skip: process.getuid?.() === 0 }, () => {
+test("R8 a run directory the sweep cannot remove is left, and the sweep does not throw", { ...SPAWN_TEST, skip: process.getuid?.() === 0 }, () => {
   withRepo(threeFiles, editDeleteAdd, (r) => {
     const stuck = join(gitDirOf(r), "mstack-mutation", "20260101T000000Z-4-dddd", "head");
     mkdirSync(stuck, { recursive: true });
@@ -334,7 +334,7 @@ test("R8 a run directory the sweep cannot remove is left, and the sweep does not
   });
 });
 
-test("R8 a run refused the lock can remove its own staging", () => {
+test("R8 a run refused the lock can remove its own staging", SPAWN_TEST, () => {
   withRepo(threeFiles, editDeleteAdd, (r) => {
     const loser = staged(r);
     const winner = locked(r);

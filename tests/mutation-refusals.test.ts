@@ -9,7 +9,7 @@ import { lockPath, refusals, type Refusal } from "../src/mutation.ts";
 import { bootTime, pidNamespace, shellWord } from "../src/mutation-lock.ts";
 import type { Item, State } from "../src/state.ts";
 import { item, sandbox, state, type Sandbox } from "./helpers.ts";
-
+import { SPAWN_TEST } from "./mutation-fixture.ts";
 /**
  * Item 42, task 1.2: the refusals of R1, R2 and R5 that need no staging. Each
  * test asserts the message, and that nothing was written: no lock, no run
@@ -99,7 +99,7 @@ function refused(r: Refusal | null, pattern: RegExp): Refusal {
   return r;
 }
 
-test("R1 no active item", () => {
+test("R1 no active item", SPAWN_TEST, () => {
   withBox((box) => {
     started(box);
     const r = refused(refuse(box, state([], { verify: "true" }) as State, undefined), /no active item/);
@@ -107,7 +107,7 @@ test("R1 no active item", () => {
   });
 });
 
-test("R1 not a git repository", () => {
+test("R1 not a git repository", SPAWN_TEST, () => {
   withBox(
     (box) => {
       const { st, it } = active("0".repeat(40));
@@ -118,7 +118,7 @@ test("R1 not a git repository", () => {
   );
 });
 
-test("R1 no base, and a base that is not a commit", () => {
+test("R1 no base, and a base that is not a commit", SPAWN_TEST, () => {
   withBox((box) => {
     started(box);
     const none = active(undefined);
@@ -128,7 +128,7 @@ test("R1 no base, and a base that is not a commit", () => {
   });
 });
 
-test("R1 start lost", () => {
+test("R1 start lost", SPAWN_TEST, () => {
   withBox((box) => {
     const root = box.store.root;
     git(root, "branch", "-M", "stem");
@@ -144,7 +144,7 @@ test("R1 start lost", () => {
   });
 });
 
-test("R1 no obligations", () => {
+test("R1 no obligations", SPAWN_TEST, () => {
   withBox((box) => {
     const start = started(box);
     put(box.store.root, "src/a.ts", "a2\n");
@@ -154,7 +154,7 @@ test("R1 no obligations", () => {
   });
 });
 
-test("R1 a rebase in progress", () => {
+test("R1 a rebase in progress", SPAWN_TEST, () => {
   withBox((box) => {
     const start = started(box);
     put(box.store.root, "src/a.ts", "a2\n");
@@ -165,7 +165,7 @@ test("R1 a rebase in progress", () => {
   });
 });
 
-test("R1 a detached HEAD is allowed", () => {
+test("R1 a detached HEAD is allowed", SPAWN_TEST, () => {
   withBox((box) => {
     const start = started(box);
     put(box.store.root, "src/a.ts", "a2\n");
@@ -176,7 +176,7 @@ test("R1 a detached HEAD is allowed", () => {
   });
 });
 
-test("R1 an existing lock is refused naming its pid", () => {
+test("R1 an existing lock is refused naming its pid", SPAWN_TEST, () => {
   withBox((box) => {
     const start = started(box);
     put(box.store.root, "src/a.ts", "a2\n");
@@ -197,7 +197,7 @@ test("R1 an existing lock is refused naming its pid", () => {
   });
 });
 
-test("R1 an empty revert set: only tests and docs, or only untracked code", () => {
+test("R1 an empty revert set: only tests and docs, or only untracked code", SPAWN_TEST, () => {
   withBox((box) => {
     const root = box.store.root;
     const start = started(box);
@@ -212,7 +212,7 @@ test("R1 an empty revert set: only tests and docs, or only untracked code", () =
   });
 });
 
-test("R2 a dirty tracked file", () => {
+test("R2 a dirty tracked file", SPAWN_TEST, () => {
   withBox((box) => {
     const root = box.store.root;
     const start = started(box);
@@ -225,7 +225,7 @@ test("R2 a dirty tracked file", () => {
   });
 });
 
-test("R2 dirty store files are allowed", () => {
+test("R2 dirty store files are allowed", SPAWN_TEST, () => {
   withBox((box) => {
     const root = box.store.root;
     const start = started(box);
@@ -238,7 +238,7 @@ test("R2 dirty store files are allowed", () => {
   });
 });
 
-test("R2 an untracked file where the revert puts one back", () => {
+test("R2 an untracked file where the revert puts one back", SPAWN_TEST, () => {
   withBox((box) => {
     const root = box.store.root;
     put(root, "src/old.ts", "old\n");
@@ -252,7 +252,7 @@ test("R2 an untracked file where the revert puts one back", () => {
   });
 });
 
-caseTest("R2 a case variant where the revert puts a file back", () => {
+caseTest("R2 a case variant where the revert puts a file back", SPAWN_TEST, () => {
   withBox((box) => {
     const root = box.store.root;
     put(root, "src/old.ts", "old\n");
@@ -266,7 +266,7 @@ caseTest("R2 a case variant where the revert puts a file back", () => {
   });
 });
 
-caseTest("R2 a path of the set on disk under another case", () => {
+caseTest("R2 a path of the set on disk under another case", SPAWN_TEST, () => {
   withBox((box) => {
     const root = box.store.root;
     put(root, "src/foo.ts", "foo\n");
@@ -279,7 +279,7 @@ caseTest("R2 a path of the set on disk under another case", () => {
   });
 });
 
-test("R2 an untracked symlink at a parent directory", () => {
+test("R2 an untracked symlink at a parent directory", SPAWN_TEST, () => {
   withBox((box) => {
     const root = box.store.root;
     put(root, "src/lib/x.ts", "x\n");
@@ -298,7 +298,7 @@ test("R2 an untracked symlink at a parent directory", () => {
   });
 });
 
-test("R5 a revert path inside the running CLI is refused with the copy commands, and not from a copy", () => {
+test("R5 a revert path inside the running CLI is refused with the copy commands, and not from a copy", SPAWN_TEST, () => {
   withBox((box) => {
     const root = box.store.root;
     const start = started(box);
@@ -331,7 +331,7 @@ function flagged(box: Sandbox, flag: string, path = "src/conf.ts"): string {
   return start;
 }
 
-test("R2 a skip-worktree file is refused, naming the flag and the command that clears it", () => {
+test("R2 a skip-worktree file is refused, naming the flag and the command that clears it", SPAWN_TEST, () => {
   withBox((box) => {
     const { st, it } = active(flagged(box, "--skip-worktree"));
     const r = refused(refuse(box, st, it), /src\/conf\.ts \(skip-worktree\)/);
@@ -341,7 +341,7 @@ test("R2 a skip-worktree file is refused, naming the flag and the command that c
   });
 });
 
-test("R2 an assume-unchanged file is refused, naming the flag and the command that clears it", () => {
+test("R2 an assume-unchanged file is refused, naming the flag and the command that clears it", SPAWN_TEST, () => {
   withBox((box) => {
     const { st, it } = active(flagged(box, "--assume-unchanged"));
     const r = refused(refuse(box, st, it), /src\/conf\.ts \(assume-unchanged\)/);
@@ -351,7 +351,7 @@ test("R2 an assume-unchanged file is refused, naming the flag and the command th
   });
 });
 
-test("R2 a flagged file under the store directory is not refused", () => {
+test("R2 a flagged file under the store directory is not refused", SPAWN_TEST, () => {
   withBox((box) => {
     const { st, it } = active(flagged(box, "--skip-worktree", ".mstack/state.json"));
     assert.equal(refuse(box, st, it), null);
@@ -361,7 +361,7 @@ test("R2 a flagged file under the store directory is not refused", () => {
 // Here and not at the top, so that the lines of the tests above stay where the reports cite them.
 import { runningCliRoot, storeAt } from "../src/paths.ts";
 
-test("R2 at most ten paths are named, then how many more", () => {
+test("R2 at most ten paths are named, then how many more", SPAWN_TEST, () => {
   withBox((box) => {
     const root = box.store.root;
     const names = Array.from({ length: 12 }, (_, i) => `src/f${String(i).padStart(2, "0")}.ts`);
@@ -377,7 +377,7 @@ test("R2 at most ten paths are named, then how many more", () => {
   });
 });
 
-test("R1 an operation in progress in a linked worktree refuses there and not in the main worktree", () => {
+test("R1 an operation in progress in a linked worktree refuses there and not in the main worktree", SPAWN_TEST, () => {
   withBox((box) => {
     const root = box.store.root;
     const start = started(box);

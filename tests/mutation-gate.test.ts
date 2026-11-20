@@ -11,7 +11,7 @@ import { runningCliRoot } from "../src/paths.ts";
 import { stop } from "../src/hooks.ts";
 import { prunable } from "../src/worktree.ts";
 import { captured, expectFail, item, state, trackCurrent } from "./helpers.ts";
-import { git, gitDirOf, locked, lockFileOf, withRepo, type Repo } from "./mutation-fixture.ts";
+import { git, gitDirOf, locked, lockFileOf, SPAWN_TEST, withRepo, type Repo } from "./mutation-fixture.ts";
 
 /**
  * Item 42, task 4.1: the gate and `worktree prune` know a lock and a rescue.
@@ -58,7 +58,7 @@ const lineWith = (failures: readonly string[], word: RegExp): string => {
   return found;
 };
 
-test("R27 a lock fails the gate with no active item", () => {
+test("R27 a lock fails the gate with no active item", SPAWN_TEST, () => {
   withRepo(twoFiles, edit, (r) => {
     r.box.writeState(state([]));
     assert.equal(quiet(r).failed, false, "the gate is red before there is a lock");
@@ -72,7 +72,7 @@ test("R27 a lock fails the gate with no active item", () => {
   });
 });
 
-test("R27 the line says running, not running or cannot tell", () => {
+test("R27 the line says running, not running or cannot tell", SPAWN_TEST, () => {
   withRepo(twoFiles, edit, (r) => {
     r.box.writeState(state([]));
     const lock = locked(r);
@@ -96,7 +96,7 @@ test("R27 the line says running, not running or cannot tell", () => {
   });
 });
 
-test("R27 an unparseable lock fails the gate", () => {
+test("R27 an unparseable lock fails the gate", SPAWN_TEST, () => {
   withRepo(twoFiles, edit, (r) => {
     r.box.writeState(state([]));
     writeFileSync(join(gitDirOf(r), "mstack-mutation.lock"), "garbage");
@@ -107,7 +107,7 @@ test("R27 an unparseable lock fails the gate", () => {
   });
 });
 
-test("R27 the Stop hook carries the line", () => {
+test("R27 the Stop hook carries the line", SPAWN_TEST, () => {
   withRepo(twoFiles, edit, (r) => {
     inProgress(r);
     locked(r);
@@ -121,7 +121,7 @@ test("R27 the Stop hook carries the line", () => {
   });
 });
 
-test("R27 gate --full runs nothing under a lock", () => {
+test("R27 gate --full runs nothing under a lock", SPAWN_TEST, () => {
   withRepo(twoFiles, edit, (r) => {
     const marker = join(r.root, "ran.marker");
     r.box.writeState(state([item({ status: "in_progress", base: r.start })], { verify: `node -e "require('fs').writeFileSync('${marker}','ran')"` }));
@@ -140,7 +140,7 @@ test("R27 gate --full runs nothing under a lock", () => {
   });
 });
 
-test("R25 the gate line names the lock's CLI, and the running CLI when that path is gone", () => {
+test("R25 the gate line names the lock's CLI, and the running CLI when that path is gone", SPAWN_TEST, () => {
   withRepo(twoFiles, edit, (r) => {
     r.box.writeState(state([]));
     locked(r);
@@ -184,7 +184,7 @@ function rescue(gitDir: string, ...ks: string[]): string {
   return dir;
 }
 
-test("R28 a rescue directory that holds anything is a warning", () => {
+test("R28 a rescue directory that holds anything is a warning", SPAWN_TEST, () => {
   withRepo(twoFiles, edit, (r) => {
     r.box.writeState(state([]));
     const base = quiet(r);
@@ -201,7 +201,7 @@ test("R28 a rescue directory that holds anything is a warning", () => {
   });
 });
 
-test("R28 a linked worktree's rescue warns from the main checkout, and prune offers no worktree holding a lock or a rescue", () => {
+test("R28 a linked worktree's rescue warns from the main checkout, and prune offers no worktree holding a lock or a rescue", SPAWN_TEST, () => {
   withRepo(twoFiles, edit, (r) => {
     r.box.writeState(state([]));
     const base = mkdtempSync(join(tmpdir(), "mstack-wt-"));
@@ -229,7 +229,7 @@ test("R28 a linked worktree's rescue warns from the main checkout, and prune off
   });
 });
 
-test("R27 the line for a lock that cannot be read says the way out is a person at a terminal", () => {
+test("R27 the line for a lock that cannot be read says the way out is a person at a terminal", SPAWN_TEST, () => {
   // Round 2 review, non-blocking 2: the hook denies an agent both steps of the by-hand way.
   withRepo(twoFiles, edit, (r) => {
     r.box.writeState(state([]));
@@ -243,7 +243,7 @@ test("R27 the line for a lock that cannot be read says the way out is a person a
   });
 });
 
-test("R27 gate --full runs nothing under a lock that cannot be parsed", () => {
+test("R27 gate --full runs nothing under a lock that cannot be parsed", SPAWN_TEST, () => {
   // Round 2 review, non-blocking 3, mutant g: only the lock's name decides, not whether it parses.
   withRepo(twoFiles, edit, (r) => {
     const marker = join(r.root, "ran.marker");

@@ -7,7 +7,7 @@ import { dirname, join } from "node:path";
 import { refusals, type Refusal } from "../src/mutation.ts";
 import type { Item, State } from "../src/state.ts";
 import { item, sandbox, state, type Sandbox } from "./helpers.ts";
-
+import { SPAWN_TEST } from "./mutation-fixture.ts";
 /**
  * Item 42, task 1.3: the shapes R3 refuses and the merges R4 refuses, before
  * anything is touched. A commit that a case-insensitive checkout cannot hold is
@@ -87,7 +87,7 @@ function refuse(box: Sandbox, base: string): Refusal | null {
 
 // ------------------------------------------------------------------ R3
 
-test("R3 a symlink in the set", () => {
+test("R3 a symlink in the set", SPAWN_TEST, () => {
   withBox((box) => {
     const root = box.store.root;
     mkdirSync(join(root, "src"), { recursive: true });
@@ -100,7 +100,7 @@ test("R3 a symlink in the set", () => {
   });
 });
 
-test("R3 a submodule in the set", () => {
+test("R3 a submodule in the set", SPAWN_TEST, () => {
   withBox((box) => {
     const root = box.store.root;
     const start = started(box);
@@ -109,7 +109,7 @@ test("R3 a submodule in the set", () => {
   });
 });
 
-test("R3 a file that became a directory", () => {
+test("R3 a file that became a directory", SPAWN_TEST, () => {
   withBox((box) => {
     const root = box.store.root;
     put(root, "src/x", "x\n");
@@ -124,7 +124,7 @@ test("R3 a file that became a directory", () => {
   });
 });
 
-test("R3 a directory that became a file, its other files tests", () => {
+test("R3 a directory that became a file, its other files tests", SPAWN_TEST, () => {
   withBox((box) => {
     const root = box.store.root;
     put(root, "src/y/b.test.ts", "t\n");
@@ -136,7 +136,7 @@ test("R3 a directory that became a file, its other files tests", () => {
   });
 });
 
-test("R3 a case-only rename", () => {
+test("R3 a case-only rename", SPAWN_TEST, () => {
   withBox((box) => {
     const root = box.store.root;
     put(root, "src/Foo.ts", "foo\n");
@@ -158,7 +158,7 @@ test("R3 a case-only rename", () => {
   });
 });
 
-test("R3 a normalisation-only rename", () => {
+test("R3 a normalisation-only rename", SPAWN_TEST, () => {
   withBox((box) => {
     const root = box.store.root;
     const start = started(box);
@@ -175,7 +175,7 @@ test("R3 a normalisation-only rename", () => {
   });
 });
 
-test("R3 parent directories that differ only by case", () => {
+test("R3 parent directories that differ only by case", SPAWN_TEST, () => {
   withBox((box) => {
     const root = box.store.root;
     put(root, "src/Lib/a.ts", "a\n");
@@ -188,7 +188,7 @@ test("R3 parent directories that differ only by case", () => {
   });
 });
 
-test("R3 plain added, deleted, modified and renamed files are not refused", () => {
+test("R3 plain added, deleted, modified and renamed files are not refused", SPAWN_TEST, () => {
   withBox((box) => {
     const root = box.store.root;
     put(root, "src/old.ts", "old\n");
@@ -205,7 +205,7 @@ test("R3 plain added, deleted, modified and renamed files are not refused", () =
   });
 });
 
-test("R3 a name with a newline, and one that is not UTF-8", () => {
+test("R3 a name with a newline, and one that is not UTF-8", SPAWN_TEST, () => {
   withBox((box) => {
     const root = box.store.root;
     const start = started(box);
@@ -226,7 +226,7 @@ function onMain(box: Sandbox): string {
   return started(box);
 }
 
-test("R4 main merged in after a base on the branch", () => {
+test("R4 main merged in after a base on the branch", SPAWN_TEST, () => {
   withBox((box) => {
     const root = box.store.root;
     onMain(box);
@@ -245,7 +245,7 @@ test("R4 main merged in after a base on the branch", () => {
   });
 });
 
-test("R4 a sibling branch merged in after a fork-point start", () => {
+test("R4 a sibling branch merged in after a fork-point start", SPAWN_TEST, () => {
   withBox((box) => {
     const root = box.store.root;
     const base = git(root, "rev-parse", "HEAD");
@@ -264,7 +264,7 @@ test("R4 a sibling branch merged in after a fork-point start", () => {
   });
 });
 
-test("R4 main merged in after a fork-point start is not refused", () => {
+test("R4 main merged in after a fork-point start is not refused", SPAWN_TEST, () => {
   withBox((box) => {
     const root = box.store.root;
     const base = git(root, "rev-parse", "HEAD");
@@ -281,7 +281,7 @@ test("R4 main merged in after a fork-point start is not refused", () => {
   });
 });
 
-test("R4 a rebased branch is not refused", () => {
+test("R4 a rebased branch is not refused", SPAWN_TEST, () => {
   withBox((box) => {
     const root = box.store.root;
     const base = git(root, "rev-parse", "HEAD");
