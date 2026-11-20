@@ -206,7 +206,7 @@ test("R12 a script removed by the revert is blocked", SPAWN_TEST, async () => {
     const { code, text, last } = await go(r);
     assert.equal(code, 2, text);
     assert.match(last, /^mutation-blocked: /);
-    assert.match(text, /127/);
+    assert.ok(text.includes("exit 127 (the command was not found)"), text);
     assert.equal(read(r, "scripts/check.sh"), "#!/bin/sh\nexit 0\n");
     nothingLeft(r);
   });
