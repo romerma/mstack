@@ -1714,3 +1714,32 @@ with a space and with dash as `sh`.
 
 **Closing.** `gate --full` green on the first run. Nothing was taken after the verdict; the four
 non-blocking points went to item 102.
+
+## 2026-11-20 - item 102 mutation-test-pins closed (2 rounds)
+
+**What shipped.** A test for each mutant of the mutation check that the reviews of items 42, 101
+and 105 had left alive. Every mutant was rebuilt on the current code first: 11 still survived and
+got a test, one was already killed, and two no longer applied (item 101 had rewritten their code;
+their present-day equivalents are killed). The helper's check of a caller already dead is pinned
+after all, which answers the earlier row that said it could not be. Three text fixes: the root
+check's refusal no longer says the lock was edited when a checkout may only have moved. No
+behaviour changed. No real defect was found.
+
+**What the review found.** Two things, both about tests and neither about mutants. A test named
+for the 900 s default passed at 60 s; it now reads what the helper was given through `ps`, and the
+10 s sleep it had is gone. And a test from item 101 failed 2 of 30 on a correct head under load on
+bun: it had no timeout option, so bun's 5 s default applied to a test that takes 1.7 s unloaded.
+The fix was swept across the mutation tests: 142 tests that start a process now carry the 90 s
+bound, with no line moved.
+
+**Evidence.** Round 2: both mutants of the default red on bun and three node versions; 748 file
+runs under a load of 26 on 18 cores, 0 failed; the sweep parsed as 235 tests before and after,
+same names and order. bun 1150 pass, 3 skip, 0 fail; node 1152 pass, 1 skip, 0 fail. The `ps` test
+had never run on Linux: CI run 44727646955 at `161556a` ran it green on both ubuntu jobs before
+the close.
+
+**Closing.** `gate --full` green on the first run. Nothing was taken after the verdict.
+
+**Filed.** Items 107 `spawn-test-timeouts` (436 tests in 19 other files start a process with no
+timeout option) and 108 `mutation-lock-under-git-ceiling` (a restore that exits 0 over a reverted
+tree when `GIT_CEILING_DIRECTORIES` hides the repository).

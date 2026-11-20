@@ -1581,11 +1581,12 @@
         "a test covers the two lines that name a gone CLI and have none: R15's line (src/mutation-run.ts:88) and the hook's line from inside .git (src/hooks.ts:468) (item 101 review round 2, non-blocking 4); and a test fails for that review's mutants X2 and X3",
         "from the item 105 review round 2: a test fails for its mutants V1 (there.top !== top dropped) and V2 (a silent git refuses, which turns away the legitimate restore N10b with the suite green): two assertions in the root-check test of tests/mutation-exits.test.ts; the message at src/mutation-lock.ts:175 does not say 'the lock was edited' for a moved checkout nobody edited; design.md's not-caught list gains the edit under GIT_CEILING_DIRECTORIES between the root and the top; the test comment near tests/mutation-exits.test.ts:924 states the rule in the code"
       ],
-      "status": "verifying",
+      "status": "done",
       "description": "The behaviour is right in each case; no test fails when it is removed. Round 2 listed ten surviving mutants and four (l, d, g, j) got a test in the round 2 fixes. Round 3 added three on the B3 path and showed the helper's check at start can be pinned without a timing bound.",
       "size": "m",
       "base": "113e7842ade6b4482967fb12f7c42f25fb690bf2",
-      "source": "item 42 reviews, .mstack/progress/review_mutation-check_r2.md non-blocking 3 and review_mutation-check_r3.md non-blocking 4 and 5, 2026-11-19"
+      "source": "item 42 reviews, .mstack/progress/review_mutation-check_r2.md non-blocking 3 and review_mutation-check_r3.md non-blocking 4 and 5, 2026-11-19",
+      "closed_by": "two rounds; review_mutation-test-pins_r2.md APPROVED at d105040; gate --full green on the first run; CI run 44727646955 green on both jobs at 161556a"
     },
     {
       "id": 103,
@@ -1648,6 +1649,34 @@
       "description": "The review approved in one round and left ten points. The first is the same shape as R26 to R28 of item 100's spec (a change of size, base or verification at verifying goes on the record); if item 100 lands first, build on it.",
       "size": "m",
       "source": "item 44 review, .mstack/progress/review_size-tiers.md non-blocking 1 to 10, 2026-11-20"
+    },
+    {
+      "id": 107,
+      "slug": "spawn-test-timeouts",
+      "title": "436 tests that start a process have no timeout option, so bun's 5 s default can fail them on a correct head under load",
+      "acceptance": [
+        "every test in tests/*.test.ts that starts a process carries a timeout option, found by tracing which tests start one, not by name; the count before and after is in the report, with no test renamed, removed or reordered and no assertion changed",
+        "the comment at tests/mutation-fixture.ts:25 says what each runtime does with the option (bun enforces it and it overrides --timeout; node enforces it on asynchronous tests only)",
+        "the failure message of the 900 s test (tests/mutation-cli.test.ts:373) says so when ps is missing or prints nothing",
+        "the suite run 30 times per runtime under a load above the core count fails 0 times"
+      ],
+      "status": "pending",
+      "description": "Item 102 gave the 90 s bound to the 142 process-starting tests of the mutation check after one of them failed 2 of 30 under load on bun (no timeout option, so bun's 5000 ms default applied to a test taking 1.7 s unloaded). The same exposure is in 19 other test files. Node has no default limit, and cannot enforce the option on a test body that runs synchronously.",
+      "size": "m",
+      "source": "item 102 review round 2, .mstack/progress/review_mutation-test-pins_r2.md non-blocking 1 to 3, 2026-11-20"
+    },
+    {
+      "id": 108,
+      "slug": "mutation-lock-under-git-ceiling",
+      "title": "With GIT_CEILING_DIRECTORIES above the store, verify --restore exits 0 with nothing to restore and the gate passes, over a reverted tree and a lock that is still there",
+      "acceptance": [
+        "when the store's git repository cannot be found, verify --restore and the gate's lock check say that no lock could be looked for and why (naming GIT_CEILING_DIRECTORIES when it is set), and exit 2 as verify --mutation does; a store that is truly not in a git repository keeps today's answer if that answer is right for it, decided and recorded",
+        "a test shows the refusal with the ceiling above the store and a real dead run behind it, and the restore succeeding once the variable is unset"
+      ],
+      "status": "pending",
+      "description": "Under that variable git itself finds no repository, so the lock under the git dir cannot be looked for. Nothing is written or lost, and without the variable every check sees the lock again. But the restore says 'nothing to restore: the store is not in a git repository' and exits 0, the gate prints no line, and the hook allows git commit (which git then refuses). verify --mutation in the same state exits 2.",
+      "size": "s",
+      "source": "item 102 implementation and review round 2 (review_mutation-test-pins_r2.md, the ceiling case), 2026-11-20"
     }
   ]
 }
