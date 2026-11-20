@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import { chmodSync, cpSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { runGate } from "../src/gate.ts";
@@ -658,7 +658,15 @@ test("A1 (item 105) restoreCommand offers the writer's CLI only when it can run,
     const link = join(base, "link", "bin", "mstack");
     mkdirSync(dirname(link), { recursive: true });
     symlinkSync(runs, link);
-    for (const cli of [runs, link]) {
+    // A relative link, which is read from the link's own directory and not the cwd, and a chain of two links
+    // (round 1 review, non-blocking 2: X1 and X3).
+    const relativeLink = join(base, "relative link", "bin", "mstack");
+    mkdirSync(dirname(relativeLink), { recursive: true });
+    symlinkSync(relative(dirname(relativeLink), runs), relativeLink);
+    const chain = join(base, "chain", "bin", "mstack");
+    mkdirSync(dirname(chain), { recursive: true });
+    symlinkSync(link, chain);
+    for (const cli of [runs, link, relativeLink, chain]) {
       assert.deepEqual(restoreCommand(cli, running), { command: `${shellWord(cli)} verify --restore`, lead: "" }, cli);
       const ran = sh(`${shellWord(cli)} version`, base);
       assert.equal(ran.code, 0, `${cli} was called runnable and does not run: ${ran.all}`);
@@ -771,6 +779,20 @@ test("A2 (item 105) a lock edited so its rootFromTop names another real store re
       assert.equal(restoreRun(storeAt(o.a), { out: (l) => lines.push(l) }), 0, `${label}: ${lines.join("\n")}`);
       assert.match(lines.join("\n"), /restored 1, tree verified, lock removed/, label);
       assert.equal(readFileSync(join(o.a, "src", "x.js"), "utf8"), "NEW\n", label);
+    }
+
+    // The edit to `.`, with a store at the top level: that store is held to the same check (round 1 review,
+    // non-blocking 2: X2).
+    captured(() => setup(top));
+    const toTop = `${JSON.stringify({ ...deadRunIn(o, o.cli), rootFromTop: "." }, null, 2)}\n`;
+    writeFileSync(o.lockFile, toTop);
+    for (const [where, root] of [["the top store, which the edit names", top], ["A, where the run was", o.a]] as const) {
+      const lines: string[] = [];
+      assert.equal(restoreRun(storeAt(root), { out: (l) => lines.push(l) }), 2, `${where}: ${lines.join("\n")}`);
+      assert.ok(lines.join("\n").includes(`its root ${o.a} is the store at pkg/a in this worktree`), `${where}:\n${lines.join("\n")}`);
+      assert.equal(readFileSync(o.lockFile, "utf8"), toTop, `${where}: the lock changed`);
+      assert.equal(existsSync(join(top, "src", "x.js")), false, `${where}: A's file was written into the top store`);
+      assert.equal(readFileSync(join(o.a, "src", "x.js"), "utf8"), "OLD\n", where);
     }
   } finally {
     rmSync(o.base, { recursive: true, force: true });
