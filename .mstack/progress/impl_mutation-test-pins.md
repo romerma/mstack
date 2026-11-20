@@ -1,7 +1,8 @@
 # Implementation - mutation-test-pins (item 102)
 
-Head of the code and tests: `031db3b` (base `113e784`, item start `79ff811`). Direct path; the contract
-is the six acceptance criteria, the plan is decision row 2026-11-20T07:11:12Z. Scratch `S` =
+Head of the code and tests: `ccc5e81` after the round 1 fixes (round 1 reviewed `031db3b`; base
+`113e784`, item start `79ff811`). Direct path; the contract is the six acceptance criteria, the plan
+is decision row 2026-11-20T07:11:12Z, the round 1 response row 09:55:19Z. Scratch `S` =
 `/private/tmp/claude-501/-Users-romerma-Code-mstack/4aadee9d-d352-4d5b-825b-4d11a47e2193/scratchpad/impl102/`.
 Every mutant ran in a `git archive` copy under `S/mut/`, every fixture under `S/fx/` or the
 suites' own sandboxes. Nothing ran the mechanism in this checkout.
@@ -16,6 +17,126 @@ tests that exist kill both. None was equivalent. Each new test is at the end of 
 the two assertions A6 puts inside the root-check test. Then come the three text fixes: the root
 check's refusal, design.md's not-caught list, and the moved-up comment. No other source changed.
 No real defect was found.
+
+## Round 1 review
+
+Responding to `review_mutation-test-pins.md` (CHANGES_REQUESTED at `69e6c04`), as row 09:55:19Z
+decides. Every finding held.
+
+| Finding | What I did | Commit | Evidence |
+|---|---|---|---|
+| B1: `cli:361` said 900 s and passed at 60 s (n2) | **Pinned.** The obligation's `-c` shell runs `ps -ww -o args= -p "$PPID" >> <file>`, and its parent is the helper. The test asserts both runs (the baseline and the reverted run) show `run-helper.mjs … /result.json 900000 `. The 10 s sleep is gone; the test keeps its line, `:361` | `d0ee162` | `S/out/probe-ps.txt`, `S/out/verify-r1.txt` |
+| B2: `exits:268` timed out on bun under load (5 s default) | Reproduced with the review's `--timeout 1000`, then fixed with `SPAWN_TEST` on its own line | `8ec7227` | `S/out/a2timeout-6396db2.txt` |
+| B2, widened: the sweep | 141 more declarations got `SPAWN_TEST`, listed below | `5618171` | `S/out/sweep.txt` |
+| NB1: design.md's ceiling item | Added "and not above the store the restore runs in", and what the restore then says | `ccc5e81` | `S/out/ceil2.txt` |
+| NB2: `exits:720` | In the sweep | `5618171` | |
+
+**B1, what I checked.** `S/scripts/probe-ps.sh` made copies of the CLI and ran `verify --mutation`
+on a fixture with this obligation:
+- The runtimes and shells: bun, and node (bun taken off `PATH`), each with `/bin/sh` (bash 3.2
+  here) and with `/bin/dash` as the helper's shell.
+- Each run read the line `<bun|node> <S>/…/src/run-helper.mjs <tmp>/mstack-run-XXXX/result.json
+  900000 <store> <the command> watch-parent <pid>`.
+- The same copy with `--timeout 7` gives `7000`, and n2's copy gives `60000`.
+- `S/scripts/verify-r1.sh`: at `ccc5e81`, n and n2 are RED on bun and node and the file's control
+  is GREEN; n2 is GREEN at `6396db2`.
+- Why it needs no timing: `$PPID` is set when the `-c` shell starts, and `ps` runs as that shell's
+  child while the helper waits on it.
+
+What I could not run is ubuntu's procps. Its manual gives `-w` twice for unlimited width, `-o
+args=` for the argv with no header, and `-p`. CI's ubuntu already runs `ps -o etime= -p`
+(`processAge`, `src/mutation-lock.ts:756`) in the R23 tests, and `/proc/<pid>/cmdline` is the
+argv. Row 10:08:53Z records the choice and its "if wrong".
+
+**B2, the repro** (`S/scripts/a2timeout.sh 6396db2`):
+
+```
+as-is, bun --timeout 1000: exit 1: killed 1 dangling process timed out after 1000ms 0 pass 1 fail
+spawn-test, bun --timeout 1000: exit 0:  1 pass 0 fail
+```
+
+**The sweep.** These are the test declarations in `tests/mutation-*.test.ts` and
+`tests/run-async.test.ts`: `test(`, `userTest(`, `caseTest(`, `nodeOnly(` and
+`caseSensitiveTest(`. Of the 235, 143 had no timeout on their own line.
+
+I read each one's body and the helpers it calls (`S/scripts/sweep-list.mjs` lists them). 142 start
+a process:
+- **Through `sandbox()`:** `tests/helpers.ts:33-49` runs `git init`, `git config`, `git commit`
+  and `git rev-parse` through `execFileSync`. It is reached through `withRepo`, `withRepoAsync`,
+  `makeRepo`, `withRunRepo`, and the `withBox` of the hook, refusals, set and shapes files.
+  - `R1 not a git repository` uses no git sandbox. `refusals` still runs `git rev-parse` there.
+- **Through the fixture's `git()`:** `repoWithStores`, `oddWorld`, `movedUp` and `cafeLock`.
+- **Directly:**
+  - `spawn`, `spawnSync` or `execFileSync`: `sh`, `true`, `sleep`, `mkfifo`;
+  - `liveness`, whose `processAge` runs `ps`;
+  - `runCommand` and `runCommandAsync`, which spawn the helper.
+
+The one that starts none is `tests/mutation-run.test.ts:400` (`classify` on plain objects).
+
+`S/scripts/sweep-apply.mjs` added `, SPAWN_TEST` on each one's own line. For the two `{ skip: … }`
+lines (`mutation-lock:279`, `:320`) it added `...SPAWN_TEST,` inside the existing options object.
+
+The constant:
+- `run-async` uses its own `SPAWN_TEST` (60 s).
+- Gate and revert gained `SPAWN_TEST` in their one-line import of `./mutation-fixture.ts`.
+- Hook, refusals, set and shapes import it on the blank line after their imports.
+
+`git diff 6396db2 ccc5e81 --numstat -- tests` gives equal insertions and deletions in every file but
+`mutation-cli` (+3, inside its last test). So no test line moved, and every line cited above holds.
+The 142, by file and line (`:268` in `8ec7227`, the rest in `5618171`):
+- `tests/mutation-exits.test.ts` (14): 268, 341, 420, 521, 544, 563, 581, 652, 720, 901, 959, 984, 1036, 1086
+- `tests/mutation-gate.test.ts` (10): 61, 75, 99, 110, 124, 143, 187, 204, 232, 246
+- `tests/mutation-hook.test.ts` (10): 68, 79, 92, 102, 114, 126, 139, 159, 177, 188
+- `tests/mutation-lock.test.ts` (16): 38, 66, 142, 157, 176, 195, 210, 222, 236, 249, 268, 279, 285, 296, 320, 337
+- `tests/mutation-refusals.test.ts` (21): 102, 110, 121, 131, 147, 157, 168, 179, 200, 215, 228, 241, 255, 269, 282, 301, 334, 344, 354, 364, 380
+- `tests/mutation-restore.test.ts` (23): 69, 96, 120, 160, 175, 195, 214, 231, 254, 286, 305, 339, 359, 458, 478, 498, 512, 539, 556, 570, 642, 664, 675
+- `tests/mutation-revert.test.ts` (16): 40, 63, 87, 101, 114, 134, 161, 191, 205, 218, 231, 246, 277, 315, 330, 345
+- `tests/mutation-set.test.ts` (14): 72, 91, 106, 119, 167, 188, 206, 218, 234, 254, 281, 295, 307, 336
+- `tests/mutation-shapes.test.ts` (13): 90, 103, 112, 127, 139, 161, 178, 191, 208, 229, 248, 267, 284
+- `tests/run-async.test.ts` (5): 111, 121, 136, 143, 153
+
+**NB1, the ceiling above the store**, followed further (`S/scripts/ceil2.sh`, `S/out/ceil2.txt`).
+The setup: stores at pkg/a and pkg/b, a real run in A killed, `rootFromTop` edited to pkg/b, and
+`GIT_CEILING_DIRECTORIES=<top>/pkg`.
+- Under the ceiling, from B:
+  - B's restore: exit 0, `nothing to restore: the store is not in a git repository`;
+  - B's gate: exit 0, with no line;
+  - the hook: allows `git commit`;
+  - `git commit` itself: exit 128, `not a git repository`.
+- The lock stays, and A stays reverted.
+- Without the ceiling: the restore refuses (exit 2), the gate fails on the lock, and the hook
+  denies.
+- With the edit undone, A's restore exits 0.
+
+I do not read this as a defect of the mechanism. Under that variable git itself finds no
+repository there, and mstack says the same. Nothing is written or lost, and every check sees the
+lock again once the variable is gone. The gate's exit 0 there is the one thing a reader might want
+to follow up; I changed nothing.
+
+**Runs at `ccc5e81`:**
+- **Under load** (`S/scripts/load30.sh`, recounted by `load30-count.sh`, `S/out/load30-count.txt`).
+  The eleven files this round changed ran thirty times per runtime. Each runtime had four parallel
+  copies of a fixed-count loop (8, 8, 7 and 7 runs), and both runtimes ran at once, with the dash
+  and spaced runs alongside. Load was 7.3 at the start and 10 to 13 at the end, on 18 cores. Result:
+  660 file runs, 0 failed (bun 330 and node 330, each file 30 of 30).
+- **Dash as `sh` and a path with a space** (`S/scripts/portability-r1.sh`,
+  `S/out/portability-r1.txt`), on the same eleven files. Every `#!/bin/sh` in `tests/` became
+  `#!/bin/dash` in the dash copy.
+
+  ```
+  dash bun 179 pass 3 skip 0 fail | node 181 pass 0 fail 1 skipped
+  spaced bun 179 pass 3 skip 0 fail | node 181 pass 0 fail 1 skipped
+  ```
+- **Suites** (`S/scripts/suites.sh` in this checkout, `S/out/suites.txt`; load 8.2 to 18.7):
+
+  ```
+  bun run test: exit 0, 469 s
+   1150 pass / 3 skip / 0 fail / Ran 1153 tests across 59 files. [393.71s]
+  ℹ tests 1153 / ℹ pass 1152 / ℹ fail 0 / ℹ skipped 1
+  typecheck exit 0 | lint-plugin PASSED - 0 failures, 0 warnings | doc links 112, 0 broken
+  ```
+
+  Lock test: none; `pgrep`: nothing.
 
 ## The mutants
 
@@ -34,7 +155,7 @@ test file, with that file unmutated as the control, on bun and node (`S/out/veri
 | m | the reset after `git switch` when the lock's branch moved (`src/mutation-run.ts:154`) | 1 | GREEN | `tests/mutation-changed.test.ts:254` |
 | a | the tail printed on a kill (`src/mutation-run.ts:466`, as `if (false)`) | 1 | GREEN | `tests/mutation-run.test.ts:455` |
 | b | `TAIL = 20` (3) | 1 | GREEN | `tests/mutation-run.test.ts:455` |
-| n | the 900 s default of `--timeout` (9; `src/cli.ts:219`) | 1 | GREEN | `tests/mutation-cli.test.ts:361` |
+| n | the 900 s default of `--timeout` (9; `src/cli.ts:219`) | 1 | GREEN | `tests/mutation-cli.test.ts:361` (at `ccc5e81` it reads the helper's argv; n2, a default of 60 s, is RED too) |
 | D | round 3's: the hook's own reader taking a lock with no string `rootFromTop` | 3 | NOT-APPLICABLE (text gone) | rebuilt as D2 |
 | D2 | D on the new reader: `readLockRecord` takes a lock with no `rootFromTop` past `checkLock` (`src/hooks.ts:507`) | (3) | RED | `tests/mutation-exits.test.ts:268` (exists) |
 | Q | round 3's: the restore's `cd` unquoted | 3 | NOT-APPLICABLE (text gone) | rebuilt as Q2 |
@@ -75,7 +196,7 @@ fails.
 
 | R | Test | Where |
 |---|---|---|
-| A1 | a and b: a kill prints the command's last 20 lines and only those; m: switch, then the reset when the lock's branch moved; k: a SIGINT that arrives while git answers R1's check, sent by a git on PATH, exits 130 and not 2; i: a stdout closed before the first line, exit 0 and the row; n: a 10 s command with no `--timeout` is killed, not blocked | tests/mutation-run.test.ts:455, tests/mutation-changed.test.ts:254, tests/mutation-signals.test.ts:297, tests/mutation-cli.test.ts:341, tests/mutation-cli.test.ts:361 |
+| A1 | a and b: a kill prints the command's last 20 lines and only those; m: switch, then the reset when the lock's branch moved; k: a SIGINT that arrives while git answers R1's check, sent by a git on PATH, exits 130 and not 2; i: a stdout closed before the first line, exit 0 and the row; n: with no `--timeout`, each command's helper is given 900000 ms, read from the obligation's shell with `ps` | tests/mutation-run.test.ts:455, tests/mutation-changed.test.ts:254, tests/mutation-signals.test.ts:297, tests/mutation-cli.test.ts:341, tests/mutation-cli.test.ts:361 |
 | A2 | no new test: D and Q no longer apply, and D2, Q2 and C are killed by these existing tests | tests/mutation-exits.test.ts:268, tests/mutation-exits.test.ts:183, tests/mutation-exits.test.ts:688 |
 | A3 | a pid that has exited and `sleep 0.15; : > <file>`: the file is never written, and no result is | tests/run-async.test.ts:311 |
 | A4 | the R12 blocked test now asserts `exit 127 (the command was not found)` | tests/mutation-run.test.ts:197 |
@@ -114,7 +235,9 @@ changed a single line.
    quotes the message: `rg` for its words in docs/, CHANGELOG.md and the spec found none.
 2. **`design.md`'s not-caught list** (`07b9a42`) gains the edit item 105 was filed for, under
    `GIT_CEILING_DIRECTORIES` naming a directory between the lock's `root` and the top level. git,
-   run from that `root`, then finds no repository, so the `root` says nothing.
+   run from that `root`, then finds no repository, so the `root` says nothing. Round 1 (`ccc5e81`)
+   adds "and not above the store the restore runs in", and says what happens when the ceiling is
+   above that store too.
 3. **The comment over `movedUp`** (`031db3b`, `tests/mutation-exits.test.ts:923-928`) now states
    the code's rule, from row 05:43:49Z. A root under the top level disagrees only when it is a
    store's own directory that git, run from it alone, places elsewhere than `rootFromTop`.
@@ -132,11 +255,9 @@ changed a single line.
     milliseconds, which is two orders of magnitude short.
   - Under load the mutant can escape: a shell slow enough to start meets the 250 ms poll before
     its write. A correct head cannot turn red this way.
-- **`mutation-cli:361` (n).** The head's bound is 900 s and the command sleeps 10 s.
-  - The test is bounded by `SPAWN_TEST` (90 s) and `spawnSync`'s 120 s. The run is a recorded
-    baseline, the revert, the 10 s sleep and the restore. It took 11.9 s in the node suite, at a
-    load of 8 to 20.
-  - The mutant's 9 s against the 10 s sleep matters only for catching the mutant.
+- **`mutation-cli:361` (n), since round 1.** It waits on no clock. `ps` reads the helper's argv
+  while the helper waits on the shell that runs `ps`, so the helper is alive and its argv is
+  fixed. The old 10 s sleep is gone.
 - **The others** wait for no time:
   - `signals:297` waits for the holder's exit;
   - `cli:341` waits for the CLI's exit;
@@ -164,29 +285,12 @@ check-doc-links: 112 relative links checked, 0 broken
 load { 8.17 8.44 8.71 } at the start, { 20.33 12.60 10.16 } at the end; lock test: none; pgrep: nothing
 ```
 
-The suite count is 1153: item 105's 1145, plus the eight new tests (A6's are assertions).
-
-**The dash copy.** `sh` first on `PATH` is a link to `/bin/dash`. `"/bin/sh"` becomes
-`"/bin/dash"` in `src/run.ts`, `src/run-helper.mjs` and `tests/mutation-exits.test.ts`.
-`#!/bin/sh` becomes `#!/bin/dash` in `bin/mstack` and in the git wrappers of
-`tests/mutation-signals.test.ts` and `tests/mutation-run.test.ts`. The one `/bin/sh` left in the
-six files is a comment.
-
-**The spaced copy** is at `S/port/sp ace dir/mstack`.
-
-**Twenty runs.** `S/scripts/twenty.sh 031db3b <rt>` ran each of the six changed files twenty
-times per runtime, in a fixed-count `for` loop, in a copy of `031db3b`. The two runtimes ran at
-the same time, at a load of 15.8 at the start and 7.1 to 7.6 at the end (`S/out/twenty-{bun,node}.txt`):
-
-```
-bun  mutation-run 0 of 20 failed (25 pass) | mutation-changed 0 (16) | mutation-signals 0 (11)
-     mutation-cli 0 (14) | mutation-exits 0 (23 pass 1 skip) | run-async 0 (13)
-node mutation-run 0 of 20 failed (25 pass) | mutation-changed 0 (16) | mutation-signals 0 (11)
-     mutation-cli 0 (14) | mutation-exits 0 (23 pass 1 skip) | run-async 0 (13)
-```
-
-That is 240 runs with 0 failures. Afterwards `pgrep -fl 'mutation-holder|run-helper'` printed
-nothing, and no sleep of these tests was left.
+- **The suite count**, 1153, is item 105's 1145 plus the eight new tests (A6's are assertions).
+- **The dash copy:** `sh` first on `PATH` is a link to `/bin/dash`, and `/bin/dash` replaces
+  `/bin/sh` in the runner, the helper, the launcher and the tests' wrappers.
+- **Twenty runs per runtime** (`S/scripts/twenty.sh`, `S/out/twenty-{bun,node}.txt`) of the six
+  changed files at `031db3b`, both runtimes at once, at a load of 15.8 to 7.1: 240 runs, 0 failed.
+  The review's later loops found `exits:268` fails under heavier load (round 1, B2).
 
 ## Decision rows
 
@@ -196,7 +300,9 @@ nothing, and no sleep of these tests was left.
 - 2026-11-20T08:04:58.393Z: D and Q no longer apply. Their rebuilds D2 and Q2, and also C, are
   killed by existing tests, so no test was added for them.
 - 2026-11-20T08:04:58.433Z: n is pinned by a 10 s command through the CLI. Reading the helper's
-  argv out of `ps` was the alternative, and it was not taken.
+  argv out of `ps` was the alternative, and it was not taken. **Replaced in round 1** by
+  2026-11-20T10:08:53.269Z: the default is pinned by reading the helper's argv. Its "if wrong" is
+  a `ps` that truncates or rewrites the argv; this was not run on Linux.
 
 ## Real defects
 
@@ -204,7 +310,8 @@ None. Every mutant's behaviour at the head is the one its review described as ri
 
 ## What I did not do
 
-- **No Linux run.** Dash was checked through the dash copy on macOS. The case-sensitive test at
+- **No Linux run.** Dash was checked through the dash copy on macOS, and `cli:361`'s `ps` was not
+  run against ubuntu's procps (round 1, B1). The case-sensitive test at
   `tests/mutation-exits.test.ts:383` is skipped here (APFS folds case) and is not mine.
 - **Not run as root.** The A5 R15 test is a `userTest`, which root skips.
 - **No `gate --full`.** It appends receipts to this store. The suites, the typecheck, the lint
@@ -219,5 +326,9 @@ None. Every mutant's behaviour at the head is the one its review described as ri
 - `src/mutation-lock.ts` (the message only), `.mstack/specs/mutation-check/design.md`
 - `.mstack/decisions.tsv`, `.mstack/progress/current.md`, `.mstack/ledger.tsv`, this report
 
+- Round 1: `tests/mutation-cli.test.ts` and nine more test files (the sweep), and `design.md` again.
+
 Commits: `d8dfedd` (A1), `e057018` (A3), `23f1cf0` (A4), `342ad0c` (A5), `5ffc139` (A6 tests),
-`ea1c17f`, `07b9a42` and `031db3b` (the three text fixes), then this report.
+`ea1c17f`, `07b9a42` and `031db3b` (the three text fixes), `bbec1c7` (the report).
+- **Round 1:** `d0ee162` (B1), `8ec7227` (B2), `5618171` (the sweep), `ccc5e81` (NB1), then
+  `chore: report the item 102 round 1 fixes`.

@@ -79,6 +79,9 @@ watch is review rounds per item: if they do not drop after phase 1, intake is ce
   tests), none equivalent; commits d8dfedd to 031db3b (tests by criterion, three text fixes);
   rows 08:04:58Z; both suites green. Report `impl_mutation-test-pins.md`. Next: a review by a
   pass that did not write the code.
+  Round 1 fixes (row 09:55:19Z): B1 pinned by reading the helper's argv with ps (d0ee162, row
+  10:08:53Z), B2 SPAWN_TEST on exits:268 (8ec7227), the sweep, 141 more (5618171), NB1 in
+  design.md (ccc5e81); 660 runs under load, 0 failed. Report updated in place. Next: review round 2.
 
 Headless runs: `run.mjs` builds a clean `env -i` env, uses the claude.ai login, and never
 passes bypassPermissions. Do not run `check.mjs` or `verify.mjs` while a batch is running
