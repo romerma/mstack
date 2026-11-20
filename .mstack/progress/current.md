@@ -7,7 +7,7 @@
 > empty template below.
 
 - **Item:** 102 mutation-test-pins (item 100 is parked on two forks for the user)
-- **Status:** in_progress, implementer at work
+- **Status:** reviewing, round 1
 - **Branch:** test/mutation-test-pins
 - **Base:** 113e7842ade6b4482967fb12f7c42f25fb690bf2
 - **Worktree:** none
