@@ -7,7 +7,7 @@
 > empty template below.
 
 - **Item:** 44 size-tiers (item 100 is parked on two forks for the user)
-- **Status:** reviewing, round 1
+- **Status:** verifying; round 1 APPROVED (0 blocking, 10 non-blocking to a follow-up); gate --full running
 - **Branch:** feat/size-tiers
 - **Base:** e28c452a78af64317c04347b4569b11e36071b31
 - **Worktree:** none
