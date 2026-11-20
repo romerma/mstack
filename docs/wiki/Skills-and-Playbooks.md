@@ -105,7 +105,7 @@ Most skills also carry a prohibition, and they are worth knowing before you run 
 `skills/router/SKILL.md` is what `/mstack` runs. It orients first (`mstack gate`, the
 session gate described on [Gates-and-Hooks](Gates-and-Hooks.md), then the active item and
 its recorded next step), then runs intake (the request becomes a queue item with acceptance,
-a source and test seams; method in `skills/router/references/intake.md`), then matches the request against a route table:
+a source, test seams and a [size](#sizes); method in `skills/router/references/intake.md`), then matches the request against a route table:
 
 | The request is about | Where it goes |
 |---|---|
@@ -178,6 +178,26 @@ Both paths end the same way: verify, then review by someone who did not write it
 merge gate ([Gates-and-Hooks](Gates-and-Hooks.md)). The route changes how the work is planned. It never changes what counts as proof.
 The full lifecycle, with the statuses the gate enforces, is in
 [How-A-Work-Item-Flows](How-A-Work-Item-Flows.md).
+
+## Sizes
+
+Intake gives each item it files a size, `s`, `m` or `l`, with `--size` on `mstack state add` (an
+item with none reads as `m`), and the size sets how much ceremony the playbooks spend on it. The rule for picking one and the table of
+steps per size are in one file, `skills/router/references/size-matrix.md`; the router, the feature
+and bug-fix playbooks and the design, review and implement skills link it and say only their own
+step, and `mstack lint-plugin` fails a plugin where one of them stops linking it.
+
+- **`s`** is a change on the direct path expected to fit in 60 changed lines of code in at most 3
+  code files. It skips understand, design and the review panel: one lone reviewer judges it. The
+  gate fails an active `s` item whose code diff passes either limit.
+- **`m`** is the rest. The session writes the design itself, with at least one rejected
+  alternative, and the verify step adds `mstack verify --mutation`.
+- **`l`** is a change that crosses several subsystems or carries more than 12 requirements. It adds
+  `/mstack:understand`, the design skill's two fanned-out candidates and judge, and a review panel:
+  the gate fails an `l` item at `verifying` until one review round has two or more lens reports.
+
+At every size, implementation is delegated to `mstack:implementer` and reviewed by a pass that did
+not write it.
 
 ## The evidence ladder
 

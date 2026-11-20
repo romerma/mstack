@@ -2,6 +2,29 @@
 
 ## Unreleased
 
+- **The ceremony scales with the item's size, from one matrix, and the gate holds a size `l` item
+  to a review panel.** `skills/router/references/size-matrix.md` is the one table of which steps
+  each size gets: `s` skips understand, design and the review panel (one lone reviewer); `m`
+  designs in the session with a rejected alternative and adds `mstack verify --mutation` after the
+  last commit; `l` adds `/mstack:understand`, the design skill's two fanned-out candidates and
+  judge, and a panel of two or more lens reports in one round. It also carries the size rules the
+  code already held (the 60-line, 3-file limit of `s`, no `sdd` at `s`, the 12 and 30 requirement
+  spec limits), and the rule intake picks a size by: `l` when the change crosses several
+  subsystems or carries more than 12 requirements, else `s` on the direct path within the `s`
+  limits, else `m`. The router passes `--size` to `state add`, and it, the feature and bug-fix
+  playbooks and the design, review and implement skills link the matrix and state only their own
+  step; delegation and an independent review hold at every size. A new closing check,
+  `lens-panel` (`src/panel.ts`), fails a size `l` item at `verifying`, and refuses `state set
+  --status done` (`--force` included), while no review round has two or more lens reports, read
+  from the file names `mstack fanout plan --kind review --worker` allocates; any round counts, and
+  a report under 40 bytes does not. `mstack lint-plugin` fails a missing matrix, one of the six
+  files without its link, a router intake step without `--size`, and a copy of the table's header
+  row elsewhere under `skills/` or `agents/`. **Upgrading:** an item of size `l` at `verifying`
+  when this lands turns the gate red until a round of two lens reports exists (`mstack fanout plan
+  --kind review --round <N> --worker <lens> --worker <lens>`), or until it is re-sized with `mstack
+  state set <slug> --size m` if it was never large; closed items are not read, and items of size
+  `s`, `m` or none are not held.
+
 - **`mstack verify --mutation` checks that the item's tests notice its code, and `verify
   --restore` puts the tree back after a run that died.** `--mutation` reverts, in the working
   tree, every tracked code path that differs between the active item's start and HEAD (tests,

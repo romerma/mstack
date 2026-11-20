@@ -19,6 +19,9 @@ The public surface where a behaviour is observed and a test attaches. In design 
 **Playbook**:
 A short numbered list of steps for one kind of request, copied whole into the todo list. A step that is not done stays listed with the reason it was skipped.
 
+**Size**:
+How much ceremony an item gets, `s`, `m` or `l`, picked at intake; an item with none reads as `m`. The router's size matrix says which steps each size skips or adds, and delegation and an independent review hold at every size.
+
 **Spec path**:
 The opt-in route on which a specification is written and approved by a different pass before any code. On the direct path the item's acceptance criteria are the contract.
 

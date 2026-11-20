@@ -207,7 +207,9 @@ correctness or security. Reviewing alone the reviewer writes `review_<slug>.md`;
 of a panel, `review_<slug>_<lens>.md`; a later round
 alone, `review_<slug>_r<N>.md`; a lensed later round, `review_<slug>_r<N>-<lens>.md`. Panels
 run in parallel, so one shared filename would mean every reviewer but the last overwrites the
-others, and losing a review silently is the failure the report exists to prevent.
+others, and losing a review silently is the failure the report exists to prevent. The names are
+also what the gate counts for an item of size `l`: it cannot close until one round holds two or
+more lens reports ([Gates-and-Hooks](Gates-and-Hooks.md)).
 
 In what follows `review_<slug>`, a leading `r<digits>` is a round marker only when nothing
 follows it or a dash does: `_r2` and `_r2-facts` are round 2, `_r2x` is a lens named `r2x` in

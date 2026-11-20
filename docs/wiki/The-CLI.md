@@ -78,7 +78,7 @@ hold an item at `verifying` to a run that really happened. The whole mechanism i
 [Gates-and-Hooks](Gates-and-Hooks.md#verification-that-actually-ran).
 
 `--full` reports the same closing checks the plain gate reports (the requirement-to-test table, the
-review budget) and leaves out only the verification receipts, which it is about to write itself. A
+review budget, the lens panel of a size `l` item) and leaves out only the verification receipts, which it is about to write itself. A
 `--full` used to skip all of them and print `PASSED` over a 30 KB report and over a missing table,
 where `gate` failed. Now it is red exactly where `gate` is, and still runs the verification.
 
@@ -303,8 +303,12 @@ nothing to set exits 2 instead of reporting success.
 consulted, and nothing writes that `m` into `state.json`, so items written by an older mstack
 are read and rewritten unchanged. `--clear size` removes it. Anything else is refused with the
 value and the three allowed ones, and nothing is written. `state show` prints the size when the
-item has one. Only `s` is checked by anything today: the gate holds a size-`s` item to its diff
-(see "What `mstack gate` checks" in [Gates and hooks](Gates-and-Hooks.md)), and an `sdd` item cannot be
+item has one. `/mstack` picks the size at intake and passes it to `state add`, by the rule in
+`skills/router/references/size-matrix.md`, the one table of which steps each size skips or adds
+(`s` skips understand, design and the review panel; `m` adds `mstack verify --mutation`; `l`
+adds understand, design twice and a lens panel). Two sizes are checked by code: the gate holds a size-`s` item to
+its diff, and a size-`l` item at `verifying` to a review round of two or more lens reports (see
+"What `mstack gate` checks" in [Gates and hooks](Gates-and-Hooks.md)). An `sdd` item cannot be
 `s`, because `s` is the small item on the direct path and `sdd` is the spec path. Both flag
 orders are refused at `state add` and at `state set`, naming both fields and writing nothing.
 
@@ -690,6 +694,10 @@ beb01d1a139af19dc4918630327944f80ce25e56
 recorded the review-r3 decision row for greet
 ```
 
+The file names are what the gate counts for an item of size `l`: it cannot close until one round
+holds two or more lens reports ([Gates and hooks](Gates-and-Hooks.md)). For a review after a lone
+round 1, the panel is `mstack fanout plan --kind review --round 2 --worker <lens> --worker <lens>`.
+
 `plan` allocates one report path per parallel worker **before** launch and refuses a fan-out
 past the session's concurrency cap, because spawning past it fails outright rather than
 queueing. `check` names the workers that did not report, rather than counting them: "security
@@ -975,5 +983,19 @@ Validates the prose the way tests validate the code: front matter and descriptio
 every skill, every relative link in the reference files, every `mstack:` cross-reference,
 hook events against the handler list, a ban on shipping any command shaped like `rg PATTERN
 --glob '*.md'` with no path (which blocks forever on a subagent's stdin; one such command
-shipped and hung the agent that ran it), and a check that the lifecycle enum exists in exactly
-one file.
+shipped and hung the agent that ran it), a check that the lifecycle enum exists in exactly
+one file, and one that the size matrix (`skills/router/references/size-matrix.md`) exists, is
+linked from the router's intake step (whose `state add` passes `--size`), the feature and bug-fix
+playbooks and the design, review and implement skills, and has no copy of its table elsewhere
+under `skills/` or `agents/`. Removing the link from the review skill prints:
+
+```console
+$ mstack lint-plugin .
+...
+-- router
+[ok]    the router's orient steps link references/intake.md
+[fail]  skills/review/SKILL.md: does not link skills/router/references/size-matrix.md
+        fix: a file whose steps change with the item's size links the matrix and states only its own step
+
+FAILED - 1 failure, 0 warnings
+```

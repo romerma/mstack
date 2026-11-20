@@ -490,6 +490,42 @@ Walking the lines that carry the weight:
   `attachments/` is read as a report (`src/roles.ts` lists only `progress/`'s own files) or
   counted against the cap.
 
+- **The lens panel** is a closing check (`lens-panel`, `src/panel.ts`) for an item of size `l`
+  only, reported at `verifying` and run again at `state set --status done`: at least one review
+  round of the item has two or more lens reports. A lens report is a file `mstack fanout plan
+  --kind review --worker <lens>` names, `review_<slug>_<lens>.md` in round 1 and
+  `review_<slug>_r<N>-<lens>.md` in round N, read by the rule the budget reads them by; a file
+  under 40 bytes is a stub and does not count. Any round counts, so the lone review the review
+  skill allows in a later round does not undo an earlier panel, and one lens report in each of
+  two rounds is not a round of two. An item of size `s`, `m` or none is not read, and neither is
+  a closed one, since the gate asks only of the active item; a cancelled item forced to `done`
+  is held like any other. It is not overridable: `--force` does not close over it. Which steps
+  each size adds or skips is the router's size matrix, `skills/router/references/size-matrix.md`.
+  From a throwaway repository, an `l` item at `verifying` with one lone review (of the gate's
+  output, only the failure is shown):
+
+  ```console
+  $ mstack gate
+  ...
+  [fail]  1 greet (verifying) is one step from done, and it is size l, and no review round of it has 2 or more lens reports: round 1 has a lone review
+          fix: a size l item closes on a review panel: 'mstack fanout plan --kind review --round 2 --worker correctness --worker tests' allocates 2 lens reports for round 2; launch one reviewer per path
+  $ mstack state set greet --status done --force --closed-by "one reviewer was enough"
+  mstack: greet cannot close: it is size l, and no review round of it has 2 or more lens reports: round 1 has a lone review
+          a size l item closes on a review panel: 'mstack fanout plan --kind review --round 2 --worker correctness --worker tests' allocates 2 lens reports for round 2; launch one reviewer per path
+  ```
+
+  With the two reports that `plan` allocated written, the panel's verdict recorded under the
+  synthesising session's name and a fresh `gate --full`, the same store passes and closes:
+
+  ```console
+  $ mstack gate
+  ...
+  PASSED - 0 failures, 0 warnings
+  $ mstack state set greet --status done
+  1 greet (done)
+    status: "verifying" -> "done"
+  ```
+
 - **"store root is an mstack checkout"** does not appear in the transcript above, and in your
   repository it never will: it speaks only where the store's root is a checkout of this
   plugin itself, identified by `.claude-plugin/plugin.json` naming `mstack` (plus
