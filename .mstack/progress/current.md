@@ -7,7 +7,7 @@
 > empty template below.
 
 - **Item:** 105 mutation-exits-followups (item 100 is parked on two forks for the user)
-- **Status:** reviewing, round 2 (the root rule was rewritten twice after round 1; two contrived moves, L15a and L15b, stay refused by a recorded decision)
+- **Status:** verifying; round 2 APPROVED (0 blocking, 4 non-blocking to item 102); gate --full running
 - **Branch:** fix/mutation-exits-followups
 - **Base:** 819c9a31e5eeb8bdcbe9ccbd8d155b10e95f9fe1
 - **Worktree:** none
