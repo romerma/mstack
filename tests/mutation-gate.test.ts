@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { hostname, tmpdir } from "node:os";
 import { basename, join } from "node:path";
 
@@ -147,9 +147,13 @@ test("R25 the gate line names the lock's CLI, and the running CLI when that path
     const running = join(runningCliRoot(), "bin", "mstack");
     const base = mkdtempSync(join(tmpdir(), "mstack-cli-"));
     try {
+      // A CLI that can run, as bin/mstack needs one: a file with the execute bit, and src/cli.ts beside it (item 105, A1).
       const there = join(base, "bin", "mstack");
       mkdirSync(join(base, "bin"));
+      mkdirSync(join(base, "src"));
       writeFileSync(there, "#!/bin/sh\n");
+      chmodSync(there, 0o755);
+      writeFileSync(join(base, "src", "cli.ts"), "");
       editLock(r, { cli: there });
       const found = lineWith(quiet(r).failures, /mstack-mutation\.lock/);
       assert.ok(found.includes(`${there} verify --restore`), found);
