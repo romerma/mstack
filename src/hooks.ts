@@ -394,7 +394,10 @@ export const GUARDS: readonly Guard[] = [
     why: "deleting an unmerged branch loses the work on it; use -d, which refuses when that would happen",
   },
   {
-    pattern: /\bgh\s+pr\s+merge\b[^\n]*--admin\b/,
+    // gh's own name in any case, as git's: on a disk that folds case `GH` runs
+    // gh. Its subcommands and flags do not fold (`gh PR merge` is an unknown
+    // command, `--ADMIN` an unknown flag), so they stay as gh spells them (item 105, A4).
+    pattern: /\b[gG][hH]\s+pr\s+merge\b[^\n]*--admin\b/,
     why: "--admin merges past a check gh would otherwise refuse; fix the check instead",
   },
   {
@@ -402,15 +405,18 @@ export const GUARDS: readonly Guard[] = [
     // the guard matches the prefix rather than the exact name. The `[^\n]*`
     // between the flags and the name is what let this rule read a store name
     // out of the *next* command; it is safe now only because the input is one
-    // segment, so treat `shellSegments` as part of this pattern.
-    pattern: /\brm\s+-[a-zA-Z]*[rR][a-zA-Z]*[^\n]*(?:\.mstack|\.mstac[^\s\/]|\.msta[^\s\/]{0,2}\*)/,
+    // segment, so treat `shellSegments` as part of this pattern. In any case,
+    // rm's name and the path alike: on a disk that folds case `RM -rf .MSTACK`
+    // runs rm and deletes the store (item 105, A4).
+    pattern: /\brm\s+-[a-z]*r[a-z]*[^\n]*(?:\.mstack|\.mstac[^\s\/]|\.msta[^\s\/]{0,2}\*)/i,
     why: "that would delete the durable state this workflow runs on",
   },
   {
     // A path that ends in the lock's name: `rm .git/mstack-mutation.lock.<run>.tmp`
     // is a temp file and is not this. It reads no lock and starts no git, so it
     // holds with or without one, and names `mstack gate` for the restore command.
-    pattern: /\brm\s[^\n]*mstack-mutation\.lock["']?(?=\s|$)/,
+    // In any case, as the rule above: `RM .git/MSTACK-MUTATION.LOCK` deletes the lock on a disk that folds case.
+    pattern: /\brm\s[^\n]*mstack-mutation\.lock["']?(?=\s|$)/i,
     why: "that deletes the lock of a mutation run, which leaves the item's code reverted with no record of it; `mstack gate` names the restore command",
   },
 ];

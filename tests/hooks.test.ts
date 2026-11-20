@@ -478,3 +478,37 @@ test("shellSegments keeps a whole substitution inside one segment", () => {
   // direction, which denies.
   assert.deepEqual(shellSegments("rm -rf $(cd /r && pwd"), ["rm -rf $(cd /r && pwd"]);
 });
+
+/**
+ * Item 105, A4: on a disk that folds case, `RM` runs rm and `GH` runs gh, as `GIT`
+ * runs git (item 101), and rm's path folds there too: `rm -rf .MSTACK` deletes
+ * the store. gh does not fold its own subcommands or flags (`gh PR merge` is
+ * "unknown command", `--ADMIN` "unknown flag"), so those stay as gh spells them.
+ */
+const ANY_CASE_DENY: readonly [string, string][] = [
+  ["RM -rf .mstack", "rm's name in upper case"],
+  ["Rm -rf .mstack", "and capitalised"],
+  ["/bin/RM -rf .mstack", "through a path"],
+  ["rm -rf .MSTACK", "the store's name in upper case, which is the store on such a disk"],
+  ["RM -RF .Mstack*", "both, with a glob"],
+  ["RM .git/mstack-mutation.lock", "rm of the lock, rm's name in upper case"],
+  ["rm .git/MSTACK-MUTATION.LOCK", "the lock's name in upper case"],
+  ["cd x && Rm -f /repo/.git/Mstack-Mutation.lock", "both, in a later segment"],
+  ["GH pr merge 3 --admin", "gh's name in upper case"],
+  ["Gh pr merge 3 --admin", "and capitalised"],
+];
+
+const ANY_CASE_ALLOW: readonly [string, string][] = [
+  ["GH PR merge 3 --admin", "gh does not fold its subcommand: unknown command"],
+  ["gh pr MERGE 3 --admin", "nor the next one"],
+  ["GH pr merge 3 --squash", "an ordinary merge, gh's name in upper case"],
+  ["RM -rf node_modules", "rm in upper case of something that is not the store"],
+  ["RM .git/MSTACK-MUTATION.LOCK.20261119T090000Z-1-abcd.tmp", "a temp file of the lock, in upper case"],
+  ["perm -r .mstack", "rm inside a word"],
+  ["FORM .git/mstack-mutation.lock", "and again"],
+];
+
+test("rm and gh are matched in any case, as git is, and their arguments as each program reads them (item 105)", () => {
+  assert.deepEqual(ANY_CASE_DENY.filter(([command]) => !denied(command)).map(label), [], "allowed, though on a disk that folds case each one runs");
+  assert.deepEqual(ANY_CASE_ALLOW.filter(([command]) => denied(command)).map(label), [], "denied, though none of these does what a guard is about");
+});
