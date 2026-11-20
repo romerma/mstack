@@ -7,7 +7,7 @@
 > empty template below.
 
 - **Item:** 105 mutation-exits-followups (item 100 is parked on two forks for the user)
-- **Status:** in_progress, fixing the round 1 review (1 blocking: a copied checkout restored with GIT_DIR and GIT_WORK_TREE set is refused), then review round 2
+- **Status:** reviewing, round 2 (the root rule was rewritten twice after round 1; two contrived moves, L15a and L15b, stay refused by a recorded decision)
 - **Branch:** fix/mutation-exits-followups
 - **Base:** 819c9a31e5eeb8bdcbe9ccbd8d155b10e95f9fe1
 - **Worktree:** none

@@ -1624,7 +1624,7 @@
         "the suite passes from a checkout whose path contains a space: the four tests that expect the running CLI's path unquoted (tests/mutation-refusals.test.ts:193, tests/mutation-exits.test.ts:570 and 574, and the two that were red before item 101) assert the quoted form",
         "the hook's any-case match of a command name is decided for the other commands it guards (rm of the lock or the store, gh pr merge --admin): matched in any case as git is, or the docs say why only git"
       ],
-      "status": "in_progress",
+      "status": "reviewing",
       "description": "Both rounds approved with nothing lost in any case; these are the points left after the verdict. None was introduced by item 101.",
       "size": "m",
       "base": "819c9a31e5eeb8bdcbe9ccbd8d155b10e95f9fe1",
