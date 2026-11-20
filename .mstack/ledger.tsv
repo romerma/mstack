@@ -222,3 +222,4 @@ mutation-printed-exits	37962222d794c1e47018daf077bd7e39edc8da3b	verifier-failed	
 mutation-printed-exits	ab8bafc8f688ccce6abd2ff72112c557ae86468e	test-verified	.mstack/progress/impl_mutation-printed-exits_r2.md: round 2, B1 B2 NB1 NB2 NB5 NB6 (direct path, A1-A6): bun 1106 pass 3 skip 0 fail, node 1108 pass 1 skip 0 fail, 14 of 14 mutants killed, real surface run	implementer	2026-11-19T23:54:37.314Z
 mutation-printed-exits	c4011a84c58714df1cbd9d85eb1e9ccfcecc6b81	live-verified	.mstack/progress/review_mutation-printed-exits_r2.md	reviewer	2026-11-20T00:35:11.689Z
 size-tiers	a7f1b72adeb54abfd84f002f3055647fa3dcf174	test-verified	.mstack/progress/impl_size-tiers.md	implementer	2026-11-20T01:26:41.486Z
+size-tiers	a5c87ef491d09910caf31723a83d38f395942795	test-verified	.mstack/progress/review_size-tiers.md	reviewer	2026-11-20T01:45:31.569Z
