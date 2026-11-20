@@ -305,3 +305,27 @@ test("R12 async: a capture file that is gone or cannot be read still settles the
     });
   }
 });
+
+const HELPER = join(dirname(fileURLToPath(import.meta.url)), "..", "src", "run-helper.mjs");
+
+test("R16 async: a helper whose caller is already dead when it starts takes it as gone: the command never writes, and no result is written", SPAWN_TEST, async () => {
+  // Item 42, round 3 review, non-blocking 5 (N1b): without the check at start the first check comes with the 250 ms
+  // poll, and a command that writes a file 150 ms in has written it. With the check, the group is killed in the same
+  // synchronous run as the spawn, and the caller is known gone before any event of the command can be handled.
+  await inDir(async (dir) => {
+    const dead = spawnSync(process.execPath, ["-e", "0"]).pid as number;
+    assert.throws(() => process.kill(dead, 0), { code: "ESRCH" }, `pid ${dead} is alive`);
+    const written = join(dir, "written");
+    const result = join(dir, "result.json");
+    const helper = spawn(process.execPath, [HELPER, result, "20000", dir, `sleep 0.15; : > '${written}'`, "watch-parent", String(dead)], { detached: true, stdio: "ignore" });
+    const exited = new Promise<number | string | null>((res) => helper.on("close", (code, signal) => res(code ?? signal)));
+    try {
+      assert.equal(await exited, 0);
+      // The helper's exit handler kills the command's group a second time before it exits, so nothing of it writes later.
+      assert.equal(existsSync(written), false, "the command ran on although its caller was dead when the helper started");
+      assert.equal(existsSync(result), false, "the helper reported a result to a caller that was dead when it started");
+    } finally {
+      killGroup(helper);
+    }
+  });
+});
