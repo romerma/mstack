@@ -45,6 +45,11 @@ watch is review rounds per item: if they do not drop after phase 1, intake is ce
   Report `impl_mutation-printed-exits_r2.md`. Next: a review round 2 by a pass that did not
   write the code; NB4 goes to a follow-up item (row 323).
 
+- 2026-11-20 item 44 implementer (scratch `.../scratchpad/impl44/`): design rows 327 to 330,
+  implement row 331; the lens-panel closing check (4f7c074, aa02d17), the size matrix and the six
+  files (e8699cc), the lint check (b135331), docs (a7f1b72); 18 of 18 mutants killed; both
+  suites green. Report `impl_size-tiers.md`. Next: a review by a pass that did not write the code.
+
 Headless runs: `run.mjs` builds a clean `env -i` env, uses the claude.ai login, and never
 passes bypassPermissions. Do not run `check.mjs` or `verify.mjs` while a batch is running
 (item 49).
