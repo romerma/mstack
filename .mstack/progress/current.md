@@ -6,10 +6,10 @@
 > On close: append the summary to `history.md` and reset this file to the
 > empty template below.
 
-- **Item:** none active (42, 104, 101, 44 and 105 closed; 100 parked on two forks for the user after three spec rounds)
-- **Status:** -
-- **Branch:** main
-- **Base:** -
+- **Item:** 102 mutation-test-pins (item 100 is parked on two forks for the user)
+- **Status:** in_progress, implementer at work
+- **Branch:** test/mutation-test-pins
+- **Base:** 113e7842ade6b4482967fb12f7c42f25fb690bf2
 - **Worktree:** none
 
 ## Plan
