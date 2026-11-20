@@ -62,8 +62,13 @@ watch is review rounds per item: if they do not drop after phase 1, intake is ce
   local env vars. Commits 912f34f, f05d272, 1da388b, 15364a4 (code and tests), b5e7164 (docs);
   layouts 203/203 per runtime; mutants 8 of 10 killed, 2 equivalent. One legitimate layout stays
   refused, a checkout moved up into its parent's place (row 04:59:47Z, for the coordinator).
-  Report `impl_mutation-exits-followups_r2.md`. Next: a review round 2 by a pass that did not
-  write the code.
+  Report `impl_mutation-exits-followups_r2.md`. Then the coordinator took L14 (row 05:23:35Z):
+  rootDisagrees compares the store findStore gives from the root with the restore's own
+  (69b974b, dd78e1c). L14a, L14c, L14d restore 7/7; L14e (moved up, a store at the repository's
+  top) stays refused, 0/7, base 7/7: findStore cannot tell it from an edit, so the pass stopped,
+  as its brief says (row "where the store comparison stops"). Waiting on the coordinator: keep
+  the comparison and document L14e, or the narrower rule measured in `scratchpad/impl105r2/alt`.
+  Docs, the report, suites and ten-run loops are not yet redone for dd78e1c.
 
 Headless runs: `run.mjs` builds a clean `env -i` env, uses the claude.ai login, and never
 passes bypassPermissions. Do not run `check.mjs` or `verify.mjs` while a batch is running
