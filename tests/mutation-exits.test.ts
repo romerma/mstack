@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
-import { cpSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, cpSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -9,8 +9,9 @@ import { fileURLToPath } from "node:url";
 import { runGate } from "../src/gate.ts";
 import { preToolUse } from "../src/hooks.ts";
 import { refusals, revertSet } from "../src/mutation.ts";
-import { acquireLock, prepareRun, shellWord } from "../src/mutation-lock.ts";
+import { acquireLock, prepareRun, restoreCommand, shellWord } from "../src/mutation-lock.ts";
 import { restoreRun } from "../src/mutation-run.ts";
+import { applyRevert } from "../src/mutation-tree.ts";
 import { runningCliRoot, storeAt, type Store } from "../src/paths.ts";
 import { setup } from "../src/setup.ts";
 import { parseState, type Item, type State } from "../src/state.ts";
@@ -598,3 +599,112 @@ test("A1 shellWord: a path run through the shell comes back as it was, whatever 
     rmSync(cwd, { recursive: true, force: true });
   }
 });
+
+/**
+ * Item 105 (the item 101 reviews' last points): a writer's CLI path that holds
+ * something that cannot run, and a lock edited to name another store.
+ */
+
+/** What can be at the path of the CLI that wrote the lock, and the reason the printers give when it cannot run. */
+const CANNOT_RUN: readonly [string, string][] = [
+  ["a directory", "it is a directory"],
+  ["a file without the execute bit", "it is not executable"],
+  ["a copy whose src/ is gone", "its src/cli.ts is missing"],
+];
+
+/** A copy of the CLI at `<base>/writer dir's "q" x/`, made into `kind`; its `bin/mstack`. */
+function writerAt(base: string, kind: string): string {
+  const root = join(base, `writer ${ODD}`);
+  rmSync(root, { recursive: true, force: true });
+  const cli = join(root, "bin", "mstack");
+  if (kind === "a directory") {
+    mkdirSync(cli, { recursive: true });
+    return cli;
+  }
+  mkdirSync(root, { recursive: true });
+  for (const part of ["bin", "src", "package.json"]) cpSync(join(CHECKOUT, part), join(root, part), { recursive: true });
+  if (kind === "a file without the execute bit") chmodSync(cli, 0o644);
+  if (kind === "a copy whose src/ is gone") rmSync(join(root, "src"), { recursive: true });
+  return cli;
+}
+
+/**
+ * What a run of A's item killed with kill -9 on the reverted tree leaves, made in
+ * this process: A staged, the lock taken, the tree reverted, then the lock's pid
+ * one that has exited and its CLI `cli`.
+ */
+function deadRunIn(o: Odd, cli: string): Record<string, unknown> {
+  outsideCheckout(o.a);
+  const store = storeAt(o.a);
+  const start = git(o.a, "rev-parse", "HEAD~1");
+  const set = revertSet(store, start);
+  assert.ok(set !== null);
+  const prepared = prepareRun(store, start, set);
+  assert.ok(prepared.ok, prepared.ok ? "" : prepared.reason);
+  assert.ok(acquireLock(store, prepared.lock).ok);
+  assert.ok(applyRevert(store, prepared.lock).ok);
+  const lock = { ...prepared.lock, pid: deadPid(), cli };
+  writeFileSync(o.lockFile, `${JSON.stringify(lock, null, 2)}\n`);
+  assert.equal(readFileSync(join(o.a, "src", "x.js"), "utf8"), "OLD\n");
+  return lock;
+}
+
+test("A1 (item 105) restoreCommand offers the writer's CLI only when it can run, and otherwise names it and offers the running one", () => {
+  const base = realpathSync(mkdtempSync(join(tmpdir(), "mstack-writer-")));
+  try {
+    const running = "/opt/running/bin/mstack";
+    // Can run: a copy, and a symlink to one, which bin/mstack follows to find its src/.
+    const runs = writerAt(base, "a copy that runs");
+    const link = join(base, "link", "bin", "mstack");
+    mkdirSync(dirname(link), { recursive: true });
+    symlinkSync(runs, link);
+    for (const cli of [runs, link]) {
+      assert.deepEqual(restoreCommand(cli, running), { command: `${shellWord(cli)} verify --restore`, lead: "" }, cli);
+      const ran = sh(`${shellWord(cli)} version`, base);
+      assert.equal(ran.code, 0, `${cli} was called runnable and does not run: ${ran.all}`);
+    }
+    for (const [kind, why] of CANNOT_RUN) {
+      const cli = writerAt(base, kind);
+      assert.deepEqual(restoreCommand(cli, running), { command: `${running} verify --restore`, lead: `the CLI that wrote the lock, ${shellWord(cli)}, cannot run (${why}); ` }, kind);
+      const ran = sh(`${shellWord(cli)} version`, base);
+      assert.ok(ran.code === 126 || ran.code === 127, `${kind}: called unrunnable, and it runs: exit ${ran.code} ${ran.all}`);
+    }
+    const gone = join(base, "nowhere", "bin", "mstack");
+    assert.deepEqual(restoreCommand(gone, running), { command: `${running} verify --restore`, lead: `the CLI that wrote the lock, ${gone}, is gone; ` });
+  } finally {
+    rmSync(base, { recursive: true, force: true });
+  }
+});
+
+for (const [kind, why] of CANNOT_RUN) {
+  test(`A1 (item 105) the writer's CLI path holds ${kind}: every printer, in the lock's store and in another, offers the running CLI's restore, and it runs as printed`, SPAWN_TEST, () => {
+    const o = oddWorld();
+    try {
+      const writer = writerAt(o.base, kind);
+      const lead = `the CLI that wrote the lock, ${shellWord(writer)}, cannot run (${why}); `;
+      const here = `${shellWord(o.cli)} verify --restore`;
+      const there = `cd ${shellWord(o.a)} && ${here}`;
+      const puts = " puts the tree back and removes the lock";
+      // [where, printer, what it prints, the prose in front of the command, the command, the prose after it]
+      const printers: [string, string, () => string, RegExp, string, string, string][] = [
+        ["A", "the gate", () => run(o.cli, o.a, ["gate", "--quiet"]).all, /mstack-mutation\.lock[^\n]* -> (.+)$/m, `${lead}run `, here, ""],
+        ["A", "R1", () => run(o.cli, o.a, ["verify", "--mutation"]).all, /^mutation: (.+ puts the tree back and removes the lock)$/m, lead, here, puts],
+        ["A", "the hook", () => hookOf(o.cli, o.a), /It is held by pid \d+: (.+)$/, `${lead}wait for it, or if it is not running, run `, there, ""],
+        ["B", "the gate", () => run(o.cli, o.b, ["gate", "--quiet"]).all, /mstack-mutation\.lock[^\n]* -> (.+)$/m, `${lead}run `, there, ""],
+        ["B", "R1", () => run(o.cli, o.b, ["verify", "--mutation"]).all, /^mutation: (.+ puts the tree back and removes the lock)$/m, lead, there, puts],
+        ["B", "the hook", () => hookOf(o.cli, o.b), /It is held by pid \d+: (.+)$/, `${lead}wait for it, or if it is not running, run `, there, ""],
+        ["B", "the restore", () => run(o.cli, o.b, ["verify", "--restore"]).out, /^mutation: ((?:.+; )?run it from that store: .+)$/m, `${lead}run it from that store: `, there, ""],
+      ];
+      for (const [where, what, print, pattern, before, command, after] of printers) {
+        deadRunIn(o, writer);
+        const printed = captureOf(print(), pattern, `${what} in ${where}`);
+        assert.equal(printed, `${before}${command}${after}`, `${what} in ${where}, the writer ${kind}`);
+        assert.ok(!printed.includes(`${shellWord(writer)} verify --restore`), `${what} in ${where} offers the writer that cannot run: ${printed}`);
+        // The one command the line offers, cut from the printed text between its prose, and run as printed where it was printed.
+        repairs(o, printed.slice(before.length, printed.length - after.length), where === "A" ? o.a : o.b);
+      }
+    } finally {
+      rmSync(o.base, { recursive: true, force: true });
+    }
+  });
+}

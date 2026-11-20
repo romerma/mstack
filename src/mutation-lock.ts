@@ -1,11 +1,11 @@
 import { spawnSync } from "node:child_process";
 import { createHash, randomBytes, type Hash } from "node:crypto";
 import {
-  closeSync, constants, existsSync, fstatSync, fsyncSync, linkSync, lstatSync, mkdirSync, openSync, readdirSync, readFileSync,
+  accessSync, closeSync, constants, fstatSync, fsyncSync, linkSync, lstatSync, mkdirSync, openSync, readdirSync, readFileSync,
   readlinkSync, readSync, rmdirSync, rmSync, statSync, unlinkSync, writeSync,
 } from "node:fs";
 import { hostname, uptime } from "node:os";
-import { join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 
 import { git, gitToFile } from "./git.ts";
 import type { RevertSet } from "./mutation.ts";
@@ -724,17 +724,56 @@ export interface Restore {
 }
 
 /**
+ * Why the `bin/mstack` at `cli` cannot run, or null when it can: `gone` when
+ * nothing is there, else the reason. What the launcher needs, asked with a few
+ * `stat`s and no child process: a regular file (through a symlink) this user
+ * may execute, and `src/cli.ts` a regular file at `<its directory>/../src/`,
+ * once links of the file itself are followed, as `bin/mstack` finds its root
+ * (item 105, A1).
+ */
+export function cannotRun(cli: string): string | null {
+  try {
+    const st = statSync(cli);
+    if (!st.isFile()) return st.isDirectory() ? "it is a directory" : "it is not a regular file";
+  } catch (error) {
+    const code = codeOf(error);
+    return code === "ENOENT" || code === "ENOTDIR" ? "gone" : `it cannot be read: ${errorText(error)}`;
+  }
+  try {
+    accessSync(cli, constants.X_OK);
+  } catch {
+    return "it is not executable";
+  }
+  try {
+    // bin/mstack's own walk: `$0` through its links, each relative one from the link's directory, then `$(dirname "$self")/..`.
+    let self = cli;
+    for (let hops = 0; hops < 40 && lstatSync(self).isSymbolicLink(); hops++) {
+      const link = readlinkSync(self);
+      self = link.startsWith("/") ? link : `${dirname(self)}/${link}`;
+    }
+    if (statSync(resolve(dirname(self), "..", "src", "cli.ts")).isFile()) return null;
+  } catch {
+    // Not there, or not readable: the launcher's `[ -f ]` fails the same way.
+  }
+  return "its src/cli.ts is missing";
+}
+
+/**
  * R25: the CLI that wrote the lock, since a restore run by another copy may not
- * know the lock's format. When no file is at that path it cannot run, so it is
- * named in prose, in front of the way out, and the command is the CLI that is
- * running: every command a line offers runs as printed, and a `cd` goes in
- * front of that command, never of prose (item 101, round 1 review, B1). Each
+ * know the lock's format, and in a checkout that hosts its own CLI the running
+ * copy may be the reverted source. When it cannot run (`cannotRun`: nothing at
+ * the path, a directory, no execute bit, no `src/` beside it) it is named in
+ * prose, in front of the way out, and the command is the CLI that is running:
+ * every command a line offers runs as printed, and a `cd` goes in front of that
+ * command, never of prose (item 101, round 1 review, B1; item 105, A1). Each
  * path is one shell word (`shellWord`), so the line runs as printed from a home
  * directory with a space in it.
  */
 export function restoreCommand(cli: string, running: string = join(runningCliRoot(), "bin", "mstack")): Restore {
-  if (existsSync(cli)) return { command: `${shellWord(cli)} verify --restore`, lead: "" };
-  return { command: `${shellWord(running)} verify --restore`, lead: `the CLI that wrote the lock, ${shellWord(cli)}, is gone; ` };
+  const why = cannotRun(cli);
+  if (why === null) return { command: `${shellWord(cli)} verify --restore`, lead: "" };
+  const said = why === "gone" ? "is gone" : `cannot run (${why})`;
+  return { command: `${shellWord(running)} verify --restore`, lead: `the CLI that wrote the lock, ${shellWord(cli)}, ${said}; ` };
 }
 
 /** The by-hand recovery for a lock that cannot be read as a run's record (R24), in the gate's words and in `verify --restore`'s. */
