@@ -1687,3 +1687,30 @@ intake are never sized: 42 of this repository's 47 open items have no size and r
 round. Nothing was taken after the verdict.
 
 **Filed.** Item 106 `size-tiers-followups`.
+
+## 2026-11-20 - item 105 mutation-exits-followups closed (2 rounds)
+
+**What shipped.** The CLI that wrote a mutation lock is offered as the restore command only when
+it can run (a regular file with the execute bit and its `src/cli.ts` beside it); otherwise the
+line says why and offers the running CLI. A lock whose `rootFromTop` was edited to name a second
+store is refused, nothing written. The suite passes from a checkout whose path has a space or a
+quote (six tests assumed otherwise, not the four a review had named). The hook matches `rm` and
+`gh` in any case, as it does `git`.
+
+**What the rounds taught.** The refusal of an edited lock was rewritten three times, because each
+rule refused some restore the base performed: a copy restored with `GIT_WORK_TREE` set, a copy
+made around its original, a checkout moved up into its parent. Paths cannot tell an edit from a
+move. The rule that stayed refuses only a root that is another store's own directory, the one
+shape a single edited field produces. Three contrived moves that put a store exactly on the old
+root stay refused by a recorded decision; nothing is lost in them and the by-hand line works. The
+coordinator's first two decisions were both wrong against a layout the implementer then built; the
+brief that said "if this cannot tell the cases apart, stop and say so" is what surfaced it.
+
+**Evidence.** Round 2: real runs killed at 7 points, 48 layouts, 378 of 399 restores per runtime
+(the base: 399 of 399), the 21 refused exactly the recorded class; the edited lock refused from
+both stores with the tree, the lock and the run directory unchanged; eleven edits not caught, none
+losing content. bun 1142 pass, 3 skip, 0 fail; node 1144 pass, 1 skip, 0 fail; green from a path
+with a space and with dash as `sh`.
+
+**Closing.** `gate --full` green on the first run. Nothing was taken after the verdict; the four
+non-blocking points went to item 102.

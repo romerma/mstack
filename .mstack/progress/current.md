@@ -6,10 +6,10 @@
 > On close: append the summary to `history.md` and reset this file to the
 > empty template below.
 
-- **Item:** 105 mutation-exits-followups (item 100 is parked on two forks for the user)
-- **Status:** verifying; round 2 APPROVED (0 blocking, 4 non-blocking to item 102); gate --full running
-- **Branch:** fix/mutation-exits-followups
-- **Base:** 819c9a31e5eeb8bdcbe9ccbd8d155b10e95f9fe1
+- **Item:** none active (42, 104, 101, 44 and 105 closed; 100 parked on two forks for the user after three spec rounds)
+- **Status:** -
+- **Branch:** main
+- **Base:** -
 - **Worktree:** none
 
 ## Plan
@@ -109,7 +109,7 @@ Next, not blocked:
    authorised) and 65 (to design after item 100: see its description). 44 closed 2026-11-20; its
    follow-up is 106, whose first point overlaps item 100's R26 to R28. Item 100 waits for the user
    and, being size l, needs a review round of two lens reports when it resumes. Follow-ups of 42:
-   102, 103, 105.
+   102, 103 (105 closed 2026-11-20).
 1. Phase 2: 59 (in flight) diagnosis-loop-in-bug-fix, then 60, 61, 62, 64. Follow-up of 58: item 83.
 2. Architecture candidates filed by the deepen playbook: 76 to 80, and 81.
 3. Durability follow-ups: 67 first (its budget test made the closing gate of 58 red three runs
