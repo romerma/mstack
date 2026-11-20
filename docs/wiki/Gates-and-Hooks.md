@@ -289,9 +289,13 @@ Walking the lines that carry the weight:
   quote) is single-quoted, so the line runs as printed. The `cd` is printed only when
   the restore run there takes the lock; a lock that names its store in another case or Unicode
   form than git does gets the by-hand recovery instead, since on a disk that folds names that
-  directory is this store, whose restore refuses the lock again, and so does a lock whose `root`
-  is another store of the worktree than the one its `rootFromTop` names, which only an edit
-  makes, since no restore can tell whose it is. *Cannot be told*
+  directory is this store, whose restore refuses the lock again, and so does a lock whose `root`,
+  a directory under this worktree's top level, git places elsewhere in the worktree than its
+  `rootFromTop` names, since no restore can tell whose it is: an edit makes that, and so does a
+  checkout moved up so that its old root is a directory under its new top level. A `root`
+  outside the top level, as after a move or a copy, is not held against the lock, and one under
+  it is asked of git from that directory alone, so `GIT_DIR` and `GIT_WORK_TREE` do not change
+  the answer. *Cannot be told*
   (another host, or another pid namespace): run the restore where the run started, or by hand
   with `git stash push --include-untracked`, which saves every change and discards nothing; when
   no restore takes the lock, wait for the run to end, then by hand, as a refused

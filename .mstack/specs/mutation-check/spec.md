@@ -692,11 +692,16 @@ named only when the restore run there takes the lock as its store's, and when no
 `rootFromTop` that differs from git's spelling only in case or Unicode form, which on a disk that
 folds them names this same store), each MUST say so and name the by-hand recovery (item 101); a lock's paths
 are resolved against the root of the store it names, never against another store's, in a moved
-checkout or not. IF the lock's `root` is a directory git places in this worktree at another place
-than its `rootFromTop` names, THEN the lock was edited, and `verify --restore` MUST exit 2 from
-either store, write nothing to the tree, the lock or the run directory, and name the by-hand
-recovery, and the gate's line, the hook's reason and R1's refusal MUST give the by-hand recovery
-and no directory (item 105).
+checkout or not. IF the lock's `root` lies under this worktree's top level and git, run from it
+without the caller's `GIT_DIR`, `GIT_WORK_TREE` or the other variables that name a repository,
+places it in this worktree at another place than its `rootFromTop` names, THEN no restore can
+tell whose the lock is (an edit makes that, and so does a checkout moved up so that its old root
+is a directory under its new top level), and `verify --restore` MUST exit 2 from either store,
+write nothing to the tree, the lock or the run directory, and name the by-hand recovery, and the
+gate's line, the hook's reason and R1's refusal MUST give the by-hand recovery and no directory
+(item 105). A `root` outside the top level, as after a move or a copy of the checkout, MUST NOT
+be held against the lock, whatever that path holds and whatever `GIT_DIR` and `GIT_WORK_TREE`
+say (item 105, round 2).
 
 #### Scenario: A path outside the root
 - **WHEN** the lock was edited to name `../outside.txt`
@@ -721,6 +726,14 @@ and no directory (item 105).
   into B and the lock and the run directory are unchanged; each store's gate line, R1 refusal and
   hook reason give the by-hand recovery and no `cd`; the same lock with its `root` spelled
   through a symlink to `pkg/a`, or naming a store of another worktree, restores from `pkg/a`
+
+#### Scenario: A copied checkout, the restore with git's variables naming the copy
+- **WHEN** after a run in `pkg/a` died, the checkout is copied, and the restore runs from the
+  copy's `pkg/a` with `GIT_DIR` and `GIT_WORK_TREE` naming the copy, or `GIT_WORK_TREE` alone, or
+  neither; or the copy is made into the directory that holds the original
+- **THEN** `verify --restore` there exits 0 with the copy's tree as it was before the run and no
+  lock in the copy, and the original keeps its lock; in a copy beside the original, the gate's
+  line in the copy offers that restore, and run as printed it is that restore
 
 ### Requirement: R25 Every message that names the restore names the CLI that wrote the lock
 WHEN a run, a refusal, a failed restore, the gate or the hook names `verify --restore`, the system
