@@ -152,26 +152,17 @@ function placeOfDir(dir: string): Place | null {
  * A2). Only a `root` under `top`, as spelled, is asked about: one outside it,
  * as after the checkout was moved or copied, says nothing whatever that path
  * holds now, as before item 105 (R24; round 1 review, B1). `root` agrees when it
- * is `dir`, or the same directory (device and inode), and says nothing when no
- * directory is there, or when git, run from it alone (`placeOfDir`), places it
- * in another worktree, a repository nested in this one included. Only a `root`
- * that git places in this worktree, elsewhere than `rootFromTop`, disagrees:
- * one `git rev-parse`, and none while `root` is `dir`, as it is for every lock
- * no one edited.
+ * is `dir`, and says nothing when git, run from it alone (`placeOfDir`), cannot
+ * run there (nothing there, or a file) or places it in another worktree, a
+ * repository nested in this one included; another spelling of `dir` is placed
+ * at `rootFromTop`. Only a `root` that git places in this worktree, elsewhere
+ * than `rootFromTop`, disagrees: one `git rev-parse`, and none while `root` is
+ * `dir`, as it is for every lock no one edited.
  */
 export function rootDisagrees(lock: Pick<Lock, "root" | "rootFromTop">, dir: string, top: string): string | null {
   if (lock.root === dir) return null;
   const inside = relative(top, lock.root);
   if (inside === ".." || inside.startsWith("../")) return null;
-  try {
-    const at = statSync(lock.root, { bigint: true });
-    if (!at.isDirectory()) return null;
-    const here = statSync(dir, { bigint: true });
-    if (at.dev === here.dev && at.ino === here.ino) return null;
-  } catch {
-    // No directory at `root` (a moved checkout), or none at `dir`, which the caller has decided on already.
-    return null;
-  }
   const there = placeOfDir(lock.root);
   if (there === null || there.top !== top || there.rel === lock.rootFromTop) return null;
   return `its root ${lock.root} is the store at ${storeName(there.rel)} in this worktree, so the lock was edited and whose it is cannot be told`;
