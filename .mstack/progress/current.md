@@ -6,10 +6,10 @@
 > On close: append the summary to `history.md` and reset this file to the
 > empty template below.
 
-- **Item:** none active (42, 104 and 101 closed; 100 parked on two forks for the user after three spec rounds)
-- **Status:** -
-- **Branch:** main
-- **Base:** -
+- **Item:** 44 size-tiers (item 100 is parked on two forks for the user)
+- **Status:** in_progress, implementer at work
+- **Branch:** feat/size-tiers
+- **Base:** e28c452a78af64317c04347b4569b11e36071b31
 - **Worktree:** none
 
 ## Plan

@@ -656,7 +656,9 @@
         "The router, the feature and bug-fix playbooks and the design, review and implement skills carry one matrix: s skips design candidates and the panel, m adds mutation, l adds understand, design twice and a lens panel; delegation and an independent review hold at every size",
         "The router assigns a size at intake, and the gate fails an l item at verifying with no review round of two or more lens reports"
       ],
-      "status": "pending"
+      "status": "in_progress",
+      "base": "e28c452a78af64317c04347b4569b11e36071b31",
+      "size": "m"
     },
     {
       "id": 45,
