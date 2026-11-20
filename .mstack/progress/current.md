@@ -66,9 +66,12 @@ watch is review rounds per item: if they do not drop after phase 1, intake is ce
   rootDisagrees compares the store findStore gives from the root with the restore's own
   (69b974b, dd78e1c). L14a, L14c, L14d restore 7/7; L14e (moved up, a store at the repository's
   top) stays refused, 0/7, base 7/7: findStore cannot tell it from an edit, so the pass stopped,
-  as its brief says (row "where the store comparison stops"). Waiting on the coordinator: keep
-  the comparison and document L14e, or the narrower rule measured in `scratchpad/impl105r2/alt`.
-  Docs, the report, suites and ten-run loops are not yet redone for dd78e1c.
+  as its brief says (row "where the store comparison stops"). The coordinator took the narrower
+  rule (row 05:43:49Z): refuse only when root is another store's own directory (d55c409, docs
+  a290cf5). Every layout restores but L15a and L15b (a move that leaves the old root on another
+  store's own directory), 0/7, base 7/7; edits caught 4 of 7, nothing lost in the 11 not caught.
+  Report `impl_mutation-exits-followups_r2.md`, the whole round. Next: a review round 2 by a pass
+  that did not write the code.
 
 Headless runs: `run.mjs` builds a clean `env -i` env, uses the claude.ai login, and never
 passes bypassPermissions. Do not run `check.mjs` or `verify.mjs` while a batch is running
