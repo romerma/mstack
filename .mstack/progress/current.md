@@ -7,7 +7,7 @@
 > empty template below.
 
 - **Item:** 105 mutation-exits-followups (item 100 is parked on two forks for the user)
-- **Status:** in_progress, implementer at work
+- **Status:** reviewing, round 1
 - **Branch:** fix/mutation-exits-followups
 - **Base:** 819c9a31e5eeb8bdcbe9ccbd8d155b10e95f9fe1
 - **Worktree:** none
