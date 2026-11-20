@@ -1,9 +1,14 @@
 # Feature
 
-1. `/mstack:understand` over the subsystems this touches. Skipping this on unfamiliar code is
-   how a feature ends up parallel to the one that already exists.
-2. `/mstack:design`. Two structurally distinct candidates before you pick one, or a stated
-   reason the constraints forced the answer.
+Steps 1, 2, 6 and 8 change with the item's size, as the
+[size matrix](../references/size-matrix.md) sets out; the rest hold at every size.
+
+1. `/mstack:understand` over the subsystems this touches, at size `l`. At `s` and `m`,
+   `skip: size <s|m>` and read the code the change touches yourself: skipping both on
+   unfamiliar code is how a feature ends up parallel to the one that already exists.
+2. `/mstack:design`. At `l`, two structurally distinct candidates before you pick one, or a
+   stated reason the constraints forced the answer; at `m`, the design written in the session,
+   with at least one rejected alternative; at `s`, `skip: size s`.
 3. **Throughput checkpoint**, as four todo items. A dimension that genuinely does not apply
    keeps its item with `n/a: <reason>` rather than being dropped:
    - **Blocking first steps.** What has to land before anything can fan out.
@@ -26,8 +31,10 @@
    myself" is not a reason.
 6. `/mstack:verify` on the surface a user actually reaches. Inconclusive is not a pass, and
    verifying on the wrong surface is worse than not verifying, because it looks like proof.
+   At `m` and `l`, also `mstack verify --mutation` once the implementer's last commit is in.
 7. Rebase into small, ordered commits. Each one should build and pass on its own.
-8. `/mstack:review`, then `/mstack:ship`.
+8. `/mstack:review`, then `/mstack:ship`. At `s` one lone reviewer; at `l` a panel with two or
+   more lens reports in one round.
 
 **Reply:** what it does for the person using it, what it costs the person maintaining it, and
 where it was verified.

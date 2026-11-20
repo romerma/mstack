@@ -6,6 +6,9 @@ Be scientific. Every shipped line traces to runtime evidence. Belt-and-suspender
 help" is a hypothesis, not a fix, and it does not ship. When evidence refutes a hypothesis,
 revert what it motivated.
 
+Steps 2, 4, 6 and 8 change with the item's size, as the
+[size matrix](../references/size-matrix.md) sets out; the rest hold at every size.
+
 1. **Build the loop first**, on the surface where the bug happens: one command that goes red
    on it, already run, with its output. It asserts the reported symptom (not
    "did not crash"), gives the same verdict every run, takes seconds, runs unattended. A
@@ -16,20 +19,24 @@ revert what it motivated.
    hypotheses, each with its prediction ("if X is the cause, changing Y makes it go away"),
    before testing any; take them in rank order without asking. One probe per prediction, one
    variable at a time. Tag debug lines with one unique string and remove them before review.
-   A performance regression is measured against a baseline and bisected, not logged. Seed the
-   search with `/mstack:understand` when the subsystem is unfamiliar. Confirm the *mechanism*
+   A performance regression is measured against a baseline and bisected, not logged. At size
+   `l`, seed the search with `/mstack:understand`; at `s` and `m`, read the code the loop runs
+   through yourself. Confirm the *mechanism*
    with runtime evidence before designing anything. If the loop already shows the cause
    at one line, by a stack trace or a wrong literal or boundary on the only path the command
    takes: ``skip: cause shown by the loop, `<file>:<line>` ``.
 3. Write the failing test first. It must fail without the fix. If it passes on unmodified code,
    you have not found the bug.
-4. `/mstack:design` only if the fix crosses a function boundary. A one-line fix inside one
-   function does not need a design pass; say `skip: single-site fix`.
+4. `/mstack:design` only if the fix crosses a function boundary, at the depth the matrix gives
+   the size (`m` in the session, `l` designed twice). A one-line fix inside one function does
+   not need a design pass; say `skip: single-site fix`. At `s`, `skip: size s`.
 5. Delegate the fix to `mstack:implementer` so a different pass reviews the diff.
 6. Verify on the same surface as step 1. Unit tests show a branch behaves a certain way; they
-   do not prove the bug is gone.
+   do not prove the bug is gone. At `m` and `l`, also `mstack verify --mutation` once the fix
+   is committed.
 7. Stage the commits so the failing repro lands **before** the fix in history. Someone will
    want to check out the broken state.
-8. `/mstack:review`, then `/mstack:ship`.
+8. `/mstack:review`, then `/mstack:ship`. At `s` one lone reviewer; at `l` a panel with two or
+   more lens reports in one round.
 
 **Reply:** the mechanism in one paragraph, the repro, and where the fix was verified.

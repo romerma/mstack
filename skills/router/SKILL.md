@@ -27,7 +27,9 @@ $ARGUMENTS
    understanding or investigating, verifying, reviewing, shipping, a commit message, cleanup,
    deepening (the playbook files its own items).
    Say which in one line (`skip: <reason>`). It ends with
-   `mstack state add --slug <s> --title <t> --acceptance "..." --source "..." --seam "..."`,
+   `mstack state add --slug <s> --title <t> --size <s|m|l> --acceptance "..." --source "..." --seam "..."`,
+   the size picked by the rule in [references/size-matrix.md](references/size-matrix.md), which
+   also says which playbook steps each size skips or adds,
    plus `--decision-required "..."` when a product fork or irreversible choice is open. Facts
    are found, reversible decisions are taken and recorded, forks reach the user once, late.
 4. Match the request to a playbook below, and **copy that playbook's steps into your todo list
@@ -74,8 +76,8 @@ merge gate. The route changes how the work is planned. It never changes what cou
 
 ## Delegation
 
-Delegate implementation so that you can review the diff. That separation is the point, and it
-is not a cost worth optimising away.
+Delegate implementation so that you can review the diff, at every size, `s` included. That
+separation is the point, and it is not a cost worth optimising away.
 
 - Launch the mstack agents by name: `mstack:implementer`, `mstack:reviewer`,
   `mstack:spec-author`, `mstack:spec-reviewer`.

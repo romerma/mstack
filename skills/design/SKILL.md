@@ -6,6 +6,11 @@ argument-hint: [what to design]
 
 # Design
 
+How much of this runs is set by the item's size, as the
+[size matrix](../router/references/size-matrix.md) says. At `l`, every step. At `m`, steps 2 and
+5 in the session, grounded on the code you read, with at least one rejected alternative; no
+fan-out and no judge. At `s`, none: `skip: size s`.
+
 ## 1. Ground
 
 `/mstack:understand` the subsystems this touches. Designing against a guess about the current

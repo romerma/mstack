@@ -9,7 +9,11 @@ argument-hint: [base ref or PR]
 The reviewer did not write the code. If that is not true, stop: fetch someone who did not.
 
 1. Establish scope. `git diff <base>...HEAD`, and the list of files it touches.
-2. Allocate the paths **before** launching anything:
+2. The item's size sets the shape, as the [size matrix](../router/references/size-matrix.md)
+   says: at `s`, one lone reviewer and no panel; at `m`, a lone reviewer or a panel of the
+   lenses that have something to review; at `l`, a panel with two or more lens reports in one
+   round, which the gate and `state set --status done` hold the item to from `verifying` (a
+   later round may be a lone review). Allocate the paths **before** launching anything:
 
    ```bash
    mstack fanout plan --kind review --worker correctness --worker security --worker tests

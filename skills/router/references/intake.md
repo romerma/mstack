@@ -48,7 +48,7 @@ item with a fork is on the spec path.
 When the frontier is empty:
 
 ```
-mstack state add --slug <s> --title "<t>" \
+mstack state add --slug <s> --title "<t>" --size <s|m|l> \
   --acceptance "<observable criterion, quoting the user's words>" [...] \
   --source "<the request and its date, or the document it came from>" \
   --seam "<public surface where a test attaches>" [...] \
@@ -60,7 +60,9 @@ Then choose the path by the triggers in the router's "The two paths" (an answere
 which cannot go back to `specifying`. A parked item stays `pending` until answered.
 
 A **seam** is where the behaviour is observed, such as ``CLI: `mstack state add` exit code and
-stdout``. No behaviour change, no seam: say why in `--description`.
+stdout``. No behaviour change, no seam: say why in `--description`. The **size** is picked by the
+rule in [size-matrix.md](size-matrix.md), from the code you found the change touches; always
+pass it.
 
 ## Proportion
 

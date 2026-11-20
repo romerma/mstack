@@ -6,9 +6,14 @@ argument-hint: [item slug]
 
 # Implement
 
-Delegate this to `mstack:implementer` rather than doing it in the main session. The gain is
-review separation: a pass that wrote the code cannot review it, and "it was faster to do it
-myself" trades away the only structural check in the workflow.
+Delegate this to `mstack:implementer` rather than doing it in the main session, at every size,
+`s` included. The gain is review separation: a pass that wrote the code cannot review it, and "it
+was faster to do it myself" trades away the only structural check in the workflow.
+
+The item's size changes one thing here, as the [size matrix](../router/references/size-matrix.md)
+says: a size `s` item's code diff stays within 60 changed lines in at most 3 code files, which the
+gate holds the active item to. Past that the item is not small: raise it with `mstack state set
+<slug> --size m` rather than squeeze the code to fit.
 
 ## Where the contract lives
 
