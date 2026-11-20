@@ -6,10 +6,10 @@
 > On close: append the summary to `history.md` and reset this file to the
 > empty template below.
 
-- **Item:** 101 mutation-printed-exits (follow-ups of item 42; item 100 is parked on two forks for the user)
-- **Status:** verifying; round 2 APPROVED (0 blocking, 4 non-blocking to follow-ups); gate --full running
-- **Branch:** fix/mutation-printed-exits
-- **Base:** 7e9637372d38b5fac650653c9df8c289d2e9a417
+- **Item:** none active (42, 104 and 101 closed; 100 parked on two forks for the user after three spec rounds)
+- **Status:** -
+- **Branch:** main
+- **Base:** -
 - **Worktree:** none
 
 ## Plan
@@ -39,10 +39,6 @@ watch is review rounds per item: if they do not drop after phase 1, intake is ce
 - Item 53 repro, 2026-11-16, throwaway store: 12 parallel `state add`, 12 exit 0, 8 items on
   disk. `saveState` is one `writeFileSync` (`src/state.ts:208-210`).
 
-- 2026-11-19 item 101 implementer: A1 to A6 committed with tests in
-  `tests/mutation-exits.test.ts` and reported in `impl_mutation-printed-exits.md` (21 of 21
-  mutants killed, both suites green); next: a review pass that did not write the code. Scratch:
-  `/private/tmp/claude-501/-Users-romerma-Code-mstack/4aadee9d-d352-4d5b-825b-4d11a47e2193/scratchpad/impl101/`.
 - 2026-11-20 item 101 round 2 implementer (scratch `.../scratchpad/impl101r2/`): blocking 1
   committed (f925e61, the gone CLI named in prose, one command offered; decision row 324); B2,
   NB1, NB2, NB5, NB6 committed (ea7cb01 to ab8bafc); 14 of 14 mutants killed; both suites green.
@@ -81,8 +77,8 @@ Also for the user: ADR 0001 states their decision of 2026-10-31 and gives no rea
 record has none; the reason is theirs to add (item 58, round 2 review, non-blocking 10).
 
 Next, not blocked:
-0. Phase 3: 44, then 63 (needs 44) and 65. Item 100 waits for the user. Follow-ups of 42: 101,
-   102, 103.
+0. Phase 3: 44, then 63 (needs 44) and 65. Item 100 waits for the user. Follow-ups of 42: 102,
+   103, 105 (101 closed 2026-11-20).
 1. Phase 2: 59 (in flight) diagnosis-loop-in-bug-fix, then 60, 61, 62, 64. Follow-up of 58: item 83.
 2. Architecture candidates filed by the deepen playbook: 76 to 80, and 81.
 3. Durability follow-ups: 67 first (its budget test made the closing gate of 58 red three runs

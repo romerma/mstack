@@ -1631,3 +1631,33 @@ revert removed is recorded as killed. Item 101 carries the sentence for the docs
 
 **Closing.** `gate --full` green on the first run. Nothing was taken after the verdict; the
 review's non-blocking 1 went to item 102.
+
+## 2026-11-20 - item 101 mutation-printed-exits closed (2 rounds)
+
+**What shipped.** Every recovery line the mutation lock prints runs as printed: one quoting
+function for the CLI path and the `cd` directory, bare for a path of safe characters, so no pasted
+transcript changed. A CLI that is gone is named in prose and never offered as a command; the one
+command printed is the running CLI's. The hook and the R1 refusal print a restore line only for a
+lock the lock check accepts, and the hook reads the lock with the gate's own reader, so a symlink
+or a FIFO at the lock's name gets the by-hand recovery from all four printers (the hook answered
+a FIFO in about 52 ms where it hung before). A `cd` is printed only when a restore run from that
+directory would find the store git names, so a case variant no longer loops. Under a lock the hook
+also denies `--namespace`, `--config-env`, `--attr-source` and `--shallow-file` given with a space,
+`git` spelled in any case, and the plumbing that writes the index, a tree or a ref. The docs name
+what is not covered, and that an interpreter given a missing script may record killed (dash).
+
+**What the rounds taught.** Round 1 found two printed ways out that did not run, both older than
+the item and neither in its tests: the item's claim was "every printed line", and the tests ran
+the lines the author thought of. The fix the coordinator asked for (a `cd` before each
+alternative) would still have printed a command that exits 127; the implementer replaced it with
+the rule above and recorded why.
+
+**Evidence.** Round 2: 75 of 75 printed lines restored through sh and dash across five sets of
+directory names (the round 1 code: 1 of 15); nine things at the lock's name, all four printers
+agree; 120 of 120 mixed-case spellings denied under a lock and none without; no ordinary command
+newly denied. bun 1106 pass, 3 skip, 0 fail; node 1108 pass, 1 skip, 0 fail; green with dash as
+`sh`.
+
+**Closing.** `gate --full` green on the first run. Nothing was taken after the verdict.
+
+**Filed.** Item 105 `mutation-exits-followups`; two untested lines went to item 102.

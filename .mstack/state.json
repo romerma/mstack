@@ -1559,11 +1559,12 @@
         "CHANGELOG.md names the refusal of verify --restore under the lock of another store of the worktree",
         "the docs say that an obligation written as <interpreter> <script> whose script the revert removed is recorded as killed, not blocked, wherever the interpreter does not exit 126 or 127 for a missing file (dash exits 2 for sh missing.sh, bash 127; found by CI on ubuntu, run 44574734393)"
       ],
-      "status": "verifying",
+      "status": "done",
       "description": "The round 3 review approved item 42 with no loss path left and listed places where a printed way out does not work as printed, all without writing anything. They were not taken after the verdict.",
       "size": "m",
       "base": "7e9637372d38b5fac650653c9df8c289d2e9a417",
-      "source": "item 42 reviews, .mstack/progress/review_mutation-check_r3.md non-blocking 1, 2, 3, 6, 7 and review_mutation-check_r2.md non-blocking 5, 2026-11-19"
+      "source": "item 42 reviews, .mstack/progress/review_mutation-check_r3.md non-blocking 1, 2, 3, 6, 7 and review_mutation-check_r2.md non-blocking 5, 2026-11-19",
+      "closed_by": "two rounds; review_mutation-printed-exits_r2.md APPROVED at c4011a8; gate --full green on the first run"
     },
     {
       "id": 102,
@@ -1573,7 +1574,8 @@
         "a test fails for each of round 2's mutants i, k, m, a, b and n, or the report says why one is equivalent",
         "a test fails for each of round 3's three mutants of the B3 path; first D, under which the hook allows git commit under a lock with no rootFromTop (join(top, undefined) throws and the hook fails open)",
         "the helper's check at start is pinned: given a pid that is already dead and the command sleep 0.15 then write a file, the file is never written; the decision row that says it cannot be tested is answered",
-        "the R12 blocked test matches the whole phrase 'exit 127 (the command was not found)', not a bare 127 that a short sha could carry (item 104 review, non-blocking 1)"
+        "the R12 blocked test matches the whole phrase 'exit 127 (the command was not found)', not a bare 127 that a short sha could carry (item 104 review, non-blocking 1)",
+        "a test covers the two lines that name a gone CLI and have none: R15's line (src/mutation-run.ts:88) and the hook's line from inside .git (src/hooks.ts:468) (item 101 review round 2, non-blocking 4); and a test fails for that review's mutants X2 and X3"
       ],
       "status": "pending",
       "description": "The behaviour is right in each case; no test fails when it is removed. Round 2 listed ten surviving mutants and four (l, d, g, j) got a test in the round 2 fixes. Round 3 added three on the B3 path and showed the helper's check at start can be pinned without a timing bound.",
@@ -1608,6 +1610,21 @@
       "source": "CI run 44574734393 at 0dd6b2d, both jobs, 2026-11-19",
       "verification": "bun test tests/mutation-run.test.ts && node --test tests/mutation-run.test.ts",
       "closed_by": "one round; review_mutation-run-test-dash.md APPROVED at 145b4d6; gate --full green on the first run; CI run 44580297607 green on both jobs at 9751b07"
+    },
+    {
+      "id": 105,
+      "slug": "mutation-exits-followups",
+      "title": "Follow-ups from item 101: a writer CLI that exists but cannot run, a lock edited to name another store, tests that need a checkout path without spaces, and the hook's any-case match beyond git",
+      "acceptance": [
+        "when the path of the CLI that wrote the lock holds a directory, a file that is not executable or a copy with src/ gone, the printers still offer a command that runs (the running CLI's restore) or the by-hand recovery; today the writer's path is the only command offered, it exits 126 or 127 and the lock stays (src/mutation-lock.ts, 'gone' decided by existence)",
+        "a lock hand-edited to name another real store of the worktree does not restore into that store: the restore proves the lock's paths belong to the store it names, or refuses (today cd B && restore exits 0, writes A's file into B and leaves A reverted; nothing is lost)",
+        "the suite passes from a checkout whose path contains a space: the four tests that expect the running CLI's path unquoted (tests/mutation-refusals.test.ts:193, tests/mutation-exits.test.ts:570 and 574, and the two that were red before item 101) assert the quoted form",
+        "the hook's any-case match of a command name is decided for the other commands it guards (rm of the lock or the store, gh pr merge --admin): matched in any case as git is, or the docs say why only git"
+      ],
+      "status": "pending",
+      "description": "Both rounds approved with nothing lost in any case; these are the points left after the verdict. None was introduced by item 101.",
+      "size": "m",
+      "source": "item 101 reviews, .mstack/progress/review_mutation-printed-exits.md non-blocking 4 and review_mutation-printed-exits_r2.md non-blocking 1, 2, 3, 2026-11-20"
     }
   ]
 }
