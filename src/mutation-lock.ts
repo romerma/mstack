@@ -135,18 +135,52 @@ export type RestoreLine = { readonly line: string; readonly lead: string } | { r
 
 const storeName = (rel: string): string => (rel === "." ? "the worktree's top level" : rel);
 
+/** Where a directory is in its worktree, as git says from inside it; null when git cannot say. */
+function placeOfDir(dir: string): Place | null {
+  return placeOf({ root: dir } as Store);
+}
+
+/**
+ * Why the lock's `root` says it is another store's than the one at `dir`, which
+ * `rootFromTop` names in the worktree whose top level is `top`; null when it
+ * does not. The run writes both fields in one record, so they disagree only
+ * after an edit, and the restore cannot tell which one is the run's (item 105,
+ * A2). `root` agrees when it is `dir`, or the same directory (device and
+ * inode), and says nothing when no directory is there, or git places it
+ * outside this worktree: a checkout moved or copied, whose paths are this
+ * store's (R24). Only a `root` that git places in this worktree, elsewhere than
+ * `rootFromTop`, disagrees: one `git rev-parse`, and none while `root` is
+ * `dir`, as it is for every lock no one edited.
+ */
+export function rootDisagrees(lock: Pick<Lock, "root" | "rootFromTop">, dir: string, top: string): string | null {
+  if (lock.root === dir) return null;
+  try {
+    const at = statSync(lock.root, { bigint: true });
+    if (!at.isDirectory()) return null;
+    const here = statSync(dir, { bigint: true });
+    if (at.dev === here.dev && at.ino === here.ino) return null;
+  } catch {
+    // No directory at `root` (a moved checkout), or none at `dir`, which the caller has decided on already.
+    return null;
+  }
+  const there = placeOfDir(lock.root);
+  if (there === null || there.top !== top || there.rel === lock.rootFromTop) return null;
+  return `its root ${lock.root} is the store at ${storeName(there.rel)} in this worktree, so the lock was edited and whose it is cannot be told`;
+}
+
 /**
  * `cd <the lock's store> && <the restore's command>`, when the restore run from
  * that directory takes the lock as its own store's: the store it finds there is
- * the one git names `rootFromTop` in the worktree whose top level is `top`.
- * Otherwise why no directory does. A `rootFromTop` that differs from git's
- * spelling only in case or Unicode form names, on a disk that folds them, this
- * same store, whose restore refuses the lock again, so a `cd` there would lead
- * in a loop; on a disk that does not fold them it names no directory, or
- * another store. The disk decides, through git, and nothing here folds a name
- * (item 101, A3).
+ * the one git names `rootFromTop` in the worktree whose top level is `top`, and
+ * the lock's `root` does not name another (`rootDisagrees`). Otherwise why no
+ * directory does. A `rootFromTop` that differs from git's spelling only in
+ * case or Unicode form names, on a disk that folds them, this same store, whose
+ * restore refuses the lock again, so a `cd` there would lead in a loop; on a
+ * disk that does not fold them it names no directory, or another store. The
+ * disk decides, through git, and nothing here folds a name (item 101, A3).
  */
-export function inLockStore(restore: Restore, top: string, rootFromTop: string): RestoreLine {
+export function inLockStore(restore: Restore, top: string, lock: Pick<Lock, "root" | "rootFromTop">): RestoreLine {
+  const { rootFromTop } = lock;
   const dir = lockStoreDir(top, rootFromTop);
   const lead = `no verify --restore takes this lock: it names its store ${storeName(rootFromTop)}, and`;
   let isDirectory = false;
@@ -159,7 +193,11 @@ export function inLockStore(restore: Restore, top: string, rootFromTop: string):
   const found = findStore(dir);
   const there = found === null ? null : placeOf(found);
   if (there === null || there.top !== top) return { none: `${lead} there is no store of this worktree at ${dir}` };
-  if (there.rel === rootFromTop) return { line: `cd ${shellWord(dir)} && ${restore.command}`, lead: restore.lead };
+  if (there.rel === rootFromTop) {
+    const disagrees = rootDisagrees(lock, dir, top);
+    if (disagrees !== null) return { none: `${lead} ${disagrees}` };
+    return { line: `cd ${shellWord(dir)} && ${restore.command}`, lead: restore.lead };
+  }
   if (fold(there.rel) === fold(rootFromTop)) {
     return { none: `${lead} ${dir} is the store git spells ${storeName(there.rel)}, which differs only in case or Unicode form, so its restore refuses the lock too` };
   }
@@ -170,11 +208,16 @@ export function inLockStore(restore: Restore, top: string, rootFromTop: string):
  * The restore's command run from the lock's store, when `place` is another
  * store of the worktree: two stores share the worktree's lock, and a restore
  * resolves the lock's paths against the root of the store it runs in (round 2
- * review, B3). When git cannot say where this store is, the command as it is.
+ * review, B3). In the lock's own store, the command as it is, unless the lock's
+ * `root` names another store (`rootDisagrees`), whose restore refuses. When git
+ * cannot say where this store is, the command as it is.
  */
-export function fromLockStore(restore: Restore, rootFromTop: string, place: Place | null): RestoreLine {
-  if (place === null || rootFromTop === place.rel) return { line: restore.command, lead: restore.lead };
-  return inLockStore(restore, place.top, rootFromTop);
+export function fromLockStore(restore: Restore, lock: Pick<Lock, "root" | "rootFromTop">, place: Place | null): RestoreLine {
+  if (place === null) return { line: restore.command, lead: restore.lead };
+  if (lock.rootFromTop !== place.rel) return inLockStore(restore, place.top, lock);
+  const disagrees = rootDisagrees(lock, lockStoreDir(place.top, place.rel), place.top);
+  if (disagrees === null) return { line: restore.command, lead: restore.lead };
+  return { none: `no verify --restore takes this lock: it names its store ${storeName(lock.rootFromTop)}, and ${disagrees}` };
 }
 
 /** `<git dir>/mstack-mutation/<run>/`; null outside a repository. */

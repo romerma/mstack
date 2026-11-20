@@ -468,7 +468,7 @@ function lockReason(cwd: string): string | null {
     return `${held}: ${restore.lead}wait for it, or if it is not running, run from ${parsed.rootFromTop} under this worktree's top level: ${restore.command}`;
   }
   // The `cd` only to a store whose restore takes the lock: a spelling that differs only in case or Unicode form would loop (item 101, A3).
-  const way = inLockStore(restore, top, parsed.rootFromTop);
+  const way = inLockStore(restore, top, parsed);
   if ("line" in way) return `${held}: ${way.lead}wait for it, or if it is not running, run ${way.line}`;
   return `${held}: wait for it, or if it is not running: ${way.none}, so the way out is ${FOR_A_PERSON}: ${BY_HAND}; 'mstack gate' says the same`;
 }

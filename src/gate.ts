@@ -702,7 +702,7 @@ function lockProblem(held: NonNullable<ReturnType<typeof readLock>>, file: strin
   const alive = liveness(lock);
   const what = `the mutation lock ${file} is held by pid ${lock.pid} on ${lock.host}, started ${lock.startedAt}, ${lock.entries.length} path(s)`;
   // A lock whose store no restore takes (item 101, A3) gets the by-hand way out instead of a line that loops.
-  const way = fromLockStore(restoreCommand(lock.cli), lock.rootFromTop, place);
+  const way = fromLockStore(restoreCommand(lock.cli), lock, place);
   const byHand = "none" in way ? `${way.none}; ${FOR_A_PERSON}: ${BY_HAND}` : "";
   switch (alive.state) {
     case "running":

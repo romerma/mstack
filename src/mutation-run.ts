@@ -4,7 +4,7 @@ import { git, headSha } from "./git.ts";
 import { isActive } from "./lifecycle.ts";
 import { mutationKey, refusals, revertSet, trackedChanges, type MutationKey } from "./mutation.ts";
 import {
-  acquireLock, BY_HAND, discard, FOR_A_PERSON, errorText, inLockStore, liveness, lockPath, placeOf, prepareRun, readLock, restoreCommand, shellWord, sweepStale, validateLock, type Lock,
+  acquireLock, BY_HAND, discard, FOR_A_PERSON, errorText, inLockStore, liveness, lockPath, placeOf, prepareRun, readLock, restoreCommand, rootDisagrees, shellWord, sweepStale, validateLock, type Lock,
 } from "./mutation-lock.ts";
 import { applyRevert, entryAt, holds, restoreFromLock, type Entry, type Restored } from "./mutation-tree.ts";
 import { runningCliRoot, type Store } from "./paths.ts";
@@ -529,13 +529,20 @@ export function restoreRun(store: Store, options: { readonly out: (line: string)
   if (lock.rootFromTop !== place.rel) {
     const name = (rel: string): string => (rel === "." ? "the worktree's top level" : rel);
     // The `cd` only to a store whose restore takes the lock: a spelling that differs only in case or Unicode form would loop (item 101, A3).
-    const way = inLockStore(restoreCommand(lock.cli), place.top, lock.rootFromTop);
+    const way = inLockStore(restoreCommand(lock.cli), place.top, lock);
     refuse(
       out,
       `the lock is the run's of the store at ${name(lock.rootFromTop)} in this worktree, and this store is at ${name(place.rel)}; nothing was written, and the lock stays`,
       "line" in way ? `${way.lead}run it from that store: ${way.line}` : way.none,
     );
     if ("none" in way) byHand();
+    return 2;
+  }
+  // The lock's root, where it is still a store of this worktree, must be this one: a lock edited to name this store says so (item 105, A2).
+  const disagrees = rootDisagrees(lock, store.root, place.top);
+  if (disagrees !== null) {
+    out(`mutation: refused: the lock ${file} names this store, at ${place.rel === "." ? "the worktree's top level" : place.rel}, and ${disagrees}; nothing was written, and the lock stays`);
+    byHand();
     return 2;
   }
   const alive = liveness(lock);

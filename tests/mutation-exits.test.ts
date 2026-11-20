@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
-import { chmodSync, cpSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, cpSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -708,3 +708,71 @@ for (const [kind, why] of CANNOT_RUN) {
     }
   });
 }
+
+test("A2 (item 105) a lock edited so its rootFromTop names another real store restores into neither, says why, and writes nothing", () => {
+  const o = oddWorld();
+  try {
+    const written = deadRunIn(o, o.cli);
+    const edited = `${JSON.stringify({ ...written, rootFromTop: "pkg/b" }, null, 2)}\n`;
+    writeFileSync(o.lockFile, edited);
+    const top = dirname(dirname(o.a));
+    const runs = join(dirname(o.lockFile), "mstack-mutation");
+    const listing = (): string =>
+      JSON.stringify((readdirSync(runs, { recursive: true }) as string[]).sort().map((p) => [p, lstatSync(join(runs, p)).isFile() ? readFileSync(join(runs, p), "base64") : "dir"]));
+    const tree = status(top);
+    const staged = listing();
+    const noCommand = /\bcd |mstack'? verify --restore/;
+    const { st, it } = active(git(o.a, "rev-parse", "HEAD~1"));
+    for (const [where, root] of [["B, which the edit names", o.b], ["A, where the run was", o.a]] as const) {
+      const store = storeAt(root);
+      const lines: string[] = [];
+      assert.equal(restoreRun(store, { out: (l) => lines.push(l) }), 2, `${where}: ${lines.join("\n")}`);
+      const restore = lines.join("\n");
+      assert.ok(restore.includes(`its root ${o.a} is the store at pkg/a in this worktree`), `${where}:\n${restore}`);
+      assert.doesNotMatch(restore, noCommand, `${where}:\n${restore}`);
+      assert.match(restore, BY_HAND, where);
+
+      const gate = gateLine(store);
+      assert.doesNotMatch(gate.slice(gate.indexOf(" -> ")), noCommand, `${where}: ${gate}`);
+      assert.match(gate, BY_HAND, where);
+      const r1 = refusals(store, st, it);
+      assert.ok(r1 !== null, where);
+      assert.doesNotMatch(r1.fix, noCommand, `${where}: ${r1.fix}`);
+      assert.match(r1.fix, BY_HAND, where);
+      const hook = hookReason("git commit -m x", root);
+      assert.ok(hook !== null, `${where}: the hook allowed git commit under a lock`);
+      assert.doesNotMatch(hook, noCommand, `${where}: ${hook}`);
+      assert.match(hook, BY_HAND, where);
+
+      assert.equal(readFileSync(o.lockFile, "utf8"), edited, `${where}: the lock changed`);
+      assert.equal(status(top), tree, `${where}: the tree changed`);
+      assert.equal(listing(), staged, `${where}: the run directory changed`);
+      assert.equal(readFileSync(join(o.a, "src", "x.js"), "utf8"), "OLD\n");
+      assert.equal(existsSync(join(o.b, "src", "x.js")), false, `${where}: A's file was written into B`);
+    }
+
+    // The control: the lock as the run wrote it, restored from A.
+    writeFileSync(o.lockFile, `${JSON.stringify(written, null, 2)}\n`);
+    const back: string[] = [];
+    assert.equal(restoreRun(storeAt(o.a), { out: (l) => back.push(l) }), 0, back.join("\n"));
+    assert.equal(readFileSync(join(o.a, "src", "x.js"), "utf8"), "NEW\n");
+
+    // The same lock, its root spelled through a symlink to A, or naming a store of another worktree (a copy, or a
+    // path reused after a move): either is the run's own store, and the restore from A takes it.
+    const link = join(o.base, "link to a");
+    symlinkSync(o.a, link);
+    const other = join(o.base, "other top", "pkg", "b");
+    repoWithStores(join(o.base, "other top"), ["pkg/b"]);
+    for (const [label, root] of [["a symlink to A", link], ["a store of another worktree", other]] as const) {
+      deadRunIn(o, o.cli);
+      const lock = JSON.parse(readFileSync(o.lockFile, "utf8")) as Record<string, unknown>;
+      writeFileSync(o.lockFile, `${JSON.stringify({ ...lock, root }, null, 2)}\n`);
+      const lines: string[] = [];
+      assert.equal(restoreRun(storeAt(o.a), { out: (l) => lines.push(l) }), 0, `${label}: ${lines.join("\n")}`);
+      assert.match(lines.join("\n"), /restored 1, tree verified, lock removed/, label);
+      assert.equal(readFileSync(join(o.a, "src", "x.js"), "utf8"), "NEW\n", label);
+    }
+  } finally {
+    rmSync(o.base, { recursive: true, force: true });
+  }
+});

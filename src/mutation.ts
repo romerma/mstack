@@ -385,7 +385,7 @@ function lockRefusal(store: Store, lock: string, running: string): Refusal | nul
   const record = checked.lock;
   const here = join(running, "bin", "mstack");
   // A lock whose store no restore takes (item 101, A3) gets the by-hand way out instead of a line that loops.
-  const way = fromLockStore(restoreCommand(record.cli, here), record.rootFromTop, placeOf(store));
+  const way = fromLockStore(restoreCommand(record.cli, here), record, placeOf(store));
   const byHand = "none" in way ? `${way.none}; ${FOR_A_PERSON}: ${BY_HAND}` : "";
   const alive = liveness(record);
   const said = { running: "running", "not-running": "not running", unknown: "cannot tell whether it is running" }[alive.state];
