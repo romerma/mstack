@@ -1007,6 +1007,21 @@ test("L14 (item 105, round 2) rootDisagrees under the narrower rule: only anothe
       assert.equal(says(join(o.a, name), "pkg/b", o.b), null, name);
       assert.equal(says(join(top, "docs", name), "pkg/b", o.b), null, name);
     }
+    // A store git places in another repository says nothing, a repository nested under this top level included (item
+    // 102: the review's V1, the other top's check dropped, survived).
+    const nested = join(top, "nested");
+    repoWithStores(nested, ["."]);
+    assert.equal(says(nested, "pkg/b", o.b), null, "a nested repository's store");
+    // A root git cannot place says nothing: a ceiling between it and the top level makes git silent (V2, a silent git
+    // refusing, survived, and it refuses a legitimate restore under such a ceiling). Without the ceiling, A disagrees.
+    const ceiling = process.env["GIT_CEILING_DIRECTORIES"];
+    process.env["GIT_CEILING_DIRECTORIES"] = join(top, "pkg");
+    try {
+      assert.equal(says(o.a, "pkg/b", o.b), null, "a root git cannot place, under GIT_CEILING_DIRECTORIES");
+    } finally {
+      if (ceiling === undefined) delete process.env["GIT_CEILING_DIRECTORIES"];
+      else process.env["GIT_CEILING_DIRECTORIES"] = ceiling;
+    }
   } finally {
     rmSync(o.base, { recursive: true, force: true });
   }
