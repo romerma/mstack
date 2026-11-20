@@ -224,3 +224,4 @@ mutation-printed-exits	c4011a84c58714df1cbd9d85eb1e9ccfcecc6b81	live-verified	.m
 size-tiers	a7f1b72adeb54abfd84f002f3055647fa3dcf174	test-verified	.mstack/progress/impl_size-tiers.md	implementer	2026-11-20T01:26:41.486Z
 size-tiers	a5c87ef491d09910caf31723a83d38f395942795	test-verified	.mstack/progress/review_size-tiers.md	reviewer	2026-11-20T01:45:31.569Z
 mutation-exits-followups	9f39f15bb97d9c861513c96a110778d5a94b9db4	test-verified	.mstack/progress/impl_mutation-exits-followups.md	implementer	2026-11-20T03:13:51.167Z
+mutation-exits-followups	d49c4b0ff59daa6a43cdaea85200546c71cd542c	verifier-failed	.mstack/progress/review_mutation-exits-followups.md	reviewer	2026-11-20T04:21:34.961Z
