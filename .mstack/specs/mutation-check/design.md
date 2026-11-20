@@ -204,7 +204,10 @@ interface Lock {
   path; moved down into a new directory named like its own `pkg/`, the repository holding a
   store at `a/`), refused with the by-hand recovery since nothing in the lock tells them from the
   edit; that would take a record of the store's identity at the run, such as its directory's
-  device and inode, in a new lock field. Not caught, each measured in round 2 (the store
+  device and inode, in a new lock field. A store renamed after the run while another store takes
+  its old name reaches no rule here (`root` and `rootFromTop` still agree): from the new name
+  the restore refuses it as another store's lock, from the old name it restores into the store
+  that took it, as at the base. Not caught, each measured in round 2 (the store
   `rootFromTop` names takes the run's files, its own content goes to the run's `rescue/`, and
   the run's store is left reverted with the lock gone, its content in the item's commit): an edit
   of both fields to agree; an edit of `rootFromTop` after the checkout moved; an edit of
