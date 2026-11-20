@@ -213,8 +213,11 @@ interface Lock {
   of both fields to agree; an edit of `rootFromTop` after the checkout moved; an edit of
   `rootFromTop` with `root` naming nothing, a file, a directory outside the worktree, a link
   from outside it into it, a directory inside another store or inside the named one, or `.`
-  (read as the directory the restore runs in) when that is no other store's own directory; and
-  an edit in a worktree git finds only through `GIT_DIR` (no `.git` in it). A lock without
+  (read as the directory the restore runs in) when that is no other store's own directory; an
+  edit in a worktree git finds only through `GIT_DIR` (no `.git` in it); and the edit the item
+  was filed for when the restore runs with `GIT_CEILING_DIRECTORIES` naming a directory between
+  the lock's `root` and the top level, which leaves git, run from that `root`, finding no
+  repository, so the `root` says nothing (item 105, round 2 review, non-blocking 3). A lock without
   `rootFromTop` fails `validateLock`, so it is one that cannot be read.
 - `validateLock` is R24; it finds a path that appears twice by R3's `fold`, so two spellings of one
   path are refused (round 1 review, NB3). `sweepStale` runs once the run holds the lock: it removes
