@@ -1035,3 +1035,48 @@ test("L14e (item 105, round 2) a checkout moved up into its parent's place, in a
     rmSync(base, { recursive: true, force: true });
   }
 });
+
+/**
+ * Item 102 (item 101, round 2 review, non-blocking 4: X2 and X3): the two lines
+ * that name a gone CLI in front of the way out, R15's after a failed restore and
+ * the hook's from inside the git directory, which no test held with that CLI gone.
+ */
+
+// bun ignores the `skip` option of node:test, so the function is chosen; a read-only directory stops nobody running as root.
+const userTest = process.getuid?.() === 0 ? test.skip : test;
+
+userTest("A5 (item 102) R15's line after a failed restore names the CLI that wrote the lock when it is gone, and its command runs once the path is cleared", SPAWN_TEST, () => {
+  const o = oddWorld();
+  try {
+    const gone = join(o.base, `gone ${ODD}`, "bin", "mstack");
+    deadRunIn(o, gone);
+    const src = join(o.a, "src");
+    const lines: string[] = [];
+    chmodSync(src, 0o555);
+    try {
+      assert.equal(restoreRun(storeAt(o.a), { out: (l) => lines.push(l) }), 3, lines.join("\n"));
+    } finally {
+      chmodSync(src, 0o755);
+    }
+    assert.match(lines.join("\n"), /not restored: src\/x\.js: .*EACCES/);
+    const running = `${shellWord(join(runningCliRoot(), "bin", "mstack"))} verify --restore`;
+    assert.equal(lines[lines.length - 1], `mutation: the lock stays; the CLI that wrote the lock, ${shellWord(gone)}, is gone; once each path above is cleared: ${running}`);
+    assert.ok(existsSync(o.lockFile), "the lock went although the restore failed");
+    repairs(o, running, o.a);
+  } finally {
+    rmSync(o.base, { recursive: true, force: true });
+  }
+});
+
+test("A5 (item 102) from inside the git directory the hook names the CLI that wrote the lock when it is gone, and offers the running one", () => {
+  withRepo(startA, editA, (r) => {
+    const lock = locked(r);
+    const file = lockFileOf(r);
+    const gone = join(r.root, `gone ${ODD}`, "bin", "mstack");
+    writeFileSync(file, `${JSON.stringify({ ...lock, cli: gone }, null, 2)}\n`);
+    const running = `${shellWord(join(runningCliRoot(), "bin", "mstack"))} verify --restore`;
+    const reason = hookReason("git -C .. commit -am x", dirname(file)) ?? "allowed";
+    const said = `It is held by pid ${lock.pid}: the CLI that wrote the lock, ${shellWord(gone)}, is gone; wait for it, or if it is not running, run from . under this worktree's top level: ${running}`;
+    assert.ok(reason.endsWith(said), reason);
+  });
+});
