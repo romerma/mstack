@@ -6,10 +6,10 @@
 > On close: append the summary to `history.md` and reset this file to the
 > empty template below.
 
-- **Item:** none active (42, 104, 101 and 44 closed; 100 parked on two forks for the user after three spec rounds)
-- **Status:** -
-- **Branch:** main
-- **Base:** -
+- **Item:** 105 mutation-exits-followups (item 100 is parked on two forks for the user)
+- **Status:** in_progress, implementer at work
+- **Branch:** fix/mutation-exits-followups
+- **Base:** 819c9a31e5eeb8bdcbe9ccbd8d155b10e95f9fe1
 - **Worktree:** none
 
 ## Plan
@@ -82,7 +82,9 @@ Also for the user: ADR 0001 states their decision of 2026-10-31 and gives no rea
 record has none; the reason is theirs to add (item 58, round 2 review, non-blocking 10).
 
 Next, not blocked:
-0. Phase 3: 63 and 65 (44 closed 2026-11-20; its follow-up is 106). Item 100 waits for the user
+0. Phase 3: 63 (its first criterion needs a live claude session, a paid run the user has not
+   authorised) and 65 (to design after item 100: see its description). 44 closed 2026-11-20; its
+   follow-up is 106, whose first point overlaps item 100's R26 to R28. Item 100 waits for the user
    and, being size l, needs a review round of two lens reports when it resumes. Follow-ups of 42:
    102, 103, 105.
 1. Phase 2: 59 (in flight) diagnosis-loop-in-bug-fix, then 60, 61, 62, 64. Follow-up of 58: item 83.
