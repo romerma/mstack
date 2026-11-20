@@ -2,6 +2,7 @@ import { budgetProblems } from "./budget.ts";
 import { headSha } from "./git.ts";
 import { describeRow, entries as ledgerEntries, readVerdict, sameCommit } from "./ledger.ts";
 import { requiresVerification, VERIFICATION_REQUIRED_FROM, type Status } from "./lifecycle.ts";
+import { panelProblems } from "./panel.ts";
 import type { Store } from "./paths.ts";
 import { R_HINT, rTableProblems } from "./rcheck.ts";
 import { typedName } from "./roles.ts";
@@ -268,8 +269,27 @@ const reviewBudget: ClosingCheck = {
     budgetProblems(store, item).map((p) => ({ check: REVIEW_BUDGET_CHECK, message: p.message, hint: p.hint, overridable: false })),
 };
 
+export const LENS_PANEL_CHECK = "lens-panel";
+
+/**
+ * A size l item has a review round of two or more lens reports (`src/panel.ts`).
+ *
+ * Reported at `verifying` only, because before it the review is still under
+ * way, and run at the `done` transition. Not overridable: `state set` gives
+ * every overridable problem other than the table the "closed unverified" marker,
+ * which would be a false record here, and the way out that exists is the panel
+ * round itself (or, for an item that was never large, `state set --size`, which
+ * the command prints and git keeps).
+ */
+const lensPanel: ClosingCheck = {
+  name: LENS_PANEL_CHECK,
+  reportedAt: [],
+  run: (store, _state, item) =>
+    panelProblems(store, item).map((p) => ({ check: LENS_PANEL_CHECK, message: p.message, hint: p.hint, overridable: false })),
+};
+
 /** Exported mutable so a test can register a second check; production code never does. */
-export const CLOSING_CHECKS: ClosingCheck[] = [verificationReceipts, standingRejection, independentVerdict, requirementTable, reviewBudget];
+export const CLOSING_CHECKS: ClosingCheck[] = [verificationReceipts, standingRejection, independentVerdict, requirementTable, reviewBudget, lensPanel];
 
 /**
  * Every problem that stops this item closing.
