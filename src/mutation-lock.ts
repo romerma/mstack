@@ -1,15 +1,15 @@
 import { spawnSync } from "node:child_process";
 import { createHash, randomBytes, type Hash } from "node:crypto";
 import {
-  accessSync, closeSync, constants, fstatSync, fsyncSync, linkSync, lstatSync, mkdirSync, openSync, readdirSync, readFileSync,
-  readlinkSync, readSync, rmdirSync, rmSync, statSync, unlinkSync, writeSync,
+  accessSync, closeSync, constants, existsSync, fstatSync, fsyncSync, linkSync, lstatSync, mkdirSync, openSync, readdirSync,
+  readFileSync, readlinkSync, readSync, rmdirSync, rmSync, statSync, unlinkSync, writeSync,
 } from "node:fs";
 import { hostname, uptime } from "node:os";
 import { dirname, join, relative, resolve } from "node:path";
 
 import { git, gitToFile } from "./git.ts";
 import type { RevertSet } from "./mutation.ts";
-import { findStore, runningCliRoot, type Store } from "./paths.ts";
+import { findStore, runningCliRoot, STORE_DIR, type Store } from "./paths.ts";
 
 /**
  * The run's staging, its lock, and whether the run that wrote a lock is alive
@@ -151,30 +151,28 @@ function placeOfDir(dir: string): Place | null {
  * after an edit, and the restore cannot tell which one is the run's (item 105,
  * A2). Only a `root` under `top`, as spelled, is asked about: one outside it,
  * as after the checkout was moved or copied, says nothing whatever that path
- * holds now, as before item 105 (R24; round 1 review, B1). Stores are compared,
- * not paths: the store a restore would find from `root` (`findStore`, which
- * reads the disk and no variable, and walks up from a file, a dangling link or
- * a FIFO as from a directory) disagrees only when it is another store of this
- * worktree than the one `rootFromTop` names, as git, run from that store's root
- * alone (`placeOfDir`), places it. A `root` in this store, or in no store, says
- * nothing: a checkout moved up into its parent's place leaves its old root at a
- * directory of the worktree, which is in no store unless one above it holds
- * that path (a store at the repository's top does, and that restore is still
- * refused; decision row 2026-11-20T05:23:35Z). So does a store git places in
- * another worktree, a repository nested in this one included. One `git
- * rev-parse`, and none while `root` is `dir`, as it is for every lock no one
- * edited.
+ * holds now, as before item 105 (R24; round 1 review, B1). Under it, only a
+ * `root` that is a store's own directory (a `.mstack` in it, the test
+ * `findStore` makes first; the disk is read and no variable) is asked of git,
+ * run from it alone (`placeOfDir`), and it disagrees when git places it in this
+ * worktree elsewhere than `rootFromTop`: the edit item 105 was filed for,
+ * `rootFromTop` changed to a second store while `root` still names the first.
+ * A `root` anywhere else says nothing, as at the base: a directory, a file, a
+ * dangling link or a FIFO inside a store or in none, as a checkout moved up
+ * into its parent's place leaves it (decision row 2026-11-20T05:43:49Z, which
+ * replaced two wider rules that each refused a restore the base performs), and
+ * a store git places in another worktree, a repository nested in this one
+ * included. One `git rev-parse`, and none while `root` is `dir`, as it is for
+ * every lock no one edited.
  */
 export function rootDisagrees(lock: Pick<Lock, "root" | "rootFromTop">, dir: string, top: string): string | null {
   if (lock.root === dir) return null;
   const inside = relative(top, lock.root);
   if (inside === ".." || inside.startsWith("../")) return null;
-  const found = findStore(lock.root);
-  if (found === null || found.root === dir) return null;
-  const there = placeOfDir(found.root);
+  if (!existsSync(join(lock.root, STORE_DIR))) return null;
+  const there = placeOfDir(lock.root);
   if (there === null || there.top !== top || there.rel === lock.rootFromTop) return null;
-  const is = found.root === resolve(lock.root) ? "is" : "is in";
-  return `its root ${lock.root} ${is} the store at ${storeName(there.rel)} in this worktree, so the lock was edited and whose it is cannot be told`;
+  return `its root ${lock.root} is the store at ${storeName(there.rel)} in this worktree, so the lock was edited and whose it is cannot be told`;
 }
 
 /**

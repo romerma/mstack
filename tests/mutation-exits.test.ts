@@ -981,15 +981,19 @@ test("L14 (item 105, round 2) a checkout moved up into its parent's place, whose
   }
 });
 
-test("L14 (item 105, round 2) rootDisagrees compares stores: a root in another store of the worktree disagrees, one in this store or in none does not, and a file, a dangling link or a FIFO is read by the store around it", () => {
+test("L14 (item 105, round 2) rootDisagrees under the narrower rule: only another store's own directory disagrees; a directory, a file, a dangling link or a FIFO inside a store or in none does not", () => {
   const o = oddWorld();
   try {
     const top = dirname(dirname(o.a));
     const says = (root: string, rootFromTop: string, dir: string): string | null => rootDisagrees({ root, rootFromTop }, dir, top);
-    // In another store: its root, or a directory under it.
+    // Another store's own directory, as written or through a link under the top level.
     assert.match(says(o.a, "pkg/b", o.b) ?? "agrees", /its root .+ is the store at pkg\/a in this worktree/);
-    assert.match(says(join(o.a, "src"), "pkg/b", o.b) ?? "agrees", /its root .+ is in the store at pkg\/a in this worktree/);
-    // In this store, or under the top level in no store: as before item 105.
+    symlinkSync(o.a, join(top, "link to a"));
+    assert.match(says(join(top, "link to a"), "pkg/b", o.b) ?? "agrees", /its root .+ is the store at pkg\/a in this worktree/);
+    // Another spelling of this store's own directory agrees.
+    assert.equal(says(`${top}/pkg/./b`, "pkg/b", o.b), null);
+    // A directory inside another store, inside this one, or in none: as at the base (the store comparison refused the first).
+    assert.equal(says(join(o.a, "src"), "pkg/b", o.b), null);
     assert.equal(says(join(o.b, "src"), "pkg/b", o.b), null);
     mkdirSync(join(top, "docs"));
     assert.equal(says(join(top, "docs"), "pkg/b", o.b), null);
@@ -1000,10 +1004,34 @@ test("L14 (item 105, round 2) rootDisagrees compares stores: a root in another s
       assert.equal(spawnSync("mkfifo", [join(dir, "fifo")]).status, 0);
     }
     for (const name of ["file.txt", "dangling", "fifo"]) {
-      assert.match(says(join(o.a, name), "pkg/b", o.b) ?? "agrees", /is in the store at pkg\/a in this worktree/, name);
+      assert.equal(says(join(o.a, name), "pkg/b", o.b), null, name);
       assert.equal(says(join(top, "docs", name), "pkg/b", o.b), null, name);
     }
   } finally {
     rmSync(o.base, { recursive: true, force: true });
+  }
+});
+
+/**
+ * Item 105, round 2, the narrower rule (decision row 05:43:49Z): a lock whose
+ * root and rootFromTop disagree is refused only when its root is another
+ * store's own directory in this worktree; a root anywhere else is accepted.
+ */
+
+test("L14e (item 105, round 2) a checkout moved up into its parent's place, in a repository with a store at its top, restores: the old root is in the top store but is no store's own directory", () => {
+  const base = realpathSync(mkdtempSync(join(tmpdir(), "mstack-moved-up-")));
+  try {
+    const m = movedUp(base, 1, [".", "pkg/a"]);
+    const store = storeAt(m.a);
+    const gate = gateLine(store);
+    assert.doesNotMatch(gate, BY_HAND, gate);
+    assert.match(gate, / -> run .+ verify --restore$/, gate);
+    const lines: string[] = [];
+    assert.equal(restoreRun(store, { out: (l) => lines.push(l) }), 0, lines.join("\n"));
+    assert.match(lines.join("\n"), /restored 1, tree verified, lock removed/);
+    assert.equal(readFileSync(join(m.a, "src", "x.js"), "utf8"), "NEW\n");
+    assert.equal(existsSync(m.lockFile), false, "the lock stays");
+  } finally {
+    rmSync(base, { recursive: true, force: true });
   }
 });
