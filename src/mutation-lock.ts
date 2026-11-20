@@ -158,10 +158,12 @@ function placeOfDir(dir: string): Place | null {
  * worktree than the one `rootFromTop` names, as git, run from that store's root
  * alone (`placeOfDir`), places it. A `root` in this store, or in no store, says
  * nothing: a checkout moved up into its parent's place leaves its old root at a
- * directory of the worktree that is in no other store (decision row
- * 2026-11-20T05:23:35Z). So does a store git places in another worktree, a
- * repository nested in this one included. One `git rev-parse`, and none while
- * `root` is `dir`, as it is for every lock no one edited.
+ * directory of the worktree, which is in no store unless one above it holds
+ * that path (a store at the repository's top does, and that restore is still
+ * refused; decision row 2026-11-20T05:23:35Z). So does a store git places in
+ * another worktree, a repository nested in this one included. One `git
+ * rev-parse`, and none while `root` is `dir`, as it is for every lock no one
+ * edited.
  */
 export function rootDisagrees(lock: Pick<Lock, "root" | "rootFromTop">, dir: string, top: string): string | null {
   if (lock.root === dir) return null;
