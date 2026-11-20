@@ -443,3 +443,105 @@ test("an agent with no model field is not held to the model rule: Claude Code ta
     c.dispose();
   }
 });
+
+// ----------------------------------------------------------------- item 44: the size matrix
+
+const SIZE_MATRIX_FILES = [
+  "skills/router/SKILL.md",
+  "skills/router/playbooks/feature.md",
+  "skills/router/playbooks/bug-fix.md",
+  "skills/design/SKILL.md",
+  "skills/review/SKILL.md",
+  "skills/implement/SKILL.md",
+];
+
+/** Every markdown link to the matrix, replaced by its text. */
+const unlinkMatrix = (source: string): string => source.replace(/\[([^\]]*)\]\([^)]*size-matrix\.md[^)]*\)/g, "$1");
+
+test("the plugin as shipped links the size matrix from each of the six files and lints clean", () => {
+  const c = copy();
+  try {
+    const report = lint(c.root);
+    assert.equal(report.failed, false, JSON.stringify(report.failures));
+    for (const rel of SIZE_MATRIX_FILES) {
+      assert.match(readFileSync(join(c.root, rel), "utf8"), /\]\([^)]*size-matrix\.md\)/, `${rel} links the matrix`);
+    }
+  } finally {
+    c.dispose();
+  }
+});
+
+test("a missing size matrix is caught", () => {
+  const c = copy();
+  try {
+    rmSync(join(c.root, "skills", "router", "references", "size-matrix.md"));
+    expectFail(c.root, /^skills\/router\/references\/size-matrix\.md is missing -> /, "matrix removed");
+  } finally {
+    c.dispose();
+  }
+});
+
+test("each of the six files that stops linking the size matrix is caught, by name", () => {
+  for (const rel of SIZE_MATRIX_FILES) {
+    const c = copy();
+    try {
+      const file = join(c.root, rel);
+      const before = readFileSync(file, "utf8");
+      const after = unlinkMatrix(before);
+      assert.notEqual(after, before, `${rel} had a link to remove`);
+      writeFileSync(file, after);
+      expectFail(c.root, new RegExp(`^${rel.replace(/[./]/g, "\\$&")}: does not link skills/router/references/size-matrix\\.md`), `link removed from ${rel}`);
+    } finally {
+      c.dispose();
+    }
+  }
+});
+
+test("a router that links the matrix only outside its orient steps is caught", () => {
+  const c = copy();
+  try {
+    const file = join(c.root, "skills", "router", "SKILL.md");
+    const source = unlinkMatrix(readFileSync(file, "utf8"));
+    writeFileSync(file, `${source}\nSee the [size matrix](references/size-matrix.md).\n`);
+    expectFail(c.root, /^skills\/router\/SKILL\.md: does not link skills\/router\/references\/size-matrix\.md from its orient steps/, "link moved out of orient");
+  } finally {
+    c.dispose();
+  }
+});
+
+test("a router whose intake step does not pass --size is caught", () => {
+  const c = copy();
+  try {
+    const file = join(c.root, "skills", "router", "SKILL.md");
+    const before = readFileSync(file, "utf8");
+    assert.ok(before.includes("--size <s|m|l> "), "the fixture router passes --size");
+    writeFileSync(file, before.replace("--size <s|m|l> ", ""));
+    expectFail(c.root, /^skills\/router\/SKILL\.md: the intake step's state add does not pass --size -> /, "--size removed");
+  } finally {
+    c.dispose();
+  }
+});
+
+test("a second copy of the size table is caught, in a skill and in an agent", () => {
+  for (const rel of ["skills/review/SKILL.md", "agents/reviewer.md"]) {
+    const c = copy();
+    try {
+      const file = join(c.root, rel);
+      writeFileSync(file, `${readFileSync(file, "utf8")}\n| Step | s | m | l |\n|---|---|---|---|\n| Review | lone | lone | panel |\n`);
+      expectFail(c.root, new RegExp(`^${rel.replace(/[./]/g, "\\$&")}: carries a second copy of the size table`), `copy in ${rel}`);
+    } finally {
+      c.dispose();
+    }
+  }
+});
+
+test("a plugin with no router is not held to the size matrix rule", () => {
+  const c = copy();
+  try {
+    rmSync(join(c.root, "skills", "router"), { recursive: true });
+    const report = lint(c.root);
+    assert.ok(!report.failures.some((f) => /size-matrix\.md is missing|does not link|second copy|--size/.test(f)), JSON.stringify(report.failures));
+  } finally {
+    c.dispose();
+  }
+});

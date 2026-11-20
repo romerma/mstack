@@ -140,6 +140,7 @@ export function lintPlugin(root: string): Report {
 
   report.section("router");
   lintRouterIntake(dir, report);
+  lintSizeMatrix(dir, report);
 
   report.summary();
   return report;
@@ -499,10 +500,7 @@ function lintOrigins(root: string, report: Report): void {
 function lintRouterIntake(root: string, report: Report): void {
   const file = join(root, "skills", "router", "SKILL.md");
   if (!existsSync(file)) return;
-  const source = readFileSync(file, "utf8");
-  const start = source.indexOf("## First, orient");
-  const end = source.indexOf("\n## ", start + 1);
-  const orient = start === -1 ? "" : source.slice(start, end === -1 ? undefined : end);
+  const orient = orientSteps(readFileSync(file, "utf8"));
   if (/\]\(references\/intake\.md\)/.test(orient)) {
     report.ok("the router's orient steps link references/intake.md");
   } else {
@@ -511,6 +509,83 @@ function lintRouterIntake(root: string, report: Report): void {
       "intake is the router's step 3; restore it under '## First, orient'",
     );
   }
+}
+
+/** The router's `## First, orient` section, up to the next `## ` heading; empty when it has none. */
+function orientSteps(source: string): string {
+  const start = source.indexOf("## First, orient");
+  const end = source.indexOf("\n## ", start + 1);
+  return start === -1 ? "" : source.slice(start, end === -1 ? undefined : end);
+}
+
+/** The one copy of the size table (item 44). */
+export const SIZE_MATRIX = "skills/router/references/size-matrix.md";
+
+/** The files whose steps change with the item's size: each links the matrix and states only its own step. */
+export const SIZE_MATRIX_LINKED: readonly string[] = [
+  "skills/router/SKILL.md",
+  "skills/router/playbooks/feature.md",
+  "skills/router/playbooks/bug-fix.md",
+  "skills/design/SKILL.md",
+  "skills/review/SKILL.md",
+  "skills/implement/SKILL.md",
+];
+
+/** A table header row whose cells after the first are exactly s, m and l: the shape of the size table. */
+const SIZE_TABLE_HEADER = /^\|[^|\n]*\|\s*`?s`?\s*\|\s*`?m`?\s*\|\s*`?l`?\s*\|\s*$/m;
+
+/**
+ * The size matrix exists, each file in `SIZE_MATRIX_LINKED` links it (the router
+ * from its orient steps, whose intake `state add` passes `--size`), and no other
+ * file under `skills/` or `agents/` carries a copy of its table. A link is prose,
+ * so deleting one changes no other file and every step it scaled would silently
+ * read as the same at every size; a copied table drifts from the one it copies.
+ */
+function lintSizeMatrix(root: string, report: Report): void {
+  if (!existsSync(join(root, "skills", "router"))) return;
+  const matrix = resolve(root, SIZE_MATRIX);
+  const before = report.failures.length;
+  if (!existsSync(matrix)) {
+    report.fail(`${SIZE_MATRIX} is missing`, "it is the one copy of the size table, and the router and five more files link it; restore it");
+  }
+  for (const rel of SIZE_MATRIX_LINKED) {
+    const file = join(root, rel);
+    if (!existsSync(file)) {
+      report.fail(`${rel} is missing, and it is one of the files that link the size matrix`, `restore it, or take it out of SIZE_MATRIX_LINKED in src/lint.ts`);
+      continue;
+    }
+    const source = readFileSync(file, "utf8");
+    const router = rel === "skills/router/SKILL.md";
+    const scope = router ? orientSteps(source) : source;
+    if (router && !/--size\b/.test(scope)) {
+      report.fail(`${rel}: the intake step's state add does not pass --size`, "the router assigns the size at intake: 'mstack state add ... --size <s|m|l>', by the rule in references/size-matrix.md");
+    }
+    if (!linksTo(file, scope, matrix)) {
+      report.fail(
+        `${rel}: does not link ${SIZE_MATRIX}${router ? " from its orient steps" : ""}`,
+        "a file whose steps change with the item's size links the matrix and states only its own step",
+      );
+    }
+  }
+  const prose = [...collectAll(join(root, "skills")), ...collectAll(join(root, "agents"))].filter((f) => extname(f) === ".md" && resolve(f) !== matrix);
+  for (const file of prose) {
+    if (SIZE_TABLE_HEADER.test(readFileSync(file, "utf8"))) {
+      report.fail(`${relative(root, file)}: carries a second copy of the size table`, `the table lives in ${SIZE_MATRIX} alone; link it and say only this file's step`);
+    }
+  }
+  if (report.failures.length === before) {
+    report.ok(`${SIZE_MATRIX} exists, the ${SIZE_MATRIX_LINKED.length} files whose steps change with size link it (the router from its intake step, with --size), and no other file copies its table`);
+  }
+}
+
+/** Whether `source`, read as the text of `file`, has a markdown link that resolves to `target`. */
+function linksTo(file: string, source: string, target: string): boolean {
+  for (const match of source.matchAll(/\[[^\]]*\]\(([^)]+)\)/g)) {
+    const href = match[1] ?? "";
+    if (/^(https?:|mailto:|#)/.test(href)) continue;
+    if (resolve(dirname(file), href.split("#")[0] ?? "") === target) return true;
+  }
+  return false;
 }
 
 /**
