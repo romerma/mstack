@@ -1661,3 +1661,29 @@ newly denied. bun 1106 pass, 3 skip, 0 fail; node 1108 pass, 1 skip, 0 fail; gre
 **Closing.** `gate --full` green on the first run. Nothing was taken after the verdict.
 
 **Filed.** Item 105 `mutation-exits-followups`; two untested lines went to item 102.
+
+## 2026-11-20 - item 44 size-tiers closed (1 round)
+
+**What shipped.** One matrix, `skills/router/references/size-matrix.md`: each step of the work
+against s, m and l, the size rules the code already had (the 60-line, 3-file limit of s; no sdd at
+s; 12 and 30 requirements), and the rule intake uses to pick a size. The router, the feature and
+bug-fix playbooks and the design, review and implement skills link it and state only their own
+step; `lint-plugin` fails a missing link, a missing matrix, a router intake step without `--size`
+or a second copy of the table. A new closing check, `lens-panel`: a size l item at `verifying`,
+and again at `done`, needs one review round with two or more lens reports. It is not overridable,
+like three other closing checks. "m adds mutation" names the run; nothing enforces it, which stays
+with item 100.
+
+**Evidence.** The reviewer walked an s, an m and an l item through the router and both playbooks
+and found no two files in contradiction, and ran the gate check in 25 cases on the real CLI; every
+fix line works as printed. bun 1130 pass, 3 skip, 0 fail; node 1132 pass, 1 skip, 0 fail; green
+with dash as `sh`. No live session ran the skill text: reading and `lint-plugin` only.
+
+**What is left open, in item 106.** Lowering the size at `verifying` is the one way past the panel
+and records no reason. The check counts files of 40 bytes, not reviews. Items that never pass
+intake are never sized: 42 of this repository's 47 open items have no size and read as m.
+
+**Closing.** `gate --full` green on the first run. Third item of the program to close in one
+round. Nothing was taken after the verdict.
+
+**Filed.** Item 106 `size-tiers-followups`.

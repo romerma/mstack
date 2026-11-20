@@ -6,10 +6,10 @@
 > On close: append the summary to `history.md` and reset this file to the
 > empty template below.
 
-- **Item:** 44 size-tiers (item 100 is parked on two forks for the user)
-- **Status:** verifying; round 1 APPROVED (0 blocking, 10 non-blocking to a follow-up); gate --full running
-- **Branch:** feat/size-tiers
-- **Base:** e28c452a78af64317c04347b4569b11e36071b31
+- **Item:** none active (42, 104, 101 and 44 closed; 100 parked on two forks for the user after three spec rounds)
+- **Status:** -
+- **Branch:** main
+- **Base:** -
 - **Worktree:** none
 
 ## Plan
@@ -82,8 +82,9 @@ Also for the user: ADR 0001 states their decision of 2026-10-31 and gives no rea
 record has none; the reason is theirs to add (item 58, round 2 review, non-blocking 10).
 
 Next, not blocked:
-0. Phase 3: 44, then 63 (needs 44) and 65. Item 100 waits for the user. Follow-ups of 42: 102,
-   103, 105 (101 closed 2026-11-20).
+0. Phase 3: 63 and 65 (44 closed 2026-11-20; its follow-up is 106). Item 100 waits for the user
+   and, being size l, needs a review round of two lens reports when it resumes. Follow-ups of 42:
+   102, 103, 105.
 1. Phase 2: 59 (in flight) diagnosis-loop-in-bug-fix, then 60, 61, 62, 64. Follow-up of 58: item 83.
 2. Architecture candidates filed by the deepen playbook: 76 to 80, and 81.
 3. Durability follow-ups: 67 first (its budget test made the closing gate of 58 red three runs

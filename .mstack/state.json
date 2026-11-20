@@ -656,9 +656,10 @@
         "The router, the feature and bug-fix playbooks and the design, review and implement skills carry one matrix: s skips design candidates and the panel, m adds mutation, l adds understand, design twice and a lens panel; delegation and an independent review hold at every size",
         "The router assigns a size at intake, and the gate fails an l item at verifying with no review round of two or more lens reports"
       ],
-      "status": "verifying",
+      "status": "done",
       "size": "m",
-      "base": "e28c452a78af64317c04347b4569b11e36071b31"
+      "base": "e28c452a78af64317c04347b4569b11e36071b31",
+      "closed_by": "one round; review_size-tiers.md APPROVED at a5c87ef; gate --full green on the first run"
     },
     {
       "id": 45,
@@ -1627,6 +1628,22 @@
       "description": "Both rounds approved with nothing lost in any case; these are the points left after the verdict. None was introduced by item 101.",
       "size": "m",
       "source": "item 101 reviews, .mstack/progress/review_mutation-printed-exits.md non-blocking 4 and review_mutation-printed-exits_r2.md non-blocking 1, 2, 3, 2026-11-20"
+    },
+    {
+      "id": 106,
+      "slug": "size-tiers-followups",
+      "title": "Follow-ups from item 44: re-sizing past the panel leaves no reason, the panel check counts files, and items that skip intake are never sized",
+      "acceptance": [
+        "a change of size on an item at verifying, or a --clear size with --status done, leaves a reason on the record (a decision row, as spec-size does) or is refused; today state set --size m turns the gate green with no row and --status done --clear size closes an l item in one command",
+        "the lens-panel check is decided: it reads something a review writes (a verdict line, a ledger row per lens) rather than any two files of 40 bytes named review_<slug>_<x>.md, or the docs say it places the trust fanout check places in files; the 40-byte boundary has a test (the review's mutant M2 survives)",
+        "every state add a skill or playbook prints passes --size (orchestrate.md, deepen.md, setup/SKILL.md do not), and the router sizes an existing item with no size when it takes it up; the 42 open items here with no size are sized or the reason they read as m is recorded",
+        "lint-plugin does not count a link to the matrix inside an HTML comment or a code fence, reads a capitalised header and docs/ for a second copy, and does not fail a consumer plugin that has its own skills/router with no matrix (today 1 failure becomes 9)",
+        "the two docs pages that restate the matrix in prose link it instead; the matrix says which steps an item owes when its size is raised mid-work; the CHANGELOG Upgrading note names the review-rN row a panel needs from round 3; the bug-fix design trigger and the matrix's m design cell say the same thing"
+      ],
+      "status": "pending",
+      "description": "The review approved in one round and left ten points. The first is the same shape as R26 to R28 of item 100's spec (a change of size, base or verification at verifying goes on the record); if item 100 lands first, build on it.",
+      "size": "m",
+      "source": "item 44 review, .mstack/progress/review_size-tiers.md non-blocking 1 to 10, 2026-11-20"
     }
   ]
 }
